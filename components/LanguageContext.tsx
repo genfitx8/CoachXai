@@ -1,0 +1,334 @@
+
+import React, { createContext, useState, useContext, ReactNode } from 'react';
+
+export type Language = 'ko' | 'en' | 'ja';
+
+type Translations = {
+  [key in Language]: {
+    [key: string]: string;
+  };
+};
+
+const translations: Translations = {
+  ko: {
+    // Auth
+    app_desc: "골프 레슨 분석 & 관리 플랫폼",
+    coach_login: "코치님 로그인",
+    client_login: "회원님 로그인",
+    admin_login: "관리자 로그인",
+    email: "이메일",
+    password: "비밀번호",
+    name: "이름",
+    phone: "전화번호",
+    phone_desc: "*레슨 기록 연동을 위해 정확한 번호를 입력해주세요.",
+    auto_login: "자동 로그인",
+    login_btn: "로그인",
+    signup_btn: "회원가입",
+    signup_msg: "계정이 없으신가요? 회원가입하기",
+    login_msg: "이미 계정이 있으신가요? 로그인하기",
+    admin_only: "시스템 관리자 전용 페이지입니다.",
+    find_account: "아이디/비밀번호 찾기",
+    find_email_title: "이메일(ID) 찾기",
+    find_pw_title: "비밀번호 찾기",
+    find_btn: "찾기",
+    result_email: "회원님의 이메일은 다음과 같습니다:",
+    result_pw: "회원님의 비밀번호는 다음과 같습니다:",
+    not_found: "일치하는 정보를 찾을 수 없습니다.",
+    // Common
+    logout: "로그아웃",
+    cancel: "취소",
+    save: "저장",
+    confirm: "확인",
+    delete: "삭제",
+    edit: "수정",
+    back: "돌아가기",
+    loading: "로딩 중...",
+    // Coach Dashboard
+    coach_dashboard: "레슨 관리 대시보드",
+    coach_dashboard_desc: "회원님의 레슨을 기록하고 관리하세요.",
+    start_lesson: "레슨 시작",
+    reservation_management: "예약 관리",
+    no_lessons: "기록된 레슨이 없습니다",
+    no_lessons_desc: "상단의 '레슨 시작' 버튼을 눌러 첫 레슨을 기록해보세요.",
+    // Client Dashboard
+    today_mission: "오늘의 미션",
+    no_mission_today: "오늘 예정된 과제가 없습니다.",
+    mission_manage: "미션 관리",
+    ai_recommend: "AI 추천",
+    stats: "데이터 통계",
+    my_info: "내 정보 설정",
+    recent_records: "최근 기록",
+    no_records: "아직 기록이 없습니다",
+    no_records_desc: "첫 연습이나 레슨을 기록해보세요!",
+    // Roles
+    coach: "프로",
+    client: "회원",
+    // CoachX
+    coachx_subtitle: "AI 골프 코칭 인텔리전스",
+    coachx_entry_label: "CoachX 열기",
+    coachx_entry_desc: "AI 인사이트 & 코칭 허브",
+    coachx_tab_insights: "인사이트",
+    coachx_tab_members: "회원 성장",
+    coachx_tab_curriculum: "커리큘럼",
+    coachx_stat_lessons: "레슨 기록",
+    coachx_stat_members: "담당 회원",
+    coachx_stat_improving: "성장 중",
+    coachx_stat_attention: "집중 케어",
+    coachx_ask_title: "CoachX에게 질문하기",
+    coachx_ask_desc: "레슨 데이터 기반 AI 코칭 어시스턴트",
+    coachx_insights_section: "오늘의 CoachX 인사이트",
+    coachx_attention_label: "집중 케어가 필요한 회원",
+    coachx_stagnation_watch: "성장 주의 필요 회원",
+    coachx_no_members: "레슨 기록이 없습니다. 첫 레슨을 기록해보세요!",
+    coachx_curriculum_section: "추천 커리큘럼 & 코치 성장",
+    coachx_per_member_curriculum: "회원별 추천 커리큘럼",
+    coachx_suggested_prompts: "추천 질문",
+    coachx_chat_placeholder: "CoachX에게 질문하세요...",
+    // MemberReportCard
+    coachx_trend_improving: "성장 중",
+    coachx_trend_plateau: "정체 구간",
+    coachx_trend_new: "초기 단계",
+    coachx_trend_inactive: "장기 미레슨",
+    coachx_lesson_count: "레슨 {n}회",
+    coachx_days_ago: "{n}일 전",
+    coachx_attention_high: "집중 케어 필요",
+    coachx_attention_medium: "진행 중",
+    coachx_attention_low: "안정적",
+    coachx_section_report: "성장 리포트",
+    coachx_section_curriculum: "커리큘럼",
+    coachx_section_drills: "추천 드릴",
+    coachx_repeated_issues: "반복 교정 포인트",
+    coachx_strengths: "강화된 영역",
+    coachx_suggested_focus: "다음 레슨 집중 방향",
+    coachx_plateau_tip: "같은 문제가 반복되고 있습니다. 새로운 드릴 접근법이나 다른 주제로의 전환을 고려해보세요.",
+    coachx_inactive_tip: "오랫동안 레슨이 없었습니다. 재참여 메시지나 목표 재설정 레슨을 권장합니다.",
+    coachx_curriculum_5_sessions: "추천 5회 커리큘럼",
+    coachx_drill_suggestions: "추천 연습 드릴",
+    coachx_suggested_drills_short: "추천 드릴",
+    coachx_drills_note: "드릴은 회원의 현재 수준에 맞게 조정하여 사용하세요.",
+  },
+  en: {
+    // Auth
+    app_desc: "Golf Lesson Analysis & Management Platform",
+    coach_login: "Coach Login",
+    client_login: "Member Login",
+    admin_login: "Admin Login",
+    email: "Email",
+    password: "Password",
+    name: "Name",
+    phone: "Phone Number",
+    phone_desc: "*Please enter exact number to link records.",
+    auto_login: "Auto Login",
+    login_btn: "Log In",
+    signup_btn: "Sign Up",
+    signup_msg: "No account? Sign up",
+    login_msg: "Have an account? Log in",
+    admin_only: "System Administrator Access Only.",
+    find_account: "Find ID/Password",
+    find_email_title: "Find Email",
+    find_pw_title: "Find Password",
+    find_btn: "Find",
+    result_email: "Your email address is:",
+    result_pw: "Your password is:",
+    not_found: "No matching account found.",
+    // Common
+    logout: "Log Out",
+    cancel: "Cancel",
+    save: "Save",
+    confirm: "Confirm",
+    delete: "Delete",
+    edit: "Edit",
+    back: "Back",
+    loading: "Loading...",
+    // Coach Dashboard
+    coach_dashboard: "Lesson Dashboard",
+    coach_dashboard_desc: "Manage and record student lessons.",
+    start_lesson: "Start Lesson",
+    reservation_management: "Reservations",
+    no_lessons: "No lessons recorded",
+    no_lessons_desc: "Click 'Start Lesson' to record your first lesson.",
+    // Client Dashboard
+    today_mission: "Today's Mission",
+    no_mission_today: "No tasks scheduled for today.",
+    mission_manage: "Manage",
+    ai_recommend: "AI Suggest",
+    stats: "Statistics",
+    my_info: "My Profile",
+    recent_records: "Recent Records",
+    no_records: "No records yet",
+    no_records_desc: "Record your first practice or lesson!",
+    // Roles
+    coach: "Pro",
+    client: "Member",
+    // CoachX
+    coachx_subtitle: "AI Golf Coaching Intelligence",
+    coachx_entry_label: "Open CoachX",
+    coachx_entry_desc: "AI Insights & Coaching Hub",
+    coachx_tab_insights: "Insights",
+    coachx_tab_members: "Member Growth",
+    coachx_tab_curriculum: "Curriculum",
+    coachx_stat_lessons: "Lessons",
+    coachx_stat_members: "Members",
+    coachx_stat_improving: "Improving",
+    coachx_stat_attention: "Needs Attention",
+    coachx_ask_title: "Ask CoachX",
+    coachx_ask_desc: "Data-driven AI coaching assistant",
+    coachx_insights_section: "Today's CoachX Insights",
+    coachx_attention_label: "Members Needing Attention",
+    coachx_stagnation_watch: "Growth Watch",
+    coachx_no_members: "No lesson records yet. Start recording lessons!",
+    coachx_curriculum_section: "Recommended Curriculum & Coach Growth",
+    coachx_per_member_curriculum: "Per-Member Curriculum",
+    coachx_suggested_prompts: "Suggested prompts",
+    coachx_chat_placeholder: "Ask CoachX anything...",
+    // MemberReportCard
+    coachx_trend_improving: "Improving",
+    coachx_trend_plateau: "Plateau",
+    coachx_trend_new: "Getting Started",
+    coachx_trend_inactive: "Inactive",
+    coachx_lesson_count: "{n} lessons",
+    coachx_days_ago: "{n}d ago",
+    coachx_attention_high: "Needs Focus",
+    coachx_attention_medium: "In Progress",
+    coachx_attention_low: "Steady",
+    coachx_section_report: "Growth Report",
+    coachx_section_curriculum: "Curriculum",
+    coachx_section_drills: "Drills",
+    coachx_repeated_issues: "Potential Teaching Opportunities",
+    coachx_strengths: "Developing Areas",
+    coachx_suggested_focus: "Suggested Next Focus",
+    coachx_plateau_tip: "This member may benefit from a fresh approach or a new drill to break through this development area.",
+    coachx_inactive_tip: "It's been a while since the last lesson. A re-engagement session or goal reset could be helpful.",
+    coachx_curriculum_5_sessions: "Suggested 5-Session Curriculum",
+    coachx_drill_suggestions: "Helpful Practice Drills",
+    coachx_suggested_drills_short: "Suggested Drills",
+    coachx_drills_note: "Adjust drills to suit the member's current skill level and comfort.",
+  },
+  ja: {
+    // Auth
+    app_desc: "ゴルフレッスン分析・管理プラットフォーム",
+    coach_login: "コーチログイン",
+    client_login: "会員ログイン",
+    admin_login: "管理者ログイン",
+    email: "メールアドレス",
+    password: "パスワード",
+    name: "名前",
+    phone: "電話番号",
+    phone_desc: "*記録連携のため正確な番号を入力してください。",
+    auto_login: "自動ログイン",
+    login_btn: "ログイン",
+    signup_btn: "会員登録",
+    signup_msg: "アカウントをお持ちでないですか？登録",
+    login_msg: "すでにアカウントをお持ちですか？ログイン",
+    admin_only: "システム管理者専用ページです。",
+    find_account: "ID/パスワード検索",
+    find_email_title: "メールアドレス検索",
+    find_pw_title: "パスワード検索",
+    find_btn: "検索",
+    result_email: "あなたのメールアドレスは:",
+    result_pw: "あなたのパスワードは:",
+    not_found: "一致するアカウントが見つかりません。",
+    // Common
+    logout: "ログアウト",
+    cancel: "キャンセル",
+    save: "保存",
+    confirm: "確認",
+    delete: "削除",
+    edit: "修正",
+    back: "戻る",
+    loading: "読み込み中...",
+    // Coach Dashboard
+    coach_dashboard: "レッスン管理",
+    coach_dashboard_desc: "会員のレッスンを記録・管理します。",
+    start_lesson: "レッスン開始",
+    reservation_management: "予約管理",
+    no_lessons: "記録されたレッスンがありません",
+    no_lessons_desc: "'レッスン開始'ボタンを押して記録してください。",
+    // Client Dashboard
+    today_mission: "今日のミッション",
+    no_mission_today: "今日の課題はありません。",
+    mission_manage: "管理",
+    ai_recommend: "AI推奨",
+    stats: "データ統計",
+    my_info: "設定",
+    recent_records: "最近の記録",
+    no_records: "記録がありません",
+    no_records_desc: "最初の練習やレッスンを記録しましょう！",
+    // Roles
+    coach: "プロ",
+    client: "会員",
+    // CoachX
+    coachx_subtitle: "AIゴルフコーチングインテリジェンス",
+    coachx_entry_label: "CoachXを開く",
+    coachx_entry_desc: "AIインサイト & コーチングハブ",
+    coachx_tab_insights: "インサイト",
+    coachx_tab_members: "会員成長",
+    coachx_tab_curriculum: "カリキュラム",
+    coachx_stat_lessons: "レッスン記録",
+    coachx_stat_members: "担当会員",
+    coachx_stat_improving: "成長中",
+    coachx_stat_attention: "要注意",
+    coachx_ask_title: "CoachXに質問する",
+    coachx_ask_desc: "データ基盤のAIコーチングアシスタント",
+    coachx_insights_section: "今日のCoachXインサイト",
+    coachx_attention_label: "注意が必要な会員",
+    coachx_stagnation_watch: "成長要観察会員",
+    coachx_no_members: "レッスン記録がありません。最初のレッスンを記録しましょう！",
+    coachx_curriculum_section: "推奨カリキュラム & コーチ成長",
+    coachx_per_member_curriculum: "会員別推奨カリキュラム",
+    coachx_suggested_prompts: "おすすめの質問",
+    coachx_chat_placeholder: "CoachXに質問してください...",
+    // MemberReportCard
+    coachx_trend_improving: "成長中",
+    coachx_trend_plateau: "停滞期",
+    coachx_trend_new: "開始段階",
+    coachx_trend_inactive: "長期未レッスン",
+    coachx_lesson_count: "レッスン{n}回",
+    coachx_days_ago: "{n}日前",
+    coachx_attention_high: "集中ケア必要",
+    coachx_attention_medium: "進行中",
+    coachx_attention_low: "安定",
+    coachx_section_report: "成長レポート",
+    coachx_section_curriculum: "カリキュラム",
+    coachx_section_drills: "推奨ドリル",
+    coachx_repeated_issues: "繰り返し教正ポイント",
+    coachx_strengths: "強化されたエリア",
+    coachx_suggested_focus: "次のレッスン推奨フォーカス",
+    coachx_plateau_tip: "同じ課題が繰り返されています。新しいアプローチや別のテーマへの転換を検討してください。",
+    coachx_inactive_tip: "最後のレッスンから時間が経っています。再参加メッセージや目標再設定レッスンをお勧めします。",
+    coachx_curriculum_5_sessions: "推奨5回カリキュラム",
+    coachx_drill_suggestions: "推奨練習ドリル",
+    coachx_suggested_drills_short: "推奨ドリル",
+    coachx_drills_note: "ドリルは会員の現在のレベルに合わせて調整してください。",
+  }
+};
+
+interface LanguageContextType {
+  language: Language;
+  setLanguage: (lang: Language) => void;
+  t: (key: string) => string;
+}
+
+const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
+
+export const LanguageProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  const [language, setLanguage] = useState<Language>('ko');
+
+  const t = (key: string) => {
+    return translations[language][key] || key;
+  };
+
+  return (
+    <LanguageContext.Provider value={{ language, setLanguage, t }}>
+      {children}
+    </LanguageContext.Provider>
+  );
+};
+
+export const useLanguage = () => {
+  const context = useContext(LanguageContext);
+  if (!context) {
+    throw new Error('useLanguage must be used within a LanguageProvider');
+  }
+  return context;
+};
