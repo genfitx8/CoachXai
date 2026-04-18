@@ -42,14 +42,17 @@ View your app in AI Studio: https://ai.studio/apps/drive/13GzuTDTTZ6zf_mCdHkHCpE
    - Build Command: `npm run build`
    - Output Directory: `dist`
 4. Add environment variables in Vercel Project Settings (same values as your local `.env`), at minimum:
-   - `GEMINI_API_KEY`
    - `VITE_FIREBASE_API_KEY`
    - `VITE_FIREBASE_AUTH_DOMAIN`
    - `VITE_FIREBASE_PROJECT_ID`
    - `VITE_FIREBASE_STORAGE_BUCKET`
    - `VITE_FIREBASE_MESSAGING_SENDER_ID`
    - `VITE_FIREBASE_APP_ID`
-   - `VITE_API_BASE_URL` (your deployed backend API base URL)
+   - `VITE_API_BASE_URL` (your separately deployed backend API base URL)
 5. Deploy.
 
 `vercel.json` also rewrites all routes to `index.html` so direct access to SPA routes works correctly.
+
+> ⚠️ `GEMINI_API_KEY` is compiled into the client bundle in this app structure.  
+> For production, prefer a backend/serverless proxy for Gemini calls and keep the key server-side.
+> Do **not** add `GEMINI_API_KEY` to this frontend Vercel project's environment variables.
