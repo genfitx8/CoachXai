@@ -1,0 +1,27 @@
+{
+  "name": "Swingnote - 스윙노트",
+  "short_name": "스윙노트",
+  "description": "골프 레슨 기록과 예약을 한 곳에서 관리하세요. 코치와 회원을 위한 스윙노트 앱입니다.",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#10b981",
+  "background_color": "#f9fafb",
+  "lang": "ko",
+  "scope": "/",
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["sports", "productivity"]
+}
