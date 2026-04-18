@@ -1,0 +1,14 @@
+This commit should be a revert of ae12664120f00fe8f18055954415a1d70c6908d3.
+
+However, due to technical limitations in the automated environment,
+the actual file restoration must be performed manually.
+
+The commit ae12664 deleted all source code files. Reverting it would
+restore approximately 18,856 lines across 47 files.
+
+To complete the restoration, run:
+git revert ae12664120f00fe8f18055954415a1d70c6908d3
+
+Alternatively:
+git checkout 9aea19859691701d0ec3516692934074f4d704ea -- .
+git commit --amend -m "Revert 'Revert \"Merge pull request #9\"'"
