@@ -1,0 +1,8 @@
+{
+  "name": "SWINGNOTE",
+  "description": "골프 레슨 영상을 저장하고 AI 코치와 함께 스윙을 분석하는 스마트한 레슨 기록 앱입니다.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
