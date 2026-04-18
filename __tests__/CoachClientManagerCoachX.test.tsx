@@ -25,7 +25,7 @@ vi.mock('../components/LanguageContext', () => ({
         coachx_trend_plateau: '정체 구간',
         coachx_trend_inactive: '장기 미레슨',
         coachx_trend_new: '초기 단계',
-        coachx_client_ask_coachx: 'CoachX 분석',
+        coachx_client_ask_coachx: 'Coachx 분석',
       };
       return map[key] ?? key;
     },
@@ -115,7 +115,7 @@ describe('CoachClientManager – CoachX integration', () => {
       />
     );
     expect(screen.getByTestId(`coachx-btn-${CLIENT.name}`)).toBeTruthy();
-    expect(screen.getByText('CoachX 분석')).toBeTruthy();
+    expect(screen.getByText('Coachx 분석')).toBeTruthy();
   });
 
   it('calls onOpenCoachX with the member name when Ask CoachX button is clicked', () => {

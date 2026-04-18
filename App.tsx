@@ -1354,7 +1354,7 @@ const AppContent: React.FC = () => {
               </div>
 
               <div className="flex-1 text-left">
-                <p className="text-lg font-extrabold text-white tracking-tight">CoachX</p>
+                <p className="text-lg font-extrabold text-white tracking-tight">Coachx</p>
                 <p className="text-xs text-slate-300 mt-0.5">
                   {coachXUrgentCount > 0
                     ? coachXUrgentCount === 1

@@ -282,7 +282,7 @@ export const CoachClientManager: React.FC<CoachClientManagerProps> = ({
                       {report && (
                         <span
                           className={`inline-flex items-center text-[10px] font-semibold px-1.5 py-0.5 rounded-full border ${trendBadgeClass(report.trendIndicator)}`}
-                          aria-label={`CoachX: ${trendLabel(report.trendIndicator)}`}
+                          aria-label={`Coachx: ${trendLabel(report.trendIndicator)}`}
                         >
                           {trendLabel(report.trendIndicator)}
                         </span>

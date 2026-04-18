@@ -63,9 +63,9 @@ const translations: Translations = {
     // Roles
     coach: "프로",
     client: "회원",
-    // CoachX
+    // Coachx
     coachx_subtitle: "AI 골프 코칭 인텔리전스",
-    coachx_entry_label: "CoachX 열기",
+    coachx_entry_label: "Coachx 열기",
     coachx_entry_desc: "AI 인사이트 & 코칭 허브",
     coachx_tab_insights: "인사이트",
     coachx_tab_members: "회원 성장",
@@ -74,16 +74,16 @@ const translations: Translations = {
     coachx_stat_members: "담당 회원",
     coachx_stat_improving: "성장 중",
     coachx_stat_attention: "집중 케어",
-    coachx_ask_title: "CoachX에게 질문하기",
+    coachx_ask_title: "Coachx에게 질문하기",
     coachx_ask_desc: "레슨 데이터 기반 AI 코칭 어시스턴트",
-    coachx_insights_section: "오늘의 CoachX 인사이트",
+    coachx_insights_section: "오늘의 Coachx 인사이트",
     coachx_attention_label: "집중 케어가 필요한 회원",
     coachx_stagnation_watch: "성장 주의 필요 회원",
     coachx_no_members: "레슨 기록이 없습니다. 첫 레슨을 기록해보세요!",
     coachx_curriculum_section: "추천 커리큘럼 & 코치 성장",
     coachx_per_member_curriculum: "회원별 추천 커리큘럼",
     coachx_suggested_prompts: "추천 질문",
-    coachx_chat_placeholder: "CoachX에게 질문하세요...",
+    coachx_chat_placeholder: "Coachx에게 질문하세요...",
     // MemberReportCard
     coachx_trend_improving: "성장 중",
     coachx_trend_plateau: "정체 구간",
@@ -130,9 +130,9 @@ const translations: Translations = {
     coachx_growth_vs_prev: "전월 대비",
     coachx_growth_ai_summary_title: "AI 코치 성장 분석",
     coachx_growth_ai_summary_loading: "AI가 코치 성장 분석을 생성 중입니다…",
-    // CoachX Live tab (inside CoachX Hub)
+    // Coachx Live tab (inside Coachx Hub)
     coachx_tab_live: "라이브",
-    coachx_live_section_title: "CoachX 라이브 현황",
+    coachx_live_section_title: "Coachx 라이브 현황",
     coachx_live_today_sessions: "오늘의 레슨 기록",
     coachx_live_today_sessions_count: "{n}건 기록됨",
     coachx_live_no_sessions_today: "오늘 기록된 레슨이 없습니다.",
@@ -142,29 +142,29 @@ const translations: Translations = {
     coachx_live_inactive_action: "{name} — 재활성화 레슨을 권장합니다.",
     coachx_live_plateau_action: "{name} — 성장 돌파 집중 레슨을 권장합니다.",
     coachx_live_recent_activity: "최근 활동",
-    coachx_live_ask_coachx: "CoachX에게 물어보기",
+    coachx_live_ask_coachx: "Coachx에게 물어보기",
     coachx_live_no_data: "레슨을 기록하면 라이브 현황이 표시됩니다.",
-    // CoachX Preview Strip (home)
-    coachx_preview_title: "CoachX 라이브 현황",
+    // Coachx Preview Strip (home)
+    coachx_preview_title: "Coachx 라이브 현황",
     coachx_preview_view_all: "전체 보기",
-    coachx_preview_open_label: "CoachX 허브 열기",
+    coachx_preview_open_label: "Coachx 허브 열기",
     coachx_preview_improving: "성장 중",
     coachx_preview_plateau: "정체 구간",
     coachx_preview_inactive: "장기 미레슨",
     coachx_preview_new: "신규",
     coachx_preview_urgency_suffix: "회원 — 집중 케어 또는 재참여 레슨을 권장합니다.",
-    // CoachX Member History tab
+    // Coachx Member History tab
     coachx_section_history: "레슨 이력",
     coachx_history_monthly_activity: "월별 레슨 현황",
     coachx_history_recent_lessons: "최근 레슨 기록",
     coachx_history_empty: "이전 레슨 기록이 없습니다.",
     coachx_history_untitled: "레슨",
-    coachx_ask_about_member: "{name} 회원 CoachX 분석",
-    // CoachX urgency badge (home entry button)
+    coachx_ask_about_member: "{name} 회원 Coachx 분석",
+    // Coachx urgency badge (home entry button)
     coachx_urgency_n_members: "{n}명 집중 케어 필요",
     coachx_urgency_one_member: "1명 집중 케어 필요",
-    // CoachX integration in client list
-    coachx_client_ask_coachx: "CoachX 분석",
+    // Coachx integration in client list
+    coachx_client_ask_coachx: "Coachx 분석",
     // PR #108 – member growth detail screen
     coachx_view_full_report: "전체 리포트",
     coachx_growth_score_label: "성장 점수",
@@ -664,7 +664,7 @@ const translations: Translations = {
     new_lesson_target_input: "레슨 대상 입력",
     new_lesson_ai_analysis: "AI 레슨 분석",
     new_lesson_ai_round_desc: "18홀 기록을 바탕으로 라운드를 요약합니다.",
-    new_lesson_ai_video_desc: "CoachX AI가 영상을 분석하여 리포트를 생성합니다.",
+    new_lesson_ai_video_desc: "Coachx AI가 영상을 분석하여 리포트를 생성합니다.",
     new_lesson_club_label: "사용 클럽",
     new_lesson_club_none: "선택안함",
     new_lesson_score_label: "라운드 스코어 (Total)",
@@ -741,9 +741,9 @@ const translations: Translations = {
     // Roles
     coach: "Pro",
     client: "Member",
-    // CoachX
+    // Coachx
     coachx_subtitle: "AI Golf Coaching Intelligence",
-    coachx_entry_label: "Open CoachX",
+    coachx_entry_label: "Open Coachx",
     coachx_entry_desc: "AI Insights & Coaching Hub",
     coachx_tab_insights: "Insights",
     coachx_tab_members: "Member Growth",
@@ -752,16 +752,16 @@ const translations: Translations = {
     coachx_stat_members: "Members",
     coachx_stat_improving: "Improving",
     coachx_stat_attention: "Needs Attention",
-    coachx_ask_title: "Ask CoachX",
+    coachx_ask_title: "Ask Coachx",
     coachx_ask_desc: "Data-driven AI coaching assistant",
-    coachx_insights_section: "Today's CoachX Insights",
+    coachx_insights_section: "Today's Coachx Insights",
     coachx_attention_label: "Members Needing Attention",
     coachx_stagnation_watch: "Growth Watch",
     coachx_no_members: "No lesson records yet. Start recording lessons!",
     coachx_curriculum_section: "Recommended Curriculum & Coach Growth",
     coachx_per_member_curriculum: "Per-Member Curriculum",
     coachx_suggested_prompts: "Suggested prompts",
-    coachx_chat_placeholder: "Ask CoachX anything...",
+    coachx_chat_placeholder: "Ask Coachx anything...",
     // MemberReportCard
     coachx_trend_improving: "Improving",
     coachx_trend_plateau: "Plateau",
@@ -808,9 +808,9 @@ const translations: Translations = {
     coachx_growth_vs_prev: "vs prev",
     coachx_growth_ai_summary_title: "AI Coach Growth Analysis",
     coachx_growth_ai_summary_loading: "AI is generating your coaching growth analysis…",
-    // CoachX Live tab (inside CoachX Hub)
+    // Coachx Live tab (inside Coachx Hub)
     coachx_tab_live: "Live",
-    coachx_live_section_title: "CoachX Live",
+    coachx_live_section_title: "Coachx Live",
     coachx_live_today_sessions: "Today's Sessions",
     coachx_live_today_sessions_count: "{n} recorded",
     coachx_live_no_sessions_today: "No sessions recorded today.",
@@ -820,29 +820,29 @@ const translations: Translations = {
     coachx_live_inactive_action: "{name} — A re-engagement lesson is recommended.",
     coachx_live_plateau_action: "{name} — A breakthrough focus session is recommended.",
     coachx_live_recent_activity: "Recent Activity",
-    coachx_live_ask_coachx: "Ask CoachX",
+    coachx_live_ask_coachx: "Ask Coachx",
     coachx_live_no_data: "Record lessons to activate the live status view.",
-    // CoachX Preview Strip (home)
-    coachx_preview_title: "CoachX Live Snapshot",
+    // Coachx Preview Strip (home)
+    coachx_preview_title: "Coachx Live Snapshot",
     coachx_preview_view_all: "View all",
-    coachx_preview_open_label: "Open CoachX Hub",
+    coachx_preview_open_label: "Open Coachx Hub",
     coachx_preview_improving: "improving",
     coachx_preview_plateau: "plateau",
     coachx_preview_inactive: "inactive",
     coachx_preview_new: "new",
     coachx_preview_urgency_suffix: "— focused care or a re-engagement session is recommended.",
-    // CoachX Member History tab
+    // Coachx Member History tab
     coachx_section_history: "History",
     coachx_history_monthly_activity: "Monthly Activity",
     coachx_history_recent_lessons: "Recent Lessons",
     coachx_history_empty: "No lesson history yet.",
     coachx_history_untitled: "Lesson",
-    coachx_ask_about_member: "Ask CoachX about {name}",
-    // CoachX urgency badge (home entry button)
+    coachx_ask_about_member: "Ask Coachx about {name}",
+    // Coachx urgency badge (home entry button)
     coachx_urgency_n_members: "{n} members need attention",
     coachx_urgency_one_member: "1 member needs attention",
-    // CoachX integration in client list
-    coachx_client_ask_coachx: "CoachX Analysis",
+    // Coachx integration in client list
+    coachx_client_ask_coachx: "Coachx Analysis",
     // PR #108 – member growth detail screen
     coachx_view_full_report: "Full Report",
     coachx_growth_score_label: "Growth Score",
@@ -1342,7 +1342,7 @@ const translations: Translations = {
     new_lesson_target_input: "Enter Lesson Target",
     new_lesson_ai_analysis: "AI Lesson Analysis",
     new_lesson_ai_round_desc: "Summarizes the round based on 18-hole records.",
-    new_lesson_ai_video_desc: "CoachX AI analyzes the video and generates a report.",
+    new_lesson_ai_video_desc: "Coachx AI analyzes the video and generates a report.",
     new_lesson_club_label: "Club Used",
     new_lesson_club_none: "None",
     new_lesson_score_label: "Round Score (Total)",
@@ -1419,9 +1419,9 @@ const translations: Translations = {
     // Roles
     coach: "プロ",
     client: "会員",
-    // CoachX
+    // Coachx
     coachx_subtitle: "AIゴルフコーチングインテリジェンス",
-    coachx_entry_label: "CoachXを開く",
+    coachx_entry_label: "Coachxを開く",
     coachx_entry_desc: "AIインサイト & コーチングハブ",
     coachx_tab_insights: "インサイト",
     coachx_tab_members: "会員成長",
@@ -1430,16 +1430,16 @@ const translations: Translations = {
     coachx_stat_members: "担当会員",
     coachx_stat_improving: "成長中",
     coachx_stat_attention: "要注意",
-    coachx_ask_title: "CoachXに質問する",
+    coachx_ask_title: "Coachxに質問する",
     coachx_ask_desc: "データ基盤のAIコーチングアシスタント",
-    coachx_insights_section: "今日のCoachXインサイト",
+    coachx_insights_section: "今日のCoachxインサイト",
     coachx_attention_label: "注意が必要な会員",
     coachx_stagnation_watch: "成長要観察会員",
     coachx_no_members: "レッスン記録がありません。最初のレッスンを記録しましょう！",
     coachx_curriculum_section: "推奨カリキュラム & コーチ成長",
     coachx_per_member_curriculum: "会員別推奨カリキュラム",
     coachx_suggested_prompts: "おすすめの質問",
-    coachx_chat_placeholder: "CoachXに質問してください...",
+    coachx_chat_placeholder: "Coachxに質問してください...",
     // MemberReportCard
     coachx_trend_improving: "成長中",
     coachx_trend_plateau: "停滞期",
@@ -1486,9 +1486,9 @@ const translations: Translations = {
     coachx_growth_vs_prev: "前月比",
     coachx_growth_ai_summary_title: "AI コーチ成長分析",
     coachx_growth_ai_summary_loading: "AIがコーチ成長分析を生成中です…",
-    // CoachX Live tab (inside CoachX Hub)
+    // Coachx Live tab (inside Coachx Hub)
     coachx_tab_live: "ライブ",
-    coachx_live_section_title: "CoachX ライブ現況",
+    coachx_live_section_title: "Coachx ライブ現況",
     coachx_live_today_sessions: "今日のレッスン",
     coachx_live_today_sessions_count: "{n}件記録",
     coachx_live_no_sessions_today: "今日のレッスンはまだ記録されていません。",
@@ -1498,29 +1498,29 @@ const translations: Translations = {
     coachx_live_inactive_action: "{name} — 再参加レッスンをお勧めします。",
     coachx_live_plateau_action: "{name} — 停滞打破の集中レッスンをお勧めします。",
     coachx_live_recent_activity: "最近の活動",
-    coachx_live_ask_coachx: "CoachXに聞く",
+    coachx_live_ask_coachx: "Coachxに聞く",
     coachx_live_no_data: "レッスンを記録するとライブ現況が表示されます。",
-    // CoachX Preview Strip (home)
-    coachx_preview_title: "CoachX ライブ状況",
+    // Coachx Preview Strip (home)
+    coachx_preview_title: "Coachx ライブ状況",
     coachx_preview_view_all: "すべて見る",
-    coachx_preview_open_label: "CoachXハブを開く",
+    coachx_preview_open_label: "Coachxハブを開く",
     coachx_preview_improving: "成長中",
     coachx_preview_plateau: "停滞期",
     coachx_preview_inactive: "未レッスン",
     coachx_preview_new: "新規",
     coachx_preview_urgency_suffix: "— 集中ケアまたは再参加レッスンをお勧めします。",
-    // CoachX Member History tab
+    // Coachx Member History tab
     coachx_section_history: "レッスン履歴",
     coachx_history_monthly_activity: "月別レッスン",
     coachx_history_recent_lessons: "最近のレッスン",
     coachx_history_empty: "レッスン記録はまだありません。",
     coachx_history_untitled: "レッスン",
-    coachx_ask_about_member: "{name}についてCoachXに聞く",
-    // CoachX urgency badge (home entry button)
+    coachx_ask_about_member: "{name}についてCoachxに聞く",
+    // Coachx urgency badge (home entry button)
     coachx_urgency_n_members: "{n}名 集中ケア必要",
     coachx_urgency_one_member: "1名 集中ケア必要",
-    // CoachX integration in client list
-    coachx_client_ask_coachx: "CoachX分析",
+    // Coachx integration in client list
+    coachx_client_ask_coachx: "Coachx分析",
     // PR #108 – member growth detail screen
     coachx_view_full_report: "詳細レポート",
     coachx_growth_score_label: "成長スコア",
@@ -2020,7 +2020,7 @@ const translations: Translations = {
     new_lesson_target_input: "レッスン対象入力",
     new_lesson_ai_analysis: "AIレッスン分析",
     new_lesson_ai_round_desc: "18ホールの記録に基づいてラウンドを要約します。",
-    new_lesson_ai_video_desc: "CoachX AIが動画を分析してレポートを生成します。",
+    new_lesson_ai_video_desc: "Coachx AIが動画を分析してレポートを生成します。",
     new_lesson_club_label: "使用クラブ",
     new_lesson_club_none: "選択なし",
     new_lesson_score_label: "ラウンドスコア（合計）",
@@ -2097,9 +2097,9 @@ const translations: Translations = {
     // Roles
     coach: "โปร",
     client: "สมาชิก",
-    // CoachX
+    // Coachx
     coachx_subtitle: "ปัญญาประดิษฐ์การโค้ชกอล์ฟ",
-    coachx_entry_label: "เปิด CoachX",
+    coachx_entry_label: "เปิด Coachx",
     coachx_entry_desc: "ข้อมูลเชิงลึก AI & ศูนย์การโค้ช",
     coachx_tab_insights: "ข้อมูลเชิงลึก",
     coachx_tab_members: "การเติบโตของสมาชิก",
@@ -2108,16 +2108,16 @@ const translations: Translations = {
     coachx_stat_members: "สมาชิก",
     coachx_stat_improving: "กำลังพัฒนา",
     coachx_stat_attention: "ต้องดูแลพิเศษ",
-    coachx_ask_title: "ถาม CoachX",
+    coachx_ask_title: "ถาม Coachx",
     coachx_ask_desc: "ผู้ช่วยโค้ช AI จากข้อมูลจริง",
-    coachx_insights_section: "ข้อมูลเชิงลึก CoachX วันนี้",
+    coachx_insights_section: "ข้อมูลเชิงลึก Coachx วันนี้",
     coachx_attention_label: "สมาชิกที่ต้องดูแลพิเศษ",
     coachx_stagnation_watch: "สมาชิกที่ต้องติดตาม",
     coachx_no_members: "ยังไม่มีบันทึกบทเรียน เริ่มบันทึกบทเรียนแรก!",
     coachx_curriculum_section: "หลักสูตรแนะนำ & การเติบโตของโค้ช",
     coachx_per_member_curriculum: "หลักสูตรรายสมาชิก",
     coachx_suggested_prompts: "คำถามแนะนำ",
-    coachx_chat_placeholder: "ถาม CoachX ได้เลย...",
+    coachx_chat_placeholder: "ถาม Coachx ได้เลย...",
     // MemberReportCard
     coachx_trend_improving: "กำลังพัฒนา",
     coachx_trend_plateau: "ติดขัด",
@@ -2164,9 +2164,9 @@ const translations: Translations = {
     coachx_growth_vs_prev: "เทียบเดือนก่อน",
     coachx_growth_ai_summary_title: "AI วิเคราะห์การเติบโตของโค้ช",
     coachx_growth_ai_summary_loading: "AI กำลังสร้างการวิเคราะห์...",
-    // CoachX Live tab
+    // Coachx Live tab
     coachx_tab_live: "สด",
-    coachx_live_section_title: "CoachX สถานะสด",
+    coachx_live_section_title: "Coachx สถานะสด",
     coachx_live_today_sessions: "บทเรียนวันนี้",
     coachx_live_today_sessions_count: "บันทึก {n} รายการ",
     coachx_live_no_sessions_today: "ยังไม่มีบทเรียนที่บันทึกวันนี้",
@@ -2176,29 +2176,29 @@ const translations: Translations = {
     coachx_live_inactive_action: "{name} — แนะนำให้จัดบทเรียนกลับมา",
     coachx_live_plateau_action: "{name} — แนะนำบทเรียนเจาะลึกเพื่อฝ่าจุดติดขัด",
     coachx_live_recent_activity: "กิจกรรมล่าสุด",
-    coachx_live_ask_coachx: "ถาม CoachX",
+    coachx_live_ask_coachx: "ถาม Coachx",
     coachx_live_no_data: "บันทึกบทเรียนเพื่อดูสถานะสด",
-    // CoachX Preview Strip
-    coachx_preview_title: "CoachX สถานะสด",
+    // Coachx Preview Strip
+    coachx_preview_title: "Coachx สถานะสด",
     coachx_preview_view_all: "ดูทั้งหมด",
-    coachx_preview_open_label: "เปิด CoachX Hub",
+    coachx_preview_open_label: "เปิด Coachx Hub",
     coachx_preview_improving: "กำลังพัฒนา",
     coachx_preview_plateau: "ติดขัด",
     coachx_preview_inactive: "ไม่ได้เรียน",
     coachx_preview_new: "ใหม่",
     coachx_preview_urgency_suffix: "— แนะนำดูแลพิเศษหรือบทเรียนกลับมา",
-    // CoachX Member History tab
+    // Coachx Member History tab
     coachx_section_history: "ประวัติบทเรียน",
     coachx_history_monthly_activity: "กิจกรรมรายเดือน",
     coachx_history_recent_lessons: "บทเรียนล่าสุด",
     coachx_history_empty: "ยังไม่มีประวัติบทเรียน",
     coachx_history_untitled: "บทเรียน",
-    coachx_ask_about_member: "ถาม CoachX เกี่ยวกับ {name}",
-    // CoachX urgency badge
+    coachx_ask_about_member: "ถาม Coachx เกี่ยวกับ {name}",
+    // Coachx urgency badge
     coachx_urgency_n_members: "{n} คนต้องดูแลพิเศษ",
     coachx_urgency_one_member: "1 คนต้องดูแลพิเศษ",
-    // CoachX integration in client list
-    coachx_client_ask_coachx: "วิเคราะห์ CoachX",
+    // Coachx integration in client list
+    coachx_client_ask_coachx: "วิเคราะห์ Coachx",
     // PR #108 – member growth detail screen
     coachx_view_full_report: "รายงานเต็ม",
     coachx_growth_score_label: "คะแนนการเติบโต",
@@ -2698,7 +2698,7 @@ const translations: Translations = {
     new_lesson_target_input: "กรอกเป้าหมายบทเรียน",
     new_lesson_ai_analysis: "วิเคราะห์บทเรียน AI",
     new_lesson_ai_round_desc: "สรุปรอบจากบันทึก 18 หลุม",
-    new_lesson_ai_video_desc: "CoachX AI วิเคราะห์วิดีโอและสร้างรายงาน",
+    new_lesson_ai_video_desc: "Coachx AI วิเคราะห์วิดีโอและสร้างรายงาน",
     new_lesson_club_label: "ไม้ที่ใช้",
     new_lesson_club_none: "ไม่เลือก",
     new_lesson_score_label: "คะแนนรอบ (รวม)",

@@ -68,10 +68,10 @@ export const CoachXChat: React.FC<CoachXChatProps> = ({
     {
       role: 'assistant',
       content: language === 'en'
-        ? `Hello, Coach ${coachProfile.name}! I'm **CoachX**, your AI coaching intelligence. I've analyzed **${allLessons.length} lesson records** and **${new Set(allLessons.map(l => l.clientName + l.clientPhone)).size} members**. What would you like to know? 🏌️`
+        ? `Hello, Coach ${coachProfile.name}! I'm **Coachx**, your AI coaching intelligence. I've analyzed **${allLessons.length} lesson records** and **${new Set(allLessons.map(l => l.clientName + l.clientPhone)).size} members**. What would you like to know? 🏌️`
         : language === 'ja'
-        ? `こんにちは、${coachProfile.name}コーチ！私は**CoachX**、AIコーチングアシスタントです。**${allLessons.length}件のレッスン記録**と**${new Set(allLessons.map(l => l.clientName + l.clientPhone)).size}名の会員**データを分析しました。何でも聞いてください！ 🏌️`
-        : `안녕하세요, ${coachProfile.name} 코치님! 저는 **CoachX**입니다. 현재 **${allLessons.length}개의 레슨 기록**과 **${new Set(allLessons.map(l => l.clientName + l.clientPhone)).size}명의 회원** 데이터를 분석하고 있습니다. 무엇이든 물어보세요! 🏌️`,
+        ? `こんにちは、${coachProfile.name}コーチ！私は**Coachx**、AIコーチングアシスタントです。**${allLessons.length}件のレッスン記録**と**${new Set(allLessons.map(l => l.clientName + l.clientPhone)).size}名の会員**データを分析しました。何でも聞いてください！ 🏌️`
+        : `안녕하세요, ${coachProfile.name} 코치님! 저는 **Coachx**입니다. 현재 **${allLessons.length}개의 레슨 기록**과 **${new Set(allLessons.map(l => l.clientName + l.clientPhone)).size}명의 회원** 데이터를 분석하고 있습니다. 무엇이든 물어보세요! 🏌️`,
       timestamp: Date.now(),
     },
   ]);
@@ -197,7 +197,7 @@ export const CoachXChat: React.FC<CoachXChatProps> = ({
         </div>
 
         <div>
-          <p className="font-bold text-sm text-white">CoachX</p>
+          <p className="font-bold text-sm text-white">Coachx</p>
           <p className="text-xs text-violet-300">{t('coachx_subtitle')}</p>
         </div>
       </div>
