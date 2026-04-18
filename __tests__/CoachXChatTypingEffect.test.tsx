@@ -23,14 +23,14 @@ vi.mock('../components/LanguageContext', () => ({
         send: 'Send',
         coachx_subtitle: 'AI Coaching Intelligence',
         coachx_suggested_prompts: 'Try asking:',
-        coachx_chat_placeholder: 'Ask CoachX…',
+        coachx_chat_placeholder: 'Ask Coachx…',
       };
       return map[key] ?? key;
     },
   }),
 }));
 
-const MOCK_REPLY = 'Hello from CoachX! This is a test reply with some content.';
+const MOCK_REPLY = 'Hello from Coachx! This is a test reply with some content.';
 
 vi.mock('../services/geminiService', () => ({
   generateCoachXChatResponse: vi.fn(async () => MOCK_REPLY),
@@ -72,7 +72,7 @@ describe('CoachXChat – typing reveal effect', () => {
       />
     );
 
-    const input = screen.getByPlaceholderText('Ask CoachX…');
+    const input = screen.getByPlaceholderText('Ask Coachx…');
     fireEvent.change(input, { target: { value: 'Hello' } });
     fireEvent.keyDown(input, { key: 'Enter' });
 
@@ -101,7 +101,7 @@ describe('CoachXChat – typing reveal effect', () => {
       />
     );
 
-    const input = screen.getByPlaceholderText('Ask CoachX…');
+    const input = screen.getByPlaceholderText('Ask Coachx…');
     fireEvent.change(input, { target: { value: 'Hello' } });
     fireEvent.keyDown(input, { key: 'Enter' });
 
@@ -132,7 +132,7 @@ describe('CoachXChat – typing reveal effect', () => {
       />
     );
 
-    const input = screen.getByPlaceholderText('Ask CoachX…');
+    const input = screen.getByPlaceholderText('Ask Coachx…');
     fireEvent.change(input, { target: { value: 'Hello' } });
     fireEvent.keyDown(input, { key: 'Enter' });
 

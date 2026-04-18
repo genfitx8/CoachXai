@@ -2474,7 +2474,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
               <p className="text-xs text-gray-500">
                 {recordType === 'SCORE' && scoreMode === 'DETAILED'
                   ? '18홀 기록을 바탕으로 라운드를 요약합니다.'
-                  : 'CoachX AI가 영상을 분석하여 리포트를 생성합니다.'}
+                  : 'Coachx AI가 영상을 분석하여 리포트를 생성합니다.'}
               </p>
             </div>
           </div>

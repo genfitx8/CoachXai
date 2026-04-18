@@ -1083,7 +1083,7 @@ export const CoachXHub: React.FC<CoachXHubProps> = ({
               <Sparkles className="w-7 h-7 text-white" />
             </div>
           </div>
-          <h1 className="text-2xl font-extrabold text-white tracking-tight">CoachX</h1>
+          <h1 className="text-2xl font-extrabold text-white tracking-tight">Coachx</h1>
           <p className="text-sm text-violet-300 mt-0.5">{t('coachx_subtitle')}</p>
         </div>
 

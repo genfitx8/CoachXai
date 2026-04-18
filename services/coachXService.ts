@@ -470,7 +470,7 @@ const INSIGHT_I18N: Record<CoachXLanguage, {
   ko: {
     noData: {
       title: '아직 레슨 기록이 없습니다',
-      body: '첫 레슨을 기록하면 CoachX 인사이트가 활성화됩니다.',
+      body: '첫 레슨을 기록하면 Coachx 인사이트가 활성화됩니다.',
     },
     pattern: {
       title: '반복 레슨 주제',
@@ -505,7 +505,7 @@ const INSIGHT_I18N: Record<CoachXLanguage, {
   en: {
     noData: {
       title: 'No lesson data yet',
-      body: 'Start recording lessons to unlock CoachX insights.',
+      body: 'Start recording lessons to unlock Coachx insights.',
     },
     pattern: {
       title: 'Recurring Lesson Topics',
@@ -540,7 +540,7 @@ const INSIGHT_I18N: Record<CoachXLanguage, {
   ja: {
     noData: {
       title: 'まだレッスン記録がありません',
-      body: '最初のレッスンを記録するとCoachXインサイトが有効になります。',
+      body: '最初のレッスンを記録するとCoachxインサイトが有効になります。',
     },
     pattern: {
       title: 'よく扱う指導テーマ',
@@ -575,7 +575,7 @@ const INSIGHT_I18N: Record<CoachXLanguage, {
   th: {
     noData: {
       title: 'No lesson data yet',
-      body: 'Start recording lessons to unlock CoachX insights.',
+      body: 'Start recording lessons to unlock Coachx insights.',
     },
     pattern: {
       title: 'Recurring Lesson Topics',
@@ -1249,12 +1249,12 @@ export function generateHeuristicResponse(
     const clientList = clients.slice(0, 3).map(c => c.name).join(', ');
 
     if (language === 'en') {
-      return `📊 **Member Progress Summary**\n\nAnalysed recent lessons for **${memberCount} member${memberCount !== 1 ? 's' : ''}**.\n\n- 📈 Improving: **${improving}**\n- ⏸ Plateau: **${plateau}**\n\nKey members: **${clientList || 'Recording...'}**\nTop lesson topics: **${topicStr}**\n\nFor detailed reports, visit CoachX Hub → Member Growth.\n\n${aiNote}`;
+      return `📊 **Member Progress Summary**\n\nAnalysed recent lessons for **${memberCount} member${memberCount !== 1 ? 's' : ''}**.\n\n- 📈 Improving: **${improving}**\n- ⏸ Plateau: **${plateau}**\n\nKey members: **${clientList || 'Recording...'}**\nTop lesson topics: **${topicStr}**\n\nFor detailed reports, visit Coachx Hub → Member Growth.\n\n${aiNote}`;
     }
     if (language === 'ja') {
-      return `📊 **会員成長サマリー**\n\n担当会員 **${memberCount}名** の最近のレッスンデータを分析しました。\n\n- 📈 成長中: **${improving}名**\n- ⏸ 停滞期: **${plateau}名**\n\n主要会員: **${clientList || '記録中...'}**\n繰り返しレッスンテーマ: **${topicStr}**\n\n各会員の詳細レポートはCoachXハブ > 会員成長レポートでご確認ください。\n\n${aiNote}`;
+      return `📊 **会員成長サマリー**\n\n担当会員 **${memberCount}名** の最近のレッスンデータを分析しました。\n\n- 📈 成長中: **${improving}名**\n- ⏸ 停滞期: **${plateau}名**\n\n主要会員: **${clientList || '記録中...'}**\n繰り返しレッスンテーマ: **${topicStr}**\n\n各会員の詳細レポートはCoachxハブ > 会員成長レポートでご確認ください。\n\n${aiNote}`;
     }
-    return `📊 **회원 성장 요약**\n\n담당 회원 **${memberCount}명**의 최근 레슨 데이터를 분석했습니다.\n\n- 📈 성장 중: **${improving}명**\n- ⏸ 정체 구간: **${plateau}명**\n\n주요 집중 회원: **${clientList || '기록 중...'}**\n반복 레슨 주제: **${topicStr}**\n\n각 회원의 상세 리포트는 CoachX 허브 > 회원 성장 리포트에서 확인하세요.\n\n${aiNote}`;
+    return `📊 **회원 성장 요약**\n\n담당 회원 **${memberCount}명**의 최근 레슨 데이터를 분석했습니다.\n\n- 📈 성장 중: **${improving}명**\n- ⏸ 정체 구간: **${plateau}명**\n\n주요 집중 회원: **${clientList || '기록 중...'}**\n반복 레슨 주제: **${topicStr}**\n\n각 회원의 상세 리포트는 Coachx 허브 > 회원 성장 리포트에서 확인하세요.\n\n${aiNote}`;
   }
 
   const isPattern = msg.includes('내 레슨') || msg.includes('my lesson') ||
@@ -1308,10 +1308,10 @@ export function generateHeuristicResponse(
 
   // Default response
   const DEFAULT_PROMPTS: Record<CoachXLanguage, string> = {
-    ko: `안녕하세요! 저는 **CoachX**입니다. 🏌️\n\n코치님의 레슨 데이터를 기반으로 다양한 인사이트를 제공합니다.\n\n아래 주제로 질문해보세요:\n• "다음 레슨 추천해줘"\n• "회원 성장 분석"\n• "내 레슨 패턴 알려줘"\n• "커리큘럼 추천"\n• "코치 성장 방법"\n• "정체 중인 회원 있어?"\n• "[회원 이름] 회원 분석해줘"\n\n현재 **${allLessons.length}개** 레슨 기록, **${memberCount}명** 회원 데이터를 분석 중입니다.\n\n${aiNote}`,
-    en: `Hi! I'm **CoachX**. 🏌️\n\nI provide insights based on your lesson records.\n\nTry asking:\n• "Recommend my next lesson"\n• "Summarise member progress"\n• "Analyse my lesson patterns"\n• "Suggest a curriculum plan"\n• "How can I grow as a coach?"\n• "Any members in a plateau?"\n• "[Member name] progress report"\n\nCurrently analysing **${allLessons.length}** lessons across **${memberCount}** member${memberCount !== 1 ? 's' : ''}.\n\n${aiNote}`,
-    ja: `こんにちは！私は **CoachX** です。🏌️\n\nレッスン記録に基づいて様々なインサイトを提供します。\n\n以下のテーマで質問してみてください:\n• "次のレッスンを提案して"\n• "会員の成長をまとめて"\n• "レッスンパターンを分析して"\n• "カリキュラムを提案して"\n• "コーチ成長のヒントは？"\n• "停滞している会員はいる？"\n• "[会員名] の成長分析"\n\n現在 **${allLessons.length}件** のレッスン記録、**${memberCount}名** の会員データを分析中です。\n\n${aiNote}`,
-    th: `สวัสดี! ฉันคือ **CoachX** 🏌️\n\nฉันให้ข้อมูลเชิงลึกจากบันทึกการสอนของคุณ\n\nลองถามว่า:\n• "แนะนำบทเรียนถัดไป"\n• "สรุปความก้าวหน้าของสมาชิก"\n• "วิเคราะห์รูปแบบการสอน"\n• "แนะนำหลักสูตร"\n• "พัฒนาเป็นโค้ชได้อย่างไร"\n• "มีสมาชิกที่หยุดนิ่งไหม"\n• "รายงานความก้าวหน้า [ชื่อสมาชิก]"\n\nกำลังวิเคราะห์ **${allLessons.length}** บทเรียนจาก **${memberCount}** สมาชิก\n\n${aiNote}`,
+    ko: `안녕하세요! 저는 **Coachx**입니다. 🏌️\n\n코치님의 레슨 데이터를 기반으로 다양한 인사이트를 제공합니다.\n\n아래 주제로 질문해보세요:\n• "다음 레슨 추천해줘"\n• "회원 성장 분석"\n• "내 레슨 패턴 알려줘"\n• "커리큘럼 추천"\n• "코치 성장 방법"\n• "정체 중인 회원 있어?"\n• "[회원 이름] 회원 분석해줘"\n\n현재 **${allLessons.length}개** 레슨 기록, **${memberCount}명** 회원 데이터를 분석 중입니다.\n\n${aiNote}`,
+    en: `Hi! I'm **Coachx**. 🏌️\n\nI provide insights based on your lesson records.\n\nTry asking:\n• "Recommend my next lesson"\n• "Summarise member progress"\n• "Analyse my lesson patterns"\n• "Suggest a curriculum plan"\n• "How can I grow as a coach?"\n• "Any members in a plateau?"\n• "[Member name] progress report"\n\nCurrently analysing **${allLessons.length}** lessons across **${memberCount}** member${memberCount !== 1 ? 's' : ''}.\n\n${aiNote}`,
+    ja: `こんにちは！私は **Coachx** です。🏌️\n\nレッスン記録に基づいて様々なインサイトを提供します。\n\n以下のテーマで質問してみてください:\n• "次のレッスンを提案して"\n• "会員の成長をまとめて"\n• "レッスンパターンを分析して"\n• "カリキュラムを提案して"\n• "コーチ成長のヒントは？"\n• "停滞している会員はいる？"\n• "[会員名] の成長分析"\n\n現在 **${allLessons.length}件** のレッスン記録、**${memberCount}名** の会員データを分析中です。\n\n${aiNote}`,
+    th: `สวัสดี! ฉันคือ **Coachx** 🏌️\n\nฉันให้ข้อมูลเชิงลึกจากบันทึกการสอนของคุณ\n\nลองถามว่า:\n• "แนะนำบทเรียนถัดไป"\n• "สรุปความก้าวหน้าของสมาชิก"\n• "วิเคราะห์รูปแบบการสอน"\n• "แนะนำหลักสูตร"\n• "พัฒนาเป็นโค้ชได้อย่างไร"\n• "มีสมาชิกที่หยุดนิ่งไหม"\n• "รายงานความก้าวหน้า [ชื่อสมาชิก]"\n\nกำลังวิเคราะห์ **${allLessons.length}** บทเรียนจาก **${memberCount}** สมาชิก\n\n${aiNote}`,
   };
 
   return DEFAULT_PROMPTS[language];

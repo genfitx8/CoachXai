@@ -224,7 +224,7 @@ describe('generateHeuristicResponse', () => {
 
   it('returns default help response for unknown query', () => {
     const response = generateHeuristicResponse('알 수 없는 질문', [], []);
-    expect(response).toContain('CoachX');
+    expect(response).toContain('Coachx');
   });
 
   it('includes 5-session curriculum when curriculum is requested', () => {
@@ -442,7 +442,7 @@ describe('generateHeuristicResponse (multilingual)', () => {
 
   it('returns English default help response for unknown query when language is "en"', () => {
     const response = generateHeuristicResponse('something unrecognized', [], [], 'en');
-    expect(response).toContain('CoachX');
+    expect(response).toContain('Coachx');
     expect(response).toMatch(/lesson|member/i);
   });
 
@@ -629,14 +629,14 @@ describe('generateCoachXChatResponse (Gemini unavailable → heuristic fallback)
     expect(result.length).toBeGreaterThan(0);
   });
 
-  it('fallback contains CoachX branding for an unrecognized query', async () => {
+  it('fallback contains Coachx branding for an unrecognized query', async () => {
     const result = await generateCoachXChatResponse('xyz unknown query', [], [], 'ko');
-    expect(result).toContain('CoachX');
+    expect(result).toContain('Coachx');
   });
 
   it('fallback returns English response when language is "en"', async () => {
     const result = await generateCoachXChatResponse('recommend my next lesson', [], [], 'en');
-    expect(result).toMatch(/CoachX|lesson|member/i);
+    expect(result).toMatch(/Coachx|lesson|member/i);
     expect(result).not.toMatch(/안녕하세요/);
   });
 

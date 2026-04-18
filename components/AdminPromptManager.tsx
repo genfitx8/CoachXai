@@ -25,15 +25,15 @@ interface AdminPromptManagerProps {
 }
 
 const TARGET_LABELS: Record<PromptTarget, string> = {
-  coachx_chat: 'CoachX Chat',
-  coachx_insights: 'CoachX Insights',
+  coachx_chat: 'Coachx Chat',
+  coachx_insights: 'Coachx Insights',
   weekly_insight: 'Weekly Insight',
   coach_material: 'Coach Material',
 };
 
 const TARGET_DESCRIPTIONS: Record<PromptTarget, string> = {
-  coachx_chat: 'Controls how CoachX answers coach questions in the chat interface.',
-  coachx_insights: 'Controls the structured JSON insights generated on the CoachX dashboard.',
+  coachx_chat: 'Controls how Coachx answers coach questions in the chat interface.',
+  coachx_insights: 'Controls the structured JSON insights generated on the Coachx dashboard.',
   weekly_insight: 'Controls how weekly practice insights are generated for members.',
   coach_material: 'Controls how coaching material drafts are generated.',
 };
@@ -271,7 +271,7 @@ export const AdminPromptManager: React.FC<AdminPromptManagerProps> = ({ isFireba
                 type="text"
                 value={form.name}
                 onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-                placeholder="예: CoachX Chat — 한국어 v1"
+                placeholder="예: Coachx Chat — 한국어 v1"
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
               />
             </div>
@@ -333,7 +333,7 @@ export const AdminPromptManager: React.FC<AdminPromptManagerProps> = ({ isFireba
             <textarea
               value={form.systemPrompt}
               onChange={(e) => setForm((f) => ({ ...f, systemPrompt: e.target.value }))}
-              placeholder="You are CoachX, an AI coaching assistant..."
+              placeholder="You are Coachx, an AI coaching assistant..."
               rows={8}
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none resize-y text-sm font-mono"
             />
