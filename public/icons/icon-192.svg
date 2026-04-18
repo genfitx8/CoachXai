@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" width="192" height="192">
+  <rect width="192" height="192" rx="36" fill="#10b981"/>
+  <!-- Golf ball -->
+  <circle cx="96" cy="80" r="28" fill="#ffffff"/>
+  <!-- Dimples -->
+  <circle cx="88" cy="72" r="4" fill="#d1fae5"/>
+  <circle cx="104" cy="72" r="4" fill="#d1fae5"/>
+  <circle cx="96" cy="88" r="4" fill="#d1fae5"/>
+  <circle cx="80" cy="84" r="3" fill="#d1fae5"/>
+  <circle cx="112" cy="84" r="3" fill="#d1fae5"/>
+  <!-- Club shaft -->
+  <line x1="120" y1="56" x2="68" y2="140" stroke="#065f46" stroke-width="5" stroke-linecap="round"/>
+  <!-- Club head -->
+  <rect x="56" y="136" width="24" height="10" rx="4" fill="#065f46"/>
+  <!-- Tee line / ground -->
+  <line x1="40" y1="150" x2="152" y2="150" stroke="#6ee7b7" stroke-width="3" stroke-linecap="round"/>
+  <!-- Note lines -->
+  <line x1="60" y1="163" x2="132" y2="163" stroke="#ffffff" stroke-width="3" stroke-linecap="round" opacity="0.7"/>
+  <line x1="68" y1="173" x2="124" y2="173" stroke="#ffffff" stroke-width="3" stroke-linecap="round" opacity="0.5"/>
+</svg>
