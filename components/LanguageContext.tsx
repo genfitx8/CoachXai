@@ -12,7 +12,7 @@ type Translations = {
 const translations: Translations = {
   ko: {
     // Auth
-    app_desc: "골프 레슨 분석 & 관리 플랫폼",
+    app_desc: "세상의 모든 코치와 학생을 위한 AI 코치 에이전트 서비스",
     coach_login: "코치님 로그인",
     client_login: "회원님 로그인",
     admin_login: "관리자 로그인",
@@ -690,7 +690,7 @@ const translations: Translations = {
   },
   en: {
     // Auth
-    app_desc: "Golf Lesson Analysis & Management Platform",
+    app_desc: "AI coach agent service for every coach and student worldwide",
     coach_login: "Coach Login",
     client_login: "Member Login",
     admin_login: "Admin Login",
@@ -1368,7 +1368,7 @@ const translations: Translations = {
   },
   ja: {
     // Auth
-    app_desc: "ゴルフレッスン分析・管理プラットフォーム",
+    app_desc: "世界中のすべてのコーチと学生のためのAIコーチエージェントサービス",
     coach_login: "コーチログイン",
     client_login: "会員ログイン",
     admin_login: "管理者ログイン",
@@ -2046,7 +2046,7 @@ const translations: Translations = {
   },
   th: {
     // Auth
-    app_desc: "แพลตฟอร์มวิเคราะห์และจัดการบทเรียนกอล์ฟ",
+    app_desc: "บริการเอเจนต์โค้ช AI สำหรับโค้ชและนักเรียนทุกคนทั่วโลก",
     coach_login: "เข้าสู่ระบบโค้ช",
     client_login: "เข้าสู่ระบบสมาชิก",
     admin_login: "เข้าสู่ระบบผู้ดูแล",
