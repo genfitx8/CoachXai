@@ -1,0 +1,57 @@
+diff --git a/components/LessonDetail.tsx b/components/LessonDetail.tsx
+--- a/components/LessonDetail.tsx (current - from PR#1)
++++ b/components/LessonDetail.tsx (with coach permissions)
+@@ -1,6 +1,7 @@
+ interface LessonDetailProps {
+   lesson: Lesson;
+   allLessons: Lesson[];
+   onBack: () => void;
+   onEdit?: (lesson: Lesson) => void;
+   onDelete?: (lessonId: string) => void;
+   role?: UserRole;
+   isClientView?: boolean;
++  coachId?: string;  // ADD THIS LINE
+ }
+
+ export const LessonDetail: React.FC<LessonDetailProps> = ({ 
+   lesson, 
+   allLessons, 
+   onBack, 
+   onEdit, 
+   onDelete, 
+   role, 
+-  isClientView 
++  isClientView,
++  coachId  // ADD THIS PARAMETER
+ }) => {
+   // ... existing code ...
+   
+   // Line 78-80 (keep existing):
+   // Permissions: Coach can edit all, Client can edit only their own records
+   const canEdit = !isClientView || lesson.createdBy === 'CLIENT';
+   
+   // Line 83 - REPLACE THIS LINE:
+-  const canEditOrDelete = role === 'CLIENT' && lesson.createdBy === 'CLIENT';
++  // WITH THIS (adds coach permissions):
++  const canEditOrDelete = (
++    (role === 'CLIENT' && lesson.createdBy === 'CLIENT') ||
++    (role === 'COACH' && (lesson.createdBy === 'COACH' || lesson.coachId === coachId))
++  );
+   
+   // ... rest of the file remains the same ...
+ }
+
+diff --git a/App.tsx b/App.tsx
+--- a/App.tsx
++++ b/App.tsx
+@@ -1040,7 +1040,8 @@ Around line 1043, in the coach view section where LessonDetail is rendered:
+ 
+   <LessonDetail
+     lesson={selectedLesson}
+     allLessons={clientLessons}
+     onBack={() => setSelectedLesson(null)}
+     onEdit={handleEditLesson}
+     onDelete={handleDeleteLesson}
+     role="COACH"
++    coachId={coachProfile.id}  // ADD THIS LINE
+   />
