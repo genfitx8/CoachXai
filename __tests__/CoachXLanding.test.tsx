@@ -12,7 +12,7 @@ describe('CoachXLanding', () => {
 
     expect(screen.getByText('CoachX AI')).toBeInTheDocument();
     expect(screen.getByText('Hello, coach.')).toBeInTheDocument();
-    expect(screen.getByTestId('coachx-ai-orb')).toBeInTheDocument();
+    expect(screen.getByTestId('coachx-ai-orb')).toHaveClass('animate-coachx-orb-drift');
 
     fireEvent.click(screen.getByRole('button', { name: 'Log in' }));
     fireEvent.click(screen.getByRole('button', { name: 'Sign up' }));
