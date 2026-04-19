@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import React from 'react';
 import App from '../App';
 
@@ -96,14 +96,14 @@ describe('Coach dashboard – lesson-first MVP home', () => {
     vi.clearAllMocks();
   });
 
-  it('shows core home priorities: Start Lesson, Students, CoachX AI, Lesson Records', async () => {
+  it('shows only two core home priorities: Lesson Start and CoachX AI', async () => {
     await renderCoachApp();
 
     expect(screen.getByTestId('start-lesson-btn')).toBeInTheDocument();
-    expect(screen.getByTestId('students-entry-btn')).toBeInTheDocument();
-    expect(screen.getByTestId('lesson-records-entry-btn')).toBeInTheDocument();
     expect(screen.getByTestId('coachx-entry-btn')).toBeInTheDocument();
-    expect(screen.getByTestId('coachx-attention-card')).toBeInTheDocument();
+    expect(screen.queryByTestId('students-entry-btn')).toBeNull();
+    expect(screen.queryByTestId('lesson-records-entry-btn')).toBeNull();
+    expect(screen.queryByTestId('coachx-attention-card')).toBeNull();
   });
 
   it('hides non-core surfaces from the coach home', async () => {
@@ -113,16 +113,6 @@ describe('Coach dashboard – lesson-first MVP home', () => {
     expect(screen.queryByText(/예약 및 회원 관리/i)).toBeNull();
     expect(screen.queryByRole('button', { name: /예약 관리|reservation_management/i })).toBeNull();
     expect(screen.queryByRole('button', { name: /타석 예약/i })).toBeNull();
-  });
-
-  it('opens lesson list from the Lesson Records entry', async () => {
-    await renderCoachApp();
-
-    fireEvent.click(screen.getByTestId('lesson-records-entry-btn'));
-
-    await waitFor(() => {
-      expect(screen.getByText(/레슨 미디어 표시/i)).toBeInTheDocument();
-    });
   });
 
   it('keeps calendar hidden on the simplified coach home', async () => {
