@@ -96,13 +96,15 @@ describe('Coach dashboard – lesson-first MVP home', () => {
     vi.clearAllMocks();
   });
 
-  it('shows only two core home priorities: Lesson Start and CoachX AI', async () => {
+  it('shows exactly three main home buttons with required labels', async () => {
     await renderCoachApp();
 
     expect(screen.getByTestId('start-lesson-btn')).toBeInTheDocument();
     expect(screen.getByTestId('coachx-entry-btn')).toBeInTheDocument();
-    expect(screen.queryByText('CoachX', { exact: true })).toBeNull();
-    expect(screen.queryByTestId('students-entry-btn')).toBeNull();
+    expect(screen.getByTestId('students-entry-btn')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Lesson start' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Coachx' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Student' })).toBeInTheDocument();
     expect(screen.queryByTestId('lesson-records-entry-btn')).toBeNull();
     expect(screen.queryByTestId('coachx-attention-card')).toBeNull();
   });
