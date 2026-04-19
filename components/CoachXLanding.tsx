@@ -148,6 +148,17 @@ export const CoachXLanding: React.FC<CoachXLandingProps> = ({
 
   const shouldShowInstallCard = !isInstalled;
   const shouldShowInstallGuidance = !deferredInstallPrompt;
+  const installGuidanceMessage = (() => {
+    if (isIosDevice) {
+      return 'Install CoachX: tap Share, then choose “Add to Home Screen”.';
+    }
+
+    if (supportsInstallPrompt) {
+      return 'Install becomes available after required browser criteria are met.';
+    }
+
+    return 'Install prompt is unavailable here. Use your browser menu to add CoachX to your home screen.';
+  })();
 
   return (
     <div className="min-h-screen bg-[#030407] text-white flex flex-col items-center justify-center relative overflow-hidden px-6">
@@ -189,11 +200,7 @@ export const CoachXLanding: React.FC<CoachXLandingProps> = ({
             </button>
             {shouldShowInstallGuidance && (
               <p className="mt-2 text-xs text-slate-300 leading-relaxed">
-                {isIosDevice
-                  ? 'Install CoachX: tap Share, then choose “Add to Home Screen”.'
-                  : supportsInstallPrompt
-                    ? 'Install becomes available after required browser criteria are met.'
-                    : 'Install prompt is unavailable here. Use your browser menu to add CoachX to your home screen.'}
+                {installGuidanceMessage}
               </p>
             )}
             {installHintMessage && (
