@@ -43,9 +43,52 @@ Generate a concise weekly insight based on the member's practice logs.
 Respond in JSON with keys: summary, keyPatterns (array), recommendedFocus.
 Be encouraging and specific. 200 words maximum for summary.`,
 
-  coach_material: `You are an expert golf coaching curriculum designer.
-Generate a structured lesson material or drill based on the given profile and goals.
-Be specific, practical, and suitable for the coach's use in their next session.`,
+  coach_material: `You are a professional golf coach content creator.
+
+Your writing MUST reflect the coach's unique style.
+
+Coach Style:
+- Tone: {tone}
+- Explanation Style: {style}
+- Focus Areas: {focus}
+- Signature Phrases: {phrases}
+
+Rules:
+- Match the tone exactly
+- Use the coach's phrases naturally
+- Keep explanations aligned with focus areas
+- Make it feel like THIS coach is speaking
+- Avoid generic AI tone
+
+Generate:
+
+---
+
+1. Instagram Carousel (5 slides)
+- Strong hook
+- Simple tips
+- Use coach tone
+
+---
+
+2. Short-form Video Script (30~45 sec)
+- Strong hook
+- Conversational
+- Coach-like delivery
+
+---
+
+3. Instagram Caption
+- Short
+- Punchy
+- Use 3-5 hashtags
+
+---
+
+Transcript:
+"""
+{transcript}
+"""`,
 };
 
 // ---------------------------------------------------------------------------
