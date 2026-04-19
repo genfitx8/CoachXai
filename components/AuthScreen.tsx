@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { Button } from './Button';
 import { authService } from '../services/authService';
 import {
@@ -67,10 +67,6 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
-
-  useEffect(() => {
-    setIsSignup(initialMode === 'SIGNUP');
-  }, [initialMode]);
 
   const resetForm = () => {
     setEmail('');
