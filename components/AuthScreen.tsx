@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Button } from './Button';
 import { authService } from '../services/authService';
 import {
@@ -28,9 +28,13 @@ interface AuthScreenProps {
     data: any,
     isAutoLogin: boolean
   ) => void;
+  initialMode?: 'LOGIN' | 'SIGNUP';
 }
 
-export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
+export const AuthScreen: React.FC<AuthScreenProps> = ({
+  onLoginSuccess,
+  initialMode = 'LOGIN',
+}) => {
   const { t, language, setLanguage } = useLanguage();
   const [activeTab, setActiveTab] = useState<'COACH' | 'CLIENT'>('COACH');
   const [isAdminMode, setIsAdminMode] = useState(false);
@@ -38,7 +42,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
   const [showLangMenu, setShowLangMenu] = useState(false);
 
   // Unified State for Login/Signup
-  const [isSignup, setIsSignup] = useState(false);
+  const [isSignup, setIsSignup] = useState(initialMode === 'SIGNUP');
 
   // Find Account State
   const [showFindAccount, setShowFindAccount] = useState(false);
@@ -63,6 +67,10 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    setIsSignup(initialMode === 'SIGNUP');
+  }, [initialMode]);
 
   const resetForm = () => {
     setEmail('');
