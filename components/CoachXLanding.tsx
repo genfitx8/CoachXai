@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 
 interface CoachXLandingProps {
   onLogin: () => void;
@@ -24,17 +24,11 @@ export const CoachXLanding: React.FC<CoachXLandingProps> = ({
   const [isInstalled, setIsInstalled] = useState(false);
   const [installHintMessage, setInstallHintMessage] = useState('');
 
-  const { isIosDevice, supportsInstallPrompt } = useMemo(() => {
-    if (typeof window === 'undefined') {
-      return { isIosDevice: false, supportsInstallPrompt: false };
-    }
-
-    const userAgent = window.navigator.userAgent.toLowerCase();
-    return {
-      isIosDevice: /iphone|ipad|ipod/.test(userAgent),
-      supportsInstallPrompt: 'onbeforeinstallprompt' in window,
-    };
-  }, []);
+  const userAgent =
+    typeof window === 'undefined' ? '' : window.navigator.userAgent.toLowerCase();
+  const isIosDevice = /iphone|ipad|ipod/.test(userAgent);
+  const supportsInstallPrompt =
+    typeof window !== 'undefined' && 'onbeforeinstallprompt' in window;
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -189,7 +183,7 @@ export const CoachXLanding: React.FC<CoachXLandingProps> = ({
             {shouldShowInstallButton ? (
               <button
                 type="button"
-                onClick={() => void handleInstallClick()}
+                onClick={handleInstallClick}
                 className="mt-2 w-full px-3 py-2 rounded-full border border-cyan-200/35 bg-cyan-400/10 text-cyan-100 text-xs font-semibold tracking-wide hover:bg-cyan-400/20 hover:border-cyan-200/60 transition-colors"
               >
                 Install CoachX
