@@ -447,7 +447,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
           <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm">
             <Activity className="w-8 h-8 text-emerald-600" />
           </div>
-          <h1 className="text-2xl font-bold text-gray-900">SwingNote</h1>
+          <h1 className="text-2xl font-bold text-gray-900">CoachX AI</h1>
           <p className="text-emerald-700 text-sm mt-1">{t('app_desc')}</p>
         </div>
 

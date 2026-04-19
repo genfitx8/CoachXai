@@ -1197,6 +1197,7 @@ const AppContent: React.FC = () => {
   const coachXUrgentCount = coachXMemberReports.filter(
     r => r.trendIndicator === 'inactive' || r.trendIndicator === 'plateau'
   ).length;
+  const latestLesson = dashboardData?.recentLessons?.[0];
 
   if (isLoading) {
     return (
@@ -1259,7 +1260,7 @@ const AppContent: React.FC = () => {
   // --- COACH VIEW ---
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col font-sans">
+    <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100/60 flex flex-col font-sans">
       {/* Header */}
       <header className="bg-gradient-to-r from-white via-violet-50/40 to-white border-b border-violet-100/60 shadow-sm sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
@@ -1274,7 +1275,7 @@ const AppContent: React.FC = () => {
               <Menu className="w-5 h-5" />
             </div>
             <span className="font-bold text-xl text-gray-900 tracking-tight">
-              SwingNote
+              CoachX
             </span>
             <span className="bg-gradient-to-r from-violet-100 to-indigo-100 text-indigo-700 text-[10px] px-2 py-0.5 rounded-full font-bold uppercase border border-indigo-200/60">
               {t('coach')}
@@ -1354,7 +1355,7 @@ const AppContent: React.FC = () => {
               </div>
 
               <div className="flex-1 text-left">
-                <p className="text-lg font-extrabold text-white tracking-tight">Coachx</p>
+                <p className="text-lg font-extrabold text-white tracking-tight">CoachX AI</p>
                 <p className="text-xs text-slate-300 mt-0.5">
                   {coachXUrgentCount > 0
                     ? coachXUrgentCount === 1
@@ -1371,7 +1372,7 @@ const AppContent: React.FC = () => {
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-                  <BookOpen className="w-5 h-5 text-slate-600" />
+                  <Sparkles className="w-5 h-5 text-slate-600" />
                   {t('coach_dashboard')}
                 </h2>
                 <p className="text-sm text-gray-500 mt-0.5">{t('coach_dashboard_desc')}</p>
@@ -1421,19 +1422,38 @@ const AppContent: React.FC = () => {
             {/* ── Primary Lesson-Record Actions ─────────────────────────── */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Button
-                onClick={() => setCoachView('LESSON_LIST')}
-                className="w-full py-4 text-base shadow-lg shadow-slate-200 bg-slate-700 hover:bg-slate-800 justify-center"
-                icon={<BookOpen className="w-5 h-5" />}
-              >
-                레슨 기록 보기
-              </Button>
-              <Button
                 onClick={() => setCoachView('NEW')}
                 className="w-full py-4 text-base shadow-lg shadow-emerald-900/10 bg-emerald-800 hover:bg-emerald-900 justify-center"
                 icon={<Play className="w-5 h-5 fill-current" />}
               >
                 {t('start_lesson')}
               </Button>
+              <Button
+                onClick={() => setCoachView('LESSON_LIST')}
+                className="w-full py-4 text-base shadow-lg shadow-slate-200 bg-slate-700 hover:bg-slate-800 justify-center"
+                icon={<BookOpen className="w-5 h-5" />}
+              >
+                레슨 기록 보기
+              </Button>
+            </div>
+
+            {/* ── Student Context Snapshot ──────────────────────────────── */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div className="bg-white/90 rounded-xl border border-violet-100 p-4">
+                <p className="text-xs font-semibold text-violet-600">{t('coach_home_attention_members')}</p>
+                <p className="text-2xl font-bold text-gray-900 mt-1">{coachXUrgentCount}</p>
+              </div>
+              <div className="bg-white/90 rounded-xl border border-amber-100 p-4">
+                <p className="text-xs font-semibold text-amber-600">{t('coach_home_active_packages')}</p>
+                <p className="text-2xl font-bold text-gray-900 mt-1">{dashboardData.incompletePackages.length}</p>
+              </div>
+              <div className="bg-white/90 rounded-xl border border-slate-200 p-4">
+                <p className="text-xs font-semibold text-slate-600">{t('coach_home_latest_lesson')}</p>
+                <p className="text-sm font-bold text-gray-900 mt-1 truncate">
+                  {latestLesson?.clientName || '-'}
+                </p>
+                <p className="text-xs text-gray-500 mt-0.5">{latestLesson?.date || '-'}</p>
+              </div>
             </div>
 
             {/* ── Incomplete Package Progress ────────────────────────────── */}
