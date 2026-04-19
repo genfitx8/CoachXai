@@ -46,7 +46,6 @@ import {
   Filter,
   LogOut,
   User,
-  Menu,
   ListChecks,
   X,
   Mail,
@@ -1281,25 +1280,7 @@ const AppContent: React.FC = () => {
     <div className="min-h-screen bg-gradient-to-b from-[#05070A] via-[#070b12] to-[#0B1220] text-slate-100 flex flex-col font-sans">
       {/* Header */}
       <header className="bg-[#0A0F1A]/95 border-b border-slate-800 shadow-lg shadow-black/30 sticky top-0 z-40 backdrop-blur-xl">
-        <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
-          <div
-            className="flex items-center gap-2.5 cursor-pointer"
-            onClick={() => {
-              setCoachView('LIST');
-              setSelectedLesson(null);
-            }}
-          >
-            <div className="bg-gradient-to-br from-indigo-500/80 to-violet-500/80 p-2 rounded-xl shadow-lg shadow-indigo-900/40 text-white">
-              <Menu className="w-5 h-5" />
-            </div>
-            <span className="font-bold text-xl text-white tracking-tight">
-              CoachX
-            </span>
-            <span className="bg-indigo-500/15 text-indigo-200 text-[10px] px-2 py-0.5 rounded-full font-bold uppercase border border-indigo-400/40">
-              {t('coach')}
-            </span>
-          </div>
-
+        <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-end">
           <div className="flex items-center gap-4">
             <button
               onClick={toggleLanguage}
