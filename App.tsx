@@ -1397,6 +1397,7 @@ const AppContent: React.FC = () => {
             {/* ── Lesson-first CTA ───────────────────────────────────────── */}
             <Button
               onClick={() => setCoachView('NEW')}
+              data-testid="start-lesson-btn"
               className="w-full py-4 text-base shadow-lg shadow-indigo-900/40 bg-indigo-600 hover:bg-indigo-500 justify-center"
               icon={<Play className="w-5 h-5 fill-current" />}
             >
@@ -1407,14 +1408,15 @@ const AppContent: React.FC = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <button
                 onClick={() => setCoachView('CLIENTS')}
+                data-testid="students-entry-btn"
                 className="bg-slate-900/70 rounded-2xl border border-slate-800 p-5 text-left hover:border-cyan-400/40 hover:bg-slate-900 transition-colors"
               >
                 <div className="flex items-center gap-2 text-cyan-200 font-semibold">
                   <Users className="w-4 h-4" />
-                  Students
+                  {t('coachx_stat_members')}
                 </div>
                 <p className="text-xs text-slate-400 mt-2">
-                  Student context, profile, and lesson preparation.
+                  {t('coach_client_title')}
                 </p>
                 <p className="text-xl font-bold text-slate-100 mt-3">
                   {dashboardData.coachClients.length}
@@ -1423,14 +1425,15 @@ const AppContent: React.FC = () => {
 
               <button
                 onClick={() => setCoachView('LESSON_LIST')}
+                data-testid="lesson-records-entry-btn"
                 className="bg-slate-900/70 rounded-2xl border border-slate-800 p-5 text-left hover:border-indigo-400/40 hover:bg-slate-900 transition-colors"
               >
                 <div className="flex items-center gap-2 text-indigo-200 font-semibold">
                   <BookOpen className="w-4 h-4" />
-                  Lesson Records
+                  {t('coachx_stat_lessons')}
                 </div>
                 <p className="text-xs text-slate-400 mt-2">
-                  Open and manage recorded lessons.
+                  {t('no_lessons_desc')}
                 </p>
                 <p className="text-xl font-bold text-slate-100 mt-3">
                   {allCoachLessons.length}
@@ -1438,10 +1441,13 @@ const AppContent: React.FC = () => {
               </button>
             </div>
 
-            <div className="bg-slate-900/70 rounded-2xl border border-violet-500/25 p-4 flex items-center justify-between">
+            <div
+              data-testid="coachx-attention-card"
+              className="bg-slate-900/70 rounded-2xl border border-violet-500/25 p-4 flex items-center justify-between"
+            >
               <div>
                 <p className="text-xs font-semibold text-violet-300 uppercase tracking-wider">
-                  CoachX AI attention
+                  {t('coachx_attention_label')}
                 </p>
                 <p className="text-sm text-slate-300 mt-1">
                   {coachXUrgentCount > 0

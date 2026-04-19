@@ -87,7 +87,7 @@ vi.mock('../components/CoachReservationNotificationModal', () => ({
 const renderCoachApp = async () => {
   render(<App />);
   await waitFor(() => {
-    expect(screen.getByRole('button', { name: /레슨.*시작|start lesson|start_lesson/i })).toBeInTheDocument();
+    expect(screen.getByTestId('start-lesson-btn')).toBeInTheDocument();
   });
 };
 
@@ -99,10 +99,11 @@ describe('Coach dashboard – lesson-first MVP home', () => {
   it('shows core home priorities: Start Lesson, Students, CoachX AI, Lesson Records', async () => {
     await renderCoachApp();
 
-    expect(screen.getByRole('button', { name: /레슨.*시작|start lesson|start_lesson/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Students/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Lesson Records/i })).toBeInTheDocument();
+    expect(screen.getByTestId('start-lesson-btn')).toBeInTheDocument();
+    expect(screen.getByTestId('students-entry-btn')).toBeInTheDocument();
+    expect(screen.getByTestId('lesson-records-entry-btn')).toBeInTheDocument();
     expect(screen.getByTestId('coachx-entry-btn')).toBeInTheDocument();
+    expect(screen.getByTestId('coachx-attention-card')).toBeInTheDocument();
   });
 
   it('hides non-core surfaces from the coach home', async () => {
@@ -117,7 +118,7 @@ describe('Coach dashboard – lesson-first MVP home', () => {
   it('opens lesson list from the Lesson Records entry', async () => {
     await renderCoachApp();
 
-    fireEvent.click(screen.getByRole('button', { name: /Lesson Records/i }));
+    fireEvent.click(screen.getByTestId('lesson-records-entry-btn'));
 
     await waitFor(() => {
       expect(screen.getByText(/레슨 미디어 표시/i)).toBeInTheDocument();
