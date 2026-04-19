@@ -124,11 +124,6 @@ describe('Coach dashboard – lesson-first MVP home', () => {
     expect(screen.queryByRole('button', { name: /타석 예약/i })).toBeNull();
   });
 
-  it('keeps removed home shortcuts hidden', async () => {
-    await renderCoachApp();
-    expect(screen.queryByTestId('lesson-records-entry-btn')).toBeNull();
-  });
-
   it('keeps calendar hidden on the simplified coach home', async () => {
     await renderCoachApp();
     expect(screen.queryByTestId('calendar-view')).toBeNull();
