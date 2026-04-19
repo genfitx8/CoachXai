@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 
 interface CoachXLandingProps {
   onLogin: () => void;
@@ -9,6 +9,36 @@ export const CoachXLanding: React.FC<CoachXLandingProps> = ({
   onLogin,
   onSignup,
 }) => {
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (window.sessionStorage.getItem('coachx.voiceGreetingAttempted') === '1') return;
+
+    window.sessionStorage.setItem('coachx.voiceGreetingAttempted', '1');
+
+    const speechSynthesisApi = window.speechSynthesis;
+    const SpeechSynthesisUtteranceApi = window.SpeechSynthesisUtterance;
+    if (!speechSynthesisApi || !SpeechSynthesisUtteranceApi) return;
+
+    const greetingTimer = window.setTimeout(() => {
+      try {
+        const utterance = new SpeechSynthesisUtteranceApi('Hello, coach.');
+        utterance.lang = 'en-US';
+        utterance.rate = 0.92;
+        utterance.pitch = 1;
+        utterance.volume = 0.8;
+
+        speechSynthesisApi.cancel();
+        speechSynthesisApi.speak(utterance);
+      } catch {
+        // Graceful fallback: ignore blocked/unsupported autoplay audio.
+      }
+    }, 450);
+
+    return () => {
+      window.clearTimeout(greetingTimer);
+    };
+  }, []);
+
   return (
     <div className="min-h-screen bg-[#030407] text-white flex flex-col items-center justify-center relative overflow-hidden px-6">
       <div className="absolute inset-0 pointer-events-none">
