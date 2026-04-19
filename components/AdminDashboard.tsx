@@ -276,7 +276,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 <ShieldAlert className="w-6 h-6 text-white" />
              </div>
              <div>
-                <h1 className="text-xl font-bold leading-none">SwingNote Admin</h1>
+                <h1 className="text-xl font-bold leading-none">CoachX Admin</h1>
                 <p className="text-[10px] text-gray-400 font-mono">SYSTEM ADMINISTRATOR</p>
              </div>
           </div>
