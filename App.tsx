@@ -1197,6 +1197,7 @@ const AppContent: React.FC = () => {
   const coachXUrgentCount = coachXMemberReports.filter(
     r => r.trendIndicator === 'inactive' || r.trendIndicator === 'plateau'
   ).length;
+  const latestLesson = dashboardData?.recentLessons?.[0];
 
   if (isLoading) {
     return (
@@ -1449,9 +1450,9 @@ const AppContent: React.FC = () => {
               <div className="bg-white/90 rounded-xl border border-slate-200 p-4">
                 <p className="text-xs font-semibold text-slate-600">{t('coach_home_latest_lesson')}</p>
                 <p className="text-sm font-bold text-gray-900 mt-1 truncate">
-                  {dashboardData.recentLessons[0]?.clientName || '-'}
+                  {latestLesson?.clientName || '-'}
                 </p>
-                <p className="text-xs text-gray-500 mt-0.5">{dashboardData.recentLessons[0]?.date || '-'}</p>
+                <p className="text-xs text-gray-500 mt-0.5">{latestLesson?.date || '-'}</p>
               </div>
             </div>
 
