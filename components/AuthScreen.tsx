@@ -394,12 +394,12 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-emerald-800 to-emerald-900 flex items-center justify-center p-4 relative">
+    <div className="min-h-screen bg-gradient-to-br from-[#05070A] via-[#080C14] to-[#0D1321] flex items-center justify-center p-4 relative">
       {/* Language Switcher Dropdown */}
       <div className="absolute top-4 right-4 z-50">
         <button
           onClick={() => setShowLangMenu(!showLangMenu)}
-          className="bg-white/20 backdrop-blur-md text-white px-3 py-2 rounded-full text-xs font-bold flex items-center gap-2 hover:bg-white/30 transition-all shadow-sm border border-white/10"
+          className="bg-slate-900/70 backdrop-blur-md text-slate-100 px-3 py-2 rounded-full text-xs font-bold flex items-center gap-2 hover:bg-slate-800 transition-all shadow-sm border border-slate-700"
         >
           <Globe className="w-3.5 h-3.5" />
           <span>
@@ -419,7 +419,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
         </button>
 
         {showLangMenu && (
-          <div className="absolute right-0 mt-2 w-32 bg-white/95 backdrop-blur-xl rounded-xl shadow-xl border border-white/20 overflow-hidden animate-fade-in py-1">
+          <div className="absolute right-0 mt-2 w-32 bg-slate-900/95 backdrop-blur-xl rounded-xl shadow-xl border border-slate-700 overflow-hidden animate-fade-in py-1">
             {[
               { code: 'ko', label: '한국어', flag: '🇰🇷' },
               { code: 'en', label: 'English', flag: '🇺🇸' },
@@ -432,11 +432,11 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
                   setLanguage(lang.code as any);
                   setShowLangMenu(false);
                 }}
-                className={`w-full text-left px-4 py-3 text-xs font-bold flex items-center gap-2 hover:bg-gray-100 transition-colors ${
-                  language === lang.code
-                    ? 'text-emerald-600 bg-emerald-50'
-                    : 'text-gray-700'
-                }`}
+                  className={`w-full text-left px-4 py-3 text-xs font-bold flex items-center gap-2 hover:bg-slate-800 transition-colors ${
+                    language === lang.code
+                      ? 'text-indigo-200 bg-indigo-500/20'
+                      : 'text-slate-200'
+                  }`}
               >
                 <span className="text-sm">{lang.flag}</span>
                 {lang.label}
@@ -446,22 +446,22 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
         )}
       </div>
 
-      <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden animate-fade-in-up">
-        <div className="bg-emerald-50 p-8 text-center border-b border-emerald-100">
-          <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm">
-            <Activity className="w-8 h-8 text-emerald-600" />
+      <div className="bg-slate-900/85 w-full max-w-md rounded-2xl shadow-2xl overflow-hidden animate-fade-in-up border border-slate-700">
+        <div className="bg-gradient-to-br from-slate-900 to-indigo-950 p-8 text-center border-b border-slate-700">
+          <div className="w-16 h-16 bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm">
+            <Activity className="w-8 h-8 text-indigo-300" />
           </div>
-          <h1 className="text-2xl font-bold text-gray-900">CoachX AI</h1>
-          <p className="text-emerald-700 text-sm mt-1">{t('app_desc')}</p>
+          <h1 className="text-2xl font-bold text-white">CoachX AI</h1>
+          <p className="text-slate-300 text-sm mt-1">{t('app_desc')}</p>
         </div>
 
-        <div className="flex border-b border-gray-100">
+        <div className="flex border-b border-slate-700">
           <button
             type="button"
             className={`flex-1 py-4 text-sm font-bold transition-colors duration-200 ${
               activeTab === 'COACH'
-                ? 'text-emerald-600 border-b-2 border-emerald-600 bg-white'
-                : 'text-gray-400 bg-gray-50 hover:bg-gray-100'
+                ? 'text-indigo-200 border-b-2 border-indigo-400 bg-slate-900'
+                : 'text-slate-400 bg-slate-900/60 hover:bg-slate-800'
             }`}
             onClick={() => handleTabChange('COACH')}
           >
@@ -471,8 +471,8 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
             type="button"
             className={`flex-1 py-4 text-sm font-bold transition-colors duration-200 ${
               activeTab === 'CLIENT'
-                ? 'text-emerald-600 border-b-2 border-emerald-600 bg-white'
-                : 'text-gray-400 bg-gray-50 hover:bg-gray-100'
+                ? 'text-indigo-200 border-b-2 border-indigo-400 bg-slate-900'
+                : 'text-slate-400 bg-slate-900/60 hover:bg-slate-800'
             }`}
             onClick={() => handleTabChange('CLIENT')}
           >
@@ -490,7 +490,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
             </div>
           )}
           {successMsg && (
-            <div className="mb-6 bg-emerald-50 text-emerald-600 text-sm p-3 rounded-lg flex items-center gap-2 animate-fade-in">
+            <div className="mb-6 bg-indigo-500/15 text-indigo-200 text-sm p-3 rounded-lg flex items-center gap-2 animate-fade-in border border-indigo-400/20">
               <CheckCircle className="w-4 h-4" /> {successMsg}
             </div>
           )}
@@ -503,18 +503,18 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
           >
             {isSignup && (
               <div>
-                <label className="block text-xs font-bold text-gray-500 mb-1 ml-1 uppercase">
+                  <label className="block text-xs font-bold text-slate-400 mb-1 ml-1 uppercase">
                   {t('name')}
                 </label>
                 <div className="relative">
-                  <User className="absolute left-3 top-2.5 w-5 h-5 text-gray-400" />
+                    <User className="absolute left-3 top-2.5 w-5 h-5 text-slate-500" />
                   <input
                     type="text"
                     name="name"
                     autoComplete="name"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 bg-white text-gray-900 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-700 focus:border-emerald-700 outline-none transition-all"
+                      className="w-full pl-10 pr-4 py-2 bg-slate-900 text-slate-100 border border-slate-700 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
                     placeholder="Name"
                   />
                 </div>
@@ -523,18 +523,18 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
 
             {/* Email & Password are common for both Coach and Client now */}
             <div>
-              <label className="block text-xs font-bold text-gray-500 mb-1 ml-1 uppercase">
+              <label className="block text-xs font-bold text-slate-400 mb-1 ml-1 uppercase">
                 {t('email')}
               </label>
               <div className="relative">
-                <Mail className="absolute left-3 top-2.5 w-5 h-5 text-gray-400" />
+                <Mail className="absolute left-3 top-2.5 w-5 h-5 text-slate-500" />
                 <input
                   type="email"
                   name="email"
                   autoComplete="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 bg-white text-gray-900 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-700 focus:border-emerald-700 outline-none transition-all"
+                  className="w-full pl-10 pr-4 py-2 bg-slate-900 text-slate-100 border border-slate-700 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
                   placeholder="email@example.com"
                 />
               </div>
@@ -543,23 +543,23 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
             {/* Phone is required for signup to link records */}
             {isSignup && (
               <div>
-                <label className="block text-xs font-bold text-gray-500 mb-1 ml-1 uppercase">
+                <label className="block text-xs font-bold text-slate-400 mb-1 ml-1 uppercase">
                   {t('phone')} {activeTab === 'CLIENT' && '(Essential)'}
                 </label>
                 <div className="relative">
-                  <Smartphone className="absolute left-3 top-2.5 w-5 h-5 text-gray-400" />
+                  <Smartphone className="absolute left-3 top-2.5 w-5 h-5 text-slate-500" />
                   <input
                     type="tel"
                     name="phone"
                     autoComplete="tel"
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 bg-white text-gray-900 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-700 focus:border-emerald-700 outline-none transition-all"
+                    className="w-full pl-10 pr-4 py-2 bg-slate-900 text-slate-100 border border-slate-700 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
                     placeholder="010-0000-0000"
                   />
                 </div>
                 {activeTab === 'CLIENT' && (
-                  <p className="text-[10px] text-gray-400 mt-1 ml-1">
+                  <p className="text-[10px] text-slate-500 mt-1 ml-1">
                     {t('phone_desc')}
                   </p>
                 )}
@@ -567,18 +567,18 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
             )}
 
             <div>
-              <label className="block text-xs font-bold text-gray-500 mb-1 ml-1 uppercase">
+              <label className="block text-xs font-bold text-slate-400 mb-1 ml-1 uppercase">
                 {t('password')}
               </label>
               <div className="relative">
-                <Lock className="absolute left-3 top-2.5 w-5 h-5 text-gray-400" />
+                <Lock className="absolute left-3 top-2.5 w-5 h-5 text-slate-500" />
                 <input
                   type="password"
                   name="password"
                   autoComplete={isSignup ? 'new-password' : 'current-password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 bg-white text-gray-900 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-700 focus:border-emerald-700 outline-none transition-all"
+                  className="w-full pl-10 pr-4 py-2 bg-slate-900 text-slate-100 border border-slate-700 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
                   placeholder="••••••••"
                 />
               </div>
@@ -590,11 +590,11 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
                 onClick={() => setIsAutoLogin(!isAutoLogin)}
               >
                 {isAutoLogin ? (
-                  <CheckSquare className="w-5 h-5 text-emerald-600" />
+                  <CheckSquare className="w-5 h-5 text-indigo-300" />
                 ) : (
-                  <Square className="w-5 h-5 text-gray-300" />
+                  <Square className="w-5 h-5 text-slate-500" />
                 )}
-                <span className="text-sm text-gray-600">{t('auto_login')}</span>
+                <span className="text-sm text-slate-300">{t('auto_login')}</span>
               </div>
               {!isSignup && (
                 <button
@@ -603,7 +603,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
                     setShowFindAccount(true);
                     resetForm();
                   }}
-                  className="text-xs text-gray-500 hover:text-emerald-600 hover:underline flex items-center gap-1"
+                  className="text-xs text-slate-400 hover:text-indigo-300 hover:underline flex items-center gap-1"
                 >
                   <HelpCircle className="w-3 h-3" /> {t('find_account')}
                 </button>
@@ -625,7 +625,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
                   setIsSignup(!isSignup);
                   setError(null);
                 }}
-                className="text-sm text-gray-500 hover:text-emerald-600 underline"
+                className="text-sm text-slate-400 hover:text-indigo-300 underline"
               >
                 {isSignup ? t('login_msg') : t('signup_msg')}
               </button>
@@ -641,17 +641,17 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
             setIsBranchAdminMode(true);
             resetForm();
           }}
-          className="text-xs text-white/50 hover:text-white transition-colors"
+          className="text-xs text-slate-400 hover:text-slate-100 transition-colors"
         >
           지점 관리자 로그인
         </button>
-        <span className="text-white/20 text-xs">|</span>
+        <span className="text-slate-700 text-xs">|</span>
         <button
           onClick={() => {
             setIsAdminMode(true);
             resetForm();
           }}
-          className="text-xs text-white/50 hover:text-white transition-colors"
+          className="text-xs text-slate-400 hover:text-slate-100 transition-colors"
         >
           {t('admin_login')}
         </button>
@@ -660,21 +660,21 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
       {/* Find Account Modal */}
       {showFindAccount && (
         <div className="absolute inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-fade-in">
-          <div className="bg-white w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden">
-            <div className="bg-gray-100 px-6 py-4 flex justify-between items-center border-b border-gray-200">
-              <h3 className="font-bold text-gray-800">{t('find_account')}</h3>
+          <div className="bg-slate-900 w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden border border-slate-700">
+            <div className="bg-slate-800 px-6 py-4 flex justify-between items-center border-b border-slate-700">
+              <h3 className="font-bold text-slate-100">{t('find_account')}</h3>
               <button
                 onClick={() => {
                   setShowFindAccount(false);
                   resetForm();
                 }}
-                className="text-gray-500 hover:text-gray-800"
+                className="text-slate-400 hover:text-slate-100"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="flex border-b border-gray-200">
+            <div className="flex border-b border-slate-700">
               <button
                 onClick={() => {
                   setFindTab('EMAIL');
@@ -682,8 +682,8 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
                 }}
                 className={`flex-1 py-3 text-sm font-bold transition-colors ${
                   findTab === 'EMAIL'
-                    ? 'text-emerald-600 border-b-2 border-emerald-600 bg-white'
-                    : 'text-gray-500 bg-gray-50 hover:bg-gray-100'
+                    ? 'text-indigo-200 border-b-2 border-indigo-400 bg-slate-900'
+                    : 'text-slate-400 bg-slate-900/60 hover:bg-slate-800'
                 }`}
               >
                 {t('find_email_title')}
@@ -695,8 +695,8 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
                 }}
                 className={`flex-1 py-3 text-sm font-bold transition-colors ${
                   findTab === 'PASSWORD'
-                    ? 'text-emerald-600 border-b-2 border-emerald-600 bg-white'
-                    : 'text-gray-500 bg-gray-50 hover:bg-gray-100'
+                    ? 'text-indigo-200 border-b-2 border-indigo-400 bg-slate-900'
+                    : 'text-slate-400 bg-slate-900/60 hover:bg-slate-800'
                 }`}
               >
                 {t('find_pw_title')}
@@ -708,7 +708,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
                 <div
                   className={`p-3 rounded-lg text-sm mb-4 flex items-start gap-2 ${
                     findResult.type === 'success'
-                      ? 'bg-emerald-50 text-emerald-800'
+                      ? 'bg-indigo-500/15 text-indigo-200 border border-indigo-400/20'
                       : 'bg-red-50 text-red-600'
                   }`}
                 >
@@ -724,26 +724,26 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
               {findTab === 'EMAIL' ? (
                 <>
                   <div>
-                    <label className="block text-xs font-bold text-gray-500 mb-1 ml-1">
+                      <label className="block text-xs font-bold text-slate-400 mb-1 ml-1">
                       {t('name')}
                     </label>
                     <input
                       type="text"
                       value={name}
                       onChange={(e) => setName(e.target.value)}
-                      className="w-full px-4 py-2 bg-white text-gray-900 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-700 outline-none"
+                        className="w-full px-4 py-2 bg-slate-900 text-slate-100 border border-slate-700 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
                       placeholder="가입시 등록한 이름"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-gray-500 mb-1 ml-1">
+                      <label className="block text-xs font-bold text-slate-400 mb-1 ml-1">
                       {t('phone')}
                     </label>
                     <input
                       type="tel"
                       value={phone}
                       onChange={(e) => setPhone(e.target.value)}
-                      className="w-full px-4 py-2 bg-white text-gray-900 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-700 outline-none"
+                        className="w-full px-4 py-2 bg-slate-900 text-slate-100 border border-slate-700 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
                       placeholder="010-0000-0000"
                     />
                   </div>
@@ -751,26 +751,26 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
               ) : (
                 <>
                   <div>
-                    <label className="block text-xs font-bold text-gray-500 mb-1 ml-1">
+                      <label className="block text-xs font-bold text-slate-400 mb-1 ml-1">
                       {t('email')}
                     </label>
                     <input
                       type="email"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      className="w-full px-4 py-2 bg-white text-gray-900 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-700 outline-none"
+                        className="w-full px-4 py-2 bg-slate-900 text-slate-100 border border-slate-700 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
                       placeholder="이메일 주소"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-gray-500 mb-1 ml-1">
+                      <label className="block text-xs font-bold text-slate-400 mb-1 ml-1">
                       {t('phone')}
                     </label>
                     <input
                       type="tel"
                       value={phone}
                       onChange={(e) => setPhone(e.target.value)}
-                      className="w-full px-4 py-2 bg-white text-gray-900 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-700 outline-none"
+                        className="w-full px-4 py-2 bg-slate-900 text-slate-100 border border-slate-700 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
                       placeholder="010-0000-0000"
                     />
                   </div>

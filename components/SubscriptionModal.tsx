@@ -66,7 +66,7 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ role, user
             </div>
             <h2 className="text-2xl font-bold mb-1">{isCoach ? '프리미엄 코치 1주일 무료' : '멤버십 구독이 필요합니다'}</h2>
             <p className={`${isCoach ? 'text-slate-300' : 'text-emerald-100'} text-sm`}>
-                {isCoach ? '지금 시작하고 7일간 모든 기능을 무료로 체험하세요.' : 'SwingNote의 모든 기능을 이용해보세요.'}
+                {isCoach ? '지금 시작하고 7일간 모든 기능을 무료로 체험하세요.' : 'CoachX AI의 모든 기능을 이용해보세요.'}
             </p>
           </div>
         </div>
