@@ -1,6 +1,6 @@
 import React from 'react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { CoachXLanding } from '../components/CoachXLanding';
 
 class MockSpeechSynthesisUtterance {
@@ -18,6 +18,22 @@ class MockSpeechSynthesisUtterance {
 afterEach(() => {
   vi.useRealTimers();
   window.sessionStorage.clear();
+});
+
+beforeEach(() => {
+  Object.defineProperty(window, 'matchMedia', {
+    configurable: true,
+    value: vi.fn().mockImplementation(() => ({
+      matches: false,
+      media: '(display-mode: standalone)',
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      onchange: null,
+      dispatchEvent: vi.fn(),
+    })),
+  });
 });
 
 describe('CoachXLanding', () => {
@@ -82,5 +98,65 @@ describe('CoachXLanding', () => {
     expect(() => {
       render(<CoachXLanding onLogin={() => {}} onSignup={() => {}} />);
     }).not.toThrow();
+  });
+
+  it('shows a branded install CTA when beforeinstallprompt is available and triggers the real prompt', async () => {
+    const prompt = vi.fn().mockResolvedValue(undefined);
+    const userChoice = Promise.resolve({ outcome: 'dismissed', platform: 'web' });
+    const installEvent = new Event('beforeinstallprompt') as Event & {
+      prompt: () => Promise<void>;
+      userChoice: Promise<{ outcome: 'accepted' | 'dismissed'; platform: string }>;
+    };
+
+    Object.defineProperty(installEvent, 'preventDefault', {
+      configurable: true,
+      value: vi.fn(),
+    });
+    installEvent.prompt = prompt;
+    installEvent.userChoice = userChoice;
+
+    render(<CoachXLanding onLogin={() => {}} onSignup={() => {}} />);
+    await act(async () => {
+      window.dispatchEvent(installEvent);
+    });
+
+    await act(async () => {
+      fireEvent.click(await screen.findByRole('button', { name: 'Install CoachX' }));
+      await userChoice;
+    });
+
+    await waitFor(() => {
+      expect(prompt).toHaveBeenCalledTimes(1);
+      expect(screen.getByText(/Install dismissed/)).toBeInTheDocument();
+    });
+  });
+
+  it('shows fallback install guidance when install prompt is unsupported', () => {
+    render(<CoachXLanding onLogin={() => {}} onSignup={() => {}} />);
+
+    expect(
+      screen.getByText(/Install prompt is unavailable here/)
+    ).toBeInTheDocument();
+  });
+
+  it('does not show install CTA when app is already installed', () => {
+    Object.defineProperty(window, 'matchMedia', {
+      configurable: true,
+      value: vi.fn().mockImplementation(() => ({
+        matches: true,
+        media: '(display-mode: standalone)',
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        onchange: null,
+        dispatchEvent: vi.fn(),
+      })),
+    });
+
+    render(<CoachXLanding onLogin={() => {}} onSignup={() => {}} />);
+
+    expect(screen.queryByRole('button', { name: 'Install CoachX' })).not.toBeInTheDocument();
+    expect(screen.queryByText('CoachX App')).not.toBeInTheDocument();
   });
 });
