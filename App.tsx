@@ -14,6 +14,7 @@ import { LessonDetail } from './components/LessonDetail';
 import { NewLessonForm } from './components/NewLessonForm';
 import { ClientApp } from './components/ClientApp';
 import { AuthScreen } from './components/AuthScreen';
+import { CoachXLanding } from './components/CoachXLanding';
 import { AdminDashboard } from './components/AdminDashboard';
 import { BranchAdminDashboard } from './components/BranchAdminDashboard';
 import { SwingComparison } from './components/SwingComparison';
@@ -85,6 +86,9 @@ const AppContent: React.FC = () => {
     adminId: string;
   } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [authEntryMode, setAuthEntryMode] = useState<'LOGIN' | 'SIGNUP' | null>(
+    null
+  );
 
   // Data State
   const [lessons, setLessons] = useState<Lesson[]>([]);
@@ -421,6 +425,7 @@ const AppContent: React.FC = () => {
     setUserRole(null);
     setCurrentUser(null);
     setBranchAdminData(null);
+    setAuthEntryMode(null);
     setCoachView('LIST');
     setSelectedLesson(null);
   };
@@ -1210,7 +1215,20 @@ const AppContent: React.FC = () => {
   // --- Render Views ---
 
   if (!userRole) {
-    return <AuthScreen onLoginSuccess={handleLoginSuccess} />;
+    if (!authEntryMode) {
+      return (
+        <CoachXLanding
+          onLogin={() => setAuthEntryMode('LOGIN')}
+          onSignup={() => setAuthEntryMode('SIGNUP')}
+        />
+      );
+    }
+    return (
+      <AuthScreen
+        onLoginSuccess={handleLoginSuccess}
+        initialMode={authEntryMode}
+      />
+    );
   }
 
   if (userRole === 'ADMIN') {

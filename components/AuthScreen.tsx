@@ -28,9 +28,13 @@ interface AuthScreenProps {
     data: any,
     isAutoLogin: boolean
   ) => void;
+  initialMode?: 'LOGIN' | 'SIGNUP';
 }
 
-export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
+export const AuthScreen: React.FC<AuthScreenProps> = ({
+  onLoginSuccess,
+  initialMode = 'LOGIN',
+}) => {
   const { t, language, setLanguage } = useLanguage();
   const [activeTab, setActiveTab] = useState<'COACH' | 'CLIENT'>('COACH');
   const [isAdminMode, setIsAdminMode] = useState(false);
@@ -38,7 +42,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
   const [showLangMenu, setShowLangMenu] = useState(false);
 
   // Unified State for Login/Signup
-  const [isSignup, setIsSignup] = useState(false);
+  const [isSignup, setIsSignup] = useState(initialMode === 'SIGNUP');
 
   // Find Account State
   const [showFindAccount, setShowFindAccount] = useState(false);
