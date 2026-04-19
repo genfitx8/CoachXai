@@ -1205,8 +1205,15 @@ const AppContent: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#05070A]">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-400"></div>
+      <div className="min-h-screen flex items-center justify-center bg-[#05070A] text-slate-100 overflow-hidden px-6">
+        <div className="relative flex flex-col items-center justify-center">
+          <div className="absolute w-36 h-36 rounded-full bg-cyan-500/15 blur-3xl animate-pulse" />
+          <div
+            className="relative w-16 h-16 rounded-full border border-cyan-300/35 border-t-cyan-100 animate-spin"
+            style={{ animationDuration: '1.1s' }}
+          />
+          <p className="mt-4 text-xs tracking-[0.24em] uppercase text-cyan-100/80">CoachX</p>
+        </div>
       </div>
     );
   }
@@ -1277,9 +1284,9 @@ const AppContent: React.FC = () => {
   // --- COACH VIEW ---
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#05070A] via-[#070b12] to-[#0B1220] text-slate-100 flex flex-col font-sans">
+    <div className="min-h-screen bg-gradient-to-b from-[#05070A] via-[#070b12] to-[#0B1220] text-slate-100 flex flex-col font-sans safe-area-bottom">
       {/* Header */}
-      <header className="bg-[#0A0F1A]/95 border-b border-slate-800 shadow-lg shadow-black/30 sticky top-0 z-40 backdrop-blur-xl">
+      <header className="bg-[#0A0F1A]/95 border-b border-slate-800 shadow-lg shadow-black/30 sticky top-0 z-40 backdrop-blur-xl safe-area-top">
         <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-end">
           <div className="flex items-center gap-4">
             <button

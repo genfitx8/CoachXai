@@ -321,16 +321,16 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 font-sans pb-20">
-      <header className="bg-gradient-to-r from-white via-emerald-50 to-white border-b border-emerald-100/50 sticky top-0 z-[60] shadow-sm">
+    <div className="min-h-screen bg-gradient-to-b from-[#05070A] via-[#070b12] to-[#0B1220] text-slate-100 font-sans pb-20 safe-area-bottom">
+      <header className="bg-[#0A0F1A]/95 border-b border-slate-800 sticky top-0 z-[60] shadow-lg shadow-black/30 backdrop-blur-xl safe-area-top">
         <div className="max-w-md mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2 cursor-pointer" onClick={() => setView('PROFILE')}>
-            <div className="bg-gradient-to-br from-emerald-700 to-emerald-800 p-2 rounded-full text-white shadow-md shadow-emerald-900/10">
+            <div className="bg-gradient-to-br from-indigo-500/30 to-cyan-500/30 p-2 rounded-full text-cyan-100 shadow-md shadow-indigo-900/20 border border-cyan-200/20">
                 <User className="w-5 h-5" />
             </div>
             <div>
-                <h1 className="font-bold text-gray-900 leading-tight">{clientProfile.name}님</h1>
-                <p className="text-[10px] text-gray-500 flex items-center gap-1">
+                <h1 className="font-bold text-slate-100 leading-tight">{clientProfile.name}님</h1>
+                <p className="text-[10px] text-slate-400 flex items-center gap-1">
                     {clientProfile.designatedCoach ? `Coach: ${clientProfile.designatedCoach}` : clientProfile.phone}
                 </p>
             </div>
@@ -338,7 +338,7 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
           <div className="flex items-center gap-2">
             <button 
                 onClick={toggleLanguage}
-                className="flex items-center gap-1 px-2 py-1.5 bg-gray-50 text-gray-600 rounded-lg border border-gray-200 text-xs font-bold hover:bg-gray-100 transition-colors"
+                className="flex items-center gap-1 px-2 py-1.5 bg-slate-900 text-slate-300 rounded-lg border border-slate-700 text-xs font-bold hover:text-cyan-200 transition-colors"
             >
                 <Globe className="w-3.5 h-3.5" />
                 {language.toUpperCase()}
@@ -347,14 +347,14 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
             {/* Points Badge */}
             <button 
                 onClick={() => setShowPointHistory(true)}
-                className="flex items-center gap-1 px-3 py-1.5 bg-gradient-to-r from-yellow-50 to-amber-50 text-yellow-700 rounded-full border border-yellow-200 shadow-md hover:shadow-lg hover:from-yellow-100 hover:to-amber-100 transition-all duration-200 hover:scale-105 transform"
+                className="flex items-center gap-1 px-3 py-1.5 bg-gradient-to-r from-amber-400/10 to-yellow-300/10 text-amber-200 rounded-full border border-amber-300/35 shadow-md shadow-amber-900/10 hover:from-amber-300/20 hover:to-yellow-200/20 transition-all duration-200 hover:scale-105 transform"
             >
-                <div className="bg-gradient-to-br from-yellow-300 to-yellow-400 rounded-full p-1 shadow-sm"><div className="w-2 h-2 bg-white rounded-full" /></div>
+                <div className="bg-gradient-to-br from-amber-300 to-yellow-300 rounded-full p-1 shadow-sm"><div className="w-2 h-2 bg-[#0A0F1A] rounded-full" /></div>
                 <span className="text-xs font-bold">{clientProfile.currentPoints?.toLocaleString() || 0} P</span>
             </button>
             <button 
                 onClick={onLogout} 
-                className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-all duration-200 relative z-50 cursor-pointer hover:scale-110 transform"
+                className="p-2 text-slate-400 hover:text-red-400 hover:bg-red-900/20 rounded-full transition-all duration-200 relative z-50 cursor-pointer hover:scale-110 transform"
                 aria-label={t('logout')}
             >
                 <LogOut className="w-5 h-5" />

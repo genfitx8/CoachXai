@@ -134,9 +134,22 @@ describe('CoachXLanding', () => {
   it('shows fallback install guidance when install prompt is unsupported', () => {
     render(<CoachXLanding onLogin={() => {}} onSignup={() => {}} />);
 
+    expect(screen.getByRole('button', { name: 'Install CoachX' })).toBeInTheDocument();
     expect(
       screen.getByText(/Install prompt is unavailable here/)
     ).toBeInTheDocument();
+  });
+
+  it('keeps install CTA visible and shows guidance message when no prompt event exists', async () => {
+    render(<CoachXLanding onLogin={() => {}} onSignup={() => {}} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Install CoachX' }));
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(/Install is not available in this browser/)
+      ).toBeInTheDocument();
+    });
   });
 
   it('does not show install CTA when app is already installed', () => {

@@ -146,8 +146,8 @@ export const CoachXLanding: React.FC<CoachXLandingProps> = ({
     }
   };
 
-  const shouldShowInstallButton = !isInstalled && Boolean(deferredInstallPrompt);
-  const shouldShowFallbackHelp = !isInstalled && !deferredInstallPrompt && !supportsInstallPrompt;
+  const shouldShowInstallCard = !isInstalled;
+  const shouldShowFallbackHelp = !deferredInstallPrompt;
 
   return (
     <div className="min-h-screen bg-[#030407] text-white flex flex-col items-center justify-center relative overflow-hidden px-6">
@@ -177,22 +177,23 @@ export const CoachXLanding: React.FC<CoachXLandingProps> = ({
       </div>
 
       <div className="absolute bottom-8 left-0 right-0 z-10 flex flex-col items-center justify-center gap-4">
-        {(shouldShowInstallButton || shouldShowFallbackHelp || installHintMessage) && (
+        {shouldShowInstallCard && (
           <div className="max-w-xs px-4 py-3 rounded-2xl border border-cyan-300/20 bg-slate-950/60 backdrop-blur-md shadow-xl shadow-cyan-950/20 text-center">
             <p className="text-[11px] uppercase tracking-[0.2em] text-cyan-200/75">CoachX App</p>
-            {shouldShowInstallButton ? (
-              <button
-                type="button"
-                onClick={handleInstallClick}
-                className="mt-2 w-full px-3 py-2 rounded-full border border-cyan-200/35 bg-cyan-400/10 text-cyan-100 text-xs font-semibold tracking-wide hover:bg-cyan-400/20 hover:border-cyan-200/60 transition-colors"
-              >
-                Install CoachX
-              </button>
-            ) : (
+            <button
+              type="button"
+              onClick={handleInstallClick}
+              className="mt-2 w-full px-3 py-2 rounded-full border border-cyan-200/35 bg-cyan-400/10 text-cyan-100 text-xs font-semibold tracking-wide hover:bg-cyan-400/20 hover:border-cyan-200/60 transition-colors"
+            >
+              Install CoachX
+            </button>
+            {shouldShowFallbackHelp && (
               <p className="mt-2 text-xs text-slate-300 leading-relaxed">
                 {isIosDevice
                   ? 'Install CoachX: tap Share, then choose “Add to Home Screen”.'
-                  : 'Install prompt is unavailable here. Use your browser menu to add CoachX to your home screen.'}
+                  : supportsInstallPrompt
+                    ? 'Install becomes available after required browser criteria are met.'
+                    : 'Install prompt is unavailable here. Use your browser menu to add CoachX to your home screen.'}
               </p>
             )}
             {installHintMessage && (

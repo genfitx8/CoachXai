@@ -92,6 +92,11 @@ describe('index.html PWA meta tags', () => {
     expect(html).toContain('apple-mobile-web-app-title');
   });
 
+  it('uses app-like iOS status bar styling', () => {
+    expect(html).toContain('apple-mobile-web-app-status-bar-style');
+    expect(html).toContain('black-translucent');
+  });
+
   it('includes apple-touch-icon link pointing to PNG', () => {
     expect(html).toContain('apple-touch-icon');
     expect(html).toContain('apple-touch-icon.png');
