@@ -1,7 +1,7 @@
 // CoachX Service Worker
 // Minimal service worker for PWA installability and basic offline support
 
-const CACHE_NAME = 'coachx-v1';
+const CACHE_NAME = 'coachx-v2';
 
 // App shell files to cache on install
 const APP_SHELL = [
@@ -10,6 +10,9 @@ const APP_SHELL = [
   '/manifest.json',
   '/icons/icon-192.svg',
   '/icons/icon-512.svg',
+  '/icons/icon-192.png',
+  '/icons/icon-512.png',
+  '/icons/apple-touch-icon.png',
 ];
 
 self.addEventListener('install', (event) => {

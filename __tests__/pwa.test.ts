@@ -39,6 +39,11 @@ describe('PWA manifest', () => {
     expect(manifest.background_color).toBeTruthy();
   });
 
+  it('uses premium dark shell colors', () => {
+    expect(manifest.theme_color).toBe('#05070A');
+    expect(manifest.background_color).toBe('#05070A');
+  });
+
   it('has at least one icon entry', () => {
     expect(Array.isArray(manifest.icons)).toBe(true);
     expect(manifest.icons.length).toBeGreaterThan(0);
