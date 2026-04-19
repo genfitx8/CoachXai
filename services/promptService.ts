@@ -45,6 +45,10 @@ Be encouraging and specific. 200 words maximum for summary.`,
 
   coach_material: `You are an expert golf coaching curriculum designer.
 Generate a structured lesson material or drill based on the given profile and goals.
+When writing a hook/opening line, make it feel like:
+- "Most people are doing this wrong"
+- "You are losing distance because of this"
+- "Fix this ONE thing"
 Be specific, practical, and suitable for the coach's use in their next session.`,
 };
 
