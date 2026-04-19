@@ -1206,8 +1206,8 @@ const AppContent: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600"></div>
+      <div className="min-h-screen flex items-center justify-center bg-[#05070A]">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-400"></div>
       </div>
     );
   }
@@ -1278,9 +1278,9 @@ const AppContent: React.FC = () => {
   // --- COACH VIEW ---
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100/60 flex flex-col font-sans">
+    <div className="min-h-screen bg-gradient-to-b from-[#05070A] via-[#070A11] to-[#0A0F18] flex flex-col font-sans text-slate-100">
       {/* Header */}
-      <header className="bg-gradient-to-r from-white via-violet-50/40 to-white border-b border-violet-100/60 shadow-sm sticky top-0 z-40">
+      <header className="bg-[#0C111B]/90 border-b border-indigo-400/20 shadow-sm shadow-black/20 backdrop-blur sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
           <div
             className="flex items-center gap-2.5 cursor-pointer"
@@ -1292,10 +1292,10 @@ const AppContent: React.FC = () => {
             <div className="bg-gradient-to-br from-slate-700 to-slate-800 p-2 rounded-xl shadow-md shadow-slate-900/20 text-white">
               <Menu className="w-5 h-5" />
             </div>
-            <span className="font-bold text-xl text-gray-900 tracking-tight">
+            <span className="font-bold text-xl text-white tracking-tight">
               CoachX
             </span>
-            <span className="bg-gradient-to-r from-violet-100 to-indigo-100 text-indigo-700 text-[10px] px-2 py-0.5 rounded-full font-bold uppercase border border-indigo-200/60">
+            <span className="bg-indigo-500/15 text-indigo-200 text-[10px] px-2 py-0.5 rounded-full font-bold uppercase border border-indigo-400/30">
               {t('coach')}
             </span>
           </div>
@@ -1303,7 +1303,7 @@ const AppContent: React.FC = () => {
           <div className="flex items-center gap-4">
             <button
               onClick={toggleLanguage}
-              className="flex items-center gap-1 text-sm font-bold text-gray-500 hover:text-indigo-600 transition-colors bg-gray-50 px-2 py-1.5 rounded-lg border border-gray-200"
+              className="flex items-center gap-1 text-sm font-bold text-slate-300 hover:text-indigo-200 transition-colors bg-slate-900/70 px-2 py-1.5 rounded-lg border border-indigo-400/20"
             >
               <Globe className="w-4 h-4" />
               {language.toUpperCase()}
@@ -1311,10 +1311,10 @@ const AppContent: React.FC = () => {
 
             {currentUser && 'id' in currentUser && (
               <div
-                className="flex items-center gap-2 text-sm text-gray-600 hover:bg-gray-100 px-3 py-1.5 rounded-full cursor-pointer transition-colors"
+                className="flex items-center gap-2 text-sm text-slate-200 hover:bg-slate-800/80 px-3 py-1.5 rounded-full cursor-pointer transition-colors border border-transparent hover:border-indigo-400/20"
                 onClick={() => setShowProfileModal(true)}
               >
-                <div className="bg-indigo-100 p-1 rounded-full text-indigo-600">
+                <div className="bg-indigo-500/20 p-1 rounded-full text-indigo-200">
                   <User className="w-4 h-4" />
                 </div>
                 {/* Always visible Coach Name */}
@@ -1326,7 +1326,7 @@ const AppContent: React.FC = () => {
             <Button
               variant="ghost"
               onClick={handleLogout}
-              className="text-gray-400 hover:text-red-500"
+              className="text-slate-400 hover:text-red-400"
             >
               <LogOut className="w-5 h-5" />
             </Button>
@@ -1386,245 +1386,48 @@ const AppContent: React.FC = () => {
               <ChevronRight className="w-5 h-5 text-white/40 group-hover:text-white/70 transition-colors flex-shrink-0" />
             </button>
 
-            {/* ── Dashboard Header ───────────────────────────────────────── */}
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-                  <Sparkles className="w-5 h-5 text-slate-600" />
-                  {t('coach_dashboard')}
-                </h2>
-                <p className="text-sm text-gray-500 mt-0.5">{t('coach_dashboard_desc')}</p>
-              </div>
-            </div>
+            <div className="rounded-2xl border border-indigo-400/20 bg-[#0F1522] p-6 shadow-xl shadow-black/20">
+              <p className="text-xs uppercase tracking-[0.18em] text-indigo-200/80">Coach home</p>
+              <h2 className="mt-2 text-2xl font-bold text-white">Start your next lesson</h2>
+              <p className="mt-1 text-sm text-slate-400">Focused on lesson recording, student context, and CoachX AI support.</p>
 
-            {/* ── Lesson-Record Stats Row ────────────────────────────────── */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3" data-testid="dashboard-stats">
-              <div className="bg-slate-50 rounded-xl p-4 border border-slate-200 flex items-start gap-3">
-                <div className="w-9 h-9 bg-slate-100 rounded-xl flex items-center justify-center flex-shrink-0">
-                  <BookOpen className="w-4 h-4 text-slate-600" />
-                </div>
-                <div>
-                  <div className="text-2xl font-bold text-slate-700">{allCoachLessons.length}</div>
-                  <div className="text-xs font-medium text-slate-500 mt-0.5">전체 레슨 기록</div>
-                </div>
-              </div>
-              <div className="bg-slate-50 rounded-xl p-4 border border-slate-200 flex items-start gap-3">
-                <div className="w-9 h-9 bg-slate-100 rounded-xl flex items-center justify-center flex-shrink-0">
-                  <Clock className="w-4 h-4 text-slate-600" />
-                </div>
-                <div>
-                  <div className="text-2xl font-bold text-slate-700">{dashboardData.todayLessons.length}</div>
-                  <div className="text-xs font-medium text-slate-500 mt-0.5">오늘 레슨</div>
-                </div>
-              </div>
-              <div className="bg-amber-50 rounded-xl p-4 border border-amber-100 flex items-start gap-3">
-                <div className="w-9 h-9 bg-amber-100 rounded-xl flex items-center justify-center flex-shrink-0">
-                  <TrendingUp className="w-4 h-4 text-amber-600" />
-                </div>
-                <div>
-                  <div className="text-2xl font-bold text-amber-700">{dashboardData.incompletePackages.length}</div>
-                  <div className="text-xs font-medium text-amber-500 mt-0.5">미완료 패키지</div>
-                </div>
-              </div>
-              <div className="bg-emerald-50 rounded-xl p-4 border border-emerald-100 flex items-start gap-3">
-                <div className="w-9 h-9 bg-emerald-100 rounded-xl flex items-center justify-center flex-shrink-0">
-                  <Users className="w-4 h-4 text-emerald-600" />
-                </div>
-                <div>
-                  <div className="text-2xl font-bold text-emerald-700">{dashboardData.coachClients.length}</div>
-                  <div className="text-xs font-medium text-emerald-700 mt-0.5">담당 회원</div>
-                </div>
-              </div>
-            </div>
-
-            {/* ── Primary Lesson-Record Actions ─────────────────────────── */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Button
-                onClick={() => setCoachView('NEW')}
-                className="w-full py-4 text-base shadow-lg shadow-emerald-900/10 bg-emerald-800 hover:bg-emerald-900 justify-center"
-                icon={<Play className="w-5 h-5 fill-current" />}
-              >
-                {t('start_lesson')}
-              </Button>
-              <Button
-                onClick={() => setCoachView('LESSON_LIST')}
-                className="w-full py-4 text-base shadow-lg shadow-slate-200 bg-slate-700 hover:bg-slate-800 justify-center"
-                icon={<BookOpen className="w-5 h-5" />}
-              >
-                레슨 기록 보기
-              </Button>
-            </div>
-
-            {/* ── Student Context Snapshot ──────────────────────────────── */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <div className="bg-white/90 rounded-xl border border-violet-100 p-4">
-                <p className="text-xs font-semibold text-violet-600">{t('coach_home_attention_members')}</p>
-                <p className="text-2xl font-bold text-gray-900 mt-1">{coachXUrgentCount}</p>
-              </div>
-              <div className="bg-white/90 rounded-xl border border-amber-100 p-4">
-                <p className="text-xs font-semibold text-amber-600">{t('coach_home_active_packages')}</p>
-                <p className="text-2xl font-bold text-gray-900 mt-1">{dashboardData.incompletePackages.length}</p>
-              </div>
-              <div className="bg-white/90 rounded-xl border border-slate-200 p-4">
-                <p className="text-xs font-semibold text-slate-600">{t('coach_home_latest_lesson')}</p>
-                <p className="text-sm font-bold text-gray-900 mt-1 truncate">
-                  {latestLesson?.clientName || '-'}
-                </p>
-                <p className="text-xs text-gray-500 mt-0.5">{latestLesson?.date || '-'}</p>
-              </div>
-            </div>
-
-            {/* ── Incomplete Package Progress ────────────────────────────── */}
-            {dashboardData.incompletePackages.length > 0 && (
-              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-                <h3 className="font-bold text-gray-900 flex items-center gap-2 mb-4">
-                  <TrendingUp className="w-4 h-4 text-amber-500" />
-                  레슨 패키지 진행 현황
-                  <span className="ml-auto text-xs font-normal text-gray-400">미완료 {dashboardData.incompletePackages.length}개</span>
-                </h3>
-                <ul className="space-y-3">
-                  {dashboardData.incompletePackages.slice(0, 5).map(({ pkg, recorded }) => {
-                    const pct = Math.round((recorded / pkg.totalSessions) * 100);
-                    return (
-                      <li key={pkg.id} className="flex flex-col gap-1">
-                        <div className="flex items-center justify-between text-sm">
-                          <span
-                            data-testid="package-progress-member"
-                            className="font-medium text-gray-800 cursor-pointer hover:text-slate-700 flex items-center gap-1"
-                            onClick={() => {
-                              setSelectedClientFilter(pkg.clientName);
-                              setCoachView('LESSON_LIST');
-                            }}
-                          >
-                            {pkg.clientName}
-                            <ChevronRight className="w-3 h-3 text-gray-400" />
-                          </span>
-                          <span className="text-xs text-gray-500">{recorded} / {pkg.totalSessions}회</span>
-                        </div>
-                        <div className="w-full bg-gray-100 rounded-full h-1.5">
-                          <div
-                            className="bg-slate-600 h-1.5 rounded-full transition-all"
-                            style={{ width: `${pct}%` }}
-                          />
-                        </div>
-                      </li>
-                    );
-                  })}
-                </ul>
-                {dashboardData.incompletePackages.length > 5 && (
-                  <button
-                    onClick={() => setCoachView('CLIENTS')}
-                    className="mt-3 text-xs text-slate-600 hover:underline"
-                  >
-                    +{dashboardData.incompletePackages.length - 5}개 더 보기
-                  </button>
-                )}
-              </div>
-            )}
-
-            {/* ── Recent Lesson Records ──────────────────────────────────── */}
-            {dashboardData.recentLessons.length > 0 && (
-              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-                <h3 className="font-bold text-gray-900 flex items-center gap-2 mb-4">
-                  <Clock className="w-4 h-4 text-slate-500" />
-                  최근 레슨 기록
-                  <button
-                    onClick={() => setCoachView('LESSON_LIST')}
-                    className="ml-auto text-xs font-normal text-slate-600 hover:underline flex items-center gap-1"
-                  >
-                    전체 보기 <ChevronRight className="w-3 h-3" />
-                  </button>
-                </h3>
-                <ul className="divide-y divide-gray-50">
-                  {dashboardData.recentLessons.map(lesson => (
-                    <li
-                      key={lesson.id}
-                      className="flex items-center gap-3 py-2.5 cursor-pointer hover:bg-gray-50 -mx-2 px-2 rounded-lg transition-colors"
-                      onClick={() => {
-                        setSelectedLesson(lesson);
-                        setCoachView('DETAIL');
-                      }}
-                    >
-                      <div className="w-8 h-8 rounded-full bg-violet-100 text-violet-700 flex items-center justify-center text-xs font-bold flex-shrink-0">
-                        {lesson.clientName.charAt(0)}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="text-sm font-medium text-gray-900 truncate">{lesson.clientName}</div>
-                        <div className="text-xs text-gray-500 truncate">{lesson.title || '(제목 없음)'}</div>
-                      </div>
-                      <div className="text-xs text-gray-400 flex-shrink-0">{lesson.date}</div>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            {/* ── Today's Lessons ────────────────────────────────────────── */}
-            {dashboardData.todayLessons.length > 0 && (
-              <div className="bg-slate-50 rounded-xl border border-slate-100 p-5">
-                <h3 className="font-bold text-indigo-800 flex items-center gap-2 mb-3">
-                  <CheckCircle className="w-4 h-4 text-slate-500" />
-                  오늘의 레슨 기록 ({dashboardData.todayLessons.length}건)
-                </h3>
-                <ul className="space-y-2">
-                  {dashboardData.todayLessons.map(lesson => (
-                    <li
-                      key={lesson.id}
-                      className="flex items-center gap-3 bg-white rounded-lg px-3 py-2 cursor-pointer hover:shadow-sm transition-shadow"
-                      onClick={() => {
-                        setSelectedLesson(lesson);
-                        setCoachView('DETAIL');
-                      }}
-                    >
-                      <span className="text-sm font-medium text-gray-900">{lesson.clientName}</span>
-                      <span className="text-xs text-gray-500 truncate flex-1">{lesson.title || '(제목 없음)'}</span>
-                      <ChevronRight className="w-4 h-4 text-gray-300" />
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            {/* ── Secondary: Reservation & Management Actions ────────────── */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-4">예약 및 회원 관리</p>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <button
-                  onClick={() => setCoachView('RESERVATIONS')}
-                  className="flex flex-col items-center gap-2 py-4 px-2 bg-green-50 hover:bg-green-100 rounded-xl transition-colors group"
+              <div className="mt-5 grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <Button
+                  onClick={() => setCoachView('NEW')}
+                  className="w-full py-4 text-base justify-center bg-gradient-to-r from-indigo-500 to-violet-500 hover:from-indigo-400 hover:to-violet-400 shadow-lg shadow-indigo-900/40 sm:col-span-2"
+                  icon={<Play className="w-5 h-5 fill-current" />}
                 >
-                  <div className="w-10 h-10 bg-green-100 group-hover:bg-green-200 rounded-xl flex items-center justify-center transition-colors">
-                    <Calendar className="w-5 h-5 text-green-600" />
-                  </div>
-                  <span className="text-xs font-bold text-green-700 text-center leading-tight">{t('reservation_management')}</span>
-                </button>
-                <button
-                  onClick={() => setCoachView('BAY_RESERVATION')}
-                  className="flex flex-col items-center gap-2 py-4 px-2 bg-teal-50 hover:bg-teal-100 rounded-xl transition-colors group"
-                >
-                  <div className="w-10 h-10 bg-teal-100 group-hover:bg-teal-200 rounded-xl flex items-center justify-center transition-colors">
-                    <Target className="w-5 h-5 text-teal-600" />
-                  </div>
-                  <span className="text-xs font-bold text-teal-700 text-center leading-tight">타석 예약</span>
-                </button>
-                <button
-                  onClick={() => setCoachView('MY_BAY_RESERVATIONS')}
-                  className="flex flex-col items-center gap-2 py-4 px-2 bg-cyan-50 hover:bg-cyan-100 rounded-xl transition-colors group"
-                >
-                  <div className="w-10 h-10 bg-cyan-100 group-hover:bg-cyan-200 rounded-xl flex items-center justify-center transition-colors">
-                    <ListChecks className="w-5 h-5 text-cyan-600" />
-                  </div>
-                  <span className="text-xs font-bold text-cyan-700 text-center leading-tight">나의 타석 예약</span>
-                </button>
+                  {t('start_lesson')}
+                </Button>
                 <button
                   onClick={() => setCoachView('CLIENTS')}
-                  className="flex flex-col items-center gap-2 py-4 px-2 bg-orange-50 hover:bg-orange-100 rounded-xl transition-colors group"
+                  className="rounded-xl border border-cyan-400/25 bg-cyan-500/10 text-cyan-100 hover:bg-cyan-500/20 transition-colors text-sm font-semibold px-4 py-3"
                 >
-                  <div className="w-10 h-10 bg-orange-100 group-hover:bg-orange-200 rounded-xl flex items-center justify-center transition-colors">
-                    <Users className="w-5 h-5 text-orange-600" />
-                  </div>
-                  <span className="text-xs font-bold text-orange-700 text-center leading-tight">회원 관리</span>
+                  Students
                 </button>
+                <button
+                  onClick={() => setCoachView('LESSON_LIST')}
+                  className="rounded-xl border border-slate-500/30 bg-slate-800/70 text-slate-100 hover:bg-slate-700/70 transition-colors text-sm font-semibold px-4 py-3"
+                >
+                  Lesson Records
+                </button>
+                <button
+                  onClick={() => setCoachView('COACHX_CHAT')}
+                  className="rounded-xl border border-violet-400/25 bg-violet-500/10 text-violet-100 hover:bg-violet-500/20 transition-colors text-sm font-semibold px-4 py-3"
+                >
+                  Ask CoachX AI
+                </button>
+              </div>
+
+              <div className="mt-5 grid grid-cols-2 gap-3">
+                <div className="rounded-xl border border-slate-600/35 bg-slate-900/70 p-4">
+                  <p className="text-xs font-semibold text-slate-400">{t('coach_home_attention_members')}</p>
+                  <p className="mt-1 text-2xl font-bold text-white">{coachXUrgentCount}</p>
+                </div>
+                <div className="rounded-xl border border-slate-600/35 bg-slate-900/70 p-4">
+                  <p className="text-xs font-semibold text-slate-400">Students</p>
+                  <p className="mt-1 text-2xl font-bold text-white">{dashboardData.coachClients.length}</p>
+                </div>
               </div>
             </div>
 
@@ -1812,14 +1615,6 @@ const AppContent: React.FC = () => {
             coachId={
               currentUser && 'id' in currentUser ? currentUser.id : undefined
             }
-            onManagePackages={(client) => {
-              setSelectedClientForPackage(client);
-              setCoachView('LESSON_PACKAGE');
-            }}
-            onGenerateProgram={(client) => {
-              setSelectedClientForTraining(client);
-              setCoachView('TRAINING_PROGRAM');
-            }}
             memberReports={coachXMemberReports}
             onOpenCoachX={(query) => {
               setCoachXChatInitialQuery(query);
