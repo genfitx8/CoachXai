@@ -79,7 +79,7 @@ export const CoachProfileModal: React.FC<CoachProfileModalProps> = ({
                 ) : (
                     <h2 className="text-xl font-bold">{coachProfile.name} 프로</h2>
                 )}
-                <p className="text-indigo-200 text-sm">SwingNote Certified Coach</p>
+                <p className="text-indigo-200 text-sm">CoachX Certified Coach</p>
             </div>
             
             <div className="p-6 space-y-4">

@@ -132,7 +132,7 @@ const renderCoachApp = async () => {
   // Wait until the loading spinner is gone and the coach dashboard appears
   await waitFor(
     () => {
-      expect(screen.getByText(/coach_dashboard|레슨 관리/i)).toBeInTheDocument();
+      expect(screen.getByText(/coach_dashboard|대시보드/i)).toBeInTheDocument();
     },
     { timeout: 5000 }
   );
@@ -207,7 +207,7 @@ describe('Coach dashboard – lesson record access', () => {
     await renderCoachApp();
     // "레슨 시작" or t('start_lesson') — key rendered as-is when LanguageContext unavailable
     expect(
-      screen.getByRole('button', { name: /레슨 시작|start_lesson/i })
+      screen.getByRole('button', { name: /레슨.*시작|start_lesson/i })
     ).toBeInTheDocument();
     expect(
       screen.getByRole('button', { name: /예약 관리|reservation_management/i })
@@ -308,6 +308,22 @@ describe('Coach dashboard – lesson-record-centric layout', () => {
     // "레슨 기록 보기" appears before the secondary "예약 및 회원 관리" label
     expect(
       lessonBtn.compareDocumentPosition(reservationLabel) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
+  });
+
+  it('shows student context snapshot cards on the refreshed home', async () => {
+    await renderCoachApp();
+    expect(screen.getByText(/집중 케어 회원/i)).toBeInTheDocument();
+    expect(screen.getByText(/진행 중 패키지/i)).toBeInTheDocument();
+    expect(screen.getByText(/^최근 레슨$/i)).toBeInTheDocument();
+  });
+
+  it('prioritizes start lesson before lesson list in primary actions', async () => {
+    await renderCoachApp();
+    const startLessonBtn = screen.getByRole('button', { name: /레슨.*시작|start_lesson/i });
+    const lessonListBtn = screen.getByRole('button', { name: /레슨 기록 보기/i });
+    expect(
+      startLessonBtn.compareDocumentPosition(lessonListBtn) & Node.DOCUMENT_POSITION_FOLLOWING
     ).toBeTruthy();
   });
 });
