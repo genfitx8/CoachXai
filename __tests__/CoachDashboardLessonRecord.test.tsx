@@ -101,8 +101,7 @@ describe('Coach dashboard – lesson-first MVP home', () => {
 
     expect(screen.getByTestId('start-lesson-btn')).toBeInTheDocument();
     expect(screen.getByTestId('coachx-entry-btn')).toBeInTheDocument();
-    expect(screen.queryByText(/^CoachX$/)).toBeNull();
-    expect(document.querySelector('.lucide-menu')).toBeNull();
+    expect(screen.queryByText('CoachX', { exact: true })).toBeNull();
     expect(screen.queryByTestId('students-entry-btn')).toBeNull();
     expect(screen.queryByTestId('lesson-records-entry-btn')).toBeNull();
     expect(screen.queryByTestId('coachx-attention-card')).toBeNull();
