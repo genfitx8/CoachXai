@@ -147,7 +147,7 @@ export const CoachXLanding: React.FC<CoachXLandingProps> = ({
   };
 
   const shouldShowInstallCard = !isInstalled;
-  const shouldShowFallbackHelp = !deferredInstallPrompt;
+  const shouldShowInstallGuidance = !deferredInstallPrompt;
 
   return (
     <div className="min-h-screen bg-[#030407] text-white flex flex-col items-center justify-center relative overflow-hidden px-6">
@@ -187,7 +187,7 @@ export const CoachXLanding: React.FC<CoachXLandingProps> = ({
             >
               Install CoachX
             </button>
-            {shouldShowFallbackHelp && (
+            {shouldShowInstallGuidance && (
               <p className="mt-2 text-xs text-slate-300 leading-relaxed">
                 {isIosDevice
                   ? 'Install CoachX: tap Share, then choose “Add to Home Screen”.'
