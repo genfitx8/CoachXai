@@ -1,6 +1,6 @@
 import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { CoachXLanding } from '../components/CoachXLanding';
 
 class MockSpeechSynthesisUtterance {
@@ -15,9 +15,15 @@ class MockSpeechSynthesisUtterance {
   }
 }
 
+const ORIGINAL_USER_AGENT = navigator.userAgent;
+
 afterEach(() => {
   vi.useRealTimers();
   window.sessionStorage.clear();
+  Object.defineProperty(navigator, 'userAgent', {
+    configurable: true,
+    value: ORIGINAL_USER_AGENT,
+  });
 });
 
 describe('CoachXLanding', () => {
@@ -82,5 +88,43 @@ describe('CoachXLanding', () => {
     expect(() => {
       render(<CoachXLanding onLogin={() => {}} onSignup={() => {}} />);
     }).not.toThrow();
+  });
+
+  it('exposes a real PWA install action when beforeinstallprompt is available', async () => {
+    const prompt = vi.fn().mockResolvedValue(undefined);
+    const installEvent = new Event('beforeinstallprompt');
+    Object.assign(installEvent, {
+      prompt,
+      userChoice: Promise.resolve({ outcome: 'dismissed', platform: 'web' }),
+    });
+
+    render(<CoachXLanding onLogin={() => {}} onSignup={() => {}} />);
+    act(() => {
+      window.dispatchEvent(installEvent);
+    });
+
+    const installButton = await screen.findByRole('button', { name: 'Install App' });
+    fireEvent.click(installButton);
+
+    await waitFor(() => {
+      expect(prompt).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it('shows iOS add-to-home-screen guidance when prompt API is unavailable', async () => {
+    Object.defineProperty(navigator, 'userAgent', {
+      configurable: true,
+      value:
+        'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile Safari/604.1',
+    });
+
+    render(<CoachXLanding onLogin={() => {}} onSignup={() => {}} />);
+
+    const installButton = await screen.findByRole('button', { name: 'Install App' });
+    fireEvent.click(installButton);
+
+    expect(
+      screen.getByText('On iPhone/iPad Safari, use Share → Add to Home Screen.')
+    ).toBeInTheDocument();
   });
 });

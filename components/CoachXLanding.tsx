@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { AppInstallEntry } from './AppInstallEntry';
 
 interface CoachXLandingProps {
   onLogin: () => void;
@@ -69,21 +70,24 @@ export const CoachXLanding: React.FC<CoachXLandingProps> = ({
         <p className="mt-4 text-white/70 text-base md:text-lg">Hello, coach.</p>
       </div>
 
-      <div className="absolute bottom-8 left-0 right-0 z-10 flex items-center justify-center gap-3">
-        <button
-          type="button"
-          onClick={onLogin}
-          className="px-4 py-1.5 rounded-full border border-white/15 bg-white/5 backdrop-blur-sm text-white/75 text-xs uppercase tracking-wider hover:text-white hover:border-white/30 transition-colors"
-        >
-          Log in
-        </button>
-        <button
-          type="button"
-          onClick={onSignup}
-          className="px-4 py-1.5 rounded-full border border-white/15 bg-white/5 backdrop-blur-sm text-white/75 text-xs uppercase tracking-wider hover:text-white hover:border-white/30 transition-colors"
-        >
-          Sign up
-        </button>
+      <div className="absolute bottom-8 left-0 right-0 z-10 flex flex-col items-center gap-3">
+        <AppInstallEntry />
+        <div className="flex items-center justify-center gap-3">
+          <button
+            type="button"
+            onClick={onLogin}
+            className="px-4 py-1.5 rounded-full border border-white/15 bg-white/5 backdrop-blur-sm text-white/75 text-xs uppercase tracking-wider hover:text-white hover:border-white/30 transition-colors"
+          >
+            Log in
+          </button>
+          <button
+            type="button"
+            onClick={onSignup}
+            className="px-4 py-1.5 rounded-full border border-white/15 bg-white/5 backdrop-blur-sm text-white/75 text-xs uppercase tracking-wider hover:text-white hover:border-white/30 transition-colors"
+          >
+            Sign up
+          </button>
+        </div>
       </div>
     </div>
   );

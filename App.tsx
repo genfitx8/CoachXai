@@ -1162,33 +1162,6 @@ const AppContent: React.FC = () => {
       .sort((a, b) => b.createdAt - a.createdAt);
   }, [lessons, userRole, currentUser, clients]);
 
-  /** Dashboard-specific computed values */
-  const dashboardData = useMemo(() => {
-    const today = new Date().toISOString().slice(0, 10);
-    const coachId = currentUser && 'id' in currentUser ? (currentUser as CoachProfile).id : '';
-
-    const todayLessons = allCoachLessons.filter(l => l.date === today);
-    const recentLessons = allCoachLessons.slice(0, 5);
-    const coachClients = clients.filter(c => c.coachId === coachId);
-    const coachPackages = lessonPackages.filter(p => p.coachId === coachId);
-
-    /** Packages where the number of recorded sessions is below totalSessions */
-    const packagesWithProgress = coachPackages.map(pkg => {
-      const recorded = allCoachLessons.filter(l => l.lessonPackageId === pkg.id).length;
-      return { pkg, recorded, remaining: pkg.totalSessions - recorded };
-    });
-    const incompletePackages = packagesWithProgress.filter(p => p.remaining > 0);
-
-    return {
-      todayLessons,
-      recentLessons,
-      coachClients,
-      coachPackages,
-      packagesWithProgress,
-      incompletePackages,
-    };
-  }, [allCoachLessons, clients, lessonPackages, currentUser]);
-
   /** CoachX member growth reports – derived from lesson data for urgency badge and client list badges */
   const coachXMemberReports = useMemo(
     () => buildMemberGrowthReports(allCoachLessons, clients),
@@ -1202,12 +1175,20 @@ const AppContent: React.FC = () => {
   const coachXUrgentCount = coachXMemberReports.filter(
     r => r.trendIndicator === 'inactive' || r.trendIndicator === 'plateau'
   ).length;
-  const latestLesson = dashboardData?.recentLessons?.[0];
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#05070A]">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-400"></div>
+      <div className="min-h-screen flex items-center justify-center bg-[#05070A] text-white px-6">
+        <div className="relative flex flex-col items-center gap-5">
+          <div className="absolute -inset-6 rounded-full bg-cyan-400/10 blur-3xl" />
+          <div className="relative w-20 h-20 rounded-full border border-cyan-300/35 animate-pulse flex items-center justify-center bg-slate-950/80">
+            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-cyan-300/70 to-violet-400/60 animate-pulse" />
+          </div>
+          <div className="relative text-center">
+            <p className="text-lg tracking-[0.2em] uppercase text-cyan-100/90">CoachX AI</p>
+            <p className="text-xs text-slate-400 mt-1">Preparing your coaching space...</p>
+          </div>
+        </div>
       </div>
     );
   }
@@ -1386,15 +1367,6 @@ const AppContent: React.FC = () => {
               <ChevronRight className="w-5 h-5 text-white/40 group-hover:text-white/70 transition-colors flex-shrink-0" />
             </button>
 
-            <div className="space-y-2">
-              <h2 className="text-xl font-bold text-slate-100 flex items-center gap-2">
-                <Sparkles className="w-5 h-5 text-cyan-300" />
-                {t('coach_dashboard')}
-              </h2>
-              <p className="text-sm text-slate-400">{t('coach_dashboard_desc')}</p>
-            </div>
-
-            {/* ── Lesson-first CTA ───────────────────────────────────────── */}
             <Button
               onClick={() => setCoachView('NEW')}
               data-testid="start-lesson-btn"
@@ -1403,61 +1375,6 @@ const AppContent: React.FC = () => {
             >
               {t('start_lesson')}
             </Button>
-
-            {/* ── Secondary Core Entry Points ────────────────────────────── */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <button
-                onClick={() => setCoachView('CLIENTS')}
-                data-testid="students-entry-btn"
-                className="bg-slate-900/70 rounded-2xl border border-slate-800 p-5 text-left hover:border-cyan-400/40 hover:bg-slate-900 transition-colors"
-              >
-                <div className="flex items-center gap-2 text-cyan-200 font-semibold">
-                  <Users className="w-4 h-4" />
-                  {t('coachx_stat_members')}
-                </div>
-                <p className="text-xs text-slate-400 mt-2">
-                  {t('coach_client_title')}
-                </p>
-                <p className="text-xl font-bold text-slate-100 mt-3">
-                  {dashboardData.coachClients.length}
-                </p>
-              </button>
-
-              <button
-                onClick={() => setCoachView('LESSON_LIST')}
-                data-testid="lesson-records-entry-btn"
-                className="bg-slate-900/70 rounded-2xl border border-slate-800 p-5 text-left hover:border-indigo-400/40 hover:bg-slate-900 transition-colors"
-              >
-                <div className="flex items-center gap-2 text-indigo-200 font-semibold">
-                  <BookOpen className="w-4 h-4" />
-                  {t('coachx_stat_lessons')}
-                </div>
-                <p className="text-xs text-slate-400 mt-2">
-                  {t('no_lessons_desc')}
-                </p>
-                <p className="text-xl font-bold text-slate-100 mt-3">
-                  {allCoachLessons.length}
-                </p>
-              </button>
-            </div>
-
-            <div
-              data-testid="coachx-attention-card"
-              className="bg-slate-900/70 rounded-2xl border border-violet-500/25 p-4 flex items-center justify-between"
-            >
-              <div>
-                <p className="text-xs font-semibold text-violet-300 uppercase tracking-wider">
-                  {t('coachx_attention_label')}
-                </p>
-                <p className="text-sm text-slate-300 mt-1">
-                  {coachXUrgentCount > 0
-                    ? t('coachx_urgency_n_members').replace('{n}', String(coachXUrgentCount))
-                    : t('coachx_entry_desc')}
-                </p>
-              </div>
-              <div className="text-2xl font-bold text-violet-200">{coachXUrgentCount}</div>
-            </div>
-
           </div>
         )}
 

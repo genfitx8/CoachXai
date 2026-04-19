@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import React from 'react';
 import App from '../App';
 
@@ -96,33 +96,37 @@ describe('Coach dashboard – lesson-first MVP home', () => {
     vi.clearAllMocks();
   });
 
-  it('shows core home priorities: Start Lesson, Students, CoachX AI, Lesson Records', async () => {
+  it('shows CoachX-branded loading shell during app boot', async () => {
+    render(<App />);
+    expect(screen.getByText('CoachX AI')).toBeInTheDocument();
+    expect(screen.getByText('Preparing your coaching space...')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByTestId('start-lesson-btn')).toBeInTheDocument();
+    });
+  });
+
+  it('shows only the two primary coach home actions: Start Lesson and CoachX AI', async () => {
     await renderCoachApp();
 
     expect(screen.getByTestId('start-lesson-btn')).toBeInTheDocument();
-    expect(screen.getByTestId('students-entry-btn')).toBeInTheDocument();
-    expect(screen.getByTestId('lesson-records-entry-btn')).toBeInTheDocument();
     expect(screen.getByTestId('coachx-entry-btn')).toBeInTheDocument();
-    expect(screen.getByTestId('coachx-attention-card')).toBeInTheDocument();
   });
 
   it('hides non-core surfaces from the coach home', async () => {
     await renderCoachApp();
 
+    expect(screen.queryByTestId('students-entry-btn')).toBeNull();
+    expect(screen.queryByTestId('lesson-records-entry-btn')).toBeNull();
+    expect(screen.queryByTestId('coachx-attention-card')).toBeNull();
     expect(screen.queryByText(/최근 레슨 기록/i)).toBeNull();
     expect(screen.queryByText(/예약 및 회원 관리/i)).toBeNull();
     expect(screen.queryByRole('button', { name: /예약 관리|reservation_management/i })).toBeNull();
     expect(screen.queryByRole('button', { name: /타석 예약/i })).toBeNull();
   });
 
-  it('opens lesson list from the Lesson Records entry', async () => {
+  it('keeps removed home shortcuts hidden', async () => {
     await renderCoachApp();
-
-    fireEvent.click(screen.getByTestId('lesson-records-entry-btn'));
-
-    await waitFor(() => {
-      expect(screen.getByText(/레슨 미디어 표시/i)).toBeInTheDocument();
-    });
+    expect(screen.queryByTestId('lesson-records-entry-btn')).toBeNull();
   });
 
   it('keeps calendar hidden on the simplified coach home', async () => {
