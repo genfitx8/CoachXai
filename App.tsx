@@ -1339,61 +1339,6 @@ const AppContent: React.FC = () => {
         {coachView === 'LIST' && (
           <div className="space-y-6 animate-fade-in">
 
-            {/* ── CoachX Entry Point ──────────────────────────────────────── */}
-            <button
-              onClick={() => setCoachView('COACHX')}
-              className="w-full relative overflow-hidden rounded-2xl bg-gradient-to-br from-gray-900 via-slate-900 to-slate-950 p-5 flex items-center gap-4 shadow-xl shadow-slate-900/30 group hover:shadow-slate-900/40 transition-all duration-300"
-              aria-label={t('coachx_entry_label')}
-              data-testid="coachx-entry-btn"
-            >
-              {/* Background shimmer */}
-              <div className="absolute inset-0 bg-gradient-to-r from-slate-700/10 via-transparent to-slate-600/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
-
-              {/* Animated icon */}
-              <div className="relative w-14 h-14 flex-shrink-0">
-                <div className="absolute inset-0 rounded-full bg-slate-500/20 animate-ping" style={{ animationDuration: '2.5s' }} />
-                <div className="absolute inset-1 rounded-full bg-slate-500/15 animate-ping" style={{ animationDuration: '2.5s', animationDelay: '0.8s' }} />
-                <div className="absolute inset-2 rounded-full bg-gradient-to-br from-slate-600 to-slate-700 flex items-center justify-center shadow-lg" style={{ animation: 'coachx-breathe-app 3s ease-in-out infinite' }}>
-                  <Sparkles className="w-6 h-6 text-white" />
-                </div>
-                {/* Urgency badge – shown when one or more members need attention */}
-                {coachXUrgentCount > 0 && (
-                  <span
-                    className="absolute -top-1 -right-1 min-w-[20px] h-5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1 shadow-md border-2 border-gray-900"
-                    aria-label={
-                      coachXUrgentCount === 1
-                        ? t('coachx_urgency_one_member')
-                        : t('coachx_urgency_n_members').replace('{n}', String(coachXUrgentCount))
-                    }
-                    data-testid="coachx-urgency-badge"
-                  >
-                    {coachXUrgentCount}
-                  </span>
-                )}
-              </div>
-
-              <div className="flex-1 text-left">
-                <p className="text-lg font-extrabold text-white tracking-tight">CoachX AI</p>
-                <p className="text-xs text-slate-300 mt-0.5">
-                  {coachXUrgentCount > 0
-                    ? coachXUrgentCount === 1
-                      ? t('coachx_urgency_one_member')
-                      : t('coachx_urgency_n_members').replace('{n}', String(coachXUrgentCount))
-                    : t('coachx_entry_desc')}
-                </p>
-              </div>
-
-              <ChevronRight className="w-5 h-5 text-white/40 group-hover:text-white/70 transition-colors flex-shrink-0" />
-            </button>
-
-            <div className="space-y-2">
-              <h2 className="text-xl font-bold text-slate-100 flex items-center gap-2">
-                <Sparkles className="w-5 h-5 text-cyan-300" />
-                {t('coach_dashboard')}
-              </h2>
-              <p className="text-sm text-slate-400">{t('coach_dashboard_desc')}</p>
-            </div>
-
             {/* ── Lesson-first CTA ───────────────────────────────────────── */}
             <Button
               onClick={() => setCoachView('NEW')}
@@ -1404,59 +1349,30 @@ const AppContent: React.FC = () => {
               {t('start_lesson')}
             </Button>
 
-            {/* ── Secondary Core Entry Points ────────────────────────────── */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <button
-                onClick={() => setCoachView('CLIENTS')}
-                data-testid="students-entry-btn"
-                className="bg-slate-900/70 rounded-2xl border border-slate-800 p-5 text-left hover:border-cyan-400/40 hover:bg-slate-900 transition-colors"
-              >
-                <div className="flex items-center gap-2 text-cyan-200 font-semibold">
-                  <Users className="w-4 h-4" />
-                  {t('coachx_stat_members')}
-                </div>
-                <p className="text-xs text-slate-400 mt-2">
-                  {t('coach_client_title')}
-                </p>
-                <p className="text-xl font-bold text-slate-100 mt-3">
-                  {dashboardData.coachClients.length}
-                </p>
-              </button>
-
-              <button
-                onClick={() => setCoachView('LESSON_LIST')}
-                data-testid="lesson-records-entry-btn"
-                className="bg-slate-900/70 rounded-2xl border border-slate-800 p-5 text-left hover:border-indigo-400/40 hover:bg-slate-900 transition-colors"
-              >
-                <div className="flex items-center gap-2 text-indigo-200 font-semibold">
-                  <BookOpen className="w-4 h-4" />
-                  {t('coachx_stat_lessons')}
-                </div>
-                <p className="text-xs text-slate-400 mt-2">
-                  {t('no_lessons_desc')}
-                </p>
-                <p className="text-xl font-bold text-slate-100 mt-3">
-                  {allCoachLessons.length}
-                </p>
-              </button>
-            </div>
-
-            <div
-              data-testid="coachx-attention-card"
-              className="bg-slate-900/70 rounded-2xl border border-violet-500/25 p-4 flex items-center justify-between"
+            {/* ── CoachX Entry Point ──────────────────────────────────────── */}
+            <button
+              onClick={() => setCoachView('COACHX')}
+              className="w-full relative overflow-hidden rounded-2xl bg-gradient-to-br from-gray-900 via-slate-900 to-slate-950 p-5 flex items-center gap-4 shadow-xl shadow-slate-900/30 group hover:shadow-slate-900/40 transition-all duration-300"
+              aria-label={t('coachx_entry_label')}
+              data-testid="coachx-entry-btn"
             >
-              <div>
-                <p className="text-xs font-semibold text-violet-300 uppercase tracking-wider">
-                  {t('coachx_attention_label')}
-                </p>
-                <p className="text-sm text-slate-300 mt-1">
-                  {coachXUrgentCount > 0
-                    ? t('coachx_urgency_n_members').replace('{n}', String(coachXUrgentCount))
-                    : t('coachx_entry_desc')}
-                </p>
+              <div className="absolute inset-0 bg-gradient-to-r from-slate-700/10 via-transparent to-slate-600/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+
+              <div className="relative w-14 h-14 flex-shrink-0">
+                <div className="absolute inset-0 rounded-full bg-slate-500/20 animate-ping" style={{ animationDuration: '2.5s' }} />
+                <div className="absolute inset-1 rounded-full bg-slate-500/15 animate-ping" style={{ animationDuration: '2.5s', animationDelay: '0.8s' }} />
+                <div className="absolute inset-2 rounded-full bg-gradient-to-br from-slate-600 to-slate-700 flex items-center justify-center shadow-lg" style={{ animation: 'coachx-breathe-app 3s ease-in-out infinite' }}>
+                  <Sparkles className="w-6 h-6 text-white" />
+                </div>
               </div>
-              <div className="text-2xl font-bold text-violet-200">{coachXUrgentCount}</div>
-            </div>
+
+              <div className="flex-1 text-left">
+                <p className="text-lg font-extrabold text-white tracking-tight">CoachX AI</p>
+                <p className="text-xs text-slate-300 mt-0.5">{t('coachx_entry_desc')}</p>
+              </div>
+
+              <ChevronRight className="w-5 h-5 text-white/40 group-hover:text-white/70 transition-colors flex-shrink-0" />
+            </button>
 
           </div>
         )}
