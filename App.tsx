@@ -1320,40 +1320,33 @@ const AppContent: React.FC = () => {
         {coachView === 'LIST' && (
           <div className="space-y-6 animate-fade-in">
 
-            {/* ── Lesson-first CTA ───────────────────────────────────────── */}
+            {/* ── Home actions ─────────────────────────────────────────────── */}
             <Button
               onClick={() => setCoachView('NEW')}
               data-testid="start-lesson-btn"
               className="w-full py-4 text-base shadow-lg shadow-indigo-900/40 bg-indigo-600 hover:bg-indigo-500 justify-center"
               icon={<Play className="w-5 h-5 fill-current" />}
             >
-              {t('start_lesson')}
+              Lesson start
             </Button>
 
-            {/* ── CoachX Entry Point ──────────────────────────────────────── */}
-            <button
+            <Button
               onClick={() => setCoachView('COACHX')}
-              className="w-full relative overflow-hidden rounded-2xl bg-gradient-to-br from-gray-900 via-slate-900 to-slate-950 p-5 flex items-center gap-4 shadow-xl shadow-slate-900/30 group hover:shadow-slate-900/40 transition-all duration-300"
-              aria-label={t('coachx_entry_label')}
               data-testid="coachx-entry-btn"
+              className="w-full py-4 text-base shadow-lg shadow-slate-900/40 bg-slate-800 hover:bg-slate-700 justify-center"
+              icon={<Sparkles className="w-5 h-5" />}
             >
-              <div className="absolute inset-0 bg-gradient-to-r from-slate-700/10 via-transparent to-slate-600/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+              Coachx
+            </Button>
 
-              <div className="relative w-14 h-14 flex-shrink-0">
-                <div className="absolute inset-0 rounded-full bg-slate-500/20 animate-ping" style={{ animationDuration: '2.5s' }} />
-                <div className="absolute inset-1 rounded-full bg-slate-500/15 animate-ping" style={{ animationDuration: '2.5s', animationDelay: '0.8s' }} />
-                <div className="absolute inset-2 rounded-full bg-gradient-to-br from-slate-600 to-slate-700 flex items-center justify-center shadow-lg" style={{ animation: 'coachx-breathe-app 3s ease-in-out infinite' }}>
-                  <Sparkles className="w-6 h-6 text-white" />
-                </div>
-              </div>
-
-              <div className="flex-1 text-left">
-                <p className="text-lg font-extrabold text-white tracking-tight">CoachX AI</p>
-                <p className="text-xs text-slate-300 mt-0.5">{t('coachx_entry_desc')}</p>
-              </div>
-
-              <ChevronRight className="w-5 h-5 text-white/40 group-hover:text-white/70 transition-colors flex-shrink-0" />
-            </button>
+            <Button
+              onClick={() => setCoachView('CLIENTS')}
+              data-testid="students-entry-btn"
+              className="w-full py-4 text-base shadow-lg shadow-slate-900/40 bg-slate-900 hover:bg-slate-800 justify-center"
+              icon={<User className="w-5 h-5" />}
+            >
+              Student
+            </Button>
 
           </div>
         )}
