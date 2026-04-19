@@ -731,7 +731,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
                       type="text"
                       value={name}
                       onChange={(e) => setName(e.target.value)}
-                        className="w-full px-4 py-2 bg-slate-950 text-slate-100 border border-slate-700 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                        className="w-full px-4 py-2 bg-slate-900 text-slate-100 border border-slate-700 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
                       placeholder="가입시 등록한 이름"
                     />
                   </div>
@@ -743,7 +743,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
                       type="tel"
                       value={phone}
                       onChange={(e) => setPhone(e.target.value)}
-                        className="w-full px-4 py-2 bg-slate-950 text-slate-100 border border-slate-700 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                        className="w-full px-4 py-2 bg-slate-900 text-slate-100 border border-slate-700 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
                       placeholder="010-0000-0000"
                     />
                   </div>
@@ -758,7 +758,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
                       type="email"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                        className="w-full px-4 py-2 bg-slate-950 text-slate-100 border border-slate-700 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                        className="w-full px-4 py-2 bg-slate-900 text-slate-100 border border-slate-700 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
                       placeholder="이메일 주소"
                     />
                   </div>
@@ -770,7 +770,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
                       type="tel"
                       value={phone}
                       onChange={(e) => setPhone(e.target.value)}
-                        className="w-full px-4 py-2 bg-slate-950 text-slate-100 border border-slate-700 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                        className="w-full px-4 py-2 bg-slate-900 text-slate-100 border border-slate-700 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
                       placeholder="010-0000-0000"
                     />
                   </div>
