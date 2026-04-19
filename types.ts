@@ -272,7 +272,8 @@ export interface BranchAdminAccount {
   isActive: boolean;
   createdAt: number;
   updatedAt?: number;
-  pushToken?: string; // Expo push token for push notifications
+  pushToken?: string; // Expo push token for push notifications (web/PWA)
+  fcmToken?: string;  // FCM / APNs device token for Capacitor native push notifications
 }
 
 export interface Bay {
@@ -359,7 +360,8 @@ export interface CoachProfile {
   isSubscribed?: boolean;
   subscriptionPlan?: 'FREE' | 'PRO';
   subscriptionEndDate?: string;
-  pushToken?: string; // Expo push token for push notifications
+  pushToken?: string; // Expo push token for push notifications (web/PWA)
+  fcmToken?: string;  // FCM / APNs device token for Capacitor native push notifications
   currentPoints?: number; // Added: Points balance (grantable by branch admin)
   workingSchedule?: OpeningHours; // Working days and hours configuration
 }
@@ -397,6 +399,8 @@ export interface ClientProfile {
   memberBodyAnalysis?: LessonBodyAnalysis; // Member body analysis managed in My Info
   // Added: Points
   currentPoints?: number;
+  pushToken?: string; // Expo push token for push notifications (web/PWA)
+  fcmToken?: string;  // FCM / APNs device token for Capacitor native push notifications
 }
 
 export interface FirebaseConfig {

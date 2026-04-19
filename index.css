@@ -9,6 +9,43 @@ body {
   text-rendering: optimizeLegibility;
 }
 
+/* ─── iOS / Android Safe Area Support ────────────────────────────────────────
+   When running inside a Capacitor native shell the device safe-area-inset
+   environment variables are exposed.  These utilities let components opt in
+   to safe-area-aware padding without touching every component. */
+
+/* Prevent content from hiding behind the iOS notch / Dynamic Island */
+.safe-top    { padding-top:    env(safe-area-inset-top,    0px); }
+.safe-bottom { padding-bottom: env(safe-area-inset-bottom, 0px); }
+.safe-left   { padding-left:   env(safe-area-inset-left,   0px); }
+.safe-right  { padding-right:  env(safe-area-inset-right,  0px); }
+
+/* Apply safe area to the root element when running natively */
+:root {
+  --safe-area-top:    env(safe-area-inset-top,    0px);
+  --safe-area-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-area-left:   env(safe-area-inset-left,   0px);
+  --safe-area-right:  env(safe-area-inset-right,  0px);
+}
+
+/* Capacitor native body overrides */
+.capacitor-native body {
+  /* Prevent bounce/overscroll effect (native feel) */
+  overscroll-behavior: none;
+  /* Disable pull-to-refresh on Android WebView */
+  overscroll-behavior-y: contain;
+}
+
+/* Fixed bottom navigation / tab bar safe area support */
+.bottom-nav-safe {
+  padding-bottom: max(0.5rem, env(safe-area-inset-bottom, 0px));
+}
+
+/* Fixed top headers safe area support */
+.top-header-safe {
+  padding-top: max(1rem, env(safe-area-inset-top, 0px));
+}
+
 /* Mobile-optimized FullCalendar styles */
 @media (max-width: 767px) {
   /* Compact calendar header for mobile */
