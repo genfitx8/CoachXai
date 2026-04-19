@@ -321,16 +321,16 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 font-sans pb-20">
-      <header className="bg-gradient-to-r from-white via-emerald-50 to-white border-b border-emerald-100/50 sticky top-0 z-[60] shadow-sm">
+    <div className="min-h-screen bg-gradient-to-b from-[#05070A] via-[#070b12] to-[#0B1220] text-slate-100 font-sans pb-20">
+      <header className="bg-[#0A0F1A]/95 border-b border-slate-800 sticky top-0 z-[60] shadow-lg shadow-black/30 backdrop-blur-xl">
         <div className="max-w-md mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2 cursor-pointer" onClick={() => setView('PROFILE')}>
-            <div className="bg-gradient-to-br from-emerald-700 to-emerald-800 p-2 rounded-full text-white shadow-md shadow-emerald-900/10">
+            <div className="bg-gradient-to-br from-indigo-500/30 to-cyan-400/20 p-2 rounded-full text-cyan-100 border border-cyan-300/20 shadow-md shadow-cyan-950/20">
                 <User className="w-5 h-5" />
             </div>
             <div>
-                <h1 className="font-bold text-gray-900 leading-tight">{clientProfile.name}님</h1>
-                <p className="text-[10px] text-gray-500 flex items-center gap-1">
+                <h1 className="font-bold text-slate-100 leading-tight">{clientProfile.name}님</h1>
+                <p className="text-[10px] text-slate-400 flex items-center gap-1">
                     {clientProfile.designatedCoach ? `Coach: ${clientProfile.designatedCoach}` : clientProfile.phone}
                 </p>
             </div>
@@ -338,7 +338,7 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
           <div className="flex items-center gap-2">
             <button 
                 onClick={toggleLanguage}
-                className="flex items-center gap-1 px-2 py-1.5 bg-gray-50 text-gray-600 rounded-lg border border-gray-200 text-xs font-bold hover:bg-gray-100 transition-colors"
+                className="flex items-center gap-1 px-2 py-1.5 bg-slate-900 text-slate-300 rounded-lg border border-slate-700 text-xs font-bold hover:text-cyan-200 transition-colors"
             >
                 <Globe className="w-3.5 h-3.5" />
                 {language.toUpperCase()}
@@ -347,14 +347,14 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
             {/* Points Badge */}
             <button 
                 onClick={() => setShowPointHistory(true)}
-                className="flex items-center gap-1 px-3 py-1.5 bg-gradient-to-r from-yellow-50 to-amber-50 text-yellow-700 rounded-full border border-yellow-200 shadow-md hover:shadow-lg hover:from-yellow-100 hover:to-amber-100 transition-all duration-200 hover:scale-105 transform"
+                className="flex items-center gap-1 px-3 py-1.5 bg-gradient-to-r from-violet-500/20 to-cyan-400/15 text-cyan-100 rounded-full border border-cyan-300/25 shadow-md shadow-cyan-950/20 hover:from-violet-500/30 hover:to-cyan-400/25 transition-all duration-200 hover:scale-105 transform"
             >
-                <div className="bg-gradient-to-br from-yellow-300 to-yellow-400 rounded-full p-1 shadow-sm"><div className="w-2 h-2 bg-white rounded-full" /></div>
+                <div className="bg-gradient-to-br from-violet-400 to-cyan-400 rounded-full p-1 shadow-sm"><div className="w-2 h-2 bg-white rounded-full" /></div>
                 <span className="text-xs font-bold">{clientProfile.currentPoints?.toLocaleString() || 0} P</span>
             </button>
             <button 
                 onClick={onLogout} 
-                className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-all duration-200 relative z-50 cursor-pointer hover:scale-110 transform"
+                className="p-2 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded-full transition-all duration-200 relative z-50 cursor-pointer hover:scale-110 transform"
                 aria-label={t('logout')}
             >
                 <LogOut className="w-5 h-5" />
@@ -368,57 +368,57 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
             <div className="space-y-6 animate-fade-in">
                 
                 {/* Lesson Statistics Hero Section */}
-                <div className="relative bg-gradient-to-br from-emerald-700 via-emerald-600 to-teal-600 rounded-2xl p-6 shadow-xl overflow-hidden">
+                <div className="relative bg-gradient-to-br from-slate-900 via-violet-950 to-indigo-950 rounded-2xl p-6 shadow-xl shadow-slate-950/40 border border-slate-700/70 overflow-hidden">
                     {/* Decorative background circles */}
                     <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16" />
                     <div className="absolute bottom-0 left-0 w-24 h-24 bg-white/10 rounded-full -ml-12 -mb-12" />
                     
                     <div className="relative z-10">
-                        <h2 className="text-white text-xl font-black mb-1 flex items-center gap-2">
-                            <TrendingUp className="w-6 h-6" />
-                            나의 기록 통계
-                        </h2>
-                        <p className="text-emerald-100 text-sm mb-4">한눈에 보는 나의 성장 기록</p>
+                            <h2 className="text-slate-100 text-xl font-black mb-1 flex items-center gap-2">
+                                <TrendingUp className="w-6 h-6" />
+                                나의 기록 통계
+                            </h2>
+                            <p className="text-slate-300 text-sm mb-4">한눈에 보는 나의 성장 기록</p>
                         
                         {/* Statistics Cards */}
                         <div className="grid grid-cols-3 gap-3">
-                            <div className="glass rounded-xl p-3 text-center">
-                                <div className="text-2xl font-black text-gray-900">{allMyLessons.length}</div>
-                                <div className="text-[10px] text-gray-600 font-semibold mt-1">총 기록</div>
-                            </div>
-                            <div className="glass rounded-xl p-3 text-center">
-                                <div className="text-2xl font-black text-gray-900">
+                                <div className="rounded-xl p-3 text-center bg-slate-900/70 border border-slate-700/70">
+                                    <div className="text-2xl font-black text-slate-100">{allMyLessons.length}</div>
+                                    <div className="text-[10px] text-slate-400 font-semibold mt-1">총 기록</div>
+                                </div>
+                                <div className="rounded-xl p-3 text-center bg-slate-900/70 border border-slate-700/70">
+                                    <div className="text-2xl font-black text-slate-100">
                                     {allMyLessons.filter(l => {
                                         const lessonMonth = l.date.substring(0, 7);
                                         const currentMonth = new Date().toISOString().substring(0, 7);
                                         return lessonMonth === currentMonth;
                                     }).length}
                                 </div>
-                                <div className="text-[10px] text-gray-600 font-semibold mt-1">이번 달</div>
-                            </div>
-                            <div className="glass rounded-xl p-3 text-center">
-                                <div className="text-xs font-black text-gray-900 leading-tight">
+                                    <div className="text-[10px] text-slate-400 font-semibold mt-1">이번 달</div>
+                                </div>
+                                <div className="rounded-xl p-3 text-center bg-slate-900/70 border border-slate-700/70">
+                                    <div className="text-xs font-black text-slate-100 leading-tight">
                                     {allMyLessons.length > 0 
                                         ? new Date(allMyLessons[0].date).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })
                                         : '-'}
                                 </div>
-                                <div className="text-[10px] text-gray-600 font-semibold mt-1">최근 기록</div>
-                            </div>
+                                    <div className="text-[10px] text-slate-400 font-semibold mt-1">최근 기록</div>
+                                </div>
                         </div>
                     </div>
                 </div>
 
                 {/* Membership Plan Status */}
-                <div className={`rounded-2xl border p-4 ${isProMember ? 'bg-gradient-to-r from-indigo-600 to-blue-600 border-indigo-400/40 text-white' : 'bg-white border-emerald-200'}`}>
+                <div className={`rounded-2xl border p-4 ${isProMember ? 'bg-gradient-to-r from-indigo-700 to-violet-700 border-indigo-400/40 text-slate-100' : 'bg-slate-900/80 border-slate-700/70 text-slate-100'}`}>
                     <div className="flex items-center justify-between mb-3">
                         <div>
-                            <p className={`text-xs font-bold ${isProMember ? 'text-indigo-100' : 'text-emerald-700'}`}>멤버십 플랜</p>
+                            <p className={`text-xs font-bold ${isProMember ? 'text-indigo-100' : 'text-cyan-300'}`}>멤버십 플랜</p>
                             <h3 className="text-lg font-black">{isProMember ? '🔵 PRO' : '🟢 FREE'}</h3>
                         </div>
                         {!isProMember && (
                             <div className="text-right">
-                                <p className="text-[11px] text-gray-500">추천 플랜</p>
-                                <p className="text-sm font-black text-indigo-700">PRO 월 29,000원</p>
+                                <p className="text-[11px] text-slate-400">추천 플랜</p>
+                                <p className="text-sm font-black text-cyan-200">PRO 월 29,000원</p>
                             </div>
                         )}
                     </div>
@@ -426,23 +426,23 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
                         <>
                         <button
                             onClick={() => setView('MEMBERSHIP_PURCHASE')}
-                            className="w-full mb-3 bg-gradient-to-r from-indigo-600 to-blue-600 text-white rounded-xl px-4 py-3 text-sm font-bold shadow-md hover:from-indigo-700 hover:to-blue-700 transition-colors"
+                            className="w-full mb-3 bg-gradient-to-r from-indigo-600 to-violet-600 text-white rounded-xl px-4 py-3 text-sm font-bold shadow-md shadow-indigo-950/30 hover:from-indigo-500 hover:to-violet-500 transition-colors"
                         >
                             PRO 멤버십 바로 결제하기
                         </button>
                         <div className="grid grid-cols-2 gap-2 text-xs">
-                            <div className="rounded-lg bg-emerald-50 border border-emerald-100 p-2">
-                                <p className="text-gray-500">기록 한도</p>
-                                <p className="font-bold text-gray-900">{totalRecordCount}/{FREE_RECORD_LIMIT}개</p>
-                                <p className="text-[10px] text-emerald-700">남은 {remainingFreeRecords}개</p>
+                            <div className="rounded-lg bg-slate-950/70 border border-slate-700 p-2">
+                                <p className="text-slate-400">기록 한도</p>
+                                <p className="font-bold text-slate-100">{totalRecordCount}/{FREE_RECORD_LIMIT}개</p>
+                                <p className="text-[10px] text-cyan-300">남은 {remainingFreeRecords}개</p>
                             </div>
-                            <div className="rounded-lg bg-emerald-50 border border-emerald-100 p-2">
-                                <p className="text-gray-500">오늘 AI 분석</p>
-                                <p className="font-bold text-gray-900">{todayAIUsage}/{FREE_AI_DAILY_LIMIT}회</p>
-                                <p className="text-[10px] text-emerald-700">남은 {remainingDailyAI}회</p>
+                            <div className="rounded-lg bg-slate-950/70 border border-slate-700 p-2">
+                                <p className="text-slate-400">오늘 AI 분석</p>
+                                <p className="font-bold text-slate-100">{todayAIUsage}/{FREE_AI_DAILY_LIMIT}회</p>
+                                <p className="text-[10px] text-cyan-300">남은 {remainingDailyAI}회</p>
                             </div>
-                            <div className="rounded-lg bg-gray-50 border border-gray-200 p-2 text-gray-600">기본 피드백</div>
-                            <div className="rounded-lg bg-indigo-50 border border-indigo-100 p-2 text-indigo-700 font-semibold">PRO: 성장 그래프 · 훈련 추천</div>
+                            <div className="rounded-lg bg-slate-950/70 border border-slate-700 p-2 text-slate-300">기본 피드백</div>
+                            <div className="rounded-lg bg-indigo-500/10 border border-indigo-300/30 p-2 text-indigo-200 font-semibold">PRO: 성장 그래프 · 훈련 추천</div>
                         </div>
                         </>
                     ) : (
@@ -467,7 +467,7 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
                         }
                         setView('NEW');
                     }}
-                    className="w-full bg-gradient-to-r from-emerald-700 via-emerald-600 to-teal-600 hover:from-emerald-800 hover:via-emerald-700 hover:to-teal-700 text-white rounded-2xl px-8 py-5 shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-3 group relative overflow-hidden"
+                    className="w-full bg-gradient-to-r from-indigo-600 via-violet-600 to-cyan-600 hover:from-indigo-500 hover:via-violet-500 hover:to-cyan-500 text-white rounded-2xl px-8 py-5 shadow-xl shadow-indigo-950/40 hover:shadow-2xl transition-all duration-300 transform hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-3 group relative overflow-hidden"
                 >
                     {/* Animated background overlay */}
                     <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent translate-x-[-200%] group-hover:translate-x-[200%] transition-transform duration-700" />
@@ -478,7 +478,7 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
                         </div>
                         <div className="text-left">
                             <div className="text-xl font-black">레슨 기록 시작</div>
-                            <div className="text-xs text-emerald-100 font-medium">새로운 레슨을 기록하세요</div>
+                            <div className="text-xs text-cyan-100 font-medium">새로운 레슨을 기록하세요</div>
                         </div>
                     </div>
                     
@@ -486,79 +486,79 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
                 </button>
 
                 {/* ===== 예약 Section ===== */}
-                <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+                <div className="bg-slate-900/80 rounded-2xl p-5 shadow-sm border border-slate-700/70">
                     <div className="flex items-center gap-2 mb-4">
-                        <div className="w-8 h-8 bg-blue-100 rounded-xl flex items-center justify-center">
-                            <Calendar className="w-4 h-4 text-blue-600" />
+                        <div className="w-8 h-8 bg-cyan-400/10 rounded-xl flex items-center justify-center border border-cyan-300/20">
+                            <Calendar className="w-4 h-4 text-cyan-300" />
                         </div>
-                        <h3 className="font-black text-gray-800 text-base">예약</h3>
+                        <h3 className="font-black text-slate-100 text-base">예약</h3>
                     </div>
                     <div className="grid grid-cols-3 gap-2">
                         <button
                             onClick={() => { setSelectedLesson(null); setView('RESERVATION'); }}
-                            className="flex flex-col items-center gap-2 py-4 px-2 bg-blue-50 hover:bg-blue-100 rounded-xl transition-colors group"
+                            className="flex flex-col items-center gap-2 py-4 px-2 bg-slate-950/70 hover:bg-slate-800/80 rounded-xl border border-slate-700/70 transition-colors group"
                         >
-                            <div className="w-9 h-9 bg-blue-100 group-hover:bg-blue-200 rounded-xl flex items-center justify-center transition-colors">
-                                <Calendar className="w-4 h-4 text-blue-600" />
+                            <div className="w-9 h-9 bg-cyan-400/10 group-hover:bg-cyan-400/20 rounded-xl flex items-center justify-center border border-cyan-300/20 transition-colors">
+                                <Calendar className="w-4 h-4 text-cyan-300" />
                             </div>
-                            <span className="text-[11px] font-bold text-blue-700 text-center leading-tight">레슨 예약</span>
+                            <span className="text-[11px] font-bold text-cyan-200 text-center leading-tight">레슨 예약</span>
                         </button>
                         <button
                             onClick={() => { setSelectedLesson(null); setView('BAY_RESERVATION'); }}
-                            className="flex flex-col items-center gap-2 py-4 px-2 bg-blue-50 hover:bg-blue-100 rounded-xl transition-colors group"
+                            className="flex flex-col items-center gap-2 py-4 px-2 bg-slate-950/70 hover:bg-slate-800/80 rounded-xl border border-slate-700/70 transition-colors group"
                         >
-                            <div className="w-9 h-9 bg-blue-100 group-hover:bg-blue-200 rounded-xl flex items-center justify-center transition-colors">
-                                <Target className="w-4 h-4 text-blue-600" />
+                            <div className="w-9 h-9 bg-cyan-400/10 group-hover:bg-cyan-400/20 rounded-xl flex items-center justify-center border border-cyan-300/20 transition-colors">
+                                <Target className="w-4 h-4 text-cyan-300" />
                             </div>
-                            <span className="text-[11px] font-bold text-blue-700 text-center leading-tight">타석 예약</span>
+                            <span className="text-[11px] font-bold text-cyan-200 text-center leading-tight">타석 예약</span>
                         </button>
                         <button
                             onClick={() => { setSelectedLesson(null); setView('MY_BAY_RESERVATIONS'); }}
-                            className="flex flex-col items-center gap-2 py-4 px-2 bg-blue-50 hover:bg-blue-100 rounded-xl transition-colors group"
+                            className="flex flex-col items-center gap-2 py-4 px-2 bg-slate-950/70 hover:bg-slate-800/80 rounded-xl border border-slate-700/70 transition-colors group"
                         >
-                            <div className="w-9 h-9 bg-blue-100 group-hover:bg-blue-200 rounded-xl flex items-center justify-center transition-colors">
-                                <ClipboardList className="w-4 h-4 text-blue-600" />
+                            <div className="w-9 h-9 bg-cyan-400/10 group-hover:bg-cyan-400/20 rounded-xl flex items-center justify-center border border-cyan-300/20 transition-colors">
+                                <ClipboardList className="w-4 h-4 text-cyan-300" />
                             </div>
-                            <span className="text-[11px] font-bold text-blue-700 text-center leading-tight">예약 내역</span>
+                            <span className="text-[11px] font-bold text-cyan-200 text-center leading-tight">예약 내역</span>
                         </button>
                     </div>
                 </div>
 
                 {/* ===== 레슨 Section ===== */}
-                <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+                <div className="bg-slate-900/80 rounded-2xl p-5 shadow-sm border border-slate-700/70">
                     <div className="flex items-center gap-2 mb-4">
-                        <div className="w-8 h-8 bg-emerald-100 rounded-xl flex items-center justify-center">
-                            <Award className="w-4 h-4 text-emerald-600" />
+                        <div className="w-8 h-8 bg-indigo-400/10 rounded-xl flex items-center justify-center border border-indigo-300/20">
+                            <Award className="w-4 h-4 text-indigo-300" />
                         </div>
-                        <h3 className="font-black text-gray-800 text-base">레슨</h3>
+                        <h3 className="font-black text-slate-100 text-base">레슨</h3>
                     </div>
                     <div className="grid grid-cols-3 gap-2">
                         <button
                             onClick={() => { setSelectedLesson(null); setView('RECENT_RECORDS'); }}
-                            className="flex flex-col items-center gap-2 py-4 px-2 bg-emerald-50 hover:bg-emerald-100 rounded-xl transition-colors group"
+                            className="flex flex-col items-center gap-2 py-4 px-2 bg-slate-950/70 hover:bg-slate-800/80 rounded-xl border border-slate-700/70 transition-colors group"
                         >
-                            <div className="w-9 h-9 bg-emerald-100 group-hover:bg-emerald-200 rounded-xl flex items-center justify-center transition-colors">
-                                <History className="w-4 h-4 text-emerald-600" />
+                            <div className="w-9 h-9 bg-indigo-400/10 group-hover:bg-indigo-400/20 rounded-xl flex items-center justify-center border border-indigo-300/20 transition-colors">
+                                <History className="w-4 h-4 text-indigo-300" />
                             </div>
-                            <span className="text-[11px] font-bold text-emerald-700 text-center leading-tight">{t('recent_records')}</span>
+                            <span className="text-[11px] font-bold text-indigo-200 text-center leading-tight">{t('recent_records')}</span>
                         </button>
                         <button
                             onClick={() => { setSelectedLesson(null); setView('STATS'); }}
-                            className="flex flex-col items-center gap-2 py-4 px-2 bg-emerald-50 hover:bg-emerald-100 rounded-xl transition-colors group"
+                            className="flex flex-col items-center gap-2 py-4 px-2 bg-slate-950/70 hover:bg-slate-800/80 rounded-xl border border-slate-700/70 transition-colors group"
                         >
-                            <div className="w-9 h-9 bg-emerald-100 group-hover:bg-emerald-200 rounded-xl flex items-center justify-center transition-colors">
-                                <BarChart3 className="w-4 h-4 text-emerald-600" />
+                            <div className="w-9 h-9 bg-indigo-400/10 group-hover:bg-indigo-400/20 rounded-xl flex items-center justify-center border border-indigo-300/20 transition-colors">
+                                <BarChart3 className="w-4 h-4 text-indigo-300" />
                             </div>
-                            <span className="text-[11px] font-bold text-emerald-700 text-center leading-tight">상세 통계</span>
+                            <span className="text-[11px] font-bold text-indigo-200 text-center leading-tight">상세 통계</span>
                         </button>
                         <button
                             onClick={() => { setSelectedLesson(null); setView('WEEKLY_INSIGHT'); }}
-                            className="flex flex-col items-center gap-2 py-4 px-2 bg-purple-50 hover:bg-purple-100 rounded-xl transition-colors group"
+                            className="flex flex-col items-center gap-2 py-4 px-2 bg-slate-950/70 hover:bg-slate-800/80 rounded-xl border border-slate-700/70 transition-colors group"
                         >
-                            <div className="w-9 h-9 bg-purple-100 group-hover:bg-purple-200 rounded-xl flex items-center justify-center transition-colors">
-                                <TrendingUp className="w-4 h-4 text-purple-600" />
+                            <div className="w-9 h-9 bg-violet-400/10 group-hover:bg-violet-400/20 rounded-xl flex items-center justify-center border border-violet-300/20 transition-colors">
+                                <TrendingUp className="w-4 h-4 text-violet-300" />
                             </div>
-                            <span className="text-[11px] font-bold text-purple-700 text-center leading-tight">주간 인사이트</span>
+                            <span className="text-[11px] font-bold text-violet-200 text-center leading-tight">주간 인사이트</span>
                         </button>
                         <button
                             onClick={() => {
@@ -571,60 +571,60 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
                                 }
                                 setSelectedLesson(null); setView('AI_AGENT');
                             }}
-                            className="flex flex-col items-center gap-2 py-4 px-2 bg-indigo-50 hover:bg-indigo-100 rounded-xl transition-colors group"
+                            className="flex flex-col items-center gap-2 py-4 px-2 bg-slate-950/70 hover:bg-slate-800/80 rounded-xl border border-slate-700/70 transition-colors group"
                         >
-                            <div className="w-9 h-9 bg-indigo-100 group-hover:bg-indigo-200 rounded-xl flex items-center justify-center transition-colors">
-                                <Sparkles className="w-4 h-4 text-indigo-600" />
+                            <div className="w-9 h-9 bg-cyan-400/10 group-hover:bg-cyan-400/20 rounded-xl flex items-center justify-center border border-cyan-300/20 transition-colors">
+                                <Sparkles className="w-4 h-4 text-cyan-300" />
                             </div>
-                            <span className="text-[11px] font-bold text-indigo-700 text-center leading-tight">AI 코치</span>
+                            <span className="text-[11px] font-bold text-cyan-200 text-center leading-tight">AI 코치</span>
                         </button>
                         <button
                             onClick={() => { setSelectedLesson(null); setView('QUICK_LOG'); }}
-                            className="flex flex-col items-center gap-2 py-4 px-2 bg-emerald-50 hover:bg-emerald-100 rounded-xl transition-colors group"
+                            className="flex flex-col items-center gap-2 py-4 px-2 bg-slate-950/70 hover:bg-slate-800/80 rounded-xl border border-slate-700/70 transition-colors group"
                         >
-                            <div className="w-9 h-9 bg-emerald-100 group-hover:bg-emerald-200 rounded-xl flex items-center justify-center transition-colors">
-                                <PenLine className="w-4 h-4 text-emerald-600" />
+                            <div className="w-9 h-9 bg-indigo-400/10 group-hover:bg-indigo-400/20 rounded-xl flex items-center justify-center border border-indigo-300/20 transition-colors">
+                                <PenLine className="w-4 h-4 text-indigo-300" />
                             </div>
-                            <span className="text-[11px] font-bold text-emerald-700 text-center leading-tight">빠른 기록</span>
+                            <span className="text-[11px] font-bold text-indigo-200 text-center leading-tight">빠른 기록</span>
                         </button>
                     </div>
                 </div>
 
                 {/* ===== 내 정보 Section ===== */}
-                <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+                <div className="bg-slate-900/80 rounded-2xl p-5 shadow-sm border border-slate-700/70">
                     <div className="flex items-center gap-2 mb-4">
-                        <div className="w-8 h-8 bg-gray-100 rounded-xl flex items-center justify-center">
-                            <User className="w-4 h-4 text-gray-600" />
+                        <div className="w-8 h-8 bg-slate-800 rounded-xl flex items-center justify-center border border-slate-600/60">
+                            <User className="w-4 h-4 text-slate-300" />
                         </div>
-                        <h3 className="font-black text-gray-800 text-base">내 정보</h3>
+                        <h3 className="font-black text-slate-100 text-base">내 정보</h3>
                     </div>
                     <div className="grid grid-cols-3 gap-2">
                         <button
                             onClick={() => { setSelectedLesson(null); setView('PROFILE'); }}
-                            className="flex flex-col items-center gap-2 py-4 px-2 bg-gray-50 hover:bg-gray-100 rounded-xl transition-colors group"
+                            className="flex flex-col items-center gap-2 py-4 px-2 bg-slate-950/70 hover:bg-slate-800/80 rounded-xl border border-slate-700/70 transition-colors group"
                         >
-                            <div className="w-9 h-9 bg-gray-100 group-hover:bg-gray-200 rounded-xl flex items-center justify-center transition-colors">
-                                <User className="w-4 h-4 text-gray-600" />
+                            <div className="w-9 h-9 bg-slate-800 group-hover:bg-slate-700 rounded-xl flex items-center justify-center border border-slate-600/60 transition-colors">
+                                <User className="w-4 h-4 text-slate-300" />
                             </div>
-                            <span className="text-[11px] font-bold text-gray-700 text-center leading-tight">내 정보</span>
+                            <span className="text-[11px] font-bold text-slate-300 text-center leading-tight">내 정보</span>
                         </button>
                         <button
                             onClick={() => { setSelectedLesson(null); setView('MEMBERSHIP_PURCHASE'); }}
-                            className="flex flex-col items-center gap-2 py-4 px-2 bg-indigo-50 hover:bg-indigo-100 rounded-xl transition-colors group"
+                            className="flex flex-col items-center gap-2 py-4 px-2 bg-slate-950/70 hover:bg-slate-800/80 rounded-xl border border-slate-700/70 transition-colors group"
                         >
-                            <div className="w-9 h-9 bg-indigo-100 group-hover:bg-indigo-200 rounded-xl flex items-center justify-center transition-colors">
-                                <Crown className="w-4 h-4 text-indigo-600" />
+                            <div className="w-9 h-9 bg-violet-400/10 group-hover:bg-violet-400/20 rounded-xl flex items-center justify-center border border-violet-300/20 transition-colors">
+                                <Crown className="w-4 h-4 text-violet-300" />
                             </div>
-                            <span className="text-[11px] font-bold text-indigo-700 text-center leading-tight">멤버십 결제</span>
+                            <span className="text-[11px] font-bold text-violet-200 text-center leading-tight">멤버십 결제</span>
                         </button>
                         <button
                             onClick={() => { setSelectedLesson(null); setView('POINT_PURCHASE'); }}
-                            className="flex flex-col items-center gap-2 py-4 px-2 bg-yellow-50 hover:bg-yellow-100 rounded-xl transition-colors group"
+                            className="flex flex-col items-center gap-2 py-4 px-2 bg-slate-950/70 hover:bg-slate-800/80 rounded-xl border border-slate-700/70 transition-colors group"
                         >
-                            <div className="w-9 h-9 bg-yellow-100 group-hover:bg-yellow-200 rounded-xl flex items-center justify-center transition-colors">
-                                <ShoppingCart className="w-4 h-4 text-yellow-600" />
+                            <div className="w-9 h-9 bg-cyan-400/10 group-hover:bg-cyan-400/20 rounded-xl flex items-center justify-center border border-cyan-300/20 transition-colors">
+                                <ShoppingCart className="w-4 h-4 text-cyan-300" />
                             </div>
-                            <span className="text-[11px] font-bold text-yellow-700 text-center leading-tight">포인트 구매</span>
+                            <span className="text-[11px] font-bold text-cyan-200 text-center leading-tight">포인트 구매</span>
                         </button>
                     </div>
                 </div>
@@ -633,20 +633,20 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
                 {todaysHomework.filter(h => !h.isCompleted).length > 0 && (
                     <div 
                         onClick={() => setShowHomeworkModal(true)}
-                        className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl p-4 border-2 border-amber-200 cursor-pointer hover:scale-[1.02] transition-transform flex items-center justify-between"
+                        className="bg-gradient-to-r from-slate-900/90 to-slate-950/90 rounded-xl p-4 border border-amber-300/30 cursor-pointer hover:scale-[1.02] transition-transform flex items-center justify-between"
                     >
                         <div className="flex items-center gap-3">
-                            <div className="bg-amber-400 p-2 rounded-lg">
+                            <div className="bg-amber-400/90 p-2 rounded-lg">
                                 <ListChecks className="w-5 h-5 text-white" />
                             </div>
                             <div>
-                                <h3 className="font-bold text-gray-900 text-sm">오늘의 미션</h3>
-                                <p className="text-xs text-gray-600">
+                                <h3 className="font-bold text-slate-100 text-sm">오늘의 미션</h3>
+                                <p className="text-xs text-slate-400">
                                     {todaysHomework.filter(h => !h.isCompleted).length}개 남음
                                 </p>
                             </div>
                         </div>
-                        <ChevronRight className="w-5 h-5 text-amber-600" />
+                        <ChevronRight className="w-5 h-5 text-amber-300" />
                     </div>
                 )}
                 
@@ -659,27 +659,27 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
                 <div className="flex items-center gap-3 pb-2">
                     <button
                         onClick={handleBackToList}
-                        className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-600 transition-colors"
+                        className="p-2 rounded-lg bg-slate-900 border border-slate-700 hover:bg-slate-800 text-slate-300 transition-colors"
                         aria-label={t('back')}
                     >
                         <ChevronLeft className="w-5 h-5" />
                     </button>
-                    <div className="w-1 h-6 bg-gradient-to-b from-emerald-700 to-teal-600 rounded-full" />
-                    <h2 className="text-xl font-black text-gray-900">{t('recent_records')}</h2>
-                    <span className="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full text-xs font-bold">
+                    <div className="w-1 h-6 bg-gradient-to-b from-indigo-500 to-cyan-400 rounded-full" />
+                    <h2 className="text-xl font-black text-slate-100">{t('recent_records')}</h2>
+                    <span className="bg-indigo-500/15 border border-indigo-300/30 text-indigo-200 px-2 py-0.5 rounded-full text-xs font-bold">
                         {allMyLessons.length}
                     </span>
                     <div className="ml-auto flex items-center gap-2">
                         <button
                             onClick={toggleShowMedia}
-                            className={`p-2 rounded-lg transition-all duration-200 transform hover:scale-110 ${showMedia ? 'bg-gradient-to-br from-emerald-100 to-emerald-200 text-emerald-700 shadow-md' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
+                            className={`p-2 rounded-lg transition-all duration-200 transform hover:scale-110 ${showMedia ? 'bg-gradient-to-br from-indigo-500/20 to-cyan-500/20 text-cyan-200 border border-cyan-300/30 shadow-md shadow-cyan-950/20' : 'bg-slate-900 border border-slate-700 text-slate-400 hover:bg-slate-800'}`}
                             title={showMedia ? '미디어 숨기기' : '미디어 표시'}
                         >
                             {showMedia ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
                         </button>
                         <button
                             onClick={() => setShowDateFilter(!showDateFilter)}
-                            className={`p-2 rounded-lg transition-all duration-200 transform hover:scale-110 ${showDateFilter || (searchStartDate || searchEndDate) ? 'bg-gradient-to-br from-emerald-100 to-emerald-200 text-emerald-700 shadow-md' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
+                            className={`p-2 rounded-lg transition-all duration-200 transform hover:scale-110 ${showDateFilter || (searchStartDate || searchEndDate) ? 'bg-gradient-to-br from-indigo-500/20 to-cyan-500/20 text-cyan-200 border border-cyan-300/30 shadow-md shadow-cyan-950/20' : 'bg-slate-900 border border-slate-700 text-slate-400 hover:bg-slate-800'}`}
                         >
                             <Filter className="w-4 h-4" />
                         </button>
@@ -688,30 +688,30 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
 
                 {/* Date Filter Section */}
                 {(showDateFilter || searchStartDate || searchEndDate) && (
-                    <div className="bg-gradient-to-br from-white to-emerald-50/30 p-4 rounded-xl border border-emerald-100 shadow-md animate-slide-in-up">
+                    <div className="bg-gradient-to-br from-slate-900/90 to-slate-950/90 p-4 rounded-xl border border-slate-700 shadow-md animate-slide-in-up">
                         <div className="flex gap-2 items-center mb-2">
                             <div className="flex-1">
-                                <label className="block text-[10px] text-gray-600 font-semibold mb-1">시작일</label>
+                                <label className="block text-[10px] text-slate-400 font-semibold mb-1">시작일</label>
                                 <input
                                     type="date"
                                     value={searchStartDate}
                                     onChange={(e) => setSearchStartDate(e.target.value)}
-                                    className="w-full text-xs p-2 border border-emerald-200 rounded-lg focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/20 outline-none transition-all"
+                                    className="w-full text-xs p-2 border border-slate-700 bg-slate-900 text-slate-200 rounded-lg focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/20 outline-none transition-all"
                                 />
                             </div>
-                            <span className="text-gray-400 mt-4 font-bold">~</span>
+                            <span className="text-slate-500 mt-4 font-bold">~</span>
                             <div className="flex-1">
-                                <label className="block text-[10px] text-gray-600 font-semibold mb-1">종료일</label>
+                                <label className="block text-[10px] text-slate-400 font-semibold mb-1">종료일</label>
                                 <input
                                     type="date"
                                     value={searchEndDate}
                                     onChange={(e) => setSearchEndDate(e.target.value)}
-                                    className="w-full text-xs p-2 border border-emerald-200 rounded-lg focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/20 outline-none transition-all"
+                                    className="w-full text-xs p-2 border border-slate-700 bg-slate-900 text-slate-200 rounded-lg focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/20 outline-none transition-all"
                                 />
                             </div>
                         </div>
                         <div className="flex justify-end">
-                            <button onClick={clearDateFilter} className="text-xs text-gray-500 font-semibold underline hover:text-red-500 transition-colors">
+                            <button onClick={clearDateFilter} className="text-xs text-slate-400 font-semibold underline hover:text-red-400 transition-colors">
                                 필터 초기화
                             </button>
                         </div>
@@ -720,16 +720,16 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
 
                 {/* Lesson List */}
                 {allMyLessons.length === 0 ? (
-                    <div className="text-center py-16 bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl border border-gray-200">
-                        <div className="bg-white w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
-                            <PlayCircle className="w-10 h-10 text-gray-400" />
+                    <div className="text-center py-16 bg-gradient-to-br from-slate-900/90 to-slate-950/90 rounded-2xl border border-slate-700">
+                        <div className="bg-slate-950 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg border border-slate-700">
+                            <PlayCircle className="w-10 h-10 text-slate-500" />
                         </div>
-                        <h3 className="text-gray-900 font-bold text-lg mb-2">{t('no_records')}</h3>
-                        <p className="text-gray-500 text-sm px-4">
+                        <h3 className="text-slate-100 font-bold text-lg mb-2">{t('no_records')}</h3>
+                        <p className="text-slate-400 text-sm px-4">
                             {(searchStartDate || searchEndDate) ? '검색 기간에 해당하는 기록이 없습니다.' : t('no_records_desc')}
                         </p>
                         {(searchStartDate || searchEndDate) && (
-                            <button onClick={clearDateFilter} className="mt-4 text-emerald-600 text-sm font-bold hover:underline">
+                            <button onClick={clearDateFilter} className="mt-4 text-cyan-300 text-sm font-bold hover:underline">
                                 전체 목록 보기
                             </button>
                         )}
@@ -900,7 +900,7 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
                     setIsEditingLesson(false);
                     setView('NEW');
                 }}
-                className="group fixed bottom-6 right-6 w-16 h-16 bg-gradient-to-br from-emerald-700 to-teal-600 text-white rounded-full shadow-lg shadow-emerald-300 flex items-center justify-center hover:scale-110 transition-all z-40 relative"
+                className="group fixed bottom-6 right-6 w-16 h-16 bg-gradient-to-br from-indigo-600 to-cyan-500 text-white rounded-full shadow-lg shadow-indigo-950/40 flex items-center justify-center hover:scale-110 transition-all z-40 relative"
             >
                 <Plus className="w-7 h-7 group-hover:rotate-90 transition-transform duration-300" />
                 <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full animate-pulse font-bold">
@@ -911,7 +911,7 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
 
         {/* New Lesson Form (Self Record or Edit) */}
         {view === 'NEW' && (
-            <div className="fixed inset-0 z-50 bg-white overflow-y-auto">
+            <div className="fixed inset-0 z-50 bg-[#05070A] overflow-y-auto">
                 <NewLessonForm 
                     existingClients={[clientProfile]} // Pass self
                     userRole="CLIENT"
