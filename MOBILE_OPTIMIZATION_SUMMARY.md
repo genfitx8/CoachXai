@@ -2,8 +2,8 @@
 
 ## 📱 구현 개요 (Implementation Overview)
 
-이 PR은 SwingNote 앱의 캘린더 컴포넌트를 모바일 환경에 최적화했습니다.
-This PR optimizes the SwingNote app's calendar component for mobile environments.
+이 PR은 CoachX 앱의 캘린더 컴포넌트를 모바일 환경에 최적화했습니다.
+This PR optimizes the CoachX app's calendar component for mobile environments.
 
 ## ✨ 주요 변경사항 (Key Changes)
 
@@ -140,10 +140,10 @@ This PR optimizes the SwingNote app's calendar component for mobile environments
 
 ## 🎯 결론 (Conclusion)
 
-이 최적화는 SwingNote 캘린더의 모바일 사용성을 크게 향상시킵니다:
+이 최적화는 CoachX 캘린더의 모바일 사용성을 크게 향상시킵니다:
 - **더 나은 UX**: 모바일에 적합한 뷰와 터치 친화적 인터페이스
 - **반응형 디자인**: 모든 화면 크기에서 완벽한 표시
 - **성능 유지**: 최소한의 변경으로 최대 효과
 - **보안**: 취약점 없음
 
-This optimization significantly improves the mobile usability of the SwingNote calendar with better UX, responsive design, maintained performance, and zero security vulnerabilities.
+This optimization significantly improves the mobile usability of the CoachX calendar with better UX, responsive design, maintained performance, and zero security vulnerabilities.

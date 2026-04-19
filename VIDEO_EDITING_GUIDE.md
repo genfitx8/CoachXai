@@ -1,7 +1,7 @@
 # Video Editing Features Guide
 
 ## Overview
-SwingNote now includes comprehensive video editing capabilities designed specifically for golf lesson analysis. Coaches can trim videos, add voice commentary, and draw annotations directly on swing videos.
+CoachX now includes comprehensive video editing capabilities designed specifically for golf lesson analysis. Coaches can trim videos, add voice commentary, and draw annotations directly on swing videos.
 
 ## Features
 
@@ -287,4 +287,4 @@ await this.ffmpeg.exec([
 ```
 
 ## Support
-For issues or questions, please refer to the main SwingNote documentation or contact the development team.
+For issues or questions, please refer to the main CoachX documentation or contact the development team.

@@ -16,6 +16,11 @@ describe('PWA manifest', () => {
     readFileSync(resolve(ROOT, 'public/manifest.json'), 'utf-8')
   );
 
+  it('uses CoachX branding', () => {
+    expect(manifest.name).toContain('CoachX');
+    expect(manifest.short_name).toContain('CoachX');
+  });
+
   it('has a name and short_name', () => {
     expect(manifest.name).toBeTruthy();
     expect(manifest.short_name).toBeTruthy();
@@ -58,6 +63,12 @@ describe('PWA manifest', () => {
 
 describe('index.html PWA meta tags', () => {
   const html = readFileSync(resolve(ROOT, 'index.html'), 'utf-8');
+
+  it('uses CoachX branding in title and app name', () => {
+    expect(html).toContain('CoachX AI');
+    expect(html).toContain('apple-mobile-web-app-title');
+    expect(html).toContain('CoachX');
+  });
 
   it('links to manifest.json', () => {
     expect(html).toContain('rel="manifest"');

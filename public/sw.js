@@ -1,7 +1,7 @@
-// Swingnote Service Worker
+// CoachX Service Worker
 // Minimal service worker for PWA installability and basic offline support
 
-const CACHE_NAME = 'swingnote-v1';
+const CACHE_NAME = 'coachx-v1';
 
 // App shell files to cache on install
 const APP_SHELL = [
