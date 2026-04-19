@@ -5,6 +5,9 @@ interface CoachXLandingProps {
   onSignup: () => void;
 }
 
+const GREETING_DELAY_MS = 450;
+const GREETING_SPEECH_RATE = 0.92;
+
 export const CoachXLanding: React.FC<CoachXLandingProps> = ({
   onLogin,
   onSignup,
@@ -23,7 +26,7 @@ export const CoachXLanding: React.FC<CoachXLandingProps> = ({
       try {
         const utterance = new SpeechSynthesisUtteranceApi('Hello, coach.');
         utterance.lang = 'en-US';
-        utterance.rate = 0.92;
+        utterance.rate = GREETING_SPEECH_RATE;
         utterance.pitch = 1;
         utterance.volume = 0.8;
 
@@ -32,7 +35,7 @@ export const CoachXLanding: React.FC<CoachXLandingProps> = ({
       } catch {
         // Graceful fallback: ignore blocked/unsupported autoplay audio.
       }
-    }, 450);
+    }, GREETING_DELAY_MS);
 
     return () => {
       window.clearTimeout(greetingTimer);
