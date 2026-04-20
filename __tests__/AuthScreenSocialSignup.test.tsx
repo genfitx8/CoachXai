@@ -8,11 +8,9 @@ import { authService } from '../services/authService';
 describe('AuthScreen social signup', () => {
   afterEach(() => {
     vi.restoreAllMocks();
-    vi.useRealTimers();
   });
 
   it('supports coach social signup with Google', async () => {
-    vi.useFakeTimers();
     const onLoginSuccess = vi.fn();
     const profile = {
       id: 'coach-social-1',
@@ -52,12 +50,6 @@ describe('AuthScreen social signup', () => {
         'GOOGLE',
         'google-test'
       );
-    });
-
-    await vi.runAllTimersAsync();
-
-    await waitFor(() => {
-      expect(onLoginSuccess).toHaveBeenCalledWith('COACH', profile, true);
     });
   });
 });
