@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import React from 'react';
 import App from '../App';
 
@@ -121,5 +121,25 @@ describe('Coach dashboard – lesson-first MVP home', () => {
   it('keeps calendar hidden on the simplified coach home', async () => {
     await renderCoachApp();
     expect(screen.queryByTestId('calendar-view')).toBeNull();
+  });
+
+  it('does not show direct member registration button in Student category', async () => {
+    await renderCoachApp();
+    fireEvent.click(screen.getByTestId('students-entry-btn'));
+    expect(screen.queryByTestId('coach-client-add-btn')).toBeNull();
+  });
+
+  it('moves direct member registration entry into Lesson start flow', async () => {
+    await renderCoachApp();
+
+    fireEvent.click(screen.getByTestId('start-lesson-btn'));
+
+    const directRegisterBtn = screen.getByTestId('lesson-start-direct-register-btn');
+    expect(directRegisterBtn).toBeInTheDocument();
+
+    fireEvent.click(directRegisterBtn);
+    await waitFor(() => {
+      expect(screen.getByTestId('coach-client-add-modal')).toBeInTheDocument();
+    });
   });
 });
