@@ -15,7 +15,7 @@ import { PaymentSuccess } from './PaymentSuccess';
 import { PaymentFail } from './PaymentFail';
 import { MembershipPurchase } from './MembershipPurchase';
 import { MembershipPaymentSuccess } from './MembershipPaymentSuccess';
-import { User, LogOut, History, PlayCircle, Plus, BarChart3, Bell, ListChecks, Globe, Calendar, Search, Filter, Eye, EyeOff, ChevronRight, ChevronLeft, TrendingUp, Award, Target, ClipboardList, Crown } from 'lucide-react';
+import { User, LogOut, History, PlayCircle, Plus, BarChart3, Bell, ListChecks, Globe, Calendar, Search, Filter, Eye, EyeOff, ChevronRight, ChevronLeft, TrendingUp, Award, Target, ClipboardList, Crown, Sparkles, Briefcase, ScanLine } from 'lucide-react';
 import { firebaseService } from '../services/firebase';
 import { storageService } from '../services/storage';
 import { pointService } from '../services/pointService';
@@ -321,7 +321,7 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
     <div className="min-h-screen bg-gradient-to-b from-[#05070A] via-[#070b12] to-[#0B1220] text-slate-100 font-sans pb-20">
       <header className="bg-[#0A0F1A]/95 border-b border-slate-800 sticky top-0 z-[60] shadow-lg shadow-black/30 backdrop-blur-xl">
         <div className="max-w-md mx-auto px-4 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2 cursor-pointer" onClick={() => setView('PROFILE')}>
+          <div className="flex items-center gap-2">
             <div className="bg-gradient-to-br from-indigo-500/30 to-cyan-400/20 p-2 rounded-full text-cyan-100 border border-cyan-300/20 shadow-md shadow-cyan-950/20">
                 <User className="w-5 h-5" />
             </div>
@@ -341,14 +341,6 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
                 {language.toUpperCase()}
             </button>
 
-            {/* Points Badge */}
-            <button 
-                onClick={() => setView('POINT_PURCHASE')}
-                className="flex items-center gap-1 px-3 py-1.5 bg-gradient-to-r from-violet-500/20 to-cyan-400/15 text-cyan-100 rounded-full border border-cyan-300/25 shadow-md shadow-cyan-950/20 hover:from-violet-500/30 hover:to-cyan-400/25 transition-all duration-200 hover:scale-105 transform"
-            >
-                <div className="bg-gradient-to-br from-violet-400 to-cyan-400 rounded-full p-1 shadow-sm"><div className="w-2 h-2 bg-white rounded-full" /></div>
-                <span className="text-xs font-bold">{clientProfile.currentPoints?.toLocaleString() || 0} P</span>
-            </button>
             <button 
                 onClick={onLogout} 
                 className="p-2 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded-full transition-all duration-200 relative z-50 cursor-pointer hover:scale-110 transform"
@@ -386,7 +378,7 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
                             <PlayCircle className="w-7 h-7" />
                         </div>
                         <div className="text-left">
-                            <div className="text-xl font-black">레슨 기록 시작</div>
+                            <div className="text-xl font-black">Start Lesson</div>
                             <div className="text-xs text-cyan-100 font-medium">새로운 레슨을 기록하세요</div>
                         </div>
                     </div>
@@ -434,15 +426,39 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
                     </div>
                 )}
 
+                {/* ===== CoachX AI Section ===== */}
+                <div className="bg-slate-900/80 rounded-2xl p-5 shadow-sm border border-slate-700/70">
+                    <div className="flex items-center gap-2 mb-4">
+                        <div className="w-8 h-8 bg-violet-400/10 rounded-xl flex items-center justify-center border border-violet-300/20">
+                            <Sparkles className="w-4 h-4 text-violet-300" />
+                        </div>
+                        <h3 className="font-black text-slate-100 text-base">CoachX AI</h3>
+                    </div>
+                    <div className="grid grid-cols-1 gap-2">
+                        <button
+                            onClick={() => { setSelectedLesson(null); setView('WEEKLY_INSIGHT'); }}
+                            className="flex items-center justify-between gap-3 py-4 px-4 bg-slate-950/70 hover:bg-slate-800/80 rounded-xl border border-slate-700/70 transition-colors group"
+                        >
+                            <div className="flex items-center gap-3">
+                                <div className="w-9 h-9 bg-violet-400/10 group-hover:bg-violet-400/20 rounded-xl flex items-center justify-center border border-violet-300/20 transition-colors">
+                                    <TrendingUp className="w-4 h-4 text-violet-300" />
+                                </div>
+                                <span className="text-sm font-bold text-violet-200">주간 인사이트</span>
+                            </div>
+                            <ChevronRight className="w-4 h-4 text-violet-300" />
+                        </button>
+                    </div>
+                </div>
+
                 {/* ===== 레슨 Section ===== */}
                 <div className="bg-slate-900/80 rounded-2xl p-5 shadow-sm border border-slate-700/70">
                     <div className="flex items-center gap-2 mb-4">
                         <div className="w-8 h-8 bg-indigo-400/10 rounded-xl flex items-center justify-center border border-indigo-300/20">
                             <Award className="w-4 h-4 text-indigo-300" />
                         </div>
-                        <h3 className="font-black text-slate-100 text-base">레슨</h3>
+                        <h3 className="font-black text-slate-100 text-base">Lesson</h3>
                     </div>
-                    <div className="grid grid-cols-3 gap-2">
+                    <div className="grid grid-cols-2 gap-2">
                         <button
                             onClick={() => { setSelectedLesson(null); setView('RECENT_RECORDS'); }}
                             className="flex flex-col items-center gap-2 py-4 px-2 bg-slate-950/70 hover:bg-slate-800/80 rounded-xl border border-slate-700/70 transition-colors group"
@@ -461,15 +477,6 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
                             </div>
                             <span className="text-[11px] font-bold text-indigo-200 text-center leading-tight">상세 통계</span>
                         </button>
-                        <button
-                            onClick={() => { setSelectedLesson(null); setView('WEEKLY_INSIGHT'); }}
-                            className="flex flex-col items-center gap-2 py-4 px-2 bg-slate-950/70 hover:bg-slate-800/80 rounded-xl border border-slate-700/70 transition-colors group"
-                        >
-                            <div className="w-9 h-9 bg-violet-400/10 group-hover:bg-violet-400/20 rounded-xl flex items-center justify-center border border-violet-300/20 transition-colors">
-                                <TrendingUp className="w-4 h-4 text-violet-300" />
-                            </div>
-                            <span className="text-[11px] font-bold text-violet-200 text-center leading-tight">주간 인사이트</span>
-                        </button>
                     </div>
                 </div>
 
@@ -481,7 +488,7 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
                         </div>
                         <h3 className="font-black text-slate-100 text-base">내 정보</h3>
                     </div>
-                    <div className={`grid gap-2 ${HIDE_MEMBERSHIP_FEATURES ? 'grid-cols-1' : 'grid-cols-2'}`}>
+                    <div className={`grid gap-2 ${HIDE_MEMBERSHIP_FEATURES ? 'grid-cols-2' : 'grid-cols-2'}`}>
                         <button
                             onClick={() => { setSelectedLesson(null); setView('PROFILE'); }}
                             className="flex flex-col items-center gap-2 py-4 px-2 bg-slate-950/70 hover:bg-slate-800/80 rounded-xl border border-slate-700/70 transition-colors group"
@@ -490,6 +497,42 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
                                 <User className="w-4 h-4 text-slate-300" />
                             </div>
                             <span className="text-[11px] font-bold text-slate-300 text-center leading-tight">내 정보</span>
+                        </button>
+                        <button
+                            onClick={() => { setSelectedLesson(null); setView('POINT_PURCHASE'); }}
+                            className="flex flex-col items-center gap-2 py-4 px-2 bg-slate-950/70 hover:bg-slate-800/80 rounded-xl border border-slate-700/70 transition-colors group"
+                        >
+                            <div className="w-9 h-9 bg-cyan-400/10 group-hover:bg-cyan-400/20 rounded-xl flex items-center justify-center border border-cyan-300/20 transition-colors">
+                                <Target className="w-4 h-4 text-cyan-300" />
+                            </div>
+                            <span className="text-[11px] font-bold text-cyan-200 text-center leading-tight">포인트</span>
+                        </button>
+                        <button
+                            onClick={() => { setSelectedLesson(null); setView('PROFILE'); }}
+                            className="flex flex-col items-center gap-2 py-4 px-2 bg-slate-950/70 hover:bg-slate-800/80 rounded-xl border border-slate-700/70 transition-colors group"
+                        >
+                            <div className="w-9 h-9 bg-emerald-500/10 group-hover:bg-emerald-500/20 rounded-xl flex items-center justify-center border border-emerald-300/20 transition-colors">
+                                <Award className="w-4 h-4 text-emerald-300" />
+                            </div>
+                            <span className="text-[11px] font-bold text-emerald-200 text-center leading-tight">골프프로필</span>
+                        </button>
+                        <button
+                            onClick={() => { setSelectedLesson(null); setView('PROFILE'); }}
+                            className="flex flex-col items-center gap-2 py-4 px-2 bg-slate-950/70 hover:bg-slate-800/80 rounded-xl border border-slate-700/70 transition-colors group"
+                        >
+                            <div className="w-9 h-9 bg-indigo-500/10 group-hover:bg-indigo-500/20 rounded-xl flex items-center justify-center border border-indigo-300/20 transition-colors">
+                                <Briefcase className="w-4 h-4 text-indigo-300" />
+                            </div>
+                            <span className="text-[11px] font-bold text-indigo-200 text-center leading-tight">내 클럽</span>
+                        </button>
+                        <button
+                            onClick={() => { setSelectedLesson(null); setView('PROFILE'); }}
+                            className="flex flex-col items-center gap-2 py-4 px-2 bg-slate-950/70 hover:bg-slate-800/80 rounded-xl border border-slate-700/70 transition-colors group"
+                        >
+                            <div className="w-9 h-9 bg-amber-500/10 group-hover:bg-amber-500/20 rounded-xl flex items-center justify-center border border-amber-300/20 transition-colors">
+                                <ScanLine className="w-4 h-4 text-amber-300" />
+                            </div>
+                            <span className="text-[11px] font-bold text-amber-200 text-center leading-tight">신체분석</span>
                         </button>
                         {!HIDE_MEMBERSHIP_FEATURES && (
                             <button
