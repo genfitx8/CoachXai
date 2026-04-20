@@ -3,42 +3,27 @@ import axios from 'axios';
 import { v4 as uuidv4 } from 'uuid';
 import { orderStorage } from '../services/orderStorage';
 import { creditMembership, pendingMembershipApplyTokens } from '../services/membershipCredit';
+import { buildPayappPaymentUrl, getAppBaseUrl } from '../payments/config';
+import {
+  parseApplyTokenRequest,
+  parseConfirmRequest,
+  parseCreateMembershipOrderRequest,
+} from '../payments/validation';
 
 const router = Router();
 
-const APP_BASE_URL = (() => {
-  const raw = process.env.APP_BASE_URL || 'http://localhost:3000';
-  try {
-    const parsed = new URL(raw);
-    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
-      throw new Error('Invalid protocol');
-    }
-    return raw.replace(/\/$/, '');
-  } catch {
-    console.warn('[swingnote-server] Invalid APP_BASE_URL, falling back to http://localhost:3000');
-    return 'http://localhost:3000';
-  }
-})();
-
+const APP_BASE_URL = getAppBaseUrl();
 const PAYAPP_API_BASE = process.env.PAYAPP_API_BASE || 'https://api.payapp.kr/v1/payments';
 const PAYAPP_CHECKOUT_URL = process.env.PAYAPP_CHECKOUT_URL || '';
 
 router.post('/create-order', async (req: Request, res: Response) => {
-  const { userId, amount, role } = req.body as {
-    userId?: string;
-    amount?: number;
-    role?: 'CLIENT' | 'COACH';
-  };
-
-  if (!userId || typeof amount !== 'number' || (role !== 'CLIENT' && role !== 'COACH')) {
-    res.status(400).json({ error: '잘못된 요청입니다.' });
+  const parsed = parseCreateMembershipOrderRequest(req.body);
+  if (!parsed.ok) {
+    res.status(400).json({ error: parsed.error });
     return;
   }
 
-  if (amount <= 0) {
-    res.status(400).json({ error: 'amount는 양수여야 합니다.' });
-    return;
-  }
+  const { userId, amount, role } = parsed.data;
 
   const orderId = `snm-${uuidv4()}`;
   const now = Date.now();
@@ -70,20 +55,15 @@ router.post('/create-order', async (req: Request, res: Response) => {
       amount: String(amount),
     }).toString();
 
-  let paymentUrl = fallbackPaymentUrl;
-  if (PAYAPP_CHECKOUT_URL) {
-    try {
-      const checkoutUrl = new URL(PAYAPP_CHECKOUT_URL);
-      checkoutUrl.searchParams.set('orderId', orderId);
-      checkoutUrl.searchParams.set('amount', String(amount));
-      checkoutUrl.searchParams.set('orderName', orderName);
-      checkoutUrl.searchParams.set('successUrl', successUrl);
-      checkoutUrl.searchParams.set('failUrl', failUrl);
-      paymentUrl = checkoutUrl.toString();
-    } catch {
-      paymentUrl = fallbackPaymentUrl;
-    }
-  }
+  const paymentUrl = buildPayappPaymentUrl({
+    checkoutBaseUrl: PAYAPP_CHECKOUT_URL,
+    fallbackPaymentUrl,
+    orderId,
+    amount,
+    orderName,
+    successUrl,
+    failUrl,
+  });
 
   res.json({
     orderId,
@@ -96,17 +76,13 @@ router.post('/create-order', async (req: Request, res: Response) => {
 });
 
 router.post('/confirm', async (req: Request, res: Response) => {
-  const { paymentKey, orderId, amount } = req.body as {
-    paymentKey?: string;
-    orderId?: string;
-    amount?: number;
-  };
-
-  if (!paymentKey || !orderId || typeof amount !== 'number') {
-    res.status(400).json({ error: '잘못된 요청입니다.' });
+  const parsed = parseConfirmRequest(req.body);
+  if (!parsed.ok) {
+    res.status(400).json({ error: parsed.error });
     return;
   }
 
+  const { paymentKey, orderId, amount } = parsed.data;
   const order = await orderStorage.findById(orderId);
   if (!order || order.orderType !== 'MEMBERSHIP') {
     res.status(404).json({ error: '멤버십 주문을 찾을 수 없습니다.' });
@@ -197,12 +173,13 @@ router.post('/confirm', async (req: Request, res: Response) => {
 });
 
 router.post('/apply-local-membership', (req: Request, res: Response) => {
-  const { applyToken } = req.body as { applyToken?: string };
-  if (!applyToken) {
-    res.status(400).json({ error: 'applyToken이 필요합니다.' });
+  const parsed = parseApplyTokenRequest(req.body);
+  if (!parsed.ok) {
+    res.status(400).json({ error: parsed.error });
     return;
   }
 
+  const { applyToken } = parsed.data;
   const entry = pendingMembershipApplyTokens.get(applyToken);
   if (!entry) {
     res.status(404).json({ error: '유효하지 않거나 만료된 토큰입니다.' });
