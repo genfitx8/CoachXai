@@ -1554,6 +1554,7 @@ const AppContent: React.FC = () => {
             packages={lessonPackages}
             lessons={lessons}
             userRole="COACH"
+            currentUser={currentUser ?? undefined}
             onSave={handleSaveLesson}
             onCancel={() => {
               if (pendingPackageSession) {
