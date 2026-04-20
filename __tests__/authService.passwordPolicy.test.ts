@@ -42,6 +42,7 @@ describe('authService password policy', () => {
     'password!', // no number
     '1234567!', // no letter
     'Password1 ', // no special character (whitespace only)
+    'Pass word1', // no special character (space only)
   ])('rejects weak password pattern: %s', async (weakPassword) => {
     await expect(
       authService.signupCoach(
