@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
+  analyzeImpact,
   analyzeStructuralFactors,
   buildSwingAiCoachingResult,
+  classifyShot,
   classifyBodyType,
   inferSwingTypeFromBodyType,
   StandardSwingModel,
@@ -46,6 +48,37 @@ describe('bodyAnalysisService', () => {
     expect(factors.find(f => f.name.includes('오른쪽 오다리'))?.impact).toBe('상');
     expect(factors.find(f => f.name.includes('측면 기울기'))?.impact).toBe('하');
     expect(factors.find(f => f.name.includes('굽은 어깨'))?.impact).toBe('상');
+  });
+
+  it('샷 정보를 분류해 문제 요약과 BT 드릴 필요 여부를 반환한다', () => {
+    const result = classifyShot({
+      headSpeed: 97,
+      ballSpeed: 135,
+      smashFactor: 1.39,
+      missClass: 'MISS',
+      sa: 'LEFT MOVE 5INCH',
+      bt: 85,
+      tbec: 'NO',
+    });
+
+    expect(result.problemSummary.join(' ')).toContain('MISS');
+    expect(result.problemSummary.join(' ')).toContain('중심축');
+    expect(result.needsBtDrill).toBe(true);
+  });
+
+  it('고영향도(상) 항목 이름만 추출한다', () => {
+    const factors = analyzeStructuralFactors({
+      frontAxisTiltDeg: -3.4,
+      headTiltDeg: -3.2,
+      pelvisTiltDeg: 2.83,
+      rightBowLegDeg: 3.3,
+      sideTiltDeg: -3.6,
+      roundedShoulderDeg: -1.2,
+    });
+
+    const highImpact = analyzeImpact(factors);
+    expect(highImpact.some(name => name.includes('정면 축'))).toBe(true);
+    expect(highImpact.some(name => name.includes('골반'))).toBe(false);
   });
 
   it('스윙 AI 코칭 결과를 문제요약/해결책 형태로 생성한다', () => {

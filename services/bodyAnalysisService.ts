@@ -74,6 +74,11 @@ export interface SwingAiCoachingResult extends BodyAnalysisResult {
   personalizedSolution: string[];
 }
 
+export interface ShotClassificationResult {
+  problemSummary: string[];
+  needsBtDrill: boolean;
+}
+
 const bodyTypeToSwingType: Record<BodyType, SwingType> = {
   이상체형: '지렛대형',
   삼각체형: '아크형',
@@ -171,6 +176,32 @@ function findNearestModel(snapshot: SwingSnapshotInput, models: StandardSwingMod
   return candidates.reduce((best, curr) => (modelDistance(snapshot, curr) < modelDistance(snapshot, best) ? curr : best));
 }
 
+export function classifyShot(snapshot: SwingSnapshotInput): ShotClassificationResult {
+  const problemSummary: string[] = [];
+  const needsBtDrill = snapshot.bt <= 85;
+
+  if (snapshot.missClass === 'MISS') {
+    problemSummary.push('미스샷 분류가 MISS로 확인되었습니다.');
+  }
+  if (needsBtDrill) {
+    problemSummary.push('백스윙 턴(BT)이 85도 이하로 중심축 이동 제한이 필요합니다.');
+  }
+  if (snapshot.sa.toUpperCase().includes('LEFT MOVE')) {
+    problemSummary.push('백스윙 시 중심축이 좌측으로 이동하는 패턴이 관찰됩니다.');
+  }
+
+  return {
+    problemSummary,
+    needsBtDrill,
+  };
+}
+
+export function analyzeImpact(structuralFactors: StructuralFactorResult[]): string[] {
+  return structuralFactors
+    .filter(f => f.impact === '상')
+    .map(f => f.name);
+}
+
 /**
  * "신체 분석 + 샷/모션 데이터 + 표준 모델(예: 729개) 비교" 흐름 구현
  */
@@ -184,21 +215,9 @@ export function buildSwingAiCoachingResult(params: {
   const bodyType = classifyBodyType(params.patternScores);
   const swingType = inferSwingTypeFromBodyType(bodyType);
   const nearestModel = findNearestModel(params.swingSnapshot, params.standardModels, swingType);
-
-  const highImpact = structuralFactors
-    .filter(f => f.impact === '상')
-    .map(f => f.name);
-
-  const problemSummary: string[] = [];
-  if (params.swingSnapshot.missClass === 'MISS') {
-    problemSummary.push('미스샷 분류가 MISS로 확인되었습니다.');
-  }
-  if (params.swingSnapshot.bt <= 85) {
-    problemSummary.push('백스윙 턴(BT)이 85도 이하로 중심축 이동 제한이 필요합니다.');
-  }
-  if (params.swingSnapshot.sa.toUpperCase().includes('LEFT MOVE')) {
-    problemSummary.push('백스윙 시 중심축이 좌측으로 이동하는 패턴이 관찰됩니다.');
-  }
+  const shotClassification = classifyShot(params.swingSnapshot);
+  const highImpact = analyzeImpact(structuralFactors);
+  const problemSummary: string[] = [...shotClassification.problemSummary];
   if (highImpact.length) {
     problemSummary.push(`신체 특성 고영향 항목: ${highImpact.join(', ')}`);
   }
@@ -209,7 +228,7 @@ export function buildSwingAiCoachingResult(params: {
     '스윙 변화 히스토리 추적',
   ];
 
-  if (params.swingSnapshot.bt <= 85) {
+  if (shotClassification.needsBtDrill) {
     personalizedSolution.push('중심축 좌우 이동을 제한하는 체중 이동 드릴 제공');
   }
 
