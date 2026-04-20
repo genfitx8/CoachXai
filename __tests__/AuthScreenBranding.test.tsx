@@ -46,7 +46,7 @@ describe('AuthScreen branding copy', () => {
       </LanguageProvider>
     );
 
-    fireEvent.click(screen.getByRole('button', { name: '회원님 로그인' }));
+    fireEvent.click(screen.getByRole('button', { name: '학생 로그인' }));
 
     expect(localStorage.getItem(AUTH_USER_TYPE_STORAGE_KEY)).toBe('CLIENT');
   });
@@ -61,7 +61,7 @@ describe('AuthScreen branding copy', () => {
     );
 
     const coachTab = screen.getByRole('button', { name: '코치님 로그인' });
-    const clientTab = screen.getByRole('button', { name: '회원님 로그인' });
+    const clientTab = screen.getByRole('button', { name: '학생 로그인' });
 
     expect(clientTab).toHaveAttribute('aria-pressed', 'true');
     expect(coachTab).toHaveAttribute('aria-pressed', 'false');
