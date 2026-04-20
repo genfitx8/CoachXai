@@ -357,6 +357,8 @@ export interface CoachProfile {
   email: string;
   phone?: string; // Added: Phone number for identification by clients
   password?: string;
+  socialProvider?: 'GOOGLE' | 'APPLE' | 'KAKAO' | 'NAVER';
+  socialId?: string;
   isSubscribed?: boolean;
   subscriptionPlan?: 'FREE' | 'PRO';
   subscriptionEndDate?: string;
@@ -383,6 +385,8 @@ export interface ClientProfile {
   phone: string;
   email?: string; // Added: For Auth
   password?: string; // Added: For Auth
+  socialProvider?: 'GOOGLE' | 'APPLE' | 'KAKAO' | 'NAVER';
+  socialId?: string;
   isSubscribed?: boolean;
   subscriptionPlan?: 'FREE' | 'PRO';
   subscriptionEndDate?: string;

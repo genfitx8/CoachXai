@@ -31,6 +31,8 @@ interface AuthScreenProps {
   initialMode?: 'LOGIN' | 'SIGNUP';
 }
 
+type SocialProvider = 'GOOGLE' | 'APPLE' | 'KAKAO' | 'NAVER';
+
 export const AuthScreen: React.FC<AuthScreenProps> = ({
   onLoginSuccess,
   initialMode = 'LOGIN',
@@ -57,6 +59,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
+  const [socialId, setSocialId] = useState('');
 
   // Branch Admin Form Fields
   const [branchAdminLoginId, setBranchAdminLoginId] = useState('');
@@ -73,6 +76,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
     setPassword('');
     setName('');
     setPhone('');
+    setSocialId('');
     setBranchAdminLoginId('');
     setBranchAdminPassword('');
     setError(null);
@@ -211,6 +215,36 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
       }
     } catch (e) {
       setFindResult({ type: 'error', message: '오류가 발생했습니다.' });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSocialSignup = async (provider: SocialProvider) => {
+    setError(null);
+    setIsLoading(true);
+    try {
+      if (activeTab === 'COACH') {
+        const profile = await authService.signupCoachWithSocial(
+          name,
+          phone,
+          provider,
+          socialId
+        );
+        setSuccessMsg(`${provider} 간편 회원가입 완료! 로그인 중...`);
+        setTimeout(() => onLoginSuccess('COACH', profile, isAutoLogin), 1000);
+      } else {
+        const profile = await authService.signupClientWithSocial(
+          name,
+          phone,
+          provider,
+          socialId
+        );
+        setSuccessMsg(`${provider} 간편 회원가입 완료! 로그인 중...`);
+        setTimeout(() => onLoginSuccess('CLIENT', profile, isAutoLogin), 1000);
+      }
+    } catch (err: any) {
+      setError(err as string);
     } finally {
       setIsLoading(false);
     }
@@ -566,6 +600,29 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
               </div>
             )}
 
+            {isSignup && (
+              <div>
+                <label
+                  htmlFor="socialId"
+                  className="block text-xs font-bold text-slate-400 mb-1 ml-1 uppercase"
+                >
+                  소셜 아이디
+                </label>
+                <div className="relative">
+                  <User className="absolute left-3 top-2.5 w-5 h-5 text-slate-500" />
+                  <input
+                    id="socialId"
+                    type="text"
+                    name="socialId"
+                    value={socialId}
+                    onChange={(e) => setSocialId(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2 bg-slate-900 text-slate-100 border border-slate-700 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
+                    placeholder="소셜 계정 아이디를 입력하세요"
+                  />
+                </div>
+              </div>
+            )}
+
             <div>
               <label className="block text-xs font-bold text-slate-400 mb-1 ml-1 uppercase">
                 {t('password')}
@@ -630,6 +687,34 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
                 {isSignup ? t('login_msg') : t('signup_msg')}
               </button>
             </div>
+
+            {isSignup && (
+              <div className="pt-4 border-t border-slate-800">
+                <p className="text-xs text-slate-400 text-center mb-3">
+                  간편 회원가입
+                </p>
+                <div className="grid grid-cols-2 gap-2">
+                  {(
+                    [
+                      ['GOOGLE', 'Google'],
+                      ['APPLE', 'Apple'],
+                      ['KAKAO', 'Kakao'],
+                      ['NAVER', 'Naver'],
+                    ] as const
+                  ).map(([provider, label]) => (
+                    <button
+                      key={provider}
+                      type="button"
+                      disabled={isLoading}
+                      onClick={() => handleSocialSignup(provider)}
+                      className="py-2 text-xs rounded-lg border border-slate-700 bg-slate-800 text-slate-100 hover:bg-slate-700 disabled:opacity-60"
+                    >
+                      {label}로 가입
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </form>
         </div>
       </div>
