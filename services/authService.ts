@@ -14,6 +14,21 @@ const PASSWORD_POLICY_REGEX =
 const PASSWORD_POLICY_ERROR_MESSAGE =
   '비밀번호는 8자 이상이며 문자, 숫자, 특수문자를 모두 포함해야 합니다.';
 
+const normalizePhoneNumber = (phone: string): string => {
+  const digitsOnly = phone.replace(/\D/g, '');
+
+  // Normalize +82 mobile format to local 0-prefixed format
+  if (digitsOnly.startsWith('82')) {
+    const localNumber = digitsOnly.slice(2);
+    return localNumber.startsWith('0') ? localNumber : `0${localNumber}`;
+  }
+
+  return digitsOnly;
+};
+
+const isSamePhoneNumber = (left: string | undefined, right: string): boolean =>
+  normalizePhoneNumber(left ?? '') === normalizePhoneNumber(right);
+
 export const authService = {
   signup: (
     role: 'COACH' | 'CLIENT',
@@ -46,23 +61,36 @@ export const authService = {
           return;
         }
 
+        const normalizedPhone = normalizePhoneNumber(phone);
+        if (!normalizedPhone) {
+          reject('올바른 휴대폰 번호를 입력해주세요.');
+          return;
+        }
+
         // Check if already exists - Firebase first, then local
+        const existingCoaches: CoachProfile[] = [];
         if (firebaseService.isInitialized()) {
-          const coaches = await firebaseService.getCoaches();
-          if (coaches.some((c) => c.email === email)) {
-            reject('이미 가입된 이메일입니다.');
-            return;
-          }
+          existingCoaches.push(...(await firebaseService.getCoaches()));
         }
 
         // Check local storage
         const existingData = localStorage.getItem(STORAGE_KEYS.COACH_PROFILE);
         if (existingData) {
-          const profile = JSON.parse(existingData);
-          if (profile.email === email) {
-            reject('이미 가입된 이메일입니다.');
-            return;
-          }
+          existingCoaches.push(JSON.parse(existingData));
+        }
+
+        if (existingCoaches.some((c) => c.email === email)) {
+          reject('이미 가입된 이메일입니다.');
+          return;
+        }
+
+        if (
+          existingCoaches.some(
+            (c) => isSamePhoneNumber(c.phone, normalizedPhone)
+          )
+        ) {
+          reject('이미 가입된 휴대폰 번호입니다.');
+          return;
         }
 
         const newProfile: CoachProfile = {
@@ -158,6 +186,12 @@ export const authService = {
           return;
         }
 
+        const normalizedPhone = normalizePhoneNumber(phone);
+        if (!normalizedPhone) {
+          reject('올바른 휴대폰 번호를 입력해주세요.');
+          return;
+        }
+
         // Get existing clients - Firebase first, then local
         let existingClients: ClientProfile[] = [];
         if (firebaseService.isInitialized()) {
@@ -174,18 +208,26 @@ export const authService = {
 
         // Check if phone number already exists (could be a legacy user without email)
         const existingByPhone = existingClients.find(
-          (c) => c.phone === phone && c.name === name
+          (c) => isSamePhoneNumber(c.phone, normalizedPhone)
         );
 
         let newProfile: ClientProfile;
 
-        if (existingByPhone) {
+        if (
+          existingByPhone &&
+          !existingByPhone.email &&
+          !existingByPhone.password &&
+          existingByPhone.name === name
+        ) {
           // Upgrade existing legacy profile to Full Account
           newProfile = { ...existingByPhone, email, password };
           const updatedList = existingClients.map((c) =>
-            c.phone === phone && c.name === name ? newProfile : c
+            c === existingByPhone ? newProfile : c
           );
           storageService.saveClients(updatedList);
+        } else if (existingByPhone) {
+          reject('이미 가입된 휴대폰 번호입니다.');
+          return;
         } else {
           // Create new profile
           newProfile = {
@@ -250,19 +292,32 @@ export const authService = {
     role: 'COACH' | 'CLIENT'
   ): Promise<CoachProfile | ClientProfile> => {
     if (!firebaseService.isInitialized()) {
-      throw 'Firebase가 연결되지 않았습니다. 먼저 Firebase 설정을 완료해주세요.';
+      const savedConfig = firebaseService.getSavedConfig();
+      const initialized =
+        savedConfig ? firebaseService.init(savedConfig) : false;
+      if (!initialized) {
+        throw 'Firebase 설정이 없거나 초기화에 실패해 구글 로그인을 사용할 수 없습니다. VITE_FIREBASE_API_KEY, VITE_FIREBASE_AUTH_DOMAIN, VITE_FIREBASE_PROJECT_ID, VITE_FIREBASE_APP_ID 값을 확인해주세요.';
+      }
     }
 
     let credential;
     try {
       credential = await firebaseService.signInWithGoogle();
     } catch (err: any) {
-      // User dismissed the popup or it was blocked
-      if (err?.code === 'auth/popup-closed-by-user' || err?.code === 'auth/cancelled-popup-request') {
-        throw '구글 로그인이 취소되었습니다.';
-      }
-      if (err?.code === 'auth/popup-blocked') {
-        throw '팝업이 차단되었습니다. 브라우저의 팝업 차단을 해제한 후 다시 시도해주세요.';
+      const codeToMessage: Record<string, string> = {
+        'auth/popup-closed-by-user': '구글 로그인이 취소되었습니다.',
+        'auth/cancelled-popup-request': '구글 로그인이 취소되었습니다.',
+        'auth/popup-blocked':
+          '팝업이 차단되었습니다. 브라우저의 팝업 차단을 해제한 후 다시 시도해주세요.',
+        'auth/auth-domain-config-required':
+          'Firebase 인증 도메인 설정이 없어 구글 로그인을 진행할 수 없습니다. VITE_FIREBASE_AUTH_DOMAIN 값을 설정하고 Firebase Console에서 승인된 도메인을 확인해주세요.',
+        'auth/operation-not-allowed':
+          'Firebase Console에서 Google 로그인 제공자가 비활성화되어 있습니다. Authentication > Sign-in method에서 Google을 활성화해주세요.',
+      };
+
+      const mappedMessage = err?.code ? codeToMessage[err.code] : undefined;
+      if (mappedMessage) {
+        throw mappedMessage;
       }
       console.error('Google sign-in error:', err);
       throw '구글 로그인 중 오류가 발생했습니다.';
