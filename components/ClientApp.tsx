@@ -15,11 +15,10 @@ import { PaymentSuccess } from './PaymentSuccess';
 import { PaymentFail } from './PaymentFail';
 import { MembershipPurchase } from './MembershipPurchase';
 import { MembershipPaymentSuccess } from './MembershipPaymentSuccess';
-import { User, LogOut, History, PlayCircle, Plus, BarChart3, Bell, Sparkles, ListChecks, Globe, Calendar, Search, Filter, Eye, EyeOff, ChevronRight, ChevronLeft, TrendingUp, Award, Target, ClipboardList, Crown } from 'lucide-react';
+import { User, LogOut, History, PlayCircle, Plus, BarChart3, Bell, ListChecks, Globe, Calendar, Search, Filter, Eye, EyeOff, ChevronRight, ChevronLeft, TrendingUp, Award, Target, ClipboardList, Crown } from 'lucide-react';
 import { firebaseService } from '../services/firebase';
 import { storageService } from '../services/storage';
 import { pointService } from '../services/pointService';
-import { GolfAIAgent } from './GolfAIAgent';
 import { WeeklyInsightCard } from './WeeklyInsightCard';
 import { NotificationToast } from './NotificationToast';
 import { useLanguage } from './LanguageContext';
@@ -49,7 +48,7 @@ const HIDE_RESERVATION_FEATURES = (import.meta.env.VITE_CLIENT_HIDE_RESERVATION 
 
 export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons, onLogout, onUpdateLesson, onSaveNewRecord, onDeleteLesson, onUpdateProfile }) => {
   const { t, language, setLanguage } = useLanguage();
-  const [view, setView] = useState<ViewState | 'STATS' | 'PROFILE' | 'RESERVATION' | 'BAY_RESERVATION' | 'MY_BAY_RESERVATIONS' | 'POINT_PURCHASE' | 'MEMBERSHIP_PURCHASE' | 'PAYMENT_SUCCESS' | 'MEMBERSHIP_PAYMENT_SUCCESS' | 'PAYMENT_FAIL' | 'RECENT_RECORDS' | 'AI_AGENT' | 'WEEKLY_INSIGHT'>(() => {
+  const [view, setView] = useState<ViewState | 'STATS' | 'PROFILE' | 'RESERVATION' | 'BAY_RESERVATION' | 'MY_BAY_RESERVATIONS' | 'POINT_PURCHASE' | 'MEMBERSHIP_PURCHASE' | 'PAYMENT_SUCCESS' | 'MEMBERSHIP_PAYMENT_SUCCESS' | 'PAYMENT_FAIL' | 'RECENT_RECORDS' | 'WEEKLY_INSIGHT'>(() => {
     const params = new URLSearchParams(window.location.search);
     const purchaseType = params.get('purchase');
     if (params.get('paymentKey') && params.get('orderId')) {
@@ -177,10 +176,6 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
       setHomeworkList(hw.sort((a,b) => b.createdAt - a.createdAt));
       setShowHomeworkModal(false);
       setNotification({ title: "미션 추가 완료", message: "새로운 미션이 등록되었습니다." });
-  };
-
-  const handleMissionSaved = () => {
-      setNotification({ title: 'AI 미션 등록', message: 'AI가 추천한 미션이 등록되었습니다!' });
   };
 
   const todaysHomework = useMemo(() => {
@@ -374,53 +369,6 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
         {effectiveView === 'LIST' && (
             <div className="space-y-6 animate-fade-in">
                 
-                {!HIDE_MEMBERSHIP_FEATURES && (
-                    <div className={`rounded-2xl border p-4 ${isProMember ? 'bg-gradient-to-r from-indigo-700 to-violet-700 border-indigo-400/40 text-slate-100' : 'bg-slate-900/80 border-slate-700/70 text-slate-100'}`}>
-                        <div className="flex items-center justify-between mb-3">
-                            <div>
-                                <p className={`text-xs font-bold ${isProMember ? 'text-indigo-100' : 'text-indigo-200'}`}>멤버십 플랜</p>
-                                <h3 className="text-lg font-black">{isProMember ? '🔵 PRO' : '🟢 FREE'}</h3>
-                            </div>
-                            {!isProMember && (
-                                <div className="text-right">
-                                    <p className="text-[11px] text-slate-400">추천 플랜</p>
-                                    <p className="text-sm font-black text-indigo-200">PRO 월 29,000원</p>
-                                </div>
-                            )}
-                        </div>
-                        {!isProMember ? (
-                            <>
-                            <button
-                                onClick={() => setView('MEMBERSHIP_PURCHASE')}
-                                className="w-full mb-3 bg-gradient-to-r from-indigo-600 to-violet-600 text-white rounded-xl px-4 py-3 text-sm font-bold shadow-md shadow-indigo-950/30 hover:from-indigo-500 hover:to-violet-500 transition-colors"
-                            >
-                                PRO 멤버십 바로 결제하기
-                            </button>
-                            <div className="grid grid-cols-2 gap-2 text-xs">
-                                <div className="rounded-lg bg-slate-950/70 border border-slate-700 p-2">
-                                    <p className="text-slate-400">기록 한도</p>
-                                    <p className="font-bold text-slate-100">{totalRecordCount}/{FREE_RECORD_LIMIT}개</p>
-                                    <p className="text-[10px] text-indigo-300">남은 {remainingFreeRecords}개</p>
-                                </div>
-                                <div className="rounded-lg bg-slate-950/70 border border-slate-700 p-2">
-                                    <p className="text-slate-400">오늘 AI 분석</p>
-                                    <p className="font-bold text-slate-100">{todayAIUsage}/{FREE_AI_DAILY_LIMIT}회</p>
-                                    <p className="text-[10px] text-indigo-300">남은 {remainingDailyAI}회</p>
-                                </div>
-                                <div className="rounded-lg bg-slate-950/70 border border-slate-700 p-2 text-slate-300">기본 피드백</div>
-                                <div className="rounded-lg bg-indigo-500/10 border border-indigo-300/30 p-2 text-indigo-200 font-semibold">PRO: 성장 그래프 · 훈련 추천</div>
-                            </div>
-                            </>
-                        ) : (
-                            <div className="grid grid-cols-2 gap-2 text-xs">
-                                <div className="rounded-lg bg-white/15 border border-white/20 p-2">기록 무제한</div>
-                                <div className="rounded-lg bg-white/15 border border-white/20 p-2">AI 무제한</div>
-                                <div className="rounded-lg bg-white/15 border border-white/20 p-2">상세 분석</div>
-                                <div className="rounded-lg bg-white/15 border border-white/20 p-2">성장 그래프 · 훈련 추천</div>
-                            </div>
-                        )}
-                    </div>
-                )}
 
                 {/* Lesson Recording Button - Prominent CTA */}
                 <button
@@ -528,24 +476,7 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
                             </div>
                             <span className={`text-[11px] font-bold ${actionTextTone} text-center leading-tight`}>주간 인사이트</span>
                         </button>
-                        <button
-                            onClick={() => {
-                                if (!isProMember && todayAIUsage >= FREE_AI_DAILY_LIMIT) {
-                                    setNotification({
-                                        title: 'AI 분석 일일 한도',
-                                        message: '무료 회원은 AI 분석을 하루 1회까지 사용할 수 있어요. PRO로 업그레이드하면 무제한 이용 가능합니다.'
-                                    });
-                                    return;
-                                }
-                                setSelectedLesson(null); setView('AI_AGENT');
-                            }}
-                            className="flex flex-col items-center gap-2 py-4 px-2 bg-slate-950/70 hover:bg-slate-800/80 rounded-xl border border-slate-700/70 transition-colors group"
-                        >
-                            <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${actionIconContainerTone} ${actionIconContainerHoverTone} transition-colors`}>
-                                <Sparkles className={`w-4 h-4 ${actionIconTone}`} />
-                            </div>
-                            <span className={`text-[11px] font-bold ${actionTextTone} text-center leading-tight`}>AI 코치</span>
-                        </button>
+
                     </div>
                 </div>
 
@@ -709,17 +640,6 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
                     </div>
                 )}
             </div>
-        )}
-
-        {effectiveView === 'AI_AGENT' && (
-            <GolfAIAgent
-                clientProfile={clientProfile}
-                allLessons={allLessons}
-                clientId={clientId}
-                isFirebaseMode={isFirebaseMode}
-                onBack={handleBackToList}
-                onMissionSaved={handleMissionSaved}
-            />
         )}
 
         {effectiveView === 'WEEKLY_INSIGHT' && (
