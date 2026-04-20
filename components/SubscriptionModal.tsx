@@ -118,7 +118,7 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ role, user
                   <div className="bg-emerald-50 p-3 border-r border-gray-200">
                     <p className="text-xs font-black text-emerald-700 mb-1">🟢 FREE</p>
                     <ul className="text-[11px] text-gray-600 space-y-1">
-                      <li>기록 5개</li>
+                      <li>기록 10개</li>
                       <li>AI 분석 1회/일</li>
                       <li>기본 피드백</li>
                     </ul>

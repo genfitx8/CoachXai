@@ -84,7 +84,7 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
   // Quick Log State
   const [quickLogs, setQuickLogs] = useState<QuickLogEntry[]>([]);
   const isProMember = clientProfile.subscriptionPlan === 'PRO' || !!clientProfile.isSubscribed;
-  const FREE_RECORD_LIMIT = 5;
+  const FREE_RECORD_LIMIT = 10;
   const FREE_AI_DAILY_LIMIT = 1;
 
   const clientId = `${clientProfile.name}_${clientProfile.phone}`.trim();
