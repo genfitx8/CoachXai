@@ -37,6 +37,22 @@ describe('authService password policy', () => {
     ).rejects.toBe(PASSWORD_POLICY_ERROR);
   });
 
+  it.each([
+    'Ab!1234', // shorter than 8
+    'password!', // no number
+    '1234567!', // no letter
+    'Password1 ', // no special character (whitespace only)
+  ])('rejects weak password pattern: %s', async (weakPassword) => {
+    await expect(
+      authService.signupCoach(
+        '코치',
+        'coach+weak@example.com',
+        weakPassword,
+        '010-5555-6666'
+      )
+    ).rejects.toBe(PASSWORD_POLICY_ERROR);
+  });
+
   it('rejects client signup when password does not meet policy', async () => {
     await expect(
       authService.signupClient('회원', 'client@example.com', 'password1', '010-3333-4444')

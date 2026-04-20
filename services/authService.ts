@@ -10,7 +10,7 @@ const STORAGE_KEYS = {
 };
 
 const PASSWORD_POLICY_REGEX =
-  /^(?=.*[A-Za-z])(?=.*\d)(?=.*[^A-Za-z\d]).{8,}$/;
+  /^(?=.*[A-Za-z])(?=.*\d)(?=.*[^A-Za-z\d\s]).{8,}$/;
 const PASSWORD_POLICY_ERROR_MESSAGE =
   '비밀번호는 8자 이상이며 문자, 숫자, 특수문자를 모두 포함해야 합니다.';
 
