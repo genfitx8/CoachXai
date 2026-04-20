@@ -9,6 +9,11 @@ const STORAGE_KEYS = {
   SESSION_BRANCH_ADMIN_DATA: 'swingnote_session_branch_admin_data',
 };
 
+const PASSWORD_POLICY_REGEX =
+  /^(?=.*[A-Za-z])(?=.*\d)(?=.*[^A-Za-z\d]).{8,}$/;
+const PASSWORD_POLICY_ERROR_MESSAGE =
+  '비밀번호는 8자 이상이며 문자, 숫자, 특수문자를 모두 포함해야 합니다.';
+
 export const authService = {
   signup: (
     role: 'COACH' | 'CLIENT',
@@ -34,6 +39,10 @@ export const authService = {
         // Simple validation
         if (!name || !email || !password || !phone) {
           reject('모든 필드를 입력해주세요.');
+          return;
+        }
+        if (!PASSWORD_POLICY_REGEX.test(password)) {
+          reject(PASSWORD_POLICY_ERROR_MESSAGE);
           return;
         }
 
@@ -142,6 +151,10 @@ export const authService = {
       setTimeout(async () => {
         if (!name || !email || !password || !phone) {
           reject('모든 필드를 입력해주세요.');
+          return;
+        }
+        if (!PASSWORD_POLICY_REGEX.test(password)) {
+          reject(PASSWORD_POLICY_ERROR_MESSAGE);
           return;
         }
 
