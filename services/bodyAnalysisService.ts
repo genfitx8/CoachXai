@@ -101,6 +101,8 @@ const BODY_TYPES: BodyType[] = [
   '튜브체형',
 ];
 
+const BT_DRILL_THRESHOLD = 85;
+
 function toDirectionValue(angle?: number): string {
   if (angle === undefined || Number.isNaN(angle)) return '-';
   if (angle === 0) return '0°';
@@ -178,13 +180,13 @@ function findNearestModel(snapshot: SwingSnapshotInput, models: StandardSwingMod
 
 export function classifyShot(snapshot: SwingSnapshotInput): ShotClassificationResult {
   const problemSummary: string[] = [];
-  const needsBtDrill = snapshot.bt <= 85;
+  const needsBtDrill = snapshot.bt <= BT_DRILL_THRESHOLD;
 
   if (snapshot.missClass === 'MISS') {
     problemSummary.push('미스샷 분류가 MISS로 확인되었습니다.');
   }
   if (needsBtDrill) {
-    problemSummary.push('백스윙 턴(BT)이 85도 이하로 중심축 이동 제한이 필요합니다.');
+    problemSummary.push(`백스윙 턴(BT)이 ${BT_DRILL_THRESHOLD}도 이하(포함)로 중심축 이동 제한이 필요합니다.`);
   }
   if (snapshot.sa.toUpperCase().includes('LEFT MOVE')) {
     problemSummary.push('백스윙 시 중심축이 좌측으로 이동하는 패턴이 관찰됩니다.');

@@ -50,7 +50,7 @@ describe('bodyAnalysisService', () => {
     expect(factors.find(f => f.name.includes('굽은 어깨'))?.impact).toBe('상');
   });
 
-  it('샷 정보를 분류해 문제 요약과 BT 드릴 필요 여부를 반환한다', () => {
+  it('샷 정보를 분류해 문제 요약과 BT 드릴 필요 여부(85 포함)를 반환한다', () => {
     const result = classifyShot({
       headSpeed: 97,
       ballSpeed: 135,
@@ -64,6 +64,20 @@ describe('bodyAnalysisService', () => {
     expect(result.problemSummary.join(' ')).toContain('MISS');
     expect(result.problemSummary.join(' ')).toContain('중심축');
     expect(result.needsBtDrill).toBe(true);
+  });
+
+  it('BT가 임계값 초과면 드릴이 필요하지 않다', () => {
+    const result = classifyShot({
+      headSpeed: 97,
+      ballSpeed: 135,
+      smashFactor: 1.39,
+      missClass: 'GOOD',
+      sa: 'CENTER',
+      bt: 86,
+      tbec: 'NO',
+    });
+
+    expect(result.needsBtDrill).toBe(false);
   });
 
   it('고영향도(상) 항목 이름만 추출한다', () => {
