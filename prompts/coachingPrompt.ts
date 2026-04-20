@@ -13,6 +13,10 @@ const causeLines = (analysis: DeterministicSwingAnalysis): string => {
     .join('\n');
 };
 
+const formatCauseLine = (analysis: DeterministicSwingAnalysis): string => {
+  return `Root causes:\n${causeLines(analysis)}`;
+};
+
 export const buildCoachXCoachingPrompt = (analysis: DeterministicSwingAnalysis): string => {
   return [
     'Deterministic swing analysis results are below. Explain them for coaching only.',
@@ -21,8 +25,7 @@ export const buildCoachXCoachingPrompt = (analysis: DeterministicSwingAnalysis):
     `Input metrics: faceAngle=${analysis.input.faceAngle}, clubPath=${analysis.input.clubPath}, attackAngle=${analysis.input.attackAngle}`,
     `Shot classification: pattern=${analysis.classification.pattern}, shape=${analysis.classification.shotShape}, start=${analysis.classification.startDirection}, curve=${analysis.classification.curvatureMagnitude} ${analysis.classification.curvatureDirection}`,
     `Ball flight: launch=${analysis.ballFlight.launchWindow}, distanceEfficiency=${analysis.ballFlight.distanceEfficiencyScore}/100 (${analysis.ballFlight.distanceEfficiencyBand}), missBias=${analysis.ballFlight.missBias}`,
-    'Root causes:',
-    causeLines(analysis),
+    formatCauseLine(analysis),
     '',
     'Return exactly 3 sections:',
     '1) Ball Flight Diagnosis',

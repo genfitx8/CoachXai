@@ -145,5 +145,12 @@ export const analyzeRootCauses = (
   return candidates
     .sort((a, b) => b.triggerScore - a.triggerScore)
     .slice(0, 5)
-    .map(({ triggerScore: _triggerScore, ...cause }) => cause);
+    .map(({ id, title, explanation, signals, confidence, severity }) => ({
+      id,
+      title,
+      explanation,
+      signals,
+      confidence,
+      severity,
+    }));
 };

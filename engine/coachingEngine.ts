@@ -24,7 +24,7 @@ export const buildDeterministicCoachingFallback = (
   language: CoachXPromptLanguage = 'en'
 ): string => {
   const topCause = analysis.rootCauses[0];
-  const fallbackEn = [
+  const fallbackEnglish = [
     '## Ball Flight Diagnosis',
     `- Pattern: ${analysis.classification.pattern}`,
     `- Start line: ${analysis.classification.startDirection}; curvature: ${analysis.classification.curvatureMagnitude} ${analysis.classification.curvatureDirection}`,
@@ -62,7 +62,47 @@ export const buildDeterministicCoachingFallback = (
     ].join('\n');
   }
 
-  return fallbackEn;
+  if (language === 'ja') {
+    return [
+      '## 弾道診断',
+      `- パターン: ${analysis.classification.pattern}`,
+      `- 出球方向: ${analysis.classification.startDirection}, 曲がり: ${analysis.classification.curvatureMagnitude} ${analysis.classification.curvatureDirection}`,
+      `- 打ち出しウィンドウ: ${analysis.ballFlight.launchWindow}, 飛距離効率: ${analysis.ballFlight.distanceEfficiencyScore}/100`,
+      '',
+      '## バイオメカニクス根本原因',
+      topCause
+        ? `- 最優先: ${topCause.title} (信頼度 ${topCause.confidence.toFixed(2)})`
+        : '- 支配的な最優先原因はありません。打点の一貫性を追加追跡してください。',
+      ...analysis.rootCauses.slice(1, 3).map((cause) => `- 補助原因: ${cause.title} (信頼度 ${cause.confidence.toFixed(2)})`),
+      '',
+      '## 優先コーチングプラン',
+      '- ドリル1: スタートライン・ゲートドリル（5球 x 3セット）、基準: 70%中央通過。',
+      '- ドリル2: フェース-パス同期スローモーション・ラダー。',
+      '- ドリル3: アタックアングル確認（ボール位置/ティー高さの段階調整）。',
+    ].join('\n');
+  }
+
+  if (language === 'th') {
+    return [
+      '## การวินิจฉัยวิถีลูก',
+      `- รูปแบบช็อต: ${analysis.classification.pattern}`,
+      `- ทิศทางออกตัว: ${analysis.classification.startDirection}, การโค้ง: ${analysis.classification.curvatureMagnitude} ${analysis.classification.curvatureDirection}`,
+      `- หน้าต่างวิถีลอย: ${analysis.ballFlight.launchWindow}, ประสิทธิภาพระยะ: ${analysis.ballFlight.distanceEfficiencyScore}/100`,
+      '',
+      '## สาเหตุเชิงชีวกลศาสตร์',
+      topCause
+        ? `- สาเหตุหลัก: ${topCause.title} (ความเชื่อมั่น ${topCause.confidence.toFixed(2)})`
+        : '- ยังไม่พบสาเหตุหลักเด่นชัด ควรติดตามความสม่ำเสมอของจุดปะทะเพิ่ม',
+      ...analysis.rootCauses.slice(1, 3).map((cause) => `- สาเหตุรอง: ${cause.title} (ความเชื่อมั่น ${cause.confidence.toFixed(2)})`),
+      '',
+      '## แผนโค้ชลำดับความสำคัญ',
+      '- Drill 1: Start-line gate (5 ลูก x 3 เซ็ต), ผ่านเมื่อ 70% ผ่านช่องกลาง',
+      '- Drill 2: ฝึกซิงค์หน้าไม้-แนวสวิงจากช้าไปเร็ว',
+      '- Drill 3: เช็กมุมโจมตีด้วยการไล่ระดับตำแหน่งลูก/ความสูงที',
+    ].join('\n');
+  }
+
+  return fallbackEnglish;
 };
 
 export const generateCoachingFeedback = async ({
