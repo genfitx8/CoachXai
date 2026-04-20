@@ -1,11 +1,20 @@
-import { describe, it, expect, vi } from 'vitest';
+import { beforeEach, describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import React from 'react';
 import { ClientProfileSettings } from '../components/ClientProfileSettings';
 import { LanguageProvider } from '../components/LanguageContext';
 import { ClientProfile, Lesson } from '../types';
+import { analyzeBodyPhotos } from '../services/geminiService';
+
+vi.mock('../services/geminiService', () => ({
+  analyzeBodyPhotos: vi.fn(),
+}));
 
 describe('ClientProfileSettings – body analysis in My Info', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   it('prefills body analysis from existing lessons and saves it to client profile', async () => {
     const profile: ClientProfile = {
       name: '홍길동',
@@ -57,5 +66,54 @@ describe('ClientProfileSettings – body analysis in My Info', () => {
     expect(onSave.mock.calls[0][0].memberBodyAnalysis).toBeDefined();
     expect(onSave.mock.calls[0][0].memberBodyAnalysis.bodyType).toBe('사각체형');
     expect(onSave.mock.calls[0][0].memberBodyAnalysis.structuralInput.frontAxisTiltDeg).toBe(1.2);
+  });
+
+  it('auto fills body analysis from front/side photos', async () => {
+    const profile: ClientProfile = {
+      name: '김회원',
+      phone: '010-2222-3333',
+      coachId: 'coach1',
+    };
+
+    vi.mocked(analyzeBodyPhotos).mockResolvedValue({
+      bodyType: '역삼각체형',
+      structuralInput: {
+        frontAxisTiltDeg: 1.1,
+        shoulderTiltDeg: 2.2,
+      },
+      coachComment: '자동 분석 코멘트',
+    });
+
+    render(
+      <LanguageProvider>
+        <ClientProfileSettings
+          profile={profile}
+          allLessons={[]}
+          onSave={vi.fn()}
+          onBack={vi.fn()}
+          onSearchCoach={vi.fn().mockResolvedValue([])}
+        />
+      </LanguageProvider>
+    );
+
+    fireEvent.click(await screen.findByText('회원 신체 분석'));
+
+    const frontFile = new File(['front'], 'front.jpg', { type: 'image/jpeg' });
+    const sideFile = new File(['side'], 'side.jpg', { type: 'image/jpeg' });
+
+    fireEvent.change(screen.getByLabelText('정면 전신'), {
+      target: { files: [frontFile] },
+    });
+    fireEvent.change(screen.getByLabelText('측면 전신'), {
+      target: { files: [sideFile] },
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: '사진으로 자동 분석' }));
+
+    await waitFor(() => {
+      expect(analyzeBodyPhotos).toHaveBeenCalledTimes(1);
+      expect(screen.getByDisplayValue('역삼각체형')).toBeInTheDocument();
+      expect(screen.getByDisplayValue('자동 분석 코멘트')).toBeInTheDocument();
+    });
   });
 });
