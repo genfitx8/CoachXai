@@ -14,6 +14,7 @@ import { ArrowLeft, Award, Briefcase, Save, CalendarClock, Activity, Plus, Trash
 import { CoachSearch, CoachSearchResult } from './CoachSearch';
 import { useLanguage } from './LanguageContext';
 import { analyzeStructuralFactors, inferSwingTypeFromBodyType } from '../services/bodyAnalysisService';
+import { analyzeBodyPhotos } from '../services/geminiService';
 
 interface ClientProfileSettingsProps {
   profile: ClientProfile;
@@ -51,6 +52,10 @@ export const ClientProfileSettings: React.FC<ClientProfileSettingsProps> = ({ pr
 
   const [formData, setFormData] = useState<ClientProfile>({ ...profile });
   const [isSaving, setIsSaving] = useState(false);
+  const [frontBodyPhoto, setFrontBodyPhoto] = useState<File | null>(null);
+  const [sideBodyPhoto, setSideBodyPhoto] = useState<File | null>(null);
+  const [isAnalyzingBodyPhoto, setIsAnalyzingBodyPhoto] = useState(false);
+  const [bodyPhotoAnalysisError, setBodyPhotoAnalysisError] = useState<string | null>(null);
 
   // Experience State
   const [expYears, setExpYears] = useState<string>('');
@@ -340,6 +345,58 @@ export const ClientProfileSettings: React.FC<ClientProfileSettingsProps> = ({ pr
     });
   };
 
+  const handleBodyPhotoChange = (type: 'front' | 'side', files: FileList | null) => {
+    const file = files?.[0] || null;
+    if (type === 'front') {
+      setFrontBodyPhoto(file);
+      return;
+    }
+    setSideBodyPhoto(file);
+  };
+
+  const handleAutoBodyPhotoAnalysis = async () => {
+    if (!frontBodyPhoto || !sideBodyPhoto) {
+      setBodyPhotoAnalysisError('정면/측면 전신 사진을 모두 선택해 주세요.');
+      return;
+    }
+
+    setBodyPhotoAnalysisError(null);
+    setIsAnalyzingBodyPhoto(true);
+    try {
+      const result = await analyzeBodyPhotos({
+        frontImage: {
+          data: frontBodyPhoto,
+          mimeType: frontBodyPhoto.type || 'image/jpeg',
+        },
+        sideImage: {
+          data: sideBodyPhoto,
+          mimeType: sideBodyPhoto.type || 'image/jpeg',
+        },
+      });
+
+      setFormData(prev => {
+        const structuralInput: LessonStructuralMetricInput = {
+          ...result.structuralInput,
+        };
+        return {
+          ...prev,
+          memberBodyAnalysis: {
+            bodyType: result.bodyType,
+            swingType: inferSwingTypeFromBodyType(result.bodyType),
+            structuralInput,
+            structuralFactors: analyzeStructuralFactors(structuralInput),
+            coachComment: result.coachComment,
+          },
+        };
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '신체 사진 자동 분석에 실패했습니다.';
+      setBodyPhotoAnalysisError(message);
+    } finally {
+      setIsAnalyzingBodyPhoto(false);
+    }
+  };
+
   return (
     <div className="space-y-6 animate-fade-in pb-10">
       <div className="flex items-center justify-between">
@@ -471,6 +528,44 @@ export const ClientProfileSettings: React.FC<ClientProfileSettingsProps> = ({ pr
 
                 {formData.memberBodyAnalysis && (
                   <div className="space-y-3">
+                    <div className="rounded-lg border border-emerald-100 bg-emerald-50/60 p-3 space-y-2">
+                      <p className="text-xs font-bold text-emerald-800">정면/측면 사진 자동 분석</p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <label className="text-xs text-gray-700 space-y-1 block">
+                          <span className="font-semibold">정면 전신</span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            capture="environment"
+                            onChange={(e) => handleBodyPhotoChange('front', e.target.files)}
+                            className="block w-full text-xs"
+                          />
+                        </label>
+                        <label className="text-xs text-gray-700 space-y-1 block">
+                          <span className="font-semibold">측면 전신</span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            capture="environment"
+                            onChange={(e) => handleBodyPhotoChange('side', e.target.files)}
+                            className="block w-full text-xs"
+                          />
+                        </label>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        onClick={handleAutoBodyPhotoAnalysis}
+                        disabled={isAnalyzingBodyPhoto}
+                        className="w-full justify-center"
+                      >
+                        {isAnalyzingBodyPhoto ? '자동 분석 중...' : '사진으로 자동 분석'}
+                      </Button>
+                      {bodyPhotoAnalysisError && (
+                        <p className="text-xs text-red-600">{bodyPhotoAnalysisError}</p>
+                      )}
+                    </div>
+
                     <div>
                       <label className="block text-xs font-bold text-gray-600 mb-1">{t('profile_body_type_label')}</label>
                       <select
