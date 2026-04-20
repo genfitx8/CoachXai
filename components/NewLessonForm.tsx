@@ -388,7 +388,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
 
   // Suggestion filtering
   const searchableClients =
-    userRole === 'COACH' && currentUser && 'id' in currentUser && currentUser.id
+    userRole === 'COACH' && currentUser && 'id' in currentUser
       ? existingClients.filter((c) => c.coachId === currentUser.id)
       : existingClients;
 
