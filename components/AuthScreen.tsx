@@ -102,12 +102,13 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
     resetForm();
   };
 
-  const handleGoogleLogin = async () => {
+  const handleGoogleAuth = async () => {
     setError(null);
     setIsLoading(true);
     try {
-      const profile = await authService.loginWithGoogle(activeTab);
-      onLoginSuccess(activeTab, profile, isAutoLogin);
+      const targetRole = isSignup ? signupRole : activeTab;
+      const profile = await authService.loginWithGoogle(targetRole);
+      onLoginSuccess(targetRole, profile, isAutoLogin);
     } catch (err: any) {
       setError(err as string);
     } finally {
@@ -710,33 +711,31 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
               </button>
             </div>
 
-            {!isSignup && (
-              <div className="mt-5">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="flex-1 h-px bg-slate-700" />
-                  <span className="text-xs text-slate-500">OR</span>
-                  <div className="flex-1 h-px bg-slate-700" />
-                </div>
-                <button
-                  type="button"
-                  onClick={handleGoogleLogin}
-                  disabled={isLoading}
-                  className="w-full flex items-center justify-center gap-3 py-2.5 px-4 bg-white hover:bg-gray-50 text-gray-800 font-semibold text-sm rounded-xl transition-all shadow-sm border border-gray-200 disabled:opacity-60 disabled:cursor-not-allowed"
-                >
-                  <svg
-                    className="w-5 h-5 flex-shrink-0"
-                    viewBox="0 0 48 48"
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9 3.2l6.7-6.7C35.7 2.5 30.2 0 24 0 14.6 0 6.5 5.4 2.5 13.3l7.8 6c1.8-5.4 6.9-9.8 13.7-9.8z" />
-                    <path fill="#4A90D9" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v8.5h12.7c-.6 3-2.3 5.5-4.8 7.2l7.5 5.8c4.4-4.1 7.1-10.1 7.1-17z" />
-                    <path fill="#34A853" d="M10.3 28.7A14.6 14.6 0 0 1 9.5 24c0-1.6.3-3.2.8-4.7l-7.8-6A23.9 23.9 0 0 0 0 24c0 3.9.9 7.5 2.5 10.7l7.8-6z" />
-                    <path fill="#FBBC05" d="M24 48c6.2 0 11.4-2 15.2-5.5l-7.5-5.8c-2.1 1.4-4.7 2.2-7.7 2.2-6.7 0-12.4-4.5-14.4-10.6l-7.8 6C6.4 42.5 14.6 48 24 48z" />
-                  </svg>
-                  {t('google_login')}
-                </button>
+            <div className="mt-5">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="flex-1 h-px bg-slate-700" />
+                <span className="text-xs text-slate-500">OR</span>
+                <div className="flex-1 h-px bg-slate-700" />
               </div>
-            )}
+              <button
+                type="button"
+                onClick={handleGoogleAuth}
+                disabled={isLoading}
+                className="w-full flex items-center justify-center gap-3 py-2.5 px-4 bg-white hover:bg-gray-50 text-gray-800 font-semibold text-sm rounded-xl transition-all shadow-sm border border-gray-200 disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                <svg
+                  className="w-5 h-5 flex-shrink-0"
+                  viewBox="0 0 48 48"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9 3.2l6.7-6.7C35.7 2.5 30.2 0 24 0 14.6 0 6.5 5.4 2.5 13.3l7.8 6c1.8-5.4 6.9-9.8 13.7-9.8z" />
+                  <path fill="#4A90D9" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v8.5h12.7c-.6 3-2.3 5.5-4.8 7.2l7.5 5.8c4.4-4.1 7.1-10.1 7.1-17z" />
+                  <path fill="#34A853" d="M10.3 28.7A14.6 14.6 0 0 1 9.5 24c0-1.6.3-3.2.8-4.7l-7.8-6A23.9 23.9 0 0 0 0 24c0 3.9.9 7.5 2.5 10.7l7.8-6z" />
+                  <path fill="#FBBC05" d="M24 48c6.2 0 11.4-2 15.2-5.5l-7.5-5.8c-2.1 1.4-4.7 2.2-7.7 2.2-6.7 0-12.4-4.5-14.4-10.6l-7.8 6C6.4 42.5 14.6 48 24 48z" />
+                </svg>
+                {isSignup ? t('google_signup') : t('google_login')}
+              </button>
+            </div>
           </form>
         </div>
       </div>
