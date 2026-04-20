@@ -371,47 +371,6 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
         {effectiveView === 'LIST' && (
             <div className="space-y-6 animate-fade-in">
                 
-                {/* Lesson Statistics Hero Section */}
-                <div className="relative bg-gradient-to-br from-slate-900 via-violet-950 to-indigo-950 rounded-2xl p-6 shadow-xl shadow-slate-950/40 border border-slate-700/70 overflow-hidden">
-                    {/* Decorative background circles */}
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16" />
-                    <div className="absolute bottom-0 left-0 w-24 h-24 bg-white/10 rounded-full -ml-12 -mb-12" />
-                    
-                    <div className="relative z-10">
-                            <h2 className="text-slate-100 text-xl font-black mb-1 flex items-center gap-2">
-                                <TrendingUp className="w-6 h-6" />
-                                나의 기록 통계
-                            </h2>
-                            <p className="text-slate-300 text-sm mb-4">한눈에 보는 나의 성장 기록</p>
-                        
-                        {/* Statistics Cards */}
-                        <div className="grid grid-cols-3 gap-3">
-                                <div className="rounded-xl p-3 text-center bg-slate-900/70 border border-slate-700/70">
-                                    <div className="text-2xl font-black text-slate-100">{allMyLessons.length}</div>
-                                    <div className="text-[10px] text-slate-400 font-semibold mt-1">총 기록</div>
-                                </div>
-                                <div className="rounded-xl p-3 text-center bg-slate-900/70 border border-slate-700/70">
-                                    <div className="text-2xl font-black text-slate-100">
-                                    {allMyLessons.filter(l => {
-                                        const lessonMonth = l.date.substring(0, 7);
-                                        const currentMonth = new Date().toISOString().substring(0, 7);
-                                        return lessonMonth === currentMonth;
-                                    }).length}
-                                </div>
-                                    <div className="text-[10px] text-slate-400 font-semibold mt-1">이번 달</div>
-                                </div>
-                                <div className="rounded-xl p-3 text-center bg-slate-900/70 border border-slate-700/70">
-                                    <div className="text-xs font-black text-slate-100 leading-tight">
-                                    {allMyLessons.length > 0 
-                                        ? new Date(allMyLessons[0].date).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })
-                                        : '-'}
-                                </div>
-                                    <div className="text-[10px] text-slate-400 font-semibold mt-1">최근 기록</div>
-                                </div>
-                        </div>
-                    </div>
-                </div>
-
                 {!HIDE_MEMBERSHIP_FEATURES && (
                     <div className={`rounded-2xl border p-4 ${isProMember ? 'bg-gradient-to-r from-indigo-700 to-violet-700 border-indigo-400/40 text-slate-100' : 'bg-slate-900/80 border-slate-700/70 text-slate-100'}`}>
                         <div className="flex items-center justify-between mb-3">
