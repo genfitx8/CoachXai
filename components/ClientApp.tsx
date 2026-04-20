@@ -16,12 +16,11 @@ import { PaymentSuccess } from './PaymentSuccess';
 import { PaymentFail } from './PaymentFail';
 import { MembershipPurchase } from './MembershipPurchase';
 import { MembershipPaymentSuccess } from './MembershipPaymentSuccess';
-import { User, LogOut, History, PlayCircle, Plus, BarChart3, Bell, Sparkles, ListChecks, Globe, Calendar, Search, Filter, Eye, EyeOff, ChevronRight, ChevronLeft, TrendingUp, Award, Target, ClipboardList, ShoppingCart, PenLine, Crown } from 'lucide-react';
+import { User, LogOut, History, PlayCircle, Plus, BarChart3, Bell, Sparkles, ListChecks, Globe, Calendar, Search, Filter, Eye, EyeOff, ChevronRight, ChevronLeft, TrendingUp, Award, Target, ClipboardList, ShoppingCart, Crown } from 'lucide-react';
 import { firebaseService } from '../services/firebase';
 import { storageService } from '../services/storage';
 import { pointService } from '../services/pointService';
 import { GolfAIAgent } from './GolfAIAgent';
-import { QuickGolfLog } from './QuickGolfLog';
 import { WeeklyInsightCard } from './WeeklyInsightCard';
 import { NotificationToast } from './NotificationToast';
 import { useLanguage } from './LanguageContext';
@@ -51,7 +50,7 @@ const HIDE_RESERVATION_FEATURES = (import.meta.env.VITE_CLIENT_HIDE_RESERVATION 
 
 export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons, onLogout, onUpdateLesson, onSaveNewRecord, onDeleteLesson, onUpdateProfile }) => {
   const { t, language, setLanguage } = useLanguage();
-  const [view, setView] = useState<ViewState | 'STATS' | 'PROFILE' | 'RESERVATION' | 'BAY_RESERVATION' | 'MY_BAY_RESERVATIONS' | 'POINT_PURCHASE' | 'MEMBERSHIP_PURCHASE' | 'PAYMENT_SUCCESS' | 'MEMBERSHIP_PAYMENT_SUCCESS' | 'PAYMENT_FAIL' | 'RECENT_RECORDS' | 'AI_AGENT' | 'QUICK_LOG' | 'WEEKLY_INSIGHT'>(() => {
+  const [view, setView] = useState<ViewState | 'STATS' | 'PROFILE' | 'RESERVATION' | 'BAY_RESERVATION' | 'MY_BAY_RESERVATIONS' | 'POINT_PURCHASE' | 'MEMBERSHIP_PURCHASE' | 'PAYMENT_SUCCESS' | 'MEMBERSHIP_PAYMENT_SUCCESS' | 'PAYMENT_FAIL' | 'RECENT_RECORDS' | 'AI_AGENT' | 'WEEKLY_INSIGHT'>(() => {
     const params = new URLSearchParams(window.location.search);
     const purchaseType = params.get('purchase');
     if (params.get('paymentKey') && params.get('orderId')) {
@@ -184,16 +183,6 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
 
   const handleMissionSaved = () => {
       setNotification({ title: 'AI 미션 등록', message: 'AI가 추천한 미션이 등록되었습니다!' });
-  };
-
-  const handleSaveQuickLog = async (entry: QuickLogEntry) => {
-    if (isFirebaseMode) {
-      await firebaseService.saveQuickLog(entry);
-    } else {
-      storageService.saveQuickLog(entry);
-    }
-    setQuickLogs((prev) => [entry, ...prev]);
-    setNotification({ title: '기록 완료', message: '오늘의 빠른 기록이 저장되었습니다! 🏌️' });
   };
 
   const todaysHomework = useMemo(() => {
@@ -595,15 +584,6 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
                             </div>
                             <span className="text-[11px] font-bold text-cyan-200 text-center leading-tight">AI 코치</span>
                         </button>
-                        <button
-                            onClick={() => { setSelectedLesson(null); setView('QUICK_LOG'); }}
-                            className="flex flex-col items-center gap-2 py-4 px-2 bg-slate-950/70 hover:bg-slate-800/80 rounded-xl border border-slate-700/70 transition-colors group"
-                        >
-                            <div className="w-9 h-9 bg-indigo-400/10 group-hover:bg-indigo-400/20 rounded-xl flex items-center justify-center border border-indigo-300/20 transition-colors">
-                                <PenLine className="w-4 h-4 text-indigo-300" />
-                            </div>
-                            <span className="text-[11px] font-bold text-indigo-200 text-center leading-tight">빠른 기록</span>
-                        </button>
                     </div>
                 </div>
 
@@ -786,15 +766,6 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
                 isFirebaseMode={isFirebaseMode}
                 onBack={handleBackToList}
                 onMissionSaved={handleMissionSaved}
-            />
-        )}
-
-        {effectiveView === 'QUICK_LOG' && (
-            <QuickGolfLog
-                clientId={clientId}
-                coachId={clientProfile.coachId}
-                onSave={handleSaveQuickLog}
-                onBack={handleBackToList}
             />
         )}
 
