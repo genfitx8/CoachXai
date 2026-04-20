@@ -516,7 +516,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
           >
             {isSignup && (
               <div>
-                <label className="block text-xs font-bold text-slate-400 mb-2 ml-1 uppercase">
+                <label className="block text-xs font-bold text-slate-400 mb-1 ml-1 uppercase">
                   {t('signup_role')}
                 </label>
                 <div className="grid grid-cols-2 gap-2">
