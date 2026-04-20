@@ -559,7 +559,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
                         : 'bg-slate-900 border-slate-700 text-slate-300 hover:bg-slate-800'
                     }`}
                   >
-                    {t('coach')}
+                    {t('signup_coach')}
                   </button>
                   <button
                     type="button"
