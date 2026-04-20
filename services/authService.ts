@@ -237,7 +237,12 @@ export const authService = {
     role: 'COACH' | 'CLIENT'
   ): Promise<CoachProfile | ClientProfile> => {
     if (!firebaseService.isInitialized()) {
-      throw 'Firebase가 연결되지 않았습니다. 먼저 Firebase 설정을 완료해주세요.';
+      const savedConfig = firebaseService.getSavedConfig();
+      const initialized =
+        savedConfig ? firebaseService.init(savedConfig) : false;
+      if (!initialized) {
+        throw 'Firebase 설정이 없거나 올바르지 않아 구글 로그인을 사용할 수 없습니다. VITE_FIREBASE_AUTH_DOMAIN, VITE_FIREBASE_APP_ID 설정을 확인해주세요.';
+      }
     }
 
     let credential;
@@ -250,6 +255,12 @@ export const authService = {
       }
       if (err?.code === 'auth/popup-blocked') {
         throw '팝업이 차단되었습니다. 브라우저의 팝업 차단을 해제한 후 다시 시도해주세요.';
+      }
+      if (err?.code === 'auth/auth-domain-config-required') {
+        throw 'Firebase 인증 도메인 설정이 없어 구글 로그인을 진행할 수 없습니다. VITE_FIREBASE_AUTH_DOMAIN 값을 설정하고 Firebase Console에서 승인된 도메인을 확인해주세요.';
+      }
+      if (err?.code === 'auth/operation-not-allowed') {
+        throw 'Firebase Console에서 Google 로그인 제공자가 비활성화되어 있습니다. Authentication > Sign-in method에서 Google을 활성화해주세요.';
       }
       console.error('Google sign-in error:', err);
       throw '구글 로그인 중 오류가 발생했습니다.';
