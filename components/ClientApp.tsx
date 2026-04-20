@@ -5,7 +5,6 @@ import { LessonCard } from './LessonCard';
 import { LessonDetail } from './LessonDetail';
 import { ClientStats } from './ClientStats';
 import { ClientProfileSettings } from './ClientProfileSettings';
-import { PointHistoryModal } from './PointHistoryModal';
 import { HomeworkModal } from './HomeworkModal';
 import { NewLessonForm } from './NewLessonForm';
 import { ClientReservation } from './ClientReservation';
@@ -16,7 +15,7 @@ import { PaymentSuccess } from './PaymentSuccess';
 import { PaymentFail } from './PaymentFail';
 import { MembershipPurchase } from './MembershipPurchase';
 import { MembershipPaymentSuccess } from './MembershipPaymentSuccess';
-import { User, LogOut, History, PlayCircle, Plus, BarChart3, Bell, Sparkles, ListChecks, Globe, Calendar, Search, Filter, Eye, EyeOff, ChevronRight, ChevronLeft, TrendingUp, Award, Target, ClipboardList, ShoppingCart, Crown } from 'lucide-react';
+import { User, LogOut, History, PlayCircle, Plus, BarChart3, Bell, Sparkles, ListChecks, Globe, Calendar, Search, Filter, Eye, EyeOff, ChevronRight, ChevronLeft, TrendingUp, Award, Target, ClipboardList, Crown } from 'lucide-react';
 import { firebaseService } from '../services/firebase';
 import { storageService } from '../services/storage';
 import { pointService } from '../services/pointService';
@@ -60,7 +59,6 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
     return 'LIST';
   });
   const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(null);
-  const [showPointHistory, setShowPointHistory] = useState(false);
   
   // Media visibility toggle
   const [showMedia, setShowMedia] = useState<boolean>(() => {
@@ -350,7 +348,7 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
 
             {/* Points Badge */}
             <button 
-                onClick={() => setShowPointHistory(true)}
+                onClick={() => setView('POINT_PURCHASE')}
                 className="flex items-center gap-1 px-3 py-1.5 bg-gradient-to-r from-violet-500/20 to-cyan-400/15 text-cyan-100 rounded-full border border-cyan-300/25 shadow-md shadow-cyan-950/20 hover:from-violet-500/30 hover:to-cyan-400/25 transition-all duration-200 hover:scale-105 transform"
             >
                 <div className="bg-gradient-to-br from-violet-400 to-cyan-400 rounded-full p-1 shadow-sm"><div className="w-2 h-2 bg-white rounded-full" /></div>
@@ -554,7 +552,7 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
                         </div>
                         <h3 className="font-black text-slate-100 text-base">내 정보</h3>
                     </div>
-                    <div className={`grid gap-2 ${HIDE_MEMBERSHIP_FEATURES ? 'grid-cols-2' : 'grid-cols-3'}`}>
+                    <div className={`grid gap-2 ${HIDE_MEMBERSHIP_FEATURES ? 'grid-cols-1' : 'grid-cols-2'}`}>
                         <button
                             onClick={() => { setSelectedLesson(null); setView('PROFILE'); }}
                             className="flex flex-col items-center gap-2 py-4 px-2 bg-slate-950/70 hover:bg-slate-800/80 rounded-xl border border-slate-700/70 transition-colors group"
@@ -575,15 +573,6 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
                                 <span className="text-[11px] font-bold text-violet-200 text-center leading-tight">멤버십 결제</span>
                             </button>
                         )}
-                        <button
-                            onClick={() => { setSelectedLesson(null); setView('POINT_PURCHASE'); }}
-                            className="flex flex-col items-center gap-2 py-4 px-2 bg-slate-950/70 hover:bg-slate-800/80 rounded-xl border border-slate-700/70 transition-colors group"
-                        >
-                            <div className="w-9 h-9 bg-cyan-400/10 group-hover:bg-cyan-400/20 rounded-xl flex items-center justify-center border border-cyan-300/20 transition-colors">
-                                <ShoppingCart className="w-4 h-4 text-cyan-300" />
-                            </div>
-                            <span className="text-[11px] font-bold text-cyan-200 text-center leading-tight">포인트 구매</span>
-                        </button>
                     </div>
                 </div>
 
@@ -889,13 +878,6 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
         )}
 
       </main>
-
-      {/* Modals */}
-      <PointHistoryModal 
-        isOpen={showPointHistory} 
-        onClose={() => setShowPointHistory(false)} 
-        client={clientProfile} 
-      />
 
       {showHomeworkModal && (
           <HomeworkModal 
