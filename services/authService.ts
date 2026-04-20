@@ -10,6 +10,18 @@ const STORAGE_KEYS = {
 };
 
 export const authService = {
+  signup: (
+    role: 'COACH' | 'CLIENT',
+    name: string,
+    email: string,
+    password: string,
+    phone: string
+  ): Promise<CoachProfile | ClientProfile> => {
+    return role === 'COACH'
+      ? authService.signupCoach(name, email, password, phone)
+      : authService.signupClient(name, email, password, phone);
+  },
+
   // Coach Authentication
   signupCoach: (
     name: string,
