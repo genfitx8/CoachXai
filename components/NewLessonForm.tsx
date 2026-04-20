@@ -53,6 +53,7 @@ import {
   Lesson,
   MediaItem,
   ClientProfile,
+  CoachProfile,
   GolfData,
   Homework,
   HoleRecord,
@@ -72,7 +73,7 @@ interface NewLessonFormProps {
   onSave: (lesson: Lesson, homeworkBatch?: Homework[]) => void;
   onCancel: () => void;
   userRole?: 'COACH' | 'CLIENT'; // Identify who is creating the lesson
-  currentUser?: ClientProfile; // Needed if userRole is CLIENT
+  currentUser?: ClientProfile | CoachProfile;
   initialData?: Lesson; // Added for edit mode
   /**
    * When set, the CLIENT_SELECT step is skipped and the form opens directly
@@ -386,13 +387,18 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
   }, [holeRecords, scoreMode]);
 
   // Suggestion filtering
+  const searchableClients =
+    userRole === 'COACH' && currentUser && 'id' in currentUser && currentUser.id
+      ? existingClients.filter((c) => c.coachId === currentUser.id)
+      : existingClients;
+
   const matchingClients = clientName.trim()
-    ? existingClients.filter((c) =>
+    ? searchableClients.filter((c) =>
         c.name.toLowerCase().includes(clientName.toLowerCase())
       )
     : [];
 
-  const isExistingClientSelected = existingClients.some(
+  const isExistingClientSelected = searchableClients.some(
     (c) => c.name === clientName && c.phone === clientPhone
   );
 
