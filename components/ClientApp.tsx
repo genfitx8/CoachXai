@@ -15,7 +15,7 @@ import { PaymentSuccess } from './PaymentSuccess';
 import { PaymentFail } from './PaymentFail';
 import { MembershipPurchase } from './MembershipPurchase';
 import { MembershipPaymentSuccess } from './MembershipPaymentSuccess';
-import { User, LogOut, History, PlayCircle, Plus, BarChart3, Bell, ListChecks, Globe, Calendar, Search, Filter, Eye, EyeOff, ChevronRight, ChevronLeft, TrendingUp, Award, Target, ClipboardList, Crown, Sparkles, Briefcase, ScanLine } from 'lucide-react';
+import { User, LogOut, History, PlayCircle, Plus, BarChart3, Bell, ListChecks, Globe, Calendar, Search, Filter, Eye, EyeOff, ChevronRight, ChevronLeft, TrendingUp, Award, Target, ClipboardList, Crown, Sparkles } from 'lucide-react';
 import { firebaseService } from '../services/firebase';
 import { storageService } from '../services/storage';
 import { pointService } from '../services/pointService';
@@ -521,33 +521,6 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
                                 <Target className="w-4 h-4 text-cyan-300" />
                             </div>
                             <span className="text-[11px] font-bold text-cyan-200 text-center leading-tight">포인트</span>
-                        </button>
-                        <button
-                            onClick={() => openProfileSection('GOLF_PROFILE')}
-                            className="flex flex-col items-center gap-2 py-4 px-2 bg-slate-950/70 hover:bg-slate-800/80 rounded-xl border border-slate-700/70 transition-colors group"
-                        >
-                            <div className="w-9 h-9 bg-emerald-500/10 group-hover:bg-emerald-500/20 rounded-xl flex items-center justify-center border border-emerald-300/20 transition-colors">
-                                <Award className="w-4 h-4 text-emerald-300" />
-                            </div>
-                            <span className="text-[11px] font-bold text-emerald-200 text-center leading-tight">골프프로필</span>
-                        </button>
-                        <button
-                            onClick={() => openProfileSection('CLUB_BAG')}
-                            className="flex flex-col items-center gap-2 py-4 px-2 bg-slate-950/70 hover:bg-slate-800/80 rounded-xl border border-slate-700/70 transition-colors group"
-                        >
-                            <div className="w-9 h-9 bg-indigo-500/10 group-hover:bg-indigo-500/20 rounded-xl flex items-center justify-center border border-indigo-300/20 transition-colors">
-                                <Briefcase className="w-4 h-4 text-indigo-300" />
-                            </div>
-                            <span className="text-[11px] font-bold text-indigo-200 text-center leading-tight">내 클럽</span>
-                        </button>
-                        <button
-                            onClick={() => openProfileSection('BODY_ANALYSIS')}
-                            className="flex flex-col items-center gap-2 py-4 px-2 bg-slate-950/70 hover:bg-slate-800/80 rounded-xl border border-slate-700/70 transition-colors group"
-                        >
-                            <div className="w-9 h-9 bg-amber-500/10 group-hover:bg-amber-500/20 rounded-xl flex items-center justify-center border border-amber-300/20 transition-colors">
-                                <ScanLine className="w-4 h-4 text-amber-300" />
-                            </div>
-                            <span className="text-[11px] font-bold text-amber-200 text-center leading-tight">신체분석</span>
                         </button>
                         {!HIDE_MEMBERSHIP_FEATURES && (
                             <button
