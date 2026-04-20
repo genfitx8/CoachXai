@@ -1190,8 +1190,7 @@ export function generateHeuristicResponse(
     return `📋 **추천 커리큘럼 (데이터 기반)**\n\n현재 레슨 패턴 분석 결과, 아래 순서를 추천합니다:\n\n1️⃣ **${topics[0] ?? dt0}** – 기초 포지셔닝 재점검\n2️⃣ **${topics[1] ?? dt1}** – 반복 드릴 중심\n3️⃣ **${topics[2] ?? dt2}** – 탄도/방향 안정화\n4️⃣ **종합 복습** – 필드 응용 시뮬레이션\n5️⃣ **성과 측정** – 볼 데이터 기반 진도 확인\n\n${aiNote}`;
   }
 
-  const isAIPipeline = (msg.includes('ai') && (msg.includes('파이프라인') || msg.includes('pipeline'))) ||
-    msg.includes('ai 파이프라인') || msg.includes('ai pipeline');
+  const isAIPipeline = msg.includes('ai') && (msg.includes('파이프라인') || msg.includes('pipeline'));
   if (isAIPipeline) {
     if (language === 'en') {
       return `🧠 **AI Coaching Pipeline (CoachX)**\n\n1️⃣ **Input capture** — Collect lesson notes, tags, and member context\n2️⃣ **Pattern analysis** — Detect recurring topics and member progress signals\n3️⃣ **Recommendation design** — Build next-lesson focus, drills, and curriculum sequence\n4️⃣ **Execution feedback loop** — Save outcomes and use new records to refine the next response\n\nCurrent top topics from your data: **${topicStr}**\n\n${aiNote}`;

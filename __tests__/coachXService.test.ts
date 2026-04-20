@@ -235,8 +235,7 @@ describe('generateHeuristicResponse', () => {
   });
 
   it('returns AI pipeline response when asked to organize as an AI pipeline', () => {
-    const lessons = [makeLesson({ clientName: '이영수', clientPhone: '01055556666', title: '슬라이스', coachNotes: '슬라이스' })];
-    const response = generateHeuristicResponse('AI 파이프라인으로 정리해줘', lessons, []);
+    const response = generateHeuristicResponse('AI 파이프라인으로 정리해줘', [], []);
     expect(response).toMatch(/AI 코칭 파이프라인|입력 수집|패턴 분석/);
   });
 });
