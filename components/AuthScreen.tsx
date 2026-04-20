@@ -116,10 +116,10 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
       );
 
       if (signupRole === 'COACH') {
-        setSuccessMsg('코치 회원가입 완료! 로그인 중...');
+        setSuccessMsg(t('signup_success_coach'));
         setTimeout(() => onLoginSuccess('COACH', profile, isAutoLogin), 1000);
       } else {
-        setSuccessMsg('회원가입 완료! 로그인 중...');
+        setSuccessMsg(t('signup_success_client'));
         setTimeout(() => onLoginSuccess('CLIENT', profile, isAutoLogin), 1000);
       }
     } catch (err: any) {
