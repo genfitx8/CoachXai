@@ -2,11 +2,24 @@
 
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700;800;900&display=swap');
 
+:root {
+  --app-bg-color: #05070A;
+}
+
 body {
+  margin: 0;
   font-family: 'Noto Sans KR', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
+  color: #e2e8f0;
+}
+
+html,
+body,
+#root {
+  min-height: 100vh;
+  background-color: var(--app-bg-color);
 }
 
 /* Mobile-optimized FullCalendar styles */
