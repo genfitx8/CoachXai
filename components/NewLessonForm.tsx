@@ -1216,7 +1216,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
     return (
       <div className="max-w-md mx-auto bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden animate-fade-in-up">
         {/* Header */}
-        <div className="bg-emerald-800 px-6 py-4 flex justify-between items-center text-white">
+        <div className="bg-slate-700 px-6 py-4 flex justify-between items-center text-white">
           <div className="flex items-center gap-2">
             <button
               onClick={() => setStep('CLIENT_SELECT')}
@@ -1365,7 +1365,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
           </h2>
           <button
             onClick={onCancel}
-            className="text-emerald-100 hover:text-white"
+            className="text-slate-200 hover:text-white"
           >
             <X className="w-6 h-6" />
           </button>
