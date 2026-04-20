@@ -79,6 +79,7 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
   
   // Mission/Homework Modal State
   const [showHomeworkModal, setShowHomeworkModal] = useState(false);
+  const [profileSection, setProfileSection] = useState<'OVERVIEW' | 'GOLF_PROFILE' | 'CLUB_BAG' | 'BODY_ANALYSIS'>('OVERVIEW');
 
   // Quick Log State
   const [quickLogs, setQuickLogs] = useState<QuickLogEntry[]>([]);
@@ -317,6 +318,12 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
       }));
   };
 
+  const openProfileSection = (section: 'OVERVIEW' | 'GOLF_PROFILE' | 'CLUB_BAG' | 'BODY_ANALYSIS') => {
+      setProfileSection(section);
+      setSelectedLesson(null);
+      setView('PROFILE');
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#05070A] via-[#070b12] to-[#0B1220] text-slate-100 font-sans pb-20">
       <header className="bg-[#0A0F1A]/95 border-b border-slate-800 sticky top-0 z-[60] shadow-lg shadow-black/30 backdrop-blur-xl">
@@ -488,9 +495,9 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
                         </div>
                         <h3 className="font-black text-slate-100 text-base">내 정보</h3>
                     </div>
-                    <div className={`grid gap-2 ${HIDE_MEMBERSHIP_FEATURES ? 'grid-cols-2' : 'grid-cols-2'}`}>
+                    <div className="grid gap-2 grid-cols-2">
                         <button
-                            onClick={() => { setSelectedLesson(null); setView('PROFILE'); }}
+                            onClick={() => openProfileSection('OVERVIEW')}
                             className="flex flex-col items-center gap-2 py-4 px-2 bg-slate-950/70 hover:bg-slate-800/80 rounded-xl border border-slate-700/70 transition-colors group"
                         >
                             <div className="w-9 h-9 bg-slate-800 group-hover:bg-slate-700 rounded-xl flex items-center justify-center border border-slate-600/60 transition-colors">
@@ -508,7 +515,7 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
                             <span className="text-[11px] font-bold text-cyan-200 text-center leading-tight">포인트</span>
                         </button>
                         <button
-                            onClick={() => { setSelectedLesson(null); setView('PROFILE'); }}
+                            onClick={() => openProfileSection('GOLF_PROFILE')}
                             className="flex flex-col items-center gap-2 py-4 px-2 bg-slate-950/70 hover:bg-slate-800/80 rounded-xl border border-slate-700/70 transition-colors group"
                         >
                             <div className="w-9 h-9 bg-emerald-500/10 group-hover:bg-emerald-500/20 rounded-xl flex items-center justify-center border border-emerald-300/20 transition-colors">
@@ -517,7 +524,7 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
                             <span className="text-[11px] font-bold text-emerald-200 text-center leading-tight">골프프로필</span>
                         </button>
                         <button
-                            onClick={() => { setSelectedLesson(null); setView('PROFILE'); }}
+                            onClick={() => openProfileSection('CLUB_BAG')}
                             className="flex flex-col items-center gap-2 py-4 px-2 bg-slate-950/70 hover:bg-slate-800/80 rounded-xl border border-slate-700/70 transition-colors group"
                         >
                             <div className="w-9 h-9 bg-indigo-500/10 group-hover:bg-indigo-500/20 rounded-xl flex items-center justify-center border border-indigo-300/20 transition-colors">
@@ -526,7 +533,7 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
                             <span className="text-[11px] font-bold text-indigo-200 text-center leading-tight">내 클럽</span>
                         </button>
                         <button
-                            onClick={() => { setSelectedLesson(null); setView('PROFILE'); }}
+                            onClick={() => openProfileSection('BODY_ANALYSIS')}
                             className="flex flex-col items-center gap-2 py-4 px-2 bg-slate-950/70 hover:bg-slate-800/80 rounded-xl border border-slate-700/70 transition-colors group"
                         >
                             <div className="w-9 h-9 bg-amber-500/10 group-hover:bg-amber-500/20 rounded-xl flex items-center justify-center border border-amber-300/20 transition-colors">
@@ -718,6 +725,7 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
                 onSave={handleSaveProfile}
                 onBack={handleBackToList}
                 onSearchCoach={handleCoachSearchByName}
+                initialSection={profileSection}
             />
         )}
 

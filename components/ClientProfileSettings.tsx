@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import {
   ClientProfile,
   CoachProfile,
@@ -22,9 +22,10 @@ interface ClientProfileSettingsProps {
   onSave: (updatedProfile: ClientProfile) => void;
   onBack: () => void;
   onSearchCoach: (name: string) => Promise<CoachSearchResult[]>;
+  initialSection?: 'OVERVIEW' | 'GOLF_PROFILE' | 'CLUB_BAG' | 'BODY_ANALYSIS';
 }
 
-export const ClientProfileSettings: React.FC<ClientProfileSettingsProps> = ({ profile, allLessons = [], onSave, onBack, onSearchCoach }) => {
+export const ClientProfileSettings: React.FC<ClientProfileSettingsProps> = ({ profile, allLessons = [], onSave, onBack, onSearchCoach, initialSection = 'OVERVIEW' }) => {
   const { t } = useLanguage();
   const BODY_TYPES: LessonBodyType[] = [
     '이상체형',
@@ -71,6 +72,9 @@ export const ClientProfileSettings: React.FC<ClientProfileSettingsProps> = ({ pr
   const [newClubModel, setNewClubModel] = useState('');
   const [newClubSpec1, setNewClubSpec1] = useState('');
   const [newClubSpec2, setNewClubSpec2] = useState('');
+  const golfProfileRef = useRef<HTMLDivElement | null>(null);
+  const bodyAnalysisRef = useRef<HTMLDivElement | null>(null);
+  const clubBagRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (!latestLessonBodyAnalysis || formData.memberBodyAnalysis) return;
@@ -108,6 +112,16 @@ export const ClientProfileSettings: React.FC<ClientProfileSettingsProps> = ({ pr
         if (mMatch) setExpMonths(mMatch[1]);
     }
   }, []);
+
+  useEffect(() => {
+    if (initialSection === 'GOLF_PROFILE') {
+      golfProfileRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } else if (initialSection === 'BODY_ANALYSIS') {
+      bodyAnalysisRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } else if (initialSection === 'CLUB_BAG') {
+      clubBagRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [initialSection]);
 
   // Calculate Statistics from Records
   const stats = useMemo(() => {
@@ -408,7 +422,7 @@ export const ClientProfileSettings: React.FC<ClientProfileSettingsProps> = ({ pr
 
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Golf Profile Section */}
-        <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm">
+        <div ref={golfProfileRef} className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm">
             <h3 className="text-sm font-bold text-gray-900 mb-4 flex items-center gap-2">
                 <Award className="w-4 h-4 text-emerald-600" /> {t('golf_profile_section')}
             </h3>
@@ -507,7 +521,7 @@ export const ClientProfileSettings: React.FC<ClientProfileSettingsProps> = ({ pr
                 </div>
             </div>
 
-            <div className="mt-8 pt-6 border-t border-gray-100 space-y-4">
+            <div ref={bodyAnalysisRef} className="mt-8 pt-6 border-t border-gray-100 space-y-4">
                 <div
                   onClick={handleToggleBodyAnalysis}
                   className={`rounded-xl border-2 cursor-pointer transition-all flex items-center gap-3 p-3 ${
@@ -639,7 +653,7 @@ export const ClientProfileSettings: React.FC<ClientProfileSettingsProps> = ({ pr
             </div>
 
             {/* Club Composition Section */}
-            <div className="mt-8 pt-6 border-t border-gray-100">
+            <div ref={clubBagRef} className="mt-8 pt-6 border-t border-gray-100">
                 <label className="block text-sm font-bold text-gray-900 mb-4 flex items-center gap-2">
                     <Briefcase className="w-5 h-5 text-emerald-600" /> {t('club_bag_section')}
                 </label>
