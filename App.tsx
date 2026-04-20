@@ -1608,6 +1608,7 @@ const AppContent: React.FC = () => {
             onBack={() => {
               if (clientsOpenedFromLessonStart) {
                 setClientsOpenedFromLessonStart(false);
+                setAutoOpenAddMemberFromLessonStart(false);
                 setCoachView('NEW');
                 return;
               }

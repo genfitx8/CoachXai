@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { ClientProfile } from '../types';
 import { Button } from './Button';
 import {
@@ -68,6 +68,7 @@ export const CoachClientManager: React.FC<CoachClientManagerProps> = ({
   const { t } = useLanguage();
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const hasHandledAutoOpenRef = useRef(false);
   const [editingClient, setEditingClient] = useState<ClientProfile | null>(
     null
   );
@@ -139,19 +140,24 @@ export const CoachClientManager: React.FC<CoachClientManagerProps> = ({
     }
   };
 
-  const openAddModal = () => {
+  const openAddModal = useCallback(() => {
     setEditingClient(null);
     setName('');
     setPhone('');
     setMemo('');
     setIsModalOpen(true);
-  };
+  }, []);
 
   useEffect(() => {
-    if (!autoOpenAddModal) return;
+    if (!autoOpenAddModal) {
+      hasHandledAutoOpenRef.current = false;
+      return;
+    }
+    if (hasHandledAutoOpenRef.current) return;
+    hasHandledAutoOpenRef.current = true;
     openAddModal();
     onAutoOpenAddModalHandled?.();
-  }, [autoOpenAddModal, onAutoOpenAddModalHandled]);
+  }, [autoOpenAddModal, onAutoOpenAddModalHandled, openAddModal]);
 
   const openEditModal = (client: ClientProfile) => {
     setEditingClient(client);
