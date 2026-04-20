@@ -226,6 +226,103 @@ export const authService = {
     });
   },
 
+  /**
+   * Sign in (or sign up) via Google OAuth.
+   * - Opens a Google popup via Firebase Auth.
+   * - Looks up an existing Coach/Client profile by email and returns it.
+   * - If no profile exists yet, creates a minimal one from the Google account info.
+   * Returns the resolved profile.
+   */
+  loginWithGoogle: async (
+    role: 'COACH' | 'CLIENT'
+  ): Promise<CoachProfile | ClientProfile> => {
+    if (!firebaseService.isInitialized()) {
+      throw 'Firebase가 연결되지 않았습니다. 먼저 Firebase 설정을 완료해주세요.';
+    }
+
+    let credential;
+    try {
+      credential = await firebaseService.signInWithGoogle();
+    } catch (err: any) {
+      // User dismissed the popup or it was blocked
+      if (err?.code === 'auth/popup-closed-by-user' || err?.code === 'auth/cancelled-popup-request') {
+        throw '구글 로그인이 취소되었습니다.';
+      }
+      if (err?.code === 'auth/popup-blocked') {
+        throw '팝업이 차단되었습니다. 브라우저의 팝업 차단을 해제한 후 다시 시도해주세요.';
+      }
+      console.error('Google sign-in error:', err);
+      throw '구글 로그인 중 오류가 발생했습니다.';
+    }
+
+    const { displayName, email, phoneNumber } = credential.user;
+    const googleEmail = email ?? '';
+    const googleName = displayName ?? googleEmail;
+    const googlePhone = phoneNumber ?? '';
+
+    if (role === 'COACH') {
+      // Try to find existing coach by email
+      let coaches: CoachProfile[] = [];
+      if (firebaseService.isInitialized()) {
+        coaches = await firebaseService.getCoaches();
+      } else {
+        const data = localStorage.getItem(STORAGE_KEYS.COACH_PROFILE);
+        if (data) coaches = [JSON.parse(data)];
+      }
+
+      let profile = coaches.find((c) => c.email === googleEmail) ?? null;
+
+      if (!profile) {
+        // First-time Google login — create a new coach profile
+        profile = {
+          id: crypto.randomUUID(),
+          name: googleName,
+          email: googleEmail,
+          phone: googlePhone,
+          isSubscribed: false,
+          subscriptionPlan: 'FREE',
+        };
+        if (firebaseService.isInitialized()) {
+          await firebaseService.saveCoach(profile);
+        }
+      }
+
+      localStorage.setItem(STORAGE_KEYS.COACH_PROFILE, JSON.stringify(profile));
+      return profile;
+    } else {
+      // CLIENT
+      let clients: ClientProfile[] = [];
+      if (firebaseService.isInitialized()) {
+        clients = await firebaseService.getClients();
+      } else {
+        clients = storageService.getClients();
+      }
+
+      let profile = clients.find((c) => c.email === googleEmail) ?? null;
+
+      if (!profile) {
+        // First-time Google login — create a new client profile
+        profile = {
+          name: googleName,
+          phone: googlePhone,
+          email: googleEmail,
+          isSubscribed: false,
+          subscriptionPlan: 'FREE',
+          currentPoints: 0,
+        };
+        if (firebaseService.isInitialized()) {
+          await firebaseService.saveClients([profile]);
+          // Also persist locally so future local lookups find the profile
+          storageService.saveClients([...clients, profile]);
+        } else {
+          storageService.saveClients([...clients, profile]);
+        }
+      }
+
+      return profile;
+    }
+  },
+
   loginAdmin: (email: string, password: string): Promise<boolean> => {
     return new Promise((resolve, reject) => {
       setTimeout(() => {

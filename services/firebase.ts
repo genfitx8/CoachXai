@@ -2,6 +2,13 @@
 
 import { initializeApp, FirebaseApp } from 'firebase/app';
 import {
+  getAuth,
+  Auth,
+  GoogleAuthProvider,
+  signInWithPopup,
+  UserCredential,
+} from 'firebase/auth';
+import {
   getFirestore,
   collection,
   getDocs,
@@ -54,6 +61,7 @@ import {
 let app: FirebaseApp | null = null;
 let db: Firestore | null = null;
 let storage: FirebaseStorage | null = null;
+let auth: Auth | null = null;
 
 const STORAGE_KEYS = {
   FIREBASE_CONFIG: 'swingnote_firebase_config',
@@ -102,6 +110,7 @@ export const firebaseService = {
       app = initializeApp(config);
       db = getFirestore(app);
       storage = getStorage(app);
+      auth = getAuth(app);
 
       localStorage.setItem(
         STORAGE_KEYS.FIREBASE_CONFIG,
@@ -152,7 +161,22 @@ export const firebaseService = {
   },
 
   isInitialized: (): boolean => {
-    return !!app && !!db && !!storage;
+    return !!app && !!db && !!storage && !!auth;
+  },
+
+  /**
+   * Returns the Firebase Auth instance (null if not initialized).
+   */
+  getAuth: (): Auth | null => auth,
+
+  /**
+   * Opens a Google sign-in popup and returns the UserCredential.
+   * Throws if Firebase is not initialized or the popup is blocked/cancelled.
+   */
+  signInWithGoogle: (): Promise<UserCredential> => {
+    if (!auth) throw new Error('Firebase not initialized');
+    const provider = new GoogleAuthProvider();
+    return signInWithPopup(auth, provider);
   },
 
   // --- Firestore Operations ---
