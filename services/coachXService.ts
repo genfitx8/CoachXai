@@ -7,6 +7,7 @@
  */
 
 import { Lesson, ClientProfile, CoachProfile } from '../types';
+import { deriveCause, formatCauseGuide } from './causeEngine';
 
 export type CoachXLanguage = 'ko' | 'en' | 'ja' | 'th';
 
@@ -1295,15 +1296,9 @@ export function generateHeuristicResponse(
     return `📈 **코치 성장 분석**\n\n레슨 기록 패턴을 기반으로 다음 역량 강화를 추천합니다:\n\n1. **${topics[0] ?? '스윙 교정'} 전문성** – 해당 분야 최신 교정 드릴 학습\n2. **시각화 설명력 강화** – 영상/이미지 기반 피드백 도구 활용\n3. **결과 기반 코칭** – 볼 데이터(거리/방향)를 측정 기준으로 활용\n4. **커리큘럼 구조화** – 4~8주 레슨 플랜 템플릿 정리\n\n> *글로벌 탑 코치들은 데이터 기반 피드백과 구조화된 커리큘럼으로 회원 성과를 극대화합니다.*`;
   }
 
-  const isSlice = msg.includes('슬라이스') || msg.includes('slice') || msg.includes('スライス');
-  if (isSlice) {
-    if (language === 'en') {
-      return `🎯 **Slice Correction Guide**\n\nCommon causes and correction approach:\n\n**Root causes:**\n• Open club face at impact\n• Out-to-in club path\n• Excessive grip pressure\n\n**Correction drills:**\n1. Gate drill – train an in-to-in path\n2. Grip check – transition from weak to neutral grip\n3. Weight-shift drill – reinforce transfer to lead foot\n\n> *Slice issues are often correctable within 3–5 focused lessons.*`;
-    }
-    if (language === 'ja') {
-      return `🎯 **スライス矯正ガイド**\n\n主な原因と矯正アプローチ:\n\n**根本原因:**\n• インパクト時のオープンフェース\n• アウト-インのクラブパス\n• グリッププレッシャー過多\n\n**矯正ドリル:**\n1. ゲートドリル – イン-インパスのトレーニング\n2. グリップチェック – ウィークグリップ → ニュートラルグリップ\n3. 体重移動練習 – 左足への移動強化\n\n> *スライスは3〜5回の集中レッスンで矯正可能なことが多いです。*`;
-    }
-    return `🎯 **슬라이스 교정 가이드**\n\n슬라이스의 주요 원인과 교정 방법:\n\n**원인 분석:**\n• 오픈 클럽 페이스 (임팩트 시)\n• 아웃-인 클럽패스\n• 그립 압력 과다\n\n**교정 드릴:**\n1. 게이트 드릴 – 인-인 패스 훈련\n2. 그립 체크 – 약한 그립 → 중립 그립\n3. 체중이동 연습 – 왼발로의 이동 강화\n\n> *슬라이스는 3~5회 집중 레슨으로 교정 가능한 경우가 많습니다.*`;
+  const cause = deriveCause(userMessage, language);
+  if (cause) {
+    return formatCauseGuide(cause);
   }
 
   // Default response
