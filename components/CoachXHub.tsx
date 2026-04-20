@@ -1040,7 +1040,6 @@ export const CoachXHub: React.FC<CoachXHubProps> = ({
   const tabs = [
     { id: 'live'         as const, label: t('coachx_tab_live'),         icon: <Radio          className="w-3.5 h-3.5" /> },
     { id: 'insights'     as const, label: t('coachx_tab_insights'),     icon: <Sparkles       className="w-3.5 h-3.5" /> },
-    { id: 'members'      as const, label: t('coachx_tab_members'),      icon: <Users          className="w-3.5 h-3.5" /> },
     { id: 'curriculum'   as const, label: t('coachx_tab_curriculum'),   icon: <BookOpen       className="w-3.5 h-3.5" /> },
     { id: 'coach_growth' as const, label: t('coachx_tab_coach_growth'), icon: <GraduationCap  className="w-3.5 h-3.5" /> },
   ];
