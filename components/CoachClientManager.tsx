@@ -65,6 +65,8 @@ export const CoachClientManager: React.FC<CoachClientManagerProps> = ({
   const [phone, setPhone] = useState('');
   const [memo, setMemo] = useState('');
 
+  const clientKey = (name: string, phone: string) => `${name}_${phone}`;
+
   // Student category should show only this coach's registered students.
   const visibleClients = useMemo(() => {
     const scopedClients = coachId
@@ -81,15 +83,15 @@ export const CoachClientManager: React.FC<CoachClientManagerProps> = ({
   const reportByKey = useMemo(() => {
     if (!memberReports) return {} as Record<string, MemberGrowthReport>;
     return memberReports.reduce<Record<string, MemberGrowthReport>>((acc, r) => {
-      acc[`${r.clientName}_${r.clientPhone}`] = r;
+      acc[clientKey(r.clientName, r.clientPhone)] = r;
       return acc;
     }, {});
   }, [memberReports]);
 
   const filteredMemberReports = useMemo(() => {
     if (!memberReports) return [];
-    const visibleKeys = new Set(visibleClients.map((client) => `${client.name}_${client.phone}`));
-    return memberReports.filter((report) => visibleKeys.has(`${report.clientName}_${report.clientPhone}`));
+    const visibleKeys = new Set(visibleClients.map((client) => clientKey(client.name, client.phone)));
+    return memberReports.filter((report) => visibleKeys.has(clientKey(report.clientName, report.clientPhone)));
   }, [memberReports, visibleClients]);
 
   const growthSummary = useMemo(() => {
@@ -304,7 +306,7 @@ export const CoachClientManager: React.FC<CoachClientManagerProps> = ({
           </div>
         ) : (
           filteredClients.map((client) => {
-            const reportKey = `${client.name}_${client.phone}`;
+            const reportKey = clientKey(client.name, client.phone);
             const report = reportByKey[reportKey];
             const isMyClient = !!coachId && client.coachId === coachId;
             const assignmentLabel = !client.coachId
@@ -430,6 +432,7 @@ export const CoachClientManager: React.FC<CoachClientManagerProps> = ({
                 <>
                   <button
                     onClick={() => setDetailReport(report)}
+                    data-testid={`growth-report-btn-${client.name}`}
                     className="mt-2 w-full flex items-center justify-center gap-2 py-2.5 px-3 bg-slate-50 text-slate-700 rounded-xl hover:bg-slate-100 transition-colors text-sm font-semibold"
                   >
                     <FileBarChart className="w-4 h-4" />
