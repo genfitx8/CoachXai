@@ -75,7 +75,7 @@ describe('authService.loginWithGoogle', () => {
     firebaseServiceMock.getSavedConfig.mockReturnValue(null);
 
     await expect(authService.loginWithGoogle('CLIENT')).rejects.toBe(
-      'Firebase 설정이 없거나 올바르지 않아 구글 로그인을 사용할 수 없습니다. VITE_FIREBASE_AUTH_DOMAIN, VITE_FIREBASE_APP_ID 설정을 확인해주세요.'
+      'Firebase 설정이 없거나 초기화에 실패해 구글 로그인을 사용할 수 없습니다. VITE_FIREBASE_API_KEY, VITE_FIREBASE_AUTH_DOMAIN, VITE_FIREBASE_PROJECT_ID, VITE_FIREBASE_APP_ID 값을 확인해주세요.'
     );
   });
 
