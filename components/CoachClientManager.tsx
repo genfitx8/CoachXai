@@ -244,10 +244,10 @@ export const CoachClientManager: React.FC<CoachClientManagerProps> = ({
             const report = reportByKey[reportKey];
             const isMyClient = !!coachId && client.coachId === coachId;
             const assignmentLabel = !client.coachId
-              ? '미배정'
+              ? t('coach_client_assignment_unassigned')
               : isMyClient
-                ? '내 회원'
-                : '타 코치 회원';
+                ? t('coach_client_assignment_mine')
+                : t('coach_client_assignment_other');
 
             return (
             <div
@@ -328,19 +328,19 @@ export const CoachClientManager: React.FC<CoachClientManagerProps> = ({
               </div>
               <div className="mt-2 text-xs text-gray-500 space-y-1">
                 {client.designatedCoach && (
-                  <p>담당 코치: {client.designatedCoach}</p>
+                  <p>{t('coach_client_detail_designated_coach')}: {client.designatedCoach}</p>
                 )}
                 {typeof client.handicap === 'number' && (
-                  <p>핸디캡: {client.handicap}</p>
+                  <p>{t('coach_client_detail_handicap')}: {client.handicap}</p>
                 )}
                 {typeof client.bestScore === 'number' && (
-                  <p>베스트 스코어: {client.bestScore}</p>
+                  <p>{t('coach_client_detail_best_score')}: {client.bestScore}</p>
                 )}
                 {typeof client.currentPoints === 'number' && (
-                  <p>보유 포인트: {client.currentPoints}</p>
+                  <p>{t('coach_client_detail_current_points')}: {client.currentPoints}</p>
                 )}
                 {client.golfStartDate && (
-                  <p>골프 시작일: {client.golfStartDate}</p>
+                  <p>{t('coach_client_detail_golf_start_date')}: {client.golfStartDate}</p>
                 )}
               </div>
 
