@@ -602,18 +602,22 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
 
             {isSignup && (
               <div>
-                <label className="block text-xs font-bold text-slate-400 mb-1 ml-1 uppercase">
+                <label
+                  htmlFor="socialId"
+                  className="block text-xs font-bold text-slate-400 mb-1 ml-1 uppercase"
+                >
                   소셜 아이디
                 </label>
                 <div className="relative">
                   <User className="absolute left-3 top-2.5 w-5 h-5 text-slate-500" />
                   <input
+                    id="socialId"
                     type="text"
                     name="socialId"
                     value={socialId}
                     onChange={(e) => setSocialId(e.target.value)}
                     className="w-full pl-10 pr-4 py-2 bg-slate-900 text-slate-100 border border-slate-700 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
-                    placeholder="provider user id"
+                    placeholder="소셜 계정 아이디를 입력하세요"
                   />
                 </div>
               </div>

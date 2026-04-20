@@ -12,10 +12,7 @@ const STORAGE_KEYS = {
 };
 
 const buildSocialEmail = (provider: SocialProvider, socialId: string): string =>
-  `${provider.toLowerCase()}_${socialId.trim().toLowerCase()}@social.coachx.ai`;
-
-const buildSocialPassword = (provider: SocialProvider, socialId: string): string =>
-  `${provider}_${socialId.trim()}_SOCIAL`;
+  `${provider.toLowerCase()}_${encodeURIComponent(socialId.trim())}@social.coachx.ai`;
 
 export const authService = {
   // Coach Authentication
@@ -239,7 +236,6 @@ export const authService = {
       name,
       email,
       phone,
-      password: buildSocialPassword(provider, socialId),
       socialProvider: provider,
       socialId,
       isSubscribed: false,
@@ -265,7 +261,6 @@ export const authService = {
     }
 
     const email = buildSocialEmail(provider, socialId);
-    const password = buildSocialPassword(provider, socialId);
 
     let existingClients: ClientProfile[] = [];
     if (firebaseService.isInitialized()) {
@@ -294,7 +289,6 @@ export const authService = {
       profileToReturn = {
         ...existingByPhone,
         email,
-        password,
         socialProvider: provider,
         socialId,
       };
@@ -306,7 +300,6 @@ export const authService = {
         name,
         phone,
         email,
-        password,
         socialProvider: provider,
         socialId,
         isSubscribed: false,

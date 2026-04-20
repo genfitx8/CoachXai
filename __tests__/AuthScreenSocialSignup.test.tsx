@@ -37,7 +37,7 @@ describe('AuthScreen social signup', () => {
     fireEvent.change(screen.getByPlaceholderText('010-0000-0000'), {
       target: { value: '010-1111-2222' },
     });
-    fireEvent.change(screen.getByPlaceholderText('provider user id'), {
+    fireEvent.change(screen.getByPlaceholderText('소셜 계정 아이디를 입력하세요'), {
       target: { value: 'google-test' },
     });
 
