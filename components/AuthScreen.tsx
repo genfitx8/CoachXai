@@ -92,19 +92,8 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
     setError(null);
     setIsLoading(true);
     try {
-      if (isSignup) {
-        const profile = await authService.signupCoach(
-          name,
-          email,
-          password,
-          phone
-        );
-        setSuccessMsg('코치 회원가입 완료! 로그인 중...');
-        setTimeout(() => onLoginSuccess('COACH', profile, isAutoLogin), 1000);
-      } else {
-        const profile = await authService.loginCoach(email, password);
-        onLoginSuccess('COACH', profile, isAutoLogin);
-      }
+      const profile = await authService.loginCoach(email, password);
+      onLoginSuccess('COACH', profile, isAutoLogin);
     } catch (err: any) {
       setError(err as string);
     } finally {
@@ -146,19 +135,8 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
     setIsLoading(true);
 
     try {
-      if (isSignup) {
-        const profile = await authService.signupClient(
-          name,
-          email,
-          password,
-          phone
-        );
-        setSuccessMsg('회원가입 완료! 로그인 중...');
-        setTimeout(() => onLoginSuccess('CLIENT', profile, isAutoLogin), 1000);
-      } else {
-        const profile = await authService.loginClient(email, password);
-        onLoginSuccess('CLIENT', profile, isAutoLogin);
-      }
+      const profile = await authService.loginClient(email, password);
+      onLoginSuccess('CLIENT', profile, isAutoLogin);
     } catch (err: any) {
       setError(err as string);
     } finally {
@@ -539,7 +517,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
             {isSignup && (
               <div>
                 <label className="block text-xs font-bold text-slate-400 mb-2 ml-1 uppercase">
-                  회원 유형
+                  {t('signup_role')}
                 </label>
                 <div className="grid grid-cols-2 gap-2">
                   <button
