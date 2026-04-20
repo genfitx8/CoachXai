@@ -103,7 +103,7 @@ describe('Coach dashboard – lesson-first MVP home', () => {
     expect(screen.getByTestId('coachx-entry-btn')).toBeInTheDocument();
     expect(screen.getByTestId('students-entry-btn')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Lesson start' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Coachx' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'coachx ai' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Student' })).toBeInTheDocument();
     expect(screen.queryByTestId('lesson-records-entry-btn')).toBeNull();
     expect(screen.queryByTestId('coachx-attention-card')).toBeNull();
