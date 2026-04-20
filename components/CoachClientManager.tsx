@@ -61,31 +61,12 @@ export const CoachClientManager: React.FC<CoachClientManagerProps> = ({
   const [phone, setPhone] = useState('');
   const [memo, setMemo] = useState('');
 
-  // Filter clients to show only those assigned to this coach
-  // coachId가 있으면 해당 코치에게 할당된 회원만 표시
-  const myClients = useMemo(() => {
-    if (!coachId) {
-      console.warn('CoachClientManager: coachId가 전달되지 않았습니다.');
-      return [];
-    }
+  // Student category should show every student profile.
+  const visibleClients = useMemo(() => {
+    return [...clients].sort((a, b) => a.name.localeCompare(b.name));
+  }, [clients]);
 
-    // 현재 코치에게 할당된 회원만 필터링
-    const filtered = clients.filter((c) => {
-      // coachId가 없거나 빈 문자열이면 제외
-      if (!c.coachId || c.coachId.trim() === '') {
-        return false;
-      }
-      // 현재 코치에게 할당된 회원만 포함
-      return c.coachId === coachId;
-    });
-
-    console.log(
-      `CoachClientManager: coachId=${coachId}, 전체 회원=${clients.length}, 필터링된 회원=${filtered.length}`
-    );
-    return filtered;
-  }, [clients, coachId]);
-
-  const filteredClients = myClients.filter(
+  const filteredClients = visibleClients.filter(
     (c) => c.name.includes(searchTerm) || c.phone.includes(searchTerm)
   );
 
@@ -252,17 +233,22 @@ export const CoachClientManager: React.FC<CoachClientManagerProps> = ({
               <User className="w-8 h-8 text-gray-300" />
             </div>
             <p className="text-gray-500 font-medium">
-              {coachId
-                ? myClients.length === 0
-                  ? t('coach_client_empty')
-                  : t('coach_client_no_results')
-                : t('coach_client_no_coach')}
+              {visibleClients.length === 0
+                ? t('coach_client_empty')
+                : t('coach_client_no_results')}
             </p>
           </div>
         ) : (
           filteredClients.map((client) => {
             const reportKey = `${client.name}_${client.phone}`;
             const report = reportByKey[reportKey];
+            const isMyClient = !!coachId && client.coachId === coachId;
+            const assignmentLabel = !client.coachId
+              ? '미배정'
+              : isMyClient
+                ? '내 회원'
+                : '타 코치 회원';
+
             return (
             <div
               key={reportKey}
@@ -287,26 +273,44 @@ export const CoachClientManager: React.FC<CoachClientManagerProps> = ({
                           {trendLabel(report.trendIndicator)}
                         </span>
                       )}
+                      <span
+                        className={`inline-flex items-center text-[10px] font-semibold px-1.5 py-0.5 rounded-full border ${
+                          isMyClient
+                            ? 'bg-indigo-50 text-indigo-700 border-indigo-200'
+                            : client.coachId
+                              ? 'bg-amber-50 text-amber-700 border-amber-200'
+                              : 'bg-gray-100 text-gray-600 border-gray-200'
+                        }`}
+                      >
+                        {assignmentLabel}
+                      </span>
                     </div>
                     <p className="text-sm text-gray-500 flex items-center gap-1">
                       <Phone className="w-3 h-3" /> {client.phone}
                     </p>
+                    {client.email && (
+                      <p className="text-xs text-gray-400 mt-0.5">
+                        {client.email}
+                      </p>
+                    )}
                   </div>
                 </div>
-                <div className="flex gap-1">
-                  <button
-                    onClick={() => openEditModal(client)}
-                    className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
-                  >
-                    <Edit className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => handleDelete(client)}
-                    className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
+                {isMyClient && (
+                  <div className="flex gap-1">
+                    <button
+                      onClick={() => openEditModal(client)}
+                      className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                    >
+                      <Edit className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => handleDelete(client)}
+                      className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
               </div>
 
               {client.memo && (
@@ -322,8 +326,25 @@ export const CoachClientManager: React.FC<CoachClientManagerProps> = ({
                 <Briefcase className="w-3 h-3" />
                 {client.golfExperience || t('coach_client_exp_none')}
               </div>
+              <div className="mt-2 text-xs text-gray-500 space-y-1">
+                {client.designatedCoach && (
+                  <p>담당 코치: {client.designatedCoach}</p>
+                )}
+                {typeof client.handicap === 'number' && (
+                  <p>핸디캡: {client.handicap}</p>
+                )}
+                {typeof client.bestScore === 'number' && (
+                  <p>베스트 스코어: {client.bestScore}</p>
+                )}
+                {typeof client.currentPoints === 'number' && (
+                  <p>보유 포인트: {client.currentPoints}</p>
+                )}
+                {client.golfStartDate && (
+                  <p>골프 시작일: {client.golfStartDate}</p>
+                )}
+              </div>
 
-              {onManagePackages && (
+              {onManagePackages && isMyClient && (
                 <button
                   onClick={() => onManagePackages(client)}
                   className="mt-3 w-full flex items-center justify-center gap-2 py-2.5 px-3 bg-indigo-50 text-indigo-700 rounded-xl hover:bg-indigo-100 transition-colors text-sm font-semibold"
@@ -332,7 +353,7 @@ export const CoachClientManager: React.FC<CoachClientManagerProps> = ({
                   {t('coach_client_package_manage')}
                 </button>
               )}
-              {onGenerateProgram && (
+              {onGenerateProgram && isMyClient && (
                 <button
                   onClick={() => onGenerateProgram(client)}
                   className="mt-2 w-full flex items-center justify-center gap-2 py-2.5 px-3 bg-emerald-50 text-emerald-700 rounded-xl hover:bg-emerald-100 transition-colors text-sm font-semibold"
@@ -341,7 +362,7 @@ export const CoachClientManager: React.FC<CoachClientManagerProps> = ({
                   {t('coach_client_training_create')}
                 </button>
               )}
-              {onOpenCoachX && report && (
+              {onOpenCoachX && report && isMyClient && (
                 <button
                   onClick={() => onOpenCoachX(client.name)}
                   data-testid={`coachx-btn-${client.name}`}
