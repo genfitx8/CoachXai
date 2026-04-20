@@ -1190,6 +1190,18 @@ export function generateHeuristicResponse(
     return `📋 **추천 커리큘럼 (데이터 기반)**\n\n현재 레슨 패턴 분석 결과, 아래 순서를 추천합니다:\n\n1️⃣ **${topics[0] ?? dt0}** – 기초 포지셔닝 재점검\n2️⃣ **${topics[1] ?? dt1}** – 반복 드릴 중심\n3️⃣ **${topics[2] ?? dt2}** – 탄도/방향 안정화\n4️⃣ **종합 복습** – 필드 응용 시뮬레이션\n5️⃣ **성과 측정** – 볼 데이터 기반 진도 확인\n\n${aiNote}`;
   }
 
+  const isAIPipeline = (msg.includes('ai') && (msg.includes('파이프라인') || msg.includes('pipeline'))) ||
+    msg.includes('ai 파이프라인') || msg.includes('ai pipeline');
+  if (isAIPipeline) {
+    if (language === 'en') {
+      return `🧠 **AI Coaching Pipeline (CoachX)**\n\n1️⃣ **Input capture** — Collect lesson notes, tags, and member context\n2️⃣ **Pattern analysis** — Detect recurring topics and member progress signals\n3️⃣ **Recommendation design** — Build next-lesson focus, drills, and curriculum sequence\n4️⃣ **Execution feedback loop** — Save outcomes and use new records to refine the next response\n\nCurrent top topics from your data: **${topicStr}**\n\n${aiNote}`;
+    }
+    if (language === 'ja') {
+      return `🧠 **AIコーチングパイプライン（CoachX）**\n\n1️⃣ **入力収集** — レッスンメモ、タグ、会員コンテキストを収集\n2️⃣ **パターン分析** — 反復テーマと会員の成長シグナルを検出\n3️⃣ **推奨設計** — 次回レッスン焦点、ドリル、カリキュラム順序を提案\n4️⃣ **実行フィードバック循環** — 結果を保存し、次回応答に反映\n\n現在の主要テーマ: **${topicStr}**\n\n${aiNote}`;
+    }
+    return `🧠 **AI 코칭 파이프라인 (CoachX)**\n\n1️⃣ **입력 수집** — 레슨 메모, 태그, 회원 맥락 데이터 정리\n2️⃣ **패턴 분석** — 반복 주제와 회원 성장 신호 추출\n3️⃣ **추천 설계** — 다음 레슨 주제, 드릴, 커리큘럼 순서 제안\n4️⃣ **실행 피드백 루프** — 결과를 기록하고 다음 응답에 재반영\n\n현재 데이터 기준 주요 주제: **${topicStr}**\n\n${aiNote}`;
+  }
+
   const isPlateau = msg.includes('정체') || msg.includes('plateau') ||
     msg.includes('stagnation') || msg.includes('stagnating') || msg.includes('停滞');
   if (isPlateau) {

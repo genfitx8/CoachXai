@@ -233,6 +233,12 @@ describe('generateHeuristicResponse', () => {
     // Should mention 5 sessions (1️⃣ through 5️⃣ or "5")
     expect(response).toMatch(/5|五/);
   });
+
+  it('returns AI pipeline response when asked to organize as an AI pipeline', () => {
+    const lessons = [makeLesson({ clientName: '이영수', clientPhone: '01055556666', title: '슬라이스', coachNotes: '슬라이스' })];
+    const response = generateHeuristicResponse('AI 파이프라인으로 정리해줘', lessons, []);
+    expect(response).toMatch(/AI 코칭 파이프라인|입력 수집|패턴 분석/);
+  });
 });
 
 describe('buildMemberGrowthReports (language)', () => {
@@ -459,6 +465,11 @@ describe('generateHeuristicResponse (multilingual)', () => {
     const lessons = [makeLesson({ clientName: '이영수', clientPhone: '01055556666', title: 'impact', coachNotes: 'impact' })];
     const response = generateHeuristicResponse('suggest a curriculum plan', lessons, [], 'en');
     expect(response).toMatch(/5|Session/i);
+  });
+
+  it('returns English AI pipeline response for pipeline intent', () => {
+    const response = generateHeuristicResponse('organize this into an AI pipeline', [], [], 'en');
+    expect(response).toMatch(/AI Coaching Pipeline|Input capture|Pattern analysis/i);
   });
 });
 
