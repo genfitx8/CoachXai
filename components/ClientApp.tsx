@@ -46,8 +46,8 @@ const getLocalISODate = () => {
     return `${year}-${month}-${day}`;
 };
 
-const HIDE_MEMBERSHIP_FEATURES = true;
-const HIDE_RESERVATION_FEATURES = true;
+const HIDE_MEMBERSHIP_FEATURES = (import.meta.env.VITE_CLIENT_HIDE_MEMBERSHIP ?? 'true') === 'true';
+const HIDE_RESERVATION_FEATURES = (import.meta.env.VITE_CLIENT_HIDE_RESERVATION ?? 'true') === 'true';
 
 export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons, onLogout, onUpdateLesson, onSaveNewRecord, onDeleteLesson, onUpdateProfile }) => {
   const { t, language, setLanguage } = useLanguage();
@@ -93,15 +93,16 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
   const clientId = `${clientProfile.name}_${clientProfile.phone}`.trim();
   const isFirebaseMode = firebaseService.isInitialized();
 
-  useEffect(() => {
+  const effectiveView = useMemo(() => {
     if (HIDE_MEMBERSHIP_FEATURES && (view === 'MEMBERSHIP_PURCHASE' || view === 'MEMBERSHIP_PAYMENT_SUCCESS')) {
-      setView('LIST');
-      return;
+      return 'LIST';
     }
 
     if (HIDE_RESERVATION_FEATURES && (view === 'RESERVATION' || view === 'BAY_RESERVATION' || view === 'MY_BAY_RESERVATIONS')) {
-      setView('LIST');
+      return 'LIST';
     }
+
+    return view;
   }, [view]);
 
   // Load Homework & AI Check
@@ -378,7 +379,7 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
       </header>
 
       <main className="max-w-md mx-auto px-4 py-6 space-y-6">
-        {view === 'LIST' && (
+        {effectiveView === 'LIST' && (
             <div className="space-y-6 animate-fade-in">
                 
                 {/* Lesson Statistics Hero Section */}
@@ -671,7 +672,7 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
             </div>
         )}
 
-        {view === 'RECENT_RECORDS' && (
+        {effectiveView === 'RECENT_RECORDS' && (
             <div className="space-y-4 animate-fade-in">
                 {/* Header */}
                 <div className="flex items-center gap-3 pb-2">
@@ -777,7 +778,7 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
             </div>
         )}
 
-        {view === 'AI_AGENT' && (
+        {effectiveView === 'AI_AGENT' && (
             <GolfAIAgent
                 clientProfile={clientProfile}
                 allLessons={allLessons}
@@ -788,7 +789,7 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
             />
         )}
 
-        {view === 'QUICK_LOG' && (
+        {effectiveView === 'QUICK_LOG' && (
             <QuickGolfLog
                 clientId={clientId}
                 coachId={clientProfile.coachId}
@@ -797,7 +798,7 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
             />
         )}
 
-        {view === 'WEEKLY_INSIGHT' && (
+        {effectiveView === 'WEEKLY_INSIGHT' && (
             <WeeklyInsightCard
                 clientId={clientId}
                 coachId={clientProfile.coachId}
@@ -809,7 +810,7 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
             />
         )}
 
-        {view === 'DETAIL' && selectedLesson && (
+        {effectiveView === 'DETAIL' && selectedLesson && (
             <LessonDetail 
                 lesson={selectedLesson}
                 role="CLIENT"
@@ -823,14 +824,14 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
             />
         )}
 
-        {view === 'STATS' && (
+        {effectiveView === 'STATS' && (
             <ClientStats 
                 lessons={allMyLessons} 
                 onBack={handleBackToList} 
             />
         )}
 
-        {view === 'PROFILE' && (
+        {effectiveView === 'PROFILE' && (
             <ClientProfileSettings 
                 profile={clientProfile}
                 allLessons={allMyLessons}
@@ -840,14 +841,14 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
             />
         )}
 
-        {!HIDE_RESERVATION_FEATURES && view === 'RESERVATION' && (
+        {!HIDE_RESERVATION_FEATURES && effectiveView === 'RESERVATION' && (
             <ClientReservation
                 clientProfile={clientProfile}
                 onBack={handleBackToList}
             />
         )}
 
-        {!HIDE_RESERVATION_FEATURES && view === 'BAY_RESERVATION' && (
+        {!HIDE_RESERVATION_FEATURES && effectiveView === 'BAY_RESERVATION' && (
             <ClientBayReservation
                 clientProfile={clientProfile}
                 onBack={handleBackToList}
@@ -857,28 +858,28 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
             />
         )}
 
-        {!HIDE_RESERVATION_FEATURES && view === 'MY_BAY_RESERVATIONS' && (
+        {!HIDE_RESERVATION_FEATURES && effectiveView === 'MY_BAY_RESERVATIONS' && (
             <MyBayReservations
                 clientProfile={clientProfile}
                 onBack={handleBackToList}
             />
         )}
 
-        {view === 'POINT_PURCHASE' && (
+        {effectiveView === 'POINT_PURCHASE' && (
             <PointPurchase
                 clientProfile={clientProfile}
                 onBack={handleBackToList}
             />
         )}
 
-        {!HIDE_MEMBERSHIP_FEATURES && view === 'MEMBERSHIP_PURCHASE' && (
+        {!HIDE_MEMBERSHIP_FEATURES && effectiveView === 'MEMBERSHIP_PURCHASE' && (
             <MembershipPurchase
                 clientProfile={clientProfile}
                 onBack={handleBackToList}
             />
         )}
 
-        {view === 'PAYMENT_SUCCESS' && (
+        {effectiveView === 'PAYMENT_SUCCESS' && (
             <PaymentSuccess
                 clientProfile={clientProfile}
                 onBack={handleBackToList}
@@ -889,7 +890,7 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
             />
         )}
 
-        {!HIDE_MEMBERSHIP_FEATURES && view === 'MEMBERSHIP_PAYMENT_SUCCESS' && (
+        {!HIDE_MEMBERSHIP_FEATURES && effectiveView === 'MEMBERSHIP_PAYMENT_SUCCESS' && (
             <MembershipPaymentSuccess
                 clientProfile={clientProfile}
                 onBack={handleBackToList}
@@ -900,7 +901,7 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
             />
         )}
 
-        {view === 'PAYMENT_FAIL' && (
+        {effectiveView === 'PAYMENT_FAIL' && (
             <PaymentFail
                 onBack={() => {
                     const purchaseType = new URLSearchParams(window.location.search).get('purchase');
@@ -914,7 +915,7 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
         )}
 
         {/* Floating Add Button */}
-        {(view === 'LIST' || view === 'RECENT_RECORDS') && (
+        {(effectiveView === 'LIST' || effectiveView === 'RECENT_RECORDS') && (
              <button 
                 onClick={() => {
                     if (!isProMember && totalRecordCount >= FREE_RECORD_LIMIT) {
@@ -937,7 +938,7 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
         )}
 
         {/* New Lesson Form (Self Record or Edit) */}
-        {view === 'NEW' && (
+        {effectiveView === 'NEW' && (
             <div className="fixed inset-0 z-50 bg-[#05070A] overflow-y-auto">
                 <NewLessonForm 
                     existingClients={[clientProfile]} // Pass self
