@@ -378,7 +378,7 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
                             <PlayCircle className="w-7 h-7" />
                         </div>
                         <div className="text-left">
-                            <div className="text-xl font-black">Start Lesson</div>
+                            <div className="text-xl font-black">레슨 기록 시작</div>
                             <div className="text-xs text-cyan-100 font-medium">새로운 레슨을 기록하세요</div>
                         </div>
                     </div>
