@@ -21,6 +21,7 @@ import {
   AlertCircle,
 } from 'lucide-react';
 import { useLanguage } from './LanguageContext';
+import { AUTH_USER_TYPE_STORAGE_KEY } from '../constants/auth';
 
 interface AuthScreenProps {
   onLoginSuccess: (
@@ -38,7 +39,16 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
   initialMode = 'LOGIN',
 }) => {
   const { t, language, setLanguage } = useLanguage();
-  const [activeTab, setActiveTab] = useState<'COACH' | 'CLIENT'>('COACH');
+  const [activeTab, setActiveTab] = useState<'COACH' | 'CLIENT'>(() => {
+    try {
+      const savedTab = localStorage.getItem(AUTH_USER_TYPE_STORAGE_KEY);
+      return savedTab === 'CLIENT' || savedTab === 'COACH'
+        ? savedTab
+        : 'COACH';
+    } catch {
+      return 'COACH';
+    }
+  });
   const [isAdminMode, setIsAdminMode] = useState(false);
   const [isBranchAdminMode, setIsBranchAdminMode] = useState(false);
   const [showLangMenu, setShowLangMenu] = useState(false);
@@ -86,6 +96,11 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
 
   const handleTabChange = (tab: 'COACH' | 'CLIENT') => {
     setActiveTab(tab);
+    try {
+      localStorage.setItem(AUTH_USER_TYPE_STORAGE_KEY, tab);
+    } catch {
+      // localStorage가 차단된 환경(예: private mode)에서도 로그인 동작은 계속 가능해야 함
+    }
     setIsSignup(false);
     resetForm();
   };
@@ -492,6 +507,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
         <div className="flex border-b border-slate-700">
           <button
             type="button"
+            aria-pressed={activeTab === 'COACH'}
             className={`flex-1 py-4 text-sm font-bold transition-colors duration-200 ${
               activeTab === 'COACH'
                 ? 'text-indigo-200 border-b-2 border-indigo-400 bg-slate-900'
@@ -503,6 +519,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
           </button>
           <button
             type="button"
+            aria-pressed={activeTab === 'CLIENT'}
             className={`flex-1 py-4 text-sm font-bold transition-colors duration-200 ${
               activeTab === 'CLIENT'
                 ? 'text-indigo-200 border-b-2 border-indigo-400 bg-slate-900'
