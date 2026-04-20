@@ -49,6 +49,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
       return 'COACH';
     }
   });
+  const [signupRole, setSignupRole] = useState<'COACH' | 'CLIENT'>('COACH');
   const [isAdminMode, setIsAdminMode] = useState(false);
   const [isBranchAdminMode, setIsBranchAdminMode] = useState(false);
   const [showLangMenu, setShowLangMenu] = useState(false);
@@ -110,18 +111,35 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
     setError(null);
     setIsLoading(true);
     try {
-      if (isSignup) {
-        const profile = await authService.signupCoach(
-          name,
-          email,
-          password,
-          phone
-        );
-        setSuccessMsg('코치 회원가입 완료! 로그인 중...');
+      const profile = await authService.loginCoach(email, password);
+      onLoginSuccess('COACH', profile, isAutoLogin);
+    } catch (err: any) {
+      setError(err as string);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSignupSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setIsLoading(true);
+
+    try {
+      const profile = await authService.signup(
+        signupRole,
+        name,
+        email,
+        password,
+        phone
+      );
+
+      if (signupRole === 'COACH') {
+        setSuccessMsg(t('signup_success_coach'));
         setTimeout(() => onLoginSuccess('COACH', profile, isAutoLogin), 1000);
       } else {
-        const profile = await authService.loginCoach(email, password);
-        onLoginSuccess('COACH', profile, isAutoLogin);
+        setSuccessMsg(t('signup_success_client'));
+        setTimeout(() => onLoginSuccess('CLIENT', profile, isAutoLogin), 1000);
       }
     } catch (err: any) {
       setError(err as string);
@@ -136,19 +154,8 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
     setIsLoading(true);
 
     try {
-      if (isSignup) {
-        const profile = await authService.signupClient(
-          name,
-          email,
-          password,
-          phone
-        );
-        setSuccessMsg('회원가입 완료! 로그인 중...');
-        setTimeout(() => onLoginSuccess('CLIENT', profile, isAutoLogin), 1000);
-      } else {
-        const profile = await authService.loginClient(email, password);
-        onLoginSuccess('CLIENT', profile, isAutoLogin);
-      }
+      const profile = await authService.loginClient(email, password);
+      onLoginSuccess('CLIENT', profile, isAutoLogin);
     } catch (err: any) {
       setError(err as string);
     } finally {
@@ -504,32 +511,34 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
           <p className="text-slate-300 text-sm mt-1">{t('app_desc')}</p>
         </div>
 
-        <div className="flex border-b border-slate-700">
-          <button
-            type="button"
-            aria-pressed={activeTab === 'COACH'}
-            className={`flex-1 py-4 text-sm font-bold transition-colors duration-200 ${
-              activeTab === 'COACH'
-                ? 'text-indigo-200 border-b-2 border-indigo-400 bg-slate-900'
-                : 'text-slate-400 bg-slate-900/60 hover:bg-slate-800'
-            }`}
-            onClick={() => handleTabChange('COACH')}
-          >
-            {t('coach_login')}
-          </button>
-          <button
-            type="button"
-            aria-pressed={activeTab === 'CLIENT'}
-            className={`flex-1 py-4 text-sm font-bold transition-colors duration-200 ${
-              activeTab === 'CLIENT'
-                ? 'text-indigo-200 border-b-2 border-indigo-400 bg-slate-900'
-                : 'text-slate-400 bg-slate-900/60 hover:bg-slate-800'
-            }`}
-            onClick={() => handleTabChange('CLIENT')}
-          >
-            {t('client_login')}
-          </button>
-        </div>
+        {!isSignup && (
+          <div className="flex border-b border-slate-700">
+            <button
+              type="button"
+              aria-pressed={activeTab === 'COACH'}
+              className={`flex-1 py-4 text-sm font-bold transition-colors duration-200 ${
+                activeTab === 'COACH'
+                  ? 'text-indigo-200 border-b-2 border-indigo-400 bg-slate-900'
+                  : 'text-slate-400 bg-slate-900/60 hover:bg-slate-800'
+              }`}
+              onClick={() => handleTabChange('COACH')}
+            >
+              {t('coach_login')}
+            </button>
+            <button
+              type="button"
+              aria-pressed={activeTab === 'CLIENT'}
+              className={`flex-1 py-4 text-sm font-bold transition-colors duration-200 ${
+                activeTab === 'CLIENT'
+                  ? 'text-indigo-200 border-b-2 border-indigo-400 bg-slate-900'
+                  : 'text-slate-400 bg-slate-900/60 hover:bg-slate-800'
+              }`}
+              onClick={() => handleTabChange('CLIENT')}
+            >
+              {t('client_login')}
+            </button>
+          </div>
+        )}
 
         <div className="p-8">
           {error && (
@@ -548,24 +557,60 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
 
           <form
             onSubmit={
-              activeTab === 'COACH' ? handleCoachSubmit : handleClientSubmit
+              isSignup
+                ? handleSignupSubmit
+                : activeTab === 'COACH'
+                ? handleCoachSubmit
+                : handleClientSubmit
             }
             className="space-y-4 animate-fade-in"
           >
             {isSignup && (
               <div>
-                  <label className="block text-xs font-bold text-slate-400 mb-1 ml-1 uppercase">
+                <label className="block text-xs font-bold text-slate-400 mb-1 ml-1 uppercase">
+                  {t('signup_role')}
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setSignupRole('COACH')}
+                    className={`py-2 rounded-xl border text-sm font-bold transition-colors ${
+                      signupRole === 'COACH'
+                        ? 'bg-indigo-500/20 border-indigo-400 text-indigo-200'
+                        : 'bg-slate-900 border-slate-700 text-slate-300 hover:bg-slate-800'
+                    }`}
+                  >
+                    {t('coach')}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSignupRole('CLIENT')}
+                    className={`py-2 rounded-xl border text-sm font-bold transition-colors ${
+                      signupRole === 'CLIENT'
+                        ? 'bg-indigo-500/20 border-indigo-400 text-indigo-200'
+                        : 'bg-slate-900 border-slate-700 text-slate-300 hover:bg-slate-800'
+                    }`}
+                  >
+                    {t('client')}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {isSignup && (
+              <div>
+                <label className="block text-xs font-bold text-slate-400 mb-1 ml-1 uppercase">
                   {t('name')}
                 </label>
                 <div className="relative">
-                    <User className="absolute left-3 top-2.5 w-5 h-5 text-slate-500" />
+                  <User className="absolute left-3 top-2.5 w-5 h-5 text-slate-500" />
                   <input
                     type="text"
                     name="name"
                     autoComplete="name"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                      className="w-full pl-10 pr-4 py-2 bg-slate-900 text-slate-100 border border-slate-700 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
+                    className="w-full pl-10 pr-4 py-2 bg-slate-900 text-slate-100 border border-slate-700 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
                     placeholder="Name"
                   />
                 </div>
@@ -595,7 +640,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
             {isSignup && (
               <div>
                 <label className="block text-xs font-bold text-slate-400 mb-1 ml-1 uppercase">
-                  {t('phone')} {activeTab === 'CLIENT' && '(Essential)'}
+                  {t('phone')} {signupRole === 'CLIENT' && '(Essential)'}
                 </label>
                 <div className="relative">
                   <Smartphone className="absolute left-3 top-2.5 w-5 h-5 text-slate-500" />
@@ -609,7 +654,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
                     placeholder="010-0000-0000"
                   />
                 </div>
-                {activeTab === 'CLIENT' && (
+                {signupRole === 'CLIENT' && (
                   <p className="text-[10px] text-slate-500 mt-1 ml-1">
                     {t('phone_desc')}
                   </p>
@@ -696,7 +741,11 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
               <button
                 type="button"
                 onClick={() => {
-                  setIsSignup(!isSignup);
+                  const nextSignupState = !isSignup;
+                  setIsSignup(nextSignupState);
+                  if (nextSignupState) {
+                    setSignupRole(activeTab);
+                  }
                   setError(null);
                 }}
                 className="text-sm text-slate-400 hover:text-indigo-300 underline"
