@@ -13,8 +13,8 @@ const translations: Translations = {
   ko: {
     // Auth
     app_desc: "세상의 모든 코치와 학생을 위한 AI 코치 에이전트 서비스",
-    coach_login: "코치님 로그인",
-    client_login: "회원님 로그인",
+    coach_login: "코치 로그인",
+    client_login: "학생 로그인",
     admin_login: "관리자 로그인",
     email: "이메일",
     password: "비밀번호",
