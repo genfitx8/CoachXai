@@ -14,11 +14,15 @@ const normalizePhoneNumber = (phone: string): string => {
 
   // Normalize +82 mobile format to local 0-prefixed format
   if (digitsOnly.startsWith('82')) {
-    return `0${digitsOnly.slice(2)}`;
+    const localNumber = digitsOnly.slice(2);
+    return localNumber.startsWith('0') ? localNumber : `0${localNumber}`;
   }
 
   return digitsOnly;
 };
+
+const isSamePhoneNumber = (left: string | undefined, right: string): boolean =>
+  normalizePhoneNumber(left ?? '') === normalizePhoneNumber(right);
 
 export const authService = {
   signup: (
@@ -50,7 +54,7 @@ export const authService = {
 
         const normalizedPhone = normalizePhoneNumber(phone);
         if (!normalizedPhone) {
-          reject('모든 필드를 입력해주세요.');
+          reject('올바른 휴대폰 번호를 입력해주세요.');
           return;
         }
 
@@ -73,7 +77,7 @@ export const authService = {
 
         if (
           existingCoaches.some(
-            (c) => normalizePhoneNumber(c.phone ?? '') === normalizedPhone
+            (c) => isSamePhoneNumber(c.phone, normalizedPhone)
           )
         ) {
           reject('이미 가입된 휴대폰 번호입니다.');
@@ -171,7 +175,7 @@ export const authService = {
 
         const normalizedPhone = normalizePhoneNumber(phone);
         if (!normalizedPhone) {
-          reject('모든 필드를 입력해주세요.');
+          reject('올바른 휴대폰 번호를 입력해주세요.');
           return;
         }
 
@@ -191,7 +195,7 @@ export const authService = {
 
         // Check if phone number already exists (could be a legacy user without email)
         const existingByPhone = existingClients.find(
-          (c) => normalizePhoneNumber(c.phone) === normalizedPhone
+          (c) => isSamePhoneNumber(c.phone, normalizedPhone)
         );
 
         let newProfile: ClientProfile;

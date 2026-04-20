@@ -54,6 +54,27 @@ describe('authService signup phone uniqueness', () => {
     ).rejects.toBe('이미 가입된 휴대폰 번호입니다.');
   });
 
+  it('rejects coach signup when phone is entered as +82 010 format', async () => {
+    localStorage.setItem(
+      'swingnote_coach_profile',
+      JSON.stringify({
+        id: 'coach-1',
+        name: '기존코치',
+        email: 'existing@coach.com',
+        phone: '01012345678',
+      })
+    );
+
+    await expect(
+      authService.signupCoach(
+        '새코치',
+        'new2@coach.com',
+        'password123',
+        '+82 010-1234-5678'
+      )
+    ).rejects.toBe('이미 가입된 휴대폰 번호입니다.');
+  });
+
   it('rejects client signup when phone matches an existing account with different format', async () => {
     (storageService.getClients as any).mockReturnValue([
       {
