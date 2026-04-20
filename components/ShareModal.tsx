@@ -26,7 +26,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({ isOpen, clientName, onCl
 
         <div className="p-8">
           <p className="text-gray-600 mb-6 text-center">
-            <span className="font-bold text-gray-900">{clientName}</span> 회원님에게 어떤 내용을 보내시겠습니까?
+            <span className="font-bold text-gray-900">{clientName}</span> 학생에게 어떤 내용을 보내시겠습니까?
           </p>
 
           <div className="grid gap-4">
