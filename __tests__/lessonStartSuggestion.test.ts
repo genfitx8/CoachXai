@@ -5,7 +5,7 @@ import {
   markSkippedToday,
   markRemindLater,
   clearRemindLater,
-  pruneStaleDismisal,
+  pruneStaleDismissal,
   WINDOW_BEFORE_MS,
   WINDOW_AFTER_MS,
 } from '../services/lessonStartSuggestionService';
@@ -157,9 +157,9 @@ describe('markRemindLater / clearRemindLater', () => {
   });
 });
 
-// ─── pruneStaleDismisal ────────────────────────────────────────────────────────
+// ─── pruneStaleDismissal ────────────────────────────────────────────────────────
 
-describe('pruneStaleDismisal', () => {
+describe('pruneStaleDismissal', () => {
   it('removes entries whose date is before today', () => {
     // Store a stale entry for yesterday
     const yesterdayMs = NOW_MS - 24 * 60 * 60 * 1000;
@@ -167,20 +167,20 @@ describe('pruneStaleDismisal', () => {
     // Verify it exists
     expect(localStorage.length).toBe(1);
     // Prune using today's timestamp
-    pruneStaleDismisal(NOW_MS);
+    pruneStaleDismissal(NOW_MS);
     expect(localStorage.length).toBe(0);
   });
 
   it('keeps entries for today', () => {
     markSkippedToday('res-001', NOW_MS);
-    pruneStaleDismisal(NOW_MS);
+    pruneStaleDismissal(NOW_MS);
     expect(localStorage.length).toBe(1);
   });
 
   it('does not touch unrelated localStorage keys', () => {
     store['coach_showMedia'] = 'false';
     markSkippedToday('res-old', NOW_MS - 24 * 60 * 60 * 1000);
-    pruneStaleDismisal(NOW_MS);
+    pruneStaleDismissal(NOW_MS);
     // Only the stale suggestion key should be removed
     expect(store['coach_showMedia']).toBe('false');
     expect(localStorage.length).toBe(1);

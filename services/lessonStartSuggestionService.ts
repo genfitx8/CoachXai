@@ -150,7 +150,7 @@ export function clearRemindLater(
  * Removes all dismissal records whose date is before today (cleanup).
  * Call this once on app start to prevent localStorage from growing.
  */
-export function pruneStaleDismisal(nowMs: number = Date.now()): void {
+export function pruneStaleDismissal(nowMs: number = Date.now()): void {
   const todayStr = localDateStr(new Date(nowMs));
   const keysToRemove: string[] = [];
   for (let i = 0; i < localStorage.length; i++) {

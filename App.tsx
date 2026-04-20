@@ -42,7 +42,7 @@ import {
   findUpcomingLesson,
   markRemindLater,
   markSkippedToday,
-  pruneStaleDismisal,
+  pruneStaleDismissal,
   LessonSuggestion,
 } from './services/lessonStartSuggestionService';
 import { Button } from './components/Button';
@@ -160,7 +160,7 @@ const AppContent: React.FC = () => {
    * Fire-and-forget; errors are caught internally.
    */
   const checkAndShowLessonSuggestion = useCallback((coachId: string) => {
-    pruneStaleDismisal();
+    pruneStaleDismissal();
     reservationService.getCoachReservations(coachId).then((reservations) => {
       const suggestion = findUpcomingLesson(reservations);
       if (suggestion) {
