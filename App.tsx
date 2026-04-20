@@ -1390,7 +1390,7 @@ const AppContent: React.FC = () => {
               className="w-full py-4 text-base shadow-lg shadow-slate-900/40 bg-slate-800 hover:bg-slate-700 justify-center"
               icon={<Sparkles className="w-5 h-5" />}
             >
-              Coachx
+              coachx ai
             </Button>
 
             <Button
