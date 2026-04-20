@@ -1592,6 +1592,10 @@ const AppContent: React.FC = () => {
               setSelectedClientForPackage(client);
               setCoachView('LESSON_PACKAGE');
             }}
+            onViewLessons={(client) => {
+              setSelectedClientFilter(client.name);
+              setCoachView('LESSON_LIST');
+            }}
             onGenerateProgram={(client) => {
               setSelectedClientForTraining(client);
               setCoachView('TRAINING_PROGRAM');
