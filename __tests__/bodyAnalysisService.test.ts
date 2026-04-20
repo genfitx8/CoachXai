@@ -3,6 +3,7 @@ import {
   analyzeStructuralFactors,
   buildSwingAiCoachingResult,
   classifyBodyType,
+  deriveCause,
   inferSwingTypeFromBodyType,
   StandardSwingModel,
 } from '../services/bodyAnalysisService';
@@ -96,5 +97,45 @@ describe('bodyAnalysisService', () => {
     expect(result.problemSummary.join(' ')).toContain('MISS');
     expect(result.problemSummary.join(' ')).toContain('중심축');
     expect(result.personalizedSolution.join(' ')).toContain('실시간 스윙 모션 비교 분석');
+  });
+
+  it('face/path 조합으로 Open face 원인을 도출한다', () => {
+    expect(deriveCause(3, -1, 0)).toEqual({
+      primary: 'Open face',
+      secondary: 'Out-to-in path',
+      biomechanics: 'Over-the-top + late release',
+    });
+  });
+
+  it('face/path 조합으로 Closed face 원인을 도출한다', () => {
+    expect(deriveCause(-3, 1, 0)).toEqual({
+      primary: 'Closed face',
+      secondary: 'In-to-out path',
+      biomechanics: 'Excessive hand rotation',
+    });
+  });
+
+  it('attack 값으로 Steep attack 원인을 도출한다', () => {
+    expect(deriveCause(0, 0, -6)).toEqual({
+      primary: 'Steep attack',
+      secondary: 'Weight back',
+      biomechanics: 'Early upper body drop',
+    });
+  });
+
+  it('attack 값으로 Too upward strike 원인을 도출한다', () => {
+    expect(deriveCause(0, 0, 5)).toEqual({
+      primary: 'Too upward strike',
+      secondary: 'Early extension',
+      biomechanics: 'Loss of posture',
+    });
+  });
+
+  it('조건에 해당하지 않으면 Neutral을 반환한다', () => {
+    expect(deriveCause(1, 0, 0)).toEqual({
+      primary: 'Neutral',
+      secondary: 'Balanced',
+      biomechanics: 'Stable motion',
+    });
   });
 });

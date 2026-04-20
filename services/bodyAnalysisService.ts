@@ -74,6 +74,12 @@ export interface SwingAiCoachingResult extends BodyAnalysisResult {
   personalizedSolution: string[];
 }
 
+export interface SwingCause {
+  primary: string;
+  secondary: string;
+  biomechanics: string;
+}
+
 const bodyTypeToSwingType: Record<BodyType, SwingType> = {
   이상체형: '지렛대형',
   삼각체형: '아크형',
@@ -220,5 +226,45 @@ export function buildSwingAiCoachingResult(params: {
     nearestModelId: nearestModel?.id ?? null,
     problemSummary,
     personalizedSolution,
+  };
+}
+
+export function deriveCause(face: number, path: number, attack: number): SwingCause {
+  if (face > 2 && path < 0) {
+    return {
+      primary: 'Open face',
+      secondary: 'Out-to-in path',
+      biomechanics: 'Over-the-top + late release',
+    };
+  }
+
+  if (face < -2 && path > 0) {
+    return {
+      primary: 'Closed face',
+      secondary: 'In-to-out path',
+      biomechanics: 'Excessive hand rotation',
+    };
+  }
+
+  if (attack < -5) {
+    return {
+      primary: 'Steep attack',
+      secondary: 'Weight back',
+      biomechanics: 'Early upper body drop',
+    };
+  }
+
+  if (attack > 4) {
+    return {
+      primary: 'Too upward strike',
+      secondary: 'Early extension',
+      biomechanics: 'Loss of posture',
+    };
+  }
+
+  return {
+    primary: 'Neutral',
+    secondary: 'Balanced',
+    biomechanics: 'Stable motion',
   };
 }
