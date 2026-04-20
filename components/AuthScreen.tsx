@@ -21,6 +21,7 @@ import {
   AlertCircle,
 } from 'lucide-react';
 import { useLanguage } from './LanguageContext';
+import { AUTH_USER_TYPE_STORAGE_KEY } from '../constants/auth';
 
 interface AuthScreenProps {
   onLoginSuccess: (
@@ -31,8 +32,6 @@ interface AuthScreenProps {
   initialMode?: 'LOGIN' | 'SIGNUP';
 }
 
-const AUTH_USER_TYPE_STORAGE_KEY = 'coachx_auth_selected_user_type';
-
 export const AuthScreen: React.FC<AuthScreenProps> = ({
   onLoginSuccess,
   initialMode = 'LOGIN',
@@ -41,7 +40,9 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
   const [activeTab, setActiveTab] = useState<'COACH' | 'CLIENT'>(() => {
     try {
       const savedTab = localStorage.getItem(AUTH_USER_TYPE_STORAGE_KEY);
-      return savedTab === 'CLIENT' ? 'CLIENT' : 'COACH';
+      return savedTab === 'CLIENT' || savedTab === 'COACH'
+        ? savedTab
+        : 'COACH';
     } catch {
       return 'COACH';
     }
@@ -94,7 +95,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
     try {
       localStorage.setItem(AUTH_USER_TYPE_STORAGE_KEY, tab);
     } catch {
-      // no-op
+      // localStorage가 차단된 환경(예: private mode)에서도 로그인 동작은 계속 가능해야 함
     }
     setIsSignup(false);
     resetForm();
@@ -472,6 +473,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
         <div className="flex border-b border-slate-700">
           <button
             type="button"
+            aria-pressed={activeTab === 'COACH'}
             className={`flex-1 py-4 text-sm font-bold transition-colors duration-200 ${
               activeTab === 'COACH'
                 ? 'text-indigo-200 border-b-2 border-indigo-400 bg-slate-900'
@@ -483,6 +485,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
           </button>
           <button
             type="button"
+            aria-pressed={activeTab === 'CLIENT'}
             className={`flex-1 py-4 text-sm font-bold transition-colors duration-200 ${
               activeTab === 'CLIENT'
                 ? 'text-indigo-200 border-b-2 border-indigo-400 bg-slate-900'

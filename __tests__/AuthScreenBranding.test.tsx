@@ -3,10 +3,9 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { AuthScreen } from '../components/AuthScreen';
 import { LanguageProvider } from '../components/LanguageContext';
+import { AUTH_USER_TYPE_STORAGE_KEY } from '../constants/auth';
 
 describe('AuthScreen branding copy', () => {
-  const AUTH_USER_TYPE_STORAGE_KEY = 'coachx_auth_selected_user_type';
-
   beforeEach(() => {
     localStorage.removeItem(AUTH_USER_TYPE_STORAGE_KEY);
   });
@@ -64,7 +63,7 @@ describe('AuthScreen branding copy', () => {
     const coachTab = screen.getByRole('button', { name: '코치님 로그인' });
     const clientTab = screen.getByRole('button', { name: '회원님 로그인' });
 
-    expect(clientTab.className).toContain('border-indigo-400');
-    expect(coachTab.className).not.toContain('border-indigo-400');
+    expect(clientTab).toHaveAttribute('aria-pressed', 'true');
+    expect(coachTab).toHaveAttribute('aria-pressed', 'false');
   });
 });
