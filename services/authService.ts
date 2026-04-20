@@ -9,6 +9,21 @@ const STORAGE_KEYS = {
   SESSION_BRANCH_ADMIN_DATA: 'swingnote_session_branch_admin_data',
 };
 
+const normalizePhoneNumber = (phone: string): string => {
+  const digitsOnly = phone.replace(/\D/g, '');
+
+  // Normalize +82 mobile format to local 0-prefixed format
+  if (digitsOnly.startsWith('82')) {
+    const localNumber = digitsOnly.slice(2);
+    return localNumber.startsWith('0') ? localNumber : `0${localNumber}`;
+  }
+
+  return digitsOnly;
+};
+
+const isSamePhoneNumber = (left: string | undefined, right: string): boolean =>
+  normalizePhoneNumber(left ?? '') === normalizePhoneNumber(right);
+
 export const authService = {
   signup: (
     role: 'COACH' | 'CLIENT',
@@ -37,23 +52,36 @@ export const authService = {
           return;
         }
 
+        const normalizedPhone = normalizePhoneNumber(phone);
+        if (!normalizedPhone) {
+          reject('올바른 휴대폰 번호를 입력해주세요.');
+          return;
+        }
+
         // Check if already exists - Firebase first, then local
+        const existingCoaches: CoachProfile[] = [];
         if (firebaseService.isInitialized()) {
-          const coaches = await firebaseService.getCoaches();
-          if (coaches.some((c) => c.email === email)) {
-            reject('이미 가입된 이메일입니다.');
-            return;
-          }
+          existingCoaches.push(...(await firebaseService.getCoaches()));
         }
 
         // Check local storage
         const existingData = localStorage.getItem(STORAGE_KEYS.COACH_PROFILE);
         if (existingData) {
-          const profile = JSON.parse(existingData);
-          if (profile.email === email) {
-            reject('이미 가입된 이메일입니다.');
-            return;
-          }
+          existingCoaches.push(JSON.parse(existingData));
+        }
+
+        if (existingCoaches.some((c) => c.email === email)) {
+          reject('이미 가입된 이메일입니다.');
+          return;
+        }
+
+        if (
+          existingCoaches.some(
+            (c) => isSamePhoneNumber(c.phone, normalizedPhone)
+          )
+        ) {
+          reject('이미 가입된 휴대폰 번호입니다.');
+          return;
         }
 
         const newProfile: CoachProfile = {
@@ -145,6 +173,12 @@ export const authService = {
           return;
         }
 
+        const normalizedPhone = normalizePhoneNumber(phone);
+        if (!normalizedPhone) {
+          reject('올바른 휴대폰 번호를 입력해주세요.');
+          return;
+        }
+
         // Get existing clients - Firebase first, then local
         let existingClients: ClientProfile[] = [];
         if (firebaseService.isInitialized()) {
@@ -161,18 +195,26 @@ export const authService = {
 
         // Check if phone number already exists (could be a legacy user without email)
         const existingByPhone = existingClients.find(
-          (c) => c.phone === phone && c.name === name
+          (c) => isSamePhoneNumber(c.phone, normalizedPhone)
         );
 
         let newProfile: ClientProfile;
 
-        if (existingByPhone) {
+        if (
+          existingByPhone &&
+          !existingByPhone.email &&
+          !existingByPhone.password &&
+          existingByPhone.name === name
+        ) {
           // Upgrade existing legacy profile to Full Account
           newProfile = { ...existingByPhone, email, password };
           const updatedList = existingClients.map((c) =>
-            c.phone === phone && c.name === name ? newProfile : c
+            c === existingByPhone ? newProfile : c
           );
           storageService.saveClients(updatedList);
+        } else if (existingByPhone) {
+          reject('이미 가입된 휴대폰 번호입니다.');
+          return;
         } else {
           // Create new profile
           newProfile = {
