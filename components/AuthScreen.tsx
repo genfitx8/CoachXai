@@ -31,12 +31,21 @@ interface AuthScreenProps {
   initialMode?: 'LOGIN' | 'SIGNUP';
 }
 
+const AUTH_USER_TYPE_STORAGE_KEY = 'coachx_auth_selected_user_type';
+
 export const AuthScreen: React.FC<AuthScreenProps> = ({
   onLoginSuccess,
   initialMode = 'LOGIN',
 }) => {
   const { t, language, setLanguage } = useLanguage();
-  const [activeTab, setActiveTab] = useState<'COACH' | 'CLIENT'>('COACH');
+  const [activeTab, setActiveTab] = useState<'COACH' | 'CLIENT'>(() => {
+    try {
+      const savedTab = localStorage.getItem(AUTH_USER_TYPE_STORAGE_KEY);
+      return savedTab === 'CLIENT' ? 'CLIENT' : 'COACH';
+    } catch {
+      return 'COACH';
+    }
+  });
   const [isAdminMode, setIsAdminMode] = useState(false);
   const [isBranchAdminMode, setIsBranchAdminMode] = useState(false);
   const [showLangMenu, setShowLangMenu] = useState(false);
@@ -82,6 +91,11 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
 
   const handleTabChange = (tab: 'COACH' | 'CLIENT') => {
     setActiveTab(tab);
+    try {
+      localStorage.setItem(AUTH_USER_TYPE_STORAGE_KEY, tab);
+    } catch {
+      // no-op
+    }
     setIsSignup(false);
     resetForm();
   };
