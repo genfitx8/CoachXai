@@ -46,6 +46,9 @@ const getLocalISODate = () => {
     return `${year}-${month}-${day}`;
 };
 
+const HIDE_MEMBERSHIP_FEATURES = true;
+const HIDE_RESERVATION_FEATURES = true;
+
 export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons, onLogout, onUpdateLesson, onSaveNewRecord, onDeleteLesson, onUpdateProfile }) => {
   const { t, language, setLanguage } = useLanguage();
   const [view, setView] = useState<ViewState | 'STATS' | 'PROFILE' | 'RESERVATION' | 'BAY_RESERVATION' | 'MY_BAY_RESERVATIONS' | 'POINT_PURCHASE' | 'MEMBERSHIP_PURCHASE' | 'PAYMENT_SUCCESS' | 'MEMBERSHIP_PAYMENT_SUCCESS' | 'PAYMENT_FAIL' | 'RECENT_RECORDS' | 'AI_AGENT' | 'QUICK_LOG' | 'WEEKLY_INSIGHT'>(() => {
@@ -86,22 +89,20 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
   const isProMember = clientProfile.subscriptionPlan === 'PRO' || !!clientProfile.isSubscribed;
   const FREE_RECORD_LIMIT = 5;
   const FREE_AI_DAILY_LIMIT = 1;
-  const hideMembershipFeatures = true;
-  const hideReservationFeatures = true;
 
   const clientId = `${clientProfile.name}_${clientProfile.phone}`.trim();
   const isFirebaseMode = firebaseService.isInitialized();
 
   useEffect(() => {
-    if (hideMembershipFeatures && (view === 'MEMBERSHIP_PURCHASE' || view === 'MEMBERSHIP_PAYMENT_SUCCESS')) {
+    if (HIDE_MEMBERSHIP_FEATURES && (view === 'MEMBERSHIP_PURCHASE' || view === 'MEMBERSHIP_PAYMENT_SUCCESS')) {
       setView('LIST');
       return;
     }
 
-    if (hideReservationFeatures && (view === 'RESERVATION' || view === 'BAY_RESERVATION' || view === 'MY_BAY_RESERVATIONS')) {
+    if (HIDE_RESERVATION_FEATURES && (view === 'RESERVATION' || view === 'BAY_RESERVATION' || view === 'MY_BAY_RESERVATIONS')) {
       setView('LIST');
     }
-  }, [hideMembershipFeatures, hideReservationFeatures, view]);
+  }, [view]);
 
   // Load Homework & AI Check
   useEffect(() => {
@@ -421,7 +422,7 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
                     </div>
                 </div>
 
-                {!hideMembershipFeatures && (
+                {!HIDE_MEMBERSHIP_FEATURES && (
                     <div className={`rounded-2xl border p-4 ${isProMember ? 'bg-gradient-to-r from-indigo-700 to-violet-700 border-indigo-400/40 text-slate-100' : 'bg-slate-900/80 border-slate-700/70 text-slate-100'}`}>
                         <div className="flex items-center justify-between mb-3">
                             <div>
@@ -499,7 +500,7 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
                     <Plus className="w-6 h-6 ml-auto group-hover:rotate-90 transition-transform duration-300" />
                 </button>
 
-                {!hideReservationFeatures && (
+                {!HIDE_RESERVATION_FEATURES && (
                     <div className="bg-slate-900/80 rounded-2xl p-5 shadow-sm border border-slate-700/70">
                         <div className="flex items-center gap-2 mb-4">
                             <div className="w-8 h-8 bg-cyan-400/10 rounded-xl flex items-center justify-center border border-cyan-300/20">
@@ -613,7 +614,7 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
                         </div>
                         <h3 className="font-black text-slate-100 text-base">내 정보</h3>
                     </div>
-                    <div className={`grid gap-2 ${hideMembershipFeatures ? 'grid-cols-2' : 'grid-cols-3'}`}>
+                    <div className={`grid gap-2 ${HIDE_MEMBERSHIP_FEATURES ? 'grid-cols-2' : 'grid-cols-3'}`}>
                         <button
                             onClick={() => { setSelectedLesson(null); setView('PROFILE'); }}
                             className="flex flex-col items-center gap-2 py-4 px-2 bg-slate-950/70 hover:bg-slate-800/80 rounded-xl border border-slate-700/70 transition-colors group"
@@ -623,7 +624,7 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
                             </div>
                             <span className="text-[11px] font-bold text-slate-300 text-center leading-tight">내 정보</span>
                         </button>
-                        {!hideMembershipFeatures && (
+                        {!HIDE_MEMBERSHIP_FEATURES && (
                             <button
                                 onClick={() => { setSelectedLesson(null); setView('MEMBERSHIP_PURCHASE'); }}
                                 className="flex flex-col items-center gap-2 py-4 px-2 bg-slate-950/70 hover:bg-slate-800/80 rounded-xl border border-slate-700/70 transition-colors group"
@@ -839,14 +840,14 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
             />
         )}
 
-        {!hideReservationFeatures && view === 'RESERVATION' && (
+        {!HIDE_RESERVATION_FEATURES && view === 'RESERVATION' && (
             <ClientReservation
                 clientProfile={clientProfile}
                 onBack={handleBackToList}
             />
         )}
 
-        {!hideReservationFeatures && view === 'BAY_RESERVATION' && (
+        {!HIDE_RESERVATION_FEATURES && view === 'BAY_RESERVATION' && (
             <ClientBayReservation
                 clientProfile={clientProfile}
                 onBack={handleBackToList}
@@ -856,7 +857,7 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
             />
         )}
 
-        {!hideReservationFeatures && view === 'MY_BAY_RESERVATIONS' && (
+        {!HIDE_RESERVATION_FEATURES && view === 'MY_BAY_RESERVATIONS' && (
             <MyBayReservations
                 clientProfile={clientProfile}
                 onBack={handleBackToList}
@@ -870,7 +871,7 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
             />
         )}
 
-        {!hideMembershipFeatures && view === 'MEMBERSHIP_PURCHASE' && (
+        {!HIDE_MEMBERSHIP_FEATURES && view === 'MEMBERSHIP_PURCHASE' && (
             <MembershipPurchase
                 clientProfile={clientProfile}
                 onBack={handleBackToList}
@@ -888,7 +889,7 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
             />
         )}
 
-        {!hideMembershipFeatures && view === 'MEMBERSHIP_PAYMENT_SUCCESS' && (
+        {!HIDE_MEMBERSHIP_FEATURES && view === 'MEMBERSHIP_PAYMENT_SUCCESS' && (
             <MembershipPaymentSuccess
                 clientProfile={clientProfile}
                 onBack={handleBackToList}
@@ -903,7 +904,11 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
             <PaymentFail
                 onBack={() => {
                     const purchaseType = new URLSearchParams(window.location.search).get('purchase');
-                    setView(purchaseType === 'membership' && !hideMembershipFeatures ? 'MEMBERSHIP_PURCHASE' : 'POINT_PURCHASE');
+                    if (purchaseType === 'membership') {
+                        setView(HIDE_MEMBERSHIP_FEATURES ? 'LIST' : 'MEMBERSHIP_PURCHASE');
+                        return;
+                    }
+                    setView('POINT_PURCHASE');
                 }}
             />
         )}
