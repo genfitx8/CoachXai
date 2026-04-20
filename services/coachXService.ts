@@ -7,6 +7,13 @@
  */
 
 import { Lesson, ClientProfile, CoachProfile } from '../types';
+import {
+  analyzeSwing,
+  DeterministicSwingAnalysis,
+  SwingMetricsInput,
+  SwingInputValidationError,
+} from '../engine/analysisEngine';
+import { generateCoachingFeedback, CoachXExplanationModel } from '../engine/coachingEngine';
 
 export type CoachXLanguage = 'ko' | 'en' | 'ja' | 'th';
 
@@ -1316,3 +1323,70 @@ export function generateHeuristicResponse(
 
   return DEFAULT_PROMPTS[language];
 }
+
+// ────────────────────────────────────────────────────────────────────────────────
+// CoachX Golf Analysis Engine (deterministic core + optional LLM explanation)
+// ────────────────────────────────────────────────────────────────────────────────
+
+export interface CoachXGolfAnalysisResult {
+  deterministic: DeterministicSwingAnalysis;
+  coachingFeedback: string;
+  llmUsed: boolean;
+}
+
+export interface CoachXGolfAnalysisOptions {
+  language?: 'en' | 'ko' | 'ja' | 'th';
+}
+
+export interface CoachXGolfServiceDependencies {
+  model?: CoachXExplanationModel;
+}
+
+const mapValidationErrorToMessage = (errors: SwingInputValidationError[]): string =>
+  errors.map((error) => `${error.field}: ${error.message}`).join(' ');
+
+export const analyzeCoachXSwing = async (
+  input: SwingMetricsInput,
+  dependencies: CoachXGolfServiceDependencies = {},
+  options: CoachXGolfAnalysisOptions = {}
+): Promise<CoachXGolfAnalysisResult> => {
+  const validationErrors = validateCoachXSwingInput(input);
+  if (validationErrors.length > 0) {
+    throw new Error(`CoachX swing input validation failed. ${mapValidationErrorToMessage(validationErrors)}`);
+  }
+
+  const deterministic = analyzeSwing(input);
+  const coaching = await generateCoachingFeedback({
+    analysis: deterministic,
+    language: options.language ?? 'en',
+    model: dependencies.model,
+  });
+
+  return {
+    deterministic,
+    coachingFeedback: coaching.text,
+    llmUsed: coaching.llmUsed,
+  };
+};
+
+export const validateCoachXSwingInput = (input: SwingMetricsInput): SwingInputValidationError[] => {
+  return [
+    ...(Number.isFinite(input.faceAngle) && input.faceAngle >= -4 && input.faceAngle <= 4
+      ? []
+      : [{ field: 'faceAngle' as const, message: 'faceAngle must be between -4 and 4.' }]),
+    ...(Number.isFinite(input.clubPath) && input.clubPath >= -4 && input.clubPath <= 4
+      ? []
+      : [{ field: 'clubPath' as const, message: 'clubPath must be between -4 and 4.' }]),
+    ...(Number.isFinite(input.attackAngle) && input.attackAngle >= -7 && input.attackAngle <= 7
+      ? []
+      : [{ field: 'attackAngle' as const, message: 'attackAngle must be between -7 and 7.' }]),
+  ];
+};
+
+export const createCoachXGolfService = (dependencies: CoachXGolfServiceDependencies = {}) => {
+  return {
+    analyzeSwing: (input: SwingMetricsInput, options: CoachXGolfAnalysisOptions = {}) =>
+      analyzeCoachXSwing(input, dependencies, options),
+    validateSwingInput: validateCoachXSwingInput,
+  };
+};
