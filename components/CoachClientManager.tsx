@@ -16,9 +16,12 @@ import {
   ClipboardList,
   Dumbbell,
   Sparkles,
+  FileBarChart,
+  AlertCircle,
 } from 'lucide-react';
 import { MemberGrowthReport, MemberTrend } from '../services/coachXService';
 import { useLanguage } from './LanguageContext';
+import { MemberGrowthDetailScreen } from './MemberGrowthDetailScreen';
 
 interface CoachClientManagerProps {
   clients: ClientProfile[];
@@ -55,16 +58,22 @@ export const CoachClientManager: React.FC<CoachClientManagerProps> = ({
   const [editingClient, setEditingClient] = useState<ClientProfile | null>(
     null
   );
+  const [detailReport, setDetailReport] = useState<MemberGrowthReport | null>(null);
 
   // Form State
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [memo, setMemo] = useState('');
 
-  // Student category should show every student profile.
+  const clientKey = (name: string, phone: string) => `${name}_${phone}`;
+
+  // Student category should show only this coach's registered students.
   const visibleClients = useMemo(() => {
-    return [...clients].sort((a, b) => a.name.localeCompare(b.name));
-  }, [clients]);
+    const scopedClients = coachId
+      ? clients.filter((client) => client.coachId === coachId)
+      : clients;
+    return [...scopedClients].sort((a, b) => a.name.localeCompare(b.name));
+  }, [clients, coachId]);
 
   const filteredClients = visibleClients.filter(
     (c) => c.name.includes(searchTerm) || c.phone.includes(searchTerm)
@@ -74,10 +83,29 @@ export const CoachClientManager: React.FC<CoachClientManagerProps> = ({
   const reportByKey = useMemo(() => {
     if (!memberReports) return {} as Record<string, MemberGrowthReport>;
     return memberReports.reduce<Record<string, MemberGrowthReport>>((acc, r) => {
-      acc[`${r.clientName}_${r.clientPhone}`] = r;
+      acc[clientKey(r.clientName, r.clientPhone)] = r;
       return acc;
     }, {});
   }, [memberReports]);
+
+  const filteredMemberReports = useMemo(() => {
+    if (!memberReports) return [];
+    const visibleKeys = new Set(visibleClients.map((client) => clientKey(client.name, client.phone)));
+    return memberReports.filter((report) => visibleKeys.has(clientKey(report.clientName, report.clientPhone)));
+  }, [memberReports, visibleClients]);
+
+  const growthSummary = useMemo(() => {
+    if (filteredMemberReports.length === 0) return null;
+    const avgScore = Math.round(
+      filteredMemberReports.reduce((sum, report) => sum + report.growthScore, 0) / filteredMemberReports.length
+    );
+    const improvingCount = filteredMemberReports.filter((report) => report.trendIndicator === 'improving').length;
+    const attentionMembers = filteredMemberReports
+      .filter((report) => report.trendIndicator === 'plateau' || report.trendIndicator === 'inactive')
+      .map((report) => report.clientName);
+
+    return { avgScore, improvingCount, attentionMembers };
+  }, [filteredMemberReports]);
 
   /** Consistent styling for CoachX trend badges in the client list */
   const trendBadgeClass = (trend: MemberTrend): string => {
@@ -196,6 +224,16 @@ export const CoachClientManager: React.FC<CoachClientManagerProps> = ({
     }
   };
 
+  if (detailReport) {
+    return (
+      <MemberGrowthDetailScreen
+        report={detailReport}
+        onBack={() => setDetailReport(null)}
+        onAskCoachX={(name) => onOpenCoachX?.(name)}
+      />
+    );
+  }
+
   return (
     <div className="space-y-6 animate-fade-in pb-12">
       <div className="flex items-center justify-between">
@@ -225,6 +263,34 @@ export const CoachClientManager: React.FC<CoachClientManagerProps> = ({
         </Button>
       </div>
 
+      {growthSummary && (
+        <div className="bg-gradient-to-r from-slate-700 to-slate-800 rounded-xl p-4 text-white">
+          <p className="text-xs font-semibold text-white/70 uppercase tracking-wide mb-2">
+            {t('coachx_tab_members')}
+          </p>
+          <div className="grid grid-cols-3 gap-3">
+            <div className="text-center">
+              <p className="text-xl font-extrabold">{growthSummary.avgScore}</p>
+              <p className="text-[10px] text-white/70">{t('coachx_members_avg_score')}</p>
+            </div>
+            <div className="text-center">
+              <p className="text-xl font-extrabold text-emerald-300">{growthSummary.improvingCount}</p>
+              <p className="text-[10px] text-white/70">{t('coachx_stat_improving')}</p>
+            </div>
+            <div className="text-center">
+              <p className="text-xl font-extrabold text-amber-300">{growthSummary.attentionMembers.length}</p>
+              <p className="text-[10px] text-white/70">{t('coachx_stat_attention')}</p>
+            </div>
+          </div>
+          {growthSummary.attentionMembers.length > 0 && (
+            <p className="mt-2 text-xs text-white/80 flex items-center gap-1.5">
+              <AlertCircle className="w-3.5 h-3.5 text-amber-300" />
+              {growthSummary.attentionMembers.join(', ')}
+            </p>
+          )}
+        </div>
+      )}
+
       {/* Client List */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {filteredClients.length === 0 ? (
@@ -240,7 +306,7 @@ export const CoachClientManager: React.FC<CoachClientManagerProps> = ({
           </div>
         ) : (
           filteredClients.map((client) => {
-            const reportKey = `${client.name}_${client.phone}`;
+            const reportKey = clientKey(client.name, client.phone);
             const report = reportByKey[reportKey];
             const isMyClient = !!coachId && client.coachId === coachId;
             const assignmentLabel = !client.coachId
@@ -363,14 +429,24 @@ export const CoachClientManager: React.FC<CoachClientManagerProps> = ({
                 </button>
               )}
               {onOpenCoachX && report && isMyClient && (
-                <button
-                  onClick={() => onOpenCoachX(client.name)}
-                  data-testid={`coachx-btn-${client.name}`}
-                  className="mt-2 w-full flex items-center justify-center gap-2 py-2.5 px-3 bg-violet-50 text-violet-700 rounded-xl hover:bg-violet-100 transition-colors text-sm font-semibold"
-                >
-                  <Sparkles className="w-4 h-4" />
-                  {t('coachx_client_ask_coachx')}
-                </button>
+                <>
+                  <button
+                    onClick={() => setDetailReport(report)}
+                    data-testid={`growth-report-btn-${client.name}`}
+                    className="mt-2 w-full flex items-center justify-center gap-2 py-2.5 px-3 bg-slate-50 text-slate-700 rounded-xl hover:bg-slate-100 transition-colors text-sm font-semibold"
+                  >
+                    <FileBarChart className="w-4 h-4" />
+                    {t('coachx_view_full_report')}
+                  </button>
+                  <button
+                    onClick={() => onOpenCoachX(client.name)}
+                    data-testid={`coachx-btn-${client.name}`}
+                    className="mt-2 w-full flex items-center justify-center gap-2 py-2.5 px-3 bg-violet-50 text-violet-700 rounded-xl hover:bg-violet-100 transition-colors text-sm font-semibold"
+                  >
+                    <Sparkles className="w-4 h-4" />
+                    {t('coachx_client_ask_coachx')}
+                  </button>
+                </>
               )}
             </div>
             );
