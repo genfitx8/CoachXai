@@ -52,7 +52,9 @@ describe('ClientApp CoachX premium dark alignment', () => {
     expect(root.className).toContain('text-slate-100');
 
     expect(screen.getByText('김회원님')).toBeInTheDocument();
-    expect(screen.getByText('멤버십 플랜')).toBeInTheDocument();
+    expect(screen.queryByText('멤버십 플랜')).toBeNull();
+    expect(screen.queryByText('PRO 멤버십 바로 결제하기')).toBeNull();
+    expect(screen.getByRole('button', { name: '멤버십 결제' })).toBeInTheDocument();
     expect(screen.queryByText('예약')).toBeNull();
   });
 
