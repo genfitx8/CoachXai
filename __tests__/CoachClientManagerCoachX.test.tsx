@@ -26,6 +26,7 @@ vi.mock('../components/LanguageContext', () => ({
         coachx_trend_inactive: '장기 미레슨',
         coachx_trend_new: '초기 단계',
         coachx_client_ask_coachx: 'Coachx 분석',
+        coachx_stat_lessons: '레슨 기록',
       };
       return map[key] ?? key;
     },
@@ -129,6 +130,19 @@ describe('CoachClientManager – CoachX integration', () => {
     );
     fireEvent.click(screen.getByTestId(`coachx-btn-${CLIENT.name}`));
     expect(onOpenCoachX).toHaveBeenCalledWith(CLIENT.name);
+  });
+
+  it('renders lesson-record button and opens member lesson list when clicked', () => {
+    const onViewLessons = vi.fn();
+    render(
+      <CoachClientManager
+        {...DEFAULT_PROPS}
+        onViewLessons={onViewLessons}
+      />
+    );
+
+    fireEvent.click(screen.getByTestId(`view-lessons-btn-${CLIENT.name}`));
+    expect(onViewLessons).toHaveBeenCalledWith(CLIENT);
   });
 
   it('does not render Ask CoachX button when onOpenCoachX is not provided', () => {

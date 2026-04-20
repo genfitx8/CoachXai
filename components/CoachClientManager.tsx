@@ -18,6 +18,7 @@ import {
   Sparkles,
   FileBarChart,
   AlertCircle,
+  BookOpen,
 } from 'lucide-react';
 import { MemberGrowthReport, MemberTrend } from '../services/coachXService';
 import { useLanguage } from './LanguageContext';
@@ -32,6 +33,8 @@ interface CoachClientManagerProps {
   coachId?: string; // Added: Coach ID for filtering and assignment
   /** Called when coach taps a member's lesson package button. */
   onManagePackages?: (client: ClientProfile) => void;
+  /** Called when coach wants to view a member's lesson records. */
+  onViewLessons?: (client: ClientProfile) => void;
   /** Called when coach wants to generate a training program for a member. */
   onGenerateProgram?: (client: ClientProfile) => void;
   /** CoachX growth reports keyed by clientName_clientPhone – used to show trend badges. */
@@ -48,6 +51,7 @@ export const CoachClientManager: React.FC<CoachClientManagerProps> = ({
   onBack,
   coachId,
   onManagePackages,
+  onViewLessons,
   onGenerateProgram,
   memberReports,
   onOpenCoachX,
@@ -410,10 +414,20 @@ export const CoachClientManager: React.FC<CoachClientManagerProps> = ({
                 )}
               </div>
 
+              {onViewLessons && isMyClient && (
+                <button
+                  onClick={() => onViewLessons(client)}
+                  data-testid={`view-lessons-btn-${client.name}`}
+                  className="mt-3 w-full flex items-center justify-center gap-2 py-2.5 px-3 bg-sky-50 text-sky-700 rounded-xl hover:bg-sky-100 transition-colors text-sm font-semibold"
+                >
+                  <BookOpen className="w-4 h-4" />
+                  {t('coachx_stat_lessons')}
+                </button>
+              )}
               {onManagePackages && isMyClient && (
                 <button
                   onClick={() => onManagePackages(client)}
-                  className="mt-3 w-full flex items-center justify-center gap-2 py-2.5 px-3 bg-indigo-50 text-indigo-700 rounded-xl hover:bg-indigo-100 transition-colors text-sm font-semibold"
+                  className="mt-2 w-full flex items-center justify-center gap-2 py-2.5 px-3 bg-indigo-50 text-indigo-700 rounded-xl hover:bg-indigo-100 transition-colors text-sm font-semibold"
                 >
                   <ClipboardList className="w-4 h-4" />
                   {t('coach_client_package_manage')}
