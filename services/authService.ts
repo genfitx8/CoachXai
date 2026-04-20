@@ -2,8 +2,6 @@ import { CoachProfile, ClientProfile } from '../types';
 import { storageService } from './storage';
 import { firebaseService } from './firebase';
 
-type SocialProvider = 'GOOGLE' | 'APPLE' | 'KAKAO' | 'NAVER';
-
 const STORAGE_KEYS = {
   COACH_PROFILE: 'swingnote_coach_profile', // Database for coach accounts
   SESSION_ROLE: 'swingnote_session_role',
@@ -11,10 +9,19 @@ const STORAGE_KEYS = {
   SESSION_BRANCH_ADMIN_DATA: 'swingnote_session_branch_admin_data',
 };
 
-const buildSocialEmail = (provider: SocialProvider, socialId: string): string =>
-  `${provider.toLowerCase()}_${encodeURIComponent(socialId.trim())}@social.coachx.ai`;
-
 export const authService = {
+  signup: (
+    role: 'COACH' | 'CLIENT',
+    name: string,
+    email: string,
+    password: string,
+    phone: string
+  ): Promise<CoachProfile | ClientProfile> => {
+    return role === 'COACH'
+      ? authService.signupCoach(name, email, password, phone)
+      : authService.signupClient(name, email, password, phone);
+  },
+
   // Coach Authentication
   signupCoach: (
     name: string,
@@ -188,134 +195,6 @@ export const authService = {
         resolve(newProfile);
       }, 500);
     });
-  },
-
-  signupCoachWithSocial: async (
-    name: string,
-    phone: string,
-    provider: SocialProvider,
-    socialId: string
-  ): Promise<CoachProfile> => {
-    if (!name || !phone || !socialId) {
-      throw '이름, 전화번호, 소셜 아이디를 모두 입력해주세요.';
-    }
-
-    const email = buildSocialEmail(provider, socialId);
-    const existingLocalData = localStorage.getItem(STORAGE_KEYS.COACH_PROFILE);
-    const localProfile: CoachProfile | null = existingLocalData
-      ? JSON.parse(existingLocalData)
-      : null;
-
-    if (
-      localProfile &&
-      (localProfile.email === email ||
-        (localProfile.socialProvider === provider &&
-          localProfile.socialId === socialId))
-    ) {
-      return localProfile;
-    }
-
-    if (firebaseService.isInitialized()) {
-      const coaches = await firebaseService.getCoaches();
-      const existingCoach = coaches.find(
-        (coach) =>
-          coach.email === email ||
-          (coach.socialProvider === provider && coach.socialId === socialId)
-      );
-      if (existingCoach) {
-        localStorage.setItem(
-          STORAGE_KEYS.COACH_PROFILE,
-          JSON.stringify(existingCoach)
-        );
-        return existingCoach;
-      }
-    }
-
-    const newProfile: CoachProfile = {
-      id: crypto.randomUUID(),
-      name,
-      email,
-      phone,
-      socialProvider: provider,
-      socialId,
-      isSubscribed: false,
-      subscriptionPlan: 'FREE',
-    };
-
-    if (firebaseService.isInitialized()) {
-      await firebaseService.saveCoach(newProfile);
-    }
-
-    localStorage.setItem(STORAGE_KEYS.COACH_PROFILE, JSON.stringify(newProfile));
-    return newProfile;
-  },
-
-  signupClientWithSocial: async (
-    name: string,
-    phone: string,
-    provider: SocialProvider,
-    socialId: string
-  ): Promise<ClientProfile> => {
-    if (!name || !phone || !socialId) {
-      throw '이름, 전화번호, 소셜 아이디를 모두 입력해주세요.';
-    }
-
-    const email = buildSocialEmail(provider, socialId);
-
-    let existingClients: ClientProfile[] = [];
-    if (firebaseService.isInitialized()) {
-      existingClients = await firebaseService.getClients();
-    } else {
-      existingClients = storageService.getClients();
-    }
-
-    const existingBySocial = existingClients.find(
-      (client) =>
-        client.email === email ||
-        (client.socialProvider === provider && client.socialId === socialId)
-    );
-    if (existingBySocial) {
-      return existingBySocial;
-    }
-
-    const existingByPhone = existingClients.find(
-      (client) => client.phone === phone && client.name === name
-    );
-
-    let profileToReturn: ClientProfile;
-    let clientsToSave = existingClients;
-
-    if (existingByPhone) {
-      profileToReturn = {
-        ...existingByPhone,
-        email,
-        socialProvider: provider,
-        socialId,
-      };
-      clientsToSave = existingClients.map((client) =>
-        client.phone === phone && client.name === name ? profileToReturn : client
-      );
-    } else {
-      profileToReturn = {
-        name,
-        phone,
-        email,
-        socialProvider: provider,
-        socialId,
-        isSubscribed: false,
-        subscriptionPlan: 'FREE',
-        currentPoints: 0,
-      };
-      clientsToSave = [...existingClients, profileToReturn];
-    }
-
-    storageService.saveClients(clientsToSave);
-
-    if (firebaseService.isInitialized()) {
-      await firebaseService.saveClients([profileToReturn]);
-    }
-
-    return profileToReturn;
   },
 
   loginClient: (email: string, password: string): Promise<ClientProfile> => {

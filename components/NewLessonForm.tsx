@@ -74,6 +74,12 @@ interface NewLessonFormProps {
   userRole?: 'COACH' | 'CLIENT'; // Identify who is creating the lesson
   currentUser?: ClientProfile; // Needed if userRole is CLIENT
   initialData?: Lesson; // Added for edit mode
+  /**
+   * When set, the CLIENT_SELECT step is skipped and the form opens directly
+   * at the record-type selection step with this member pre-filled.
+   * Used when the lesson-start suggestion flow triggers the new-lesson form.
+   */
+  prefilledClient?: ClientProfile;
 }
 
 interface PendingMedia {
@@ -189,13 +195,15 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
   userRole = 'COACH',
   currentUser,
   initialData,
+  prefilledClient,
 }) => {
   const { t } = useLanguage();
   // Wizard State: COACH starts at CLIENT_SELECT, CLIENT starts at TYPE_SELECT
+  // When prefilledClient is provided, skip CLIENT_SELECT and jump to TYPE_SELECT
   const [step, setStep] = useState<'CLIENT_SELECT' | 'PACKAGE_SELECT' | 'TYPE_SELECT' | 'FORM'>(
     initialData
       ? 'FORM'
-      : userRole === 'COACH'
+      : userRole === 'COACH' && !prefilledClient
       ? 'CLIENT_SELECT'
       : 'TYPE_SELECT'
   );
@@ -298,6 +306,12 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
     if (userRole === 'CLIENT' && currentUser) {
       setClientName(currentUser.name);
       setClientPhone(currentUser.phone);
+    }
+
+    // Pre-fill client from lesson-start suggestion (coach flow, skipped CLIENT_SELECT)
+    if (userRole === 'COACH' && prefilledClient && !initialData) {
+      setClientName(prefilledClient.name);
+      setClientPhone(prefilledClient.phone);
     }
 
     // Populate from initialData if editing
@@ -1202,7 +1216,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
     return (
       <div className="max-w-md mx-auto bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden animate-fade-in-up">
         {/* Header */}
-        <div className="bg-emerald-800 px-6 py-4 flex justify-between items-center text-white">
+        <div className="bg-slate-700 px-6 py-4 flex justify-between items-center text-white">
           <div className="flex items-center gap-2">
             <button
               onClick={() => setStep('CLIENT_SELECT')}
@@ -1351,7 +1365,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
           </h2>
           <button
             onClick={onCancel}
-            className="text-emerald-100 hover:text-white"
+            className="text-slate-200 hover:text-white"
           >
             <X className="w-6 h-6" />
           </button>

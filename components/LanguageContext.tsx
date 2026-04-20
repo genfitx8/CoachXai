@@ -24,6 +24,9 @@ const translations: Translations = {
     auto_login: "자동 로그인",
     login_btn: "로그인",
     signup_btn: "회원가입",
+    signup_role: "회원 유형",
+    signup_success_coach: "코치 회원가입 완료! 로그인 중...",
+    signup_success_client: "회원가입 완료! 로그인 중...",
     signup_msg: "계정이 없으신가요? 회원가입하기",
     login_msg: "이미 계정이 있으신가요? 로그인하기",
     admin_only: "시스템 관리자 전용 페이지입니다.",
@@ -698,6 +701,15 @@ const translations: Translations = {
     new_lesson_ai_score_desc: "이미지에서 스코어 및 라운드 내용을 분석합니다.",
     new_lesson_ai_shot_analysis: "AI 샷 데이터 분석",
     new_lesson_ai_shot_desc: "GDR/트랙맨 화면에서 샷 데이터를 추출합니다.",
+    // LessonStartPromptModal
+    lesson_start_prompt_title: "레슨 시작",
+    lesson_start_prompt_body: "{clientName} 회원님 레슨을 시작하시겠습니까?",
+    lesson_start_prompt_minutes_before: "{n}분 후 시작",
+    lesson_start_prompt_now: "지금 시작",
+    lesson_start_prompt_minutes_after: "{n}분 경과",
+    lesson_start_prompt_start_btn: "바로 시작",
+    lesson_start_prompt_later_btn: "나중에",
+    lesson_start_prompt_skip_today_btn: "오늘 제외",
   },
   en: {
     // Auth
@@ -713,6 +725,9 @@ const translations: Translations = {
     auto_login: "Auto Login",
     login_btn: "Log In",
     signup_btn: "Sign Up",
+    signup_role: "Account Type",
+    signup_success_coach: "Coach signup complete! Logging in...",
+    signup_success_client: "Signup complete! Logging in...",
     signup_msg: "No account? Sign up",
     login_msg: "Have an account? Log in",
     admin_only: "System Administrator Access Only.",
@@ -1387,6 +1402,15 @@ const translations: Translations = {
     new_lesson_ai_score_desc: "Analyzes scores and round content from images.",
     new_lesson_ai_shot_analysis: "AI Shot Data Analysis",
     new_lesson_ai_shot_desc: "Extracts shot data from GDR/TrackMan screens.",
+    // LessonStartPromptModal
+    lesson_start_prompt_title: "Start Lesson",
+    lesson_start_prompt_body: "Would you like to start {clientName}'s lesson?",
+    lesson_start_prompt_minutes_before: "starts in {n} min",
+    lesson_start_prompt_now: "Starting now",
+    lesson_start_prompt_minutes_after: "{n} min elapsed",
+    lesson_start_prompt_start_btn: "Start Now",
+    lesson_start_prompt_later_btn: "Later",
+    lesson_start_prompt_skip_today_btn: "Skip Today",
   },
   ja: {
     // Auth
@@ -1402,6 +1426,9 @@ const translations: Translations = {
     auto_login: "自動ログイン",
     login_btn: "ログイン",
     signup_btn: "会員登録",
+    signup_role: "アカウント種別",
+    signup_success_coach: "コーチ登録が完了しました。ログイン中…",
+    signup_success_client: "会員登録が完了しました。ログイン中…",
     signup_msg: "アカウントをお持ちでないですか？登録",
     login_msg: "すでにアカウントをお持ちですか？ログイン",
     admin_only: "システム管理者専用ページです。",
@@ -2076,6 +2103,15 @@ const translations: Translations = {
     new_lesson_ai_score_desc: "画像からスコアとラウンド内容を分析します。",
     new_lesson_ai_shot_analysis: "AIショットデータ分析",
     new_lesson_ai_shot_desc: "GDR/トラックマン画面からショットデータを抽出します。",
+    // LessonStartPromptModal
+    lesson_start_prompt_title: "レッスン開始",
+    lesson_start_prompt_body: "{clientName}さんのレッスンを開始しますか？",
+    lesson_start_prompt_minutes_before: "{n}分後に開始",
+    lesson_start_prompt_now: "ただいま開始",
+    lesson_start_prompt_minutes_after: "{n}分経過",
+    lesson_start_prompt_start_btn: "今すぐ開始",
+    lesson_start_prompt_later_btn: "あとで",
+    lesson_start_prompt_skip_today_btn: "今日はスキップ",
   },
   th: {
     // Auth
@@ -2091,6 +2127,9 @@ const translations: Translations = {
     auto_login: "เข้าสู่ระบบอัตโนมัติ",
     login_btn: "เข้าสู่ระบบ",
     signup_btn: "สมัครสมาชิก",
+    signup_role: "ประเภทบัญชี",
+    signup_success_coach: "สมัครโค้ชสำเร็จ กำลังเข้าสู่ระบบ...",
+    signup_success_client: "สมัครสมาชิกสำเร็จ กำลังเข้าสู่ระบบ...",
     signup_msg: "ยังไม่มีบัญชี? สมัครสมาชิก",
     login_msg: "มีบัญชีอยู่แล้ว? เข้าสู่ระบบ",
     admin_only: "สำหรับผู้ดูแลระบบเท่านั้น",
@@ -2765,6 +2804,15 @@ const translations: Translations = {
     new_lesson_ai_score_desc: "วิเคราะห์คะแนนและเนื้อหารอบจากรูปภาพ",
     new_lesson_ai_shot_analysis: "วิเคราะห์ข้อมูลช็อต AI",
     new_lesson_ai_shot_desc: "ดึงข้อมูลช็อตจากหน้าจอ GDR/TrackMan",
+    // LessonStartPromptModal
+    lesson_start_prompt_title: "เริ่มบทเรียน",
+    lesson_start_prompt_body: "ต้องการเริ่มบทเรียนของ {clientName} หรือไม่?",
+    lesson_start_prompt_minutes_before: "เริ่มในอีก {n} นาที",
+    lesson_start_prompt_now: "เริ่มเลย",
+    lesson_start_prompt_minutes_after: "ผ่านมา {n} นาทีแล้ว",
+    lesson_start_prompt_start_btn: "เริ่มเลย",
+    lesson_start_prompt_later_btn: "ทีหลัง",
+    lesson_start_prompt_skip_today_btn: "ข้ามวันนี้",
   }
 };
 
