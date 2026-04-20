@@ -46,6 +46,9 @@ const getLocalISODate = () => {
     return `${year}-${month}-${day}`;
 };
 
+const HIDE_MEMBERSHIP_FEATURES = (import.meta.env.VITE_CLIENT_HIDE_MEMBERSHIP ?? 'true') === 'true';
+const HIDE_RESERVATION_FEATURES = (import.meta.env.VITE_CLIENT_HIDE_RESERVATION ?? 'true') === 'true';
+
 export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons, onLogout, onUpdateLesson, onSaveNewRecord, onDeleteLesson, onUpdateProfile }) => {
   const { t, language, setLanguage } = useLanguage();
   const [view, setView] = useState<ViewState | 'STATS' | 'PROFILE' | 'RESERVATION' | 'BAY_RESERVATION' | 'MY_BAY_RESERVATIONS' | 'POINT_PURCHASE' | 'MEMBERSHIP_PURCHASE' | 'PAYMENT_SUCCESS' | 'MEMBERSHIP_PAYMENT_SUCCESS' | 'PAYMENT_FAIL' | 'RECENT_RECORDS' | 'AI_AGENT' | 'QUICK_LOG' | 'WEEKLY_INSIGHT'>(() => {
@@ -89,6 +92,18 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
 
   const clientId = `${clientProfile.name}_${clientProfile.phone}`.trim();
   const isFirebaseMode = firebaseService.isInitialized();
+
+  const effectiveView = useMemo(() => {
+    if (HIDE_MEMBERSHIP_FEATURES && (view === 'MEMBERSHIP_PURCHASE' || view === 'MEMBERSHIP_PAYMENT_SUCCESS')) {
+      return 'LIST';
+    }
+
+    if (HIDE_RESERVATION_FEATURES && (view === 'RESERVATION' || view === 'BAY_RESERVATION' || view === 'MY_BAY_RESERVATIONS')) {
+      return 'LIST';
+    }
+
+    return view;
+  }, [view]);
 
   // Load Homework & AI Check
   useEffect(() => {
@@ -364,7 +379,7 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
       </header>
 
       <main className="max-w-md mx-auto px-4 py-6 space-y-6">
-        {view === 'LIST' && (
+        {effectiveView === 'LIST' && (
             <div className="space-y-6 animate-fade-in">
                 
                 {/* Lesson Statistics Hero Section */}
@@ -408,52 +423,53 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
                     </div>
                 </div>
 
-                {/* Membership Plan Status */}
-                <div className={`rounded-2xl border p-4 ${isProMember ? 'bg-gradient-to-r from-indigo-700 to-violet-700 border-indigo-400/40 text-slate-100' : 'bg-slate-900/80 border-slate-700/70 text-slate-100'}`}>
-                    <div className="flex items-center justify-between mb-3">
-                        <div>
-                            <p className={`text-xs font-bold ${isProMember ? 'text-indigo-100' : 'text-cyan-300'}`}>멤버십 플랜</p>
-                            <h3 className="text-lg font-black">{isProMember ? '🔵 PRO' : '🟢 FREE'}</h3>
+                {!HIDE_MEMBERSHIP_FEATURES && (
+                    <div className={`rounded-2xl border p-4 ${isProMember ? 'bg-gradient-to-r from-indigo-700 to-violet-700 border-indigo-400/40 text-slate-100' : 'bg-slate-900/80 border-slate-700/70 text-slate-100'}`}>
+                        <div className="flex items-center justify-between mb-3">
+                            <div>
+                                <p className={`text-xs font-bold ${isProMember ? 'text-indigo-100' : 'text-cyan-300'}`}>멤버십 플랜</p>
+                                <h3 className="text-lg font-black">{isProMember ? '🔵 PRO' : '🟢 FREE'}</h3>
+                            </div>
+                            {!isProMember && (
+                                <div className="text-right">
+                                    <p className="text-[11px] text-slate-400">추천 플랜</p>
+                                    <p className="text-sm font-black text-cyan-200">PRO 월 29,000원</p>
+                                </div>
+                            )}
                         </div>
-                        {!isProMember && (
-                            <div className="text-right">
-                                <p className="text-[11px] text-slate-400">추천 플랜</p>
-                                <p className="text-sm font-black text-cyan-200">PRO 월 29,000원</p>
+                        {!isProMember ? (
+                            <>
+                            <button
+                                onClick={() => setView('MEMBERSHIP_PURCHASE')}
+                                className="w-full mb-3 bg-gradient-to-r from-indigo-600 to-violet-600 text-white rounded-xl px-4 py-3 text-sm font-bold shadow-md shadow-indigo-950/30 hover:from-indigo-500 hover:to-violet-500 transition-colors"
+                            >
+                                PRO 멤버십 바로 결제하기
+                            </button>
+                            <div className="grid grid-cols-2 gap-2 text-xs">
+                                <div className="rounded-lg bg-slate-950/70 border border-slate-700 p-2">
+                                    <p className="text-slate-400">기록 한도</p>
+                                    <p className="font-bold text-slate-100">{totalRecordCount}/{FREE_RECORD_LIMIT}개</p>
+                                    <p className="text-[10px] text-cyan-300">남은 {remainingFreeRecords}개</p>
+                                </div>
+                                <div className="rounded-lg bg-slate-950/70 border border-slate-700 p-2">
+                                    <p className="text-slate-400">오늘 AI 분석</p>
+                                    <p className="font-bold text-slate-100">{todayAIUsage}/{FREE_AI_DAILY_LIMIT}회</p>
+                                    <p className="text-[10px] text-cyan-300">남은 {remainingDailyAI}회</p>
+                                </div>
+                                <div className="rounded-lg bg-slate-950/70 border border-slate-700 p-2 text-slate-300">기본 피드백</div>
+                                <div className="rounded-lg bg-indigo-500/10 border border-indigo-300/30 p-2 text-indigo-200 font-semibold">PRO: 성장 그래프 · 훈련 추천</div>
+                            </div>
+                            </>
+                        ) : (
+                            <div className="grid grid-cols-2 gap-2 text-xs">
+                                <div className="rounded-lg bg-white/15 border border-white/20 p-2">기록 무제한</div>
+                                <div className="rounded-lg bg-white/15 border border-white/20 p-2">AI 무제한</div>
+                                <div className="rounded-lg bg-white/15 border border-white/20 p-2">상세 분석</div>
+                                <div className="rounded-lg bg-white/15 border border-white/20 p-2">성장 그래프 · 훈련 추천</div>
                             </div>
                         )}
                     </div>
-                    {!isProMember ? (
-                        <>
-                        <button
-                            onClick={() => setView('MEMBERSHIP_PURCHASE')}
-                            className="w-full mb-3 bg-gradient-to-r from-indigo-600 to-violet-600 text-white rounded-xl px-4 py-3 text-sm font-bold shadow-md shadow-indigo-950/30 hover:from-indigo-500 hover:to-violet-500 transition-colors"
-                        >
-                            PRO 멤버십 바로 결제하기
-                        </button>
-                        <div className="grid grid-cols-2 gap-2 text-xs">
-                            <div className="rounded-lg bg-slate-950/70 border border-slate-700 p-2">
-                                <p className="text-slate-400">기록 한도</p>
-                                <p className="font-bold text-slate-100">{totalRecordCount}/{FREE_RECORD_LIMIT}개</p>
-                                <p className="text-[10px] text-cyan-300">남은 {remainingFreeRecords}개</p>
-                            </div>
-                            <div className="rounded-lg bg-slate-950/70 border border-slate-700 p-2">
-                                <p className="text-slate-400">오늘 AI 분석</p>
-                                <p className="font-bold text-slate-100">{todayAIUsage}/{FREE_AI_DAILY_LIMIT}회</p>
-                                <p className="text-[10px] text-cyan-300">남은 {remainingDailyAI}회</p>
-                            </div>
-                            <div className="rounded-lg bg-slate-950/70 border border-slate-700 p-2 text-slate-300">기본 피드백</div>
-                            <div className="rounded-lg bg-indigo-500/10 border border-indigo-300/30 p-2 text-indigo-200 font-semibold">PRO: 성장 그래프 · 훈련 추천</div>
-                        </div>
-                        </>
-                    ) : (
-                        <div className="grid grid-cols-2 gap-2 text-xs">
-                            <div className="rounded-lg bg-white/15 border border-white/20 p-2">기록 무제한</div>
-                            <div className="rounded-lg bg-white/15 border border-white/20 p-2">AI 무제한</div>
-                            <div className="rounded-lg bg-white/15 border border-white/20 p-2">상세 분석</div>
-                            <div className="rounded-lg bg-white/15 border border-white/20 p-2">성장 그래프 · 훈련 추천</div>
-                        </div>
-                    )}
-                </div>
+                )}
 
                 {/* Lesson Recording Button - Prominent CTA */}
                 <button
@@ -485,44 +501,45 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
                     <Plus className="w-6 h-6 ml-auto group-hover:rotate-90 transition-transform duration-300" />
                 </button>
 
-                {/* ===== 예약 Section ===== */}
-                <div className="bg-slate-900/80 rounded-2xl p-5 shadow-sm border border-slate-700/70">
-                    <div className="flex items-center gap-2 mb-4">
-                        <div className="w-8 h-8 bg-cyan-400/10 rounded-xl flex items-center justify-center border border-cyan-300/20">
-                            <Calendar className="w-4 h-4 text-cyan-300" />
-                        </div>
-                        <h3 className="font-black text-slate-100 text-base">예약</h3>
-                    </div>
-                    <div className="grid grid-cols-3 gap-2">
-                        <button
-                            onClick={() => { setSelectedLesson(null); setView('RESERVATION'); }}
-                            className="flex flex-col items-center gap-2 py-4 px-2 bg-slate-950/70 hover:bg-slate-800/80 rounded-xl border border-slate-700/70 transition-colors group"
-                        >
-                            <div className="w-9 h-9 bg-cyan-400/10 group-hover:bg-cyan-400/20 rounded-xl flex items-center justify-center border border-cyan-300/20 transition-colors">
+                {!HIDE_RESERVATION_FEATURES && (
+                    <div className="bg-slate-900/80 rounded-2xl p-5 shadow-sm border border-slate-700/70">
+                        <div className="flex items-center gap-2 mb-4">
+                            <div className="w-8 h-8 bg-cyan-400/10 rounded-xl flex items-center justify-center border border-cyan-300/20">
                                 <Calendar className="w-4 h-4 text-cyan-300" />
                             </div>
-                            <span className="text-[11px] font-bold text-cyan-200 text-center leading-tight">레슨 예약</span>
-                        </button>
-                        <button
-                            onClick={() => { setSelectedLesson(null); setView('BAY_RESERVATION'); }}
-                            className="flex flex-col items-center gap-2 py-4 px-2 bg-slate-950/70 hover:bg-slate-800/80 rounded-xl border border-slate-700/70 transition-colors group"
-                        >
-                            <div className="w-9 h-9 bg-cyan-400/10 group-hover:bg-cyan-400/20 rounded-xl flex items-center justify-center border border-cyan-300/20 transition-colors">
-                                <Target className="w-4 h-4 text-cyan-300" />
-                            </div>
-                            <span className="text-[11px] font-bold text-cyan-200 text-center leading-tight">타석 예약</span>
-                        </button>
-                        <button
-                            onClick={() => { setSelectedLesson(null); setView('MY_BAY_RESERVATIONS'); }}
-                            className="flex flex-col items-center gap-2 py-4 px-2 bg-slate-950/70 hover:bg-slate-800/80 rounded-xl border border-slate-700/70 transition-colors group"
-                        >
-                            <div className="w-9 h-9 bg-cyan-400/10 group-hover:bg-cyan-400/20 rounded-xl flex items-center justify-center border border-cyan-300/20 transition-colors">
-                                <ClipboardList className="w-4 h-4 text-cyan-300" />
-                            </div>
-                            <span className="text-[11px] font-bold text-cyan-200 text-center leading-tight">예약 내역</span>
-                        </button>
+                            <h3 className="font-black text-slate-100 text-base">예약</h3>
+                        </div>
+                        <div className="grid grid-cols-3 gap-2">
+                            <button
+                                onClick={() => { setSelectedLesson(null); setView('RESERVATION'); }}
+                                className="flex flex-col items-center gap-2 py-4 px-2 bg-slate-950/70 hover:bg-slate-800/80 rounded-xl border border-slate-700/70 transition-colors group"
+                            >
+                                <div className="w-9 h-9 bg-cyan-400/10 group-hover:bg-cyan-400/20 rounded-xl flex items-center justify-center border border-cyan-300/20 transition-colors">
+                                    <Calendar className="w-4 h-4 text-cyan-300" />
+                                </div>
+                                <span className="text-[11px] font-bold text-cyan-200 text-center leading-tight">레슨 예약</span>
+                            </button>
+                            <button
+                                onClick={() => { setSelectedLesson(null); setView('BAY_RESERVATION'); }}
+                                className="flex flex-col items-center gap-2 py-4 px-2 bg-slate-950/70 hover:bg-slate-800/80 rounded-xl border border-slate-700/70 transition-colors group"
+                            >
+                                <div className="w-9 h-9 bg-cyan-400/10 group-hover:bg-cyan-400/20 rounded-xl flex items-center justify-center border border-cyan-300/20 transition-colors">
+                                    <Target className="w-4 h-4 text-cyan-300" />
+                                </div>
+                                <span className="text-[11px] font-bold text-cyan-200 text-center leading-tight">타석 예약</span>
+                            </button>
+                            <button
+                                onClick={() => { setSelectedLesson(null); setView('MY_BAY_RESERVATIONS'); }}
+                                className="flex flex-col items-center gap-2 py-4 px-2 bg-slate-950/70 hover:bg-slate-800/80 rounded-xl border border-slate-700/70 transition-colors group"
+                            >
+                                <div className="w-9 h-9 bg-cyan-400/10 group-hover:bg-cyan-400/20 rounded-xl flex items-center justify-center border border-cyan-300/20 transition-colors">
+                                    <ClipboardList className="w-4 h-4 text-cyan-300" />
+                                </div>
+                                <span className="text-[11px] font-bold text-cyan-200 text-center leading-tight">예약 내역</span>
+                            </button>
+                        </div>
                     </div>
-                </div>
+                )}
 
                 {/* ===== 레슨 Section ===== */}
                 <div className="bg-slate-900/80 rounded-2xl p-5 shadow-sm border border-slate-700/70">
@@ -598,7 +615,7 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
                         </div>
                         <h3 className="font-black text-slate-100 text-base">내 정보</h3>
                     </div>
-                    <div className="grid grid-cols-3 gap-2">
+                    <div className={`grid gap-2 ${HIDE_MEMBERSHIP_FEATURES ? 'grid-cols-2' : 'grid-cols-3'}`}>
                         <button
                             onClick={() => { setSelectedLesson(null); setView('PROFILE'); }}
                             className="flex flex-col items-center gap-2 py-4 px-2 bg-slate-950/70 hover:bg-slate-800/80 rounded-xl border border-slate-700/70 transition-colors group"
@@ -608,15 +625,17 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
                             </div>
                             <span className="text-[11px] font-bold text-slate-300 text-center leading-tight">내 정보</span>
                         </button>
-                        <button
-                            onClick={() => { setSelectedLesson(null); setView('MEMBERSHIP_PURCHASE'); }}
-                            className="flex flex-col items-center gap-2 py-4 px-2 bg-slate-950/70 hover:bg-slate-800/80 rounded-xl border border-slate-700/70 transition-colors group"
-                        >
-                            <div className="w-9 h-9 bg-violet-400/10 group-hover:bg-violet-400/20 rounded-xl flex items-center justify-center border border-violet-300/20 transition-colors">
-                                <Crown className="w-4 h-4 text-violet-300" />
-                            </div>
-                            <span className="text-[11px] font-bold text-violet-200 text-center leading-tight">멤버십 결제</span>
-                        </button>
+                        {!HIDE_MEMBERSHIP_FEATURES && (
+                            <button
+                                onClick={() => { setSelectedLesson(null); setView('MEMBERSHIP_PURCHASE'); }}
+                                className="flex flex-col items-center gap-2 py-4 px-2 bg-slate-950/70 hover:bg-slate-800/80 rounded-xl border border-slate-700/70 transition-colors group"
+                            >
+                                <div className="w-9 h-9 bg-violet-400/10 group-hover:bg-violet-400/20 rounded-xl flex items-center justify-center border border-violet-300/20 transition-colors">
+                                    <Crown className="w-4 h-4 text-violet-300" />
+                                </div>
+                                <span className="text-[11px] font-bold text-violet-200 text-center leading-tight">멤버십 결제</span>
+                            </button>
+                        )}
                         <button
                             onClick={() => { setSelectedLesson(null); setView('POINT_PURCHASE'); }}
                             className="flex flex-col items-center gap-2 py-4 px-2 bg-slate-950/70 hover:bg-slate-800/80 rounded-xl border border-slate-700/70 transition-colors group"
@@ -653,7 +672,7 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
             </div>
         )}
 
-        {view === 'RECENT_RECORDS' && (
+        {effectiveView === 'RECENT_RECORDS' && (
             <div className="space-y-4 animate-fade-in">
                 {/* Header */}
                 <div className="flex items-center gap-3 pb-2">
@@ -759,7 +778,7 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
             </div>
         )}
 
-        {view === 'AI_AGENT' && (
+        {effectiveView === 'AI_AGENT' && (
             <GolfAIAgent
                 clientProfile={clientProfile}
                 allLessons={allLessons}
@@ -770,7 +789,7 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
             />
         )}
 
-        {view === 'QUICK_LOG' && (
+        {effectiveView === 'QUICK_LOG' && (
             <QuickGolfLog
                 clientId={clientId}
                 coachId={clientProfile.coachId}
@@ -779,7 +798,7 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
             />
         )}
 
-        {view === 'WEEKLY_INSIGHT' && (
+        {effectiveView === 'WEEKLY_INSIGHT' && (
             <WeeklyInsightCard
                 clientId={clientId}
                 coachId={clientProfile.coachId}
@@ -791,7 +810,7 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
             />
         )}
 
-        {view === 'DETAIL' && selectedLesson && (
+        {effectiveView === 'DETAIL' && selectedLesson && (
             <LessonDetail 
                 lesson={selectedLesson}
                 role="CLIENT"
@@ -805,14 +824,14 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
             />
         )}
 
-        {view === 'STATS' && (
+        {effectiveView === 'STATS' && (
             <ClientStats 
                 lessons={allMyLessons} 
                 onBack={handleBackToList} 
             />
         )}
 
-        {view === 'PROFILE' && (
+        {effectiveView === 'PROFILE' && (
             <ClientProfileSettings 
                 profile={clientProfile}
                 allLessons={allMyLessons}
@@ -822,14 +841,14 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
             />
         )}
 
-        {view === 'RESERVATION' && (
+        {!HIDE_RESERVATION_FEATURES && effectiveView === 'RESERVATION' && (
             <ClientReservation
                 clientProfile={clientProfile}
                 onBack={handleBackToList}
             />
         )}
 
-        {view === 'BAY_RESERVATION' && (
+        {!HIDE_RESERVATION_FEATURES && effectiveView === 'BAY_RESERVATION' && (
             <ClientBayReservation
                 clientProfile={clientProfile}
                 onBack={handleBackToList}
@@ -839,28 +858,28 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
             />
         )}
 
-        {view === 'MY_BAY_RESERVATIONS' && (
+        {!HIDE_RESERVATION_FEATURES && effectiveView === 'MY_BAY_RESERVATIONS' && (
             <MyBayReservations
                 clientProfile={clientProfile}
                 onBack={handleBackToList}
             />
         )}
 
-        {view === 'POINT_PURCHASE' && (
+        {effectiveView === 'POINT_PURCHASE' && (
             <PointPurchase
                 clientProfile={clientProfile}
                 onBack={handleBackToList}
             />
         )}
 
-        {view === 'MEMBERSHIP_PURCHASE' && (
+        {!HIDE_MEMBERSHIP_FEATURES && effectiveView === 'MEMBERSHIP_PURCHASE' && (
             <MembershipPurchase
                 clientProfile={clientProfile}
                 onBack={handleBackToList}
             />
         )}
 
-        {view === 'PAYMENT_SUCCESS' && (
+        {effectiveView === 'PAYMENT_SUCCESS' && (
             <PaymentSuccess
                 clientProfile={clientProfile}
                 onBack={handleBackToList}
@@ -871,7 +890,7 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
             />
         )}
 
-        {view === 'MEMBERSHIP_PAYMENT_SUCCESS' && (
+        {!HIDE_MEMBERSHIP_FEATURES && effectiveView === 'MEMBERSHIP_PAYMENT_SUCCESS' && (
             <MembershipPaymentSuccess
                 clientProfile={clientProfile}
                 onBack={handleBackToList}
@@ -882,12 +901,21 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
             />
         )}
 
-        {view === 'PAYMENT_FAIL' && (
-            <PaymentFail onBack={() => setView(new URLSearchParams(window.location.search).get('purchase') === 'membership' ? 'MEMBERSHIP_PURCHASE' : 'POINT_PURCHASE')} />
+        {effectiveView === 'PAYMENT_FAIL' && (
+            <PaymentFail
+                onBack={() => {
+                    const purchaseType = new URLSearchParams(window.location.search).get('purchase');
+                    if (purchaseType === 'membership') {
+                        setView(HIDE_MEMBERSHIP_FEATURES ? 'LIST' : 'MEMBERSHIP_PURCHASE');
+                        return;
+                    }
+                    setView('POINT_PURCHASE');
+                }}
+            />
         )}
 
         {/* Floating Add Button */}
-        {(view === 'LIST' || view === 'RECENT_RECORDS') && (
+        {(effectiveView === 'LIST' || effectiveView === 'RECENT_RECORDS') && (
              <button 
                 onClick={() => {
                     if (!isProMember && totalRecordCount >= FREE_RECORD_LIMIT) {
@@ -910,7 +938,7 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
         )}
 
         {/* New Lesson Form (Self Record or Edit) */}
-        {view === 'NEW' && (
+        {effectiveView === 'NEW' && (
             <div className="fixed inset-0 z-50 bg-[#05070A] overflow-y-auto">
                 <NewLessonForm 
                     existingClients={[clientProfile]} // Pass self

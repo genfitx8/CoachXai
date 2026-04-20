@@ -52,14 +52,15 @@ describe('ClientApp CoachX premium dark alignment', () => {
     expect(root.className).toContain('text-slate-100');
 
     expect(screen.getByText('김회원님')).toBeInTheDocument();
-    expect(screen.getByText('멤버십 플랜')).toBeInTheDocument();
+    expect(screen.queryByText('멤버십 플랜')).toBeNull();
+    expect(screen.queryByText('예약')).toBeNull();
   });
 
   it('uses CoachX cool accent styling for member primary actions', () => {
     renderClientApp();
 
     expect(screen.getByText('레슨 기록 시작').closest('button')?.className).toContain('from-indigo-600');
-    expect(screen.getByRole('button', { name: '레슨 예약' }).className).toContain('bg-slate-950/70');
+    expect(screen.queryByRole('button', { name: '레슨 예약' })).toBeNull();
     expect(screen.getByRole('button', { name: '상세 통계' }).className).toContain('bg-slate-950/70');
   });
 });
