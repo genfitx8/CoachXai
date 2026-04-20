@@ -15,11 +15,10 @@ import { PaymentSuccess } from './PaymentSuccess';
 import { PaymentFail } from './PaymentFail';
 import { MembershipPurchase } from './MembershipPurchase';
 import { MembershipPaymentSuccess } from './MembershipPaymentSuccess';
-import { User, LogOut, History, PlayCircle, Plus, BarChart3, Bell, Sparkles, ListChecks, Globe, Calendar, Search, Filter, Eye, EyeOff, ChevronRight, ChevronLeft, TrendingUp, Award, Target, ClipboardList, Crown } from 'lucide-react';
+import { User, LogOut, History, PlayCircle, Plus, BarChart3, Bell, ListChecks, Globe, Calendar, Search, Filter, Eye, EyeOff, ChevronRight, ChevronLeft, TrendingUp, Award, Target, ClipboardList, Crown } from 'lucide-react';
 import { firebaseService } from '../services/firebase';
 import { storageService } from '../services/storage';
 import { pointService } from '../services/pointService';
-import { GolfAIAgent } from './GolfAIAgent';
 import { WeeklyInsightCard } from './WeeklyInsightCard';
 import { NotificationToast } from './NotificationToast';
 import { useLanguage } from './LanguageContext';
@@ -49,7 +48,7 @@ const HIDE_RESERVATION_FEATURES = (import.meta.env.VITE_CLIENT_HIDE_RESERVATION 
 
 export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons, onLogout, onUpdateLesson, onSaveNewRecord, onDeleteLesson, onUpdateProfile }) => {
   const { t, language, setLanguage } = useLanguage();
-  const [view, setView] = useState<ViewState | 'STATS' | 'PROFILE' | 'RESERVATION' | 'BAY_RESERVATION' | 'MY_BAY_RESERVATIONS' | 'POINT_PURCHASE' | 'MEMBERSHIP_PURCHASE' | 'PAYMENT_SUCCESS' | 'MEMBERSHIP_PAYMENT_SUCCESS' | 'PAYMENT_FAIL' | 'RECENT_RECORDS' | 'AI_AGENT' | 'WEEKLY_INSIGHT'>(() => {
+  const [view, setView] = useState<ViewState | 'STATS' | 'PROFILE' | 'RESERVATION' | 'BAY_RESERVATION' | 'MY_BAY_RESERVATIONS' | 'POINT_PURCHASE' | 'MEMBERSHIP_PURCHASE' | 'PAYMENT_SUCCESS' | 'MEMBERSHIP_PAYMENT_SUCCESS' | 'PAYMENT_FAIL' | 'RECENT_RECORDS' | 'WEEKLY_INSIGHT'>(() => {
     const params = new URLSearchParams(window.location.search);
     const purchaseType = params.get('purchase');
     if (params.get('paymentKey') && params.get('orderId')) {
@@ -177,10 +176,6 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
       setHomeworkList(hw.sort((a,b) => b.createdAt - a.createdAt));
       setShowHomeworkModal(false);
       setNotification({ title: "미션 추가 완료", message: "새로운 미션이 등록되었습니다." });
-  };
-
-  const handleMissionSaved = () => {
-      setNotification({ title: 'AI 미션 등록', message: 'AI가 추천한 미션이 등록되었습니다!' });
   };
 
   const todaysHomework = useMemo(() => {
@@ -523,24 +518,6 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
                             </div>
                             <span className="text-[11px] font-bold text-violet-200 text-center leading-tight">주간 인사이트</span>
                         </button>
-                        <button
-                            onClick={() => {
-                                if (!isProMember && todayAIUsage >= FREE_AI_DAILY_LIMIT) {
-                                    setNotification({
-                                        title: 'AI 분석 일일 한도',
-                                        message: '무료 회원은 AI 분석을 하루 1회까지 사용할 수 있어요. PRO로 업그레이드하면 무제한 이용 가능합니다.'
-                                    });
-                                    return;
-                                }
-                                setSelectedLesson(null); setView('AI_AGENT');
-                            }}
-                            className="flex flex-col items-center gap-2 py-4 px-2 bg-slate-950/70 hover:bg-slate-800/80 rounded-xl border border-slate-700/70 transition-colors group"
-                        >
-                            <div className="w-9 h-9 bg-cyan-400/10 group-hover:bg-cyan-400/20 rounded-xl flex items-center justify-center border border-cyan-300/20 transition-colors">
-                                <Sparkles className="w-4 h-4 text-cyan-300" />
-                            </div>
-                            <span className="text-[11px] font-bold text-cyan-200 text-center leading-tight">AI 코치</span>
-                        </button>
                     </div>
                 </div>
 
@@ -704,17 +681,6 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
                     </div>
                 )}
             </div>
-        )}
-
-        {effectiveView === 'AI_AGENT' && (
-            <GolfAIAgent
-                clientProfile={clientProfile}
-                allLessons={allLessons}
-                clientId={clientId}
-                isFirebaseMode={isFirebaseMode}
-                onBack={handleBackToList}
-                onMissionSaved={handleMissionSaved}
-            />
         )}
 
         {effectiveView === 'WEEKLY_INSIGHT' && (
