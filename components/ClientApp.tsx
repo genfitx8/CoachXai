@@ -369,54 +369,6 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
         {effectiveView === 'LIST' && (
             <div className="space-y-6 animate-fade-in">
                 
-                {!HIDE_MEMBERSHIP_FEATURES && (
-                    <div className={`rounded-2xl border p-4 ${isProMember ? 'bg-gradient-to-r from-indigo-700 to-violet-700 border-indigo-400/40 text-slate-100' : 'bg-slate-900/80 border-slate-700/70 text-slate-100'}`}>
-                        <div className="flex items-center justify-between mb-3">
-                            <div>
-                                <p className={`text-xs font-bold ${isProMember ? 'text-indigo-100' : 'text-cyan-300'}`}>멤버십 플랜</p>
-                                <h3 className="text-lg font-black">{isProMember ? '🔵 PRO' : '🟢 FREE'}</h3>
-                            </div>
-                            {!isProMember && (
-                                <div className="text-right">
-                                    <p className="text-[11px] text-slate-400">추천 플랜</p>
-                                    <p className="text-sm font-black text-cyan-200">PRO 월 29,000원</p>
-                                </div>
-                            )}
-                        </div>
-                        {!isProMember ? (
-                            <>
-                            <button
-                                onClick={() => setView('MEMBERSHIP_PURCHASE')}
-                                className="w-full mb-3 bg-gradient-to-r from-indigo-600 to-violet-600 text-white rounded-xl px-4 py-3 text-sm font-bold shadow-md shadow-indigo-950/30 hover:from-indigo-500 hover:to-violet-500 transition-colors"
-                            >
-                                PRO 멤버십 바로 결제하기
-                            </button>
-                            <div className="grid grid-cols-2 gap-2 text-xs">
-                                <div className="rounded-lg bg-slate-950/70 border border-slate-700 p-2">
-                                    <p className="text-slate-400">기록 한도</p>
-                                    <p className="font-bold text-slate-100">{totalRecordCount}/{FREE_RECORD_LIMIT}개</p>
-                                    <p className="text-[10px] text-cyan-300">남은 {remainingFreeRecords}개</p>
-                                </div>
-                                <div className="rounded-lg bg-slate-950/70 border border-slate-700 p-2">
-                                    <p className="text-slate-400">오늘 AI 분석</p>
-                                    <p className="font-bold text-slate-100">{todayAIUsage}/{FREE_AI_DAILY_LIMIT}회</p>
-                                    <p className="text-[10px] text-cyan-300">남은 {remainingDailyAI}회</p>
-                                </div>
-                                <div className="rounded-lg bg-slate-950/70 border border-slate-700 p-2 text-slate-300">기본 피드백</div>
-                                <div className="rounded-lg bg-indigo-500/10 border border-indigo-300/30 p-2 text-indigo-200 font-semibold">PRO: 성장 그래프 · 훈련 추천</div>
-                            </div>
-                            </>
-                        ) : (
-                            <div className="grid grid-cols-2 gap-2 text-xs">
-                                <div className="rounded-lg bg-white/15 border border-white/20 p-2">기록 무제한</div>
-                                <div className="rounded-lg bg-white/15 border border-white/20 p-2">AI 무제한</div>
-                                <div className="rounded-lg bg-white/15 border border-white/20 p-2">상세 분석</div>
-                                <div className="rounded-lg bg-white/15 border border-white/20 p-2">성장 그래프 · 훈련 추천</div>
-                            </div>
-                        )}
-                    </div>
-                )}
-
                 {/* Lesson Recording Button - Prominent CTA */}
                 <button
                     onClick={() => {
