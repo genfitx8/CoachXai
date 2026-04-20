@@ -1280,8 +1280,23 @@ const AppContent: React.FC = () => {
     <div className="min-h-screen bg-gradient-to-b from-[#05070A] via-[#070b12] to-[#0B1220] text-slate-100 flex flex-col font-sans">
       {/* Header */}
       <header className="bg-[#0A0F1A]/95 border-b border-slate-800 shadow-lg shadow-black/30 sticky top-0 z-40 backdrop-blur-xl">
-        <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-end">
-          <div className="flex items-center gap-4">
+        <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
+          {currentUser && 'id' in currentUser && (
+            <div
+              className="flex items-center gap-2 text-sm text-slate-200 hover:bg-slate-800 px-3 py-1.5 rounded-full cursor-pointer transition-colors"
+              onClick={() => setShowProfileModal(true)}
+            >
+              <div className="bg-indigo-500/20 p-1 rounded-full text-indigo-300">
+                <User className="w-4 h-4" />
+              </div>
+              {/* Always visible Coach Name */}
+              <span className="font-bold">
+                {currentUser.name} {t('coach')}
+              </span>
+            </div>
+          )}
+
+          <div className="flex items-center gap-4 ml-auto">
             <button
               onClick={toggleLanguage}
               className="flex items-center gap-1 text-sm font-bold text-slate-300 hover:text-cyan-200 transition-colors bg-slate-900 px-2 py-1.5 rounded-lg border border-slate-700"
@@ -1289,21 +1304,6 @@ const AppContent: React.FC = () => {
               <Globe className="w-4 h-4" />
               {language.toUpperCase()}
             </button>
-
-            {currentUser && 'id' in currentUser && (
-              <div
-                className="flex items-center gap-2 text-sm text-slate-200 hover:bg-slate-800 px-3 py-1.5 rounded-full cursor-pointer transition-colors"
-                onClick={() => setShowProfileModal(true)}
-              >
-                  <div className="bg-indigo-500/20 p-1 rounded-full text-indigo-300">
-                  <User className="w-4 h-4" />
-                </div>
-                {/* Always visible Coach Name */}
-                <span className="font-bold">
-                  {currentUser.name} {t('coach')}
-                </span>
-              </div>
-            )}
             <Button
               variant="ghost"
               onClick={handleLogout}
