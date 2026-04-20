@@ -1594,7 +1594,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
                 ? '예: 00CC 필드 라운딩'
                 : '예: 7번 아이언 스윙 교정'
             }
-            className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-700 focus:border-emerald-700 outline-none transition-all"
+            className="w-full px-4 py-3 border border-gray-300 rounded-xl text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:ring-emerald-700 focus:border-emerald-700 outline-none transition-all"
             required
           />
         </div>
