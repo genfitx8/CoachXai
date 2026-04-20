@@ -55,4 +55,3 @@ export const buildPayappPaymentUrl = ({
   checkoutUrl.searchParams.set('failUrl', failUrl);
   return checkoutUrl.toString();
 };
-

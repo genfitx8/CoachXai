@@ -137,6 +137,12 @@ export const parseWebhookRequest = (body: unknown): ValidationResult<WebhookRequ
 
   const paymentKey = readTrimmedString(body, 'paymentKey');
   const status = readTrimmedString(body, 'status', 64);
-  return { ok: true, data: { orderId, paymentKey: paymentKey ?? undefined, status: status ?? undefined } };
+  return {
+    ok: true,
+    data: {
+      orderId,
+      paymentKey: paymentKey === null ? undefined : paymentKey,
+      status: status === null ? undefined : status,
+    },
+  };
 };
-
