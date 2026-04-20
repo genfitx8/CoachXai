@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   ViewState,
   Lesson,
@@ -29,6 +29,7 @@ import { CoachReservationNotificationModal } from './components/CoachReservation
 import { CoachLessonReservationModal } from './components/CoachLessonReservationModal';
 import { LessonPackageManager } from './components/LessonPackageManager';
 import { TrainingProgramGenerator } from './components/TrainingProgramGenerator';
+import { LessonStartPromptModal } from './components/LessonStartPromptModal';
 import { storageService } from './services/storage';
 import { authService } from './services/authService';
 import { firebaseService } from './services/firebase';
@@ -36,6 +37,14 @@ import {
   getUnreadReservationNotificationsForCoach,
   markNotificationsAsRead,
 } from './services/coachNotificationService';
+import { reservationService } from './services/reservationService';
+import {
+  findUpcomingLesson,
+  markRemindLater,
+  markSkippedToday,
+  pruneStaleDismisal,
+  LessonSuggestion,
+} from './services/lessonStartSuggestionService';
 import { Button } from './components/Button';
 import { CoachXHub } from './components/CoachXHub';
 import { CoachXChat } from './components/CoachXChat';
@@ -124,6 +133,15 @@ const AppContent: React.FC = () => {
     return saved ? JSON.parse(saved) : false; // Default to hidden (false)
   });
 
+  // ── Lesson-start suggestion ─────────────────────────────────────────────────
+  /** Active lesson-start suggestion to show in the prompt modal. */
+  const [lessonSuggestion, setLessonSuggestion] = useState<LessonSuggestion | null>(null);
+  /**
+   * Client pre-filled from the lesson-start suggestion.  Passed to
+   * `NewLessonForm` so the CLIENT_SELECT step is skipped.
+   */
+  const [prefilledSuggestionClient, setPrefilledSuggestionClient] = useState<ClientProfile | null>(null);
+
   // Modals
   const [showHomeworkModal, setShowHomeworkModal] = useState(false);
   const [homeworkTargetClient, setHomeworkTargetClient] = useState<{
@@ -135,6 +153,23 @@ const AppContent: React.FC = () => {
   // Coach reservation-request notification popup
   const [pendingReservationNotifications, setPendingReservationNotifications] = useState<NotificationMessage[]>([]);
   const [showReservationNotificationModal, setShowReservationNotificationModal] = useState(false);
+
+  /**
+   * Check whether there is an upcoming CONFIRMED lesson reservation for the
+   * given coach and show the prompt modal if one is found.
+   * Fire-and-forget; errors are caught internally.
+   */
+  const checkAndShowLessonSuggestion = useCallback((coachId: string) => {
+    pruneStaleDismisal();
+    reservationService.getCoachReservations(coachId).then((reservations) => {
+      const suggestion = findUpcomingLesson(reservations);
+      if (suggestion) {
+        setLessonSuggestion(suggestion);
+      }
+    }).catch((e) => {
+      console.error('[App] Failed to check lesson suggestions:', e);
+    });
+  }, []);
 
   /**
    * Fetch unread reservation-request notifications for a coach and show the
@@ -224,6 +259,7 @@ const AppContent: React.FC = () => {
             setCurrentUser(profile);
             setCoachProfile(profile);
             loadAndShowCoachNotifications(profile.id);
+            checkAndShowLessonSuggestion(profile.id);
           } else {
             // If no profile found, clear session and show login
             console.warn('Coach profile not found, clearing session');
@@ -378,6 +414,7 @@ const AppContent: React.FC = () => {
         await firebaseService.saveCoach(data);
       }
       loadAndShowCoachNotifications(data.id);
+      checkAndShowLessonSuggestion(data.id);
     } else if (role === 'CLIENT') {
       clientIdentity = { name: data.name, phone: data.phone };
       // Ensure client is in our list (for new signups)
@@ -418,6 +455,23 @@ const AppContent: React.FC = () => {
       );
     }
   }, [userRole, lessons, isLoading]);
+
+  // Re-check lesson suggestions when the coach returns to the tab (page focus).
+  useEffect(() => {
+    if (userRole !== 'COACH' || !currentUser || !('id' in currentUser)) return;
+    const coachId = (currentUser as CoachProfile).id;
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        checkAndShowLessonSuggestion(coachId);
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [userRole, currentUser, checkAndShowLessonSuggestion]);
 
   const handleLogout = () => {
     authService.logout();
@@ -1510,8 +1564,10 @@ const AppContent: React.FC = () => {
               }
               setIsEditingLesson(false);
               setSelectedLesson(null);
+              setPrefilledSuggestionClient(null);
             }}
             initialData={isEditingLesson ? selectedLesson ?? undefined : undefined}
+            prefilledClient={prefilledSuggestionClient ?? undefined}
           />
         )}
 
@@ -1708,6 +1764,34 @@ const AppContent: React.FC = () => {
           onClose={() => setShowCoachLessonModal(false)}
           onSaved={() => {
             setShowCoachLessonModal(false);
+          }}
+        />
+      )}
+
+      {/* Lesson-start suggestion prompt */}
+      {lessonSuggestion && (
+        <LessonStartPromptModal
+          suggestion={lessonSuggestion}
+          onStart={(s) => {
+            setLessonSuggestion(null);
+            // Pre-fill the matching client in the new-lesson form
+            const matchedClient = clients.find(
+              (c) =>
+                c.name === s.reservation.clientName &&
+                c.phone === (s.reservation.clientPhone ?? '')
+            ) ?? null;
+            setPrefilledSuggestionClient(matchedClient);
+            setIsEditingLesson(false);
+            setSelectedLesson(null);
+            setCoachView('NEW');
+          }}
+          onRemindLater={(s) => {
+            markRemindLater(s.reservation.id);
+            setLessonSuggestion(null);
+          }}
+          onSkipToday={(s) => {
+            markSkippedToday(s.reservation.id);
+            setLessonSuggestion(null);
           }}
         />
       )}

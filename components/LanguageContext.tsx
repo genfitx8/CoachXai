@@ -698,6 +698,15 @@ const translations: Translations = {
     new_lesson_ai_score_desc: "이미지에서 스코어 및 라운드 내용을 분석합니다.",
     new_lesson_ai_shot_analysis: "AI 샷 데이터 분석",
     new_lesson_ai_shot_desc: "GDR/트랙맨 화면에서 샷 데이터를 추출합니다.",
+    // LessonStartPromptModal
+    lesson_start_prompt_title: "레슨 시작",
+    lesson_start_prompt_body: "{clientName} 회원님 레슨을 시작하시겠습니까?",
+    lesson_start_prompt_minutes_before: "{n}분 후 시작",
+    lesson_start_prompt_now: "지금 시작",
+    lesson_start_prompt_minutes_after: "{n}분 경과",
+    lesson_start_prompt_start_btn: "바로 시작",
+    lesson_start_prompt_later_btn: "나중에",
+    lesson_start_prompt_skip_today_btn: "오늘 제외",
   },
   en: {
     // Auth
@@ -1387,6 +1396,15 @@ const translations: Translations = {
     new_lesson_ai_score_desc: "Analyzes scores and round content from images.",
     new_lesson_ai_shot_analysis: "AI Shot Data Analysis",
     new_lesson_ai_shot_desc: "Extracts shot data from GDR/TrackMan screens.",
+    // LessonStartPromptModal
+    lesson_start_prompt_title: "Start Lesson",
+    lesson_start_prompt_body: "Would you like to start {clientName}'s lesson?",
+    lesson_start_prompt_minutes_before: "starts in {n} min",
+    lesson_start_prompt_now: "Starting now",
+    lesson_start_prompt_minutes_after: "{n} min elapsed",
+    lesson_start_prompt_start_btn: "Start Now",
+    lesson_start_prompt_later_btn: "Later",
+    lesson_start_prompt_skip_today_btn: "Skip Today",
   },
   ja: {
     // Auth
@@ -2076,6 +2094,15 @@ const translations: Translations = {
     new_lesson_ai_score_desc: "画像からスコアとラウンド内容を分析します。",
     new_lesson_ai_shot_analysis: "AIショットデータ分析",
     new_lesson_ai_shot_desc: "GDR/トラックマン画面からショットデータを抽出します。",
+    // LessonStartPromptModal
+    lesson_start_prompt_title: "レッスン開始",
+    lesson_start_prompt_body: "{clientName}さんのレッスンを開始しますか？",
+    lesson_start_prompt_minutes_before: "{n}分後に開始",
+    lesson_start_prompt_now: "ただいま開始",
+    lesson_start_prompt_minutes_after: "{n}分経過",
+    lesson_start_prompt_start_btn: "今すぐ開始",
+    lesson_start_prompt_later_btn: "あとで",
+    lesson_start_prompt_skip_today_btn: "今日はスキップ",
   },
   th: {
     // Auth
@@ -2765,6 +2792,15 @@ const translations: Translations = {
     new_lesson_ai_score_desc: "วิเคราะห์คะแนนและเนื้อหารอบจากรูปภาพ",
     new_lesson_ai_shot_analysis: "วิเคราะห์ข้อมูลช็อต AI",
     new_lesson_ai_shot_desc: "ดึงข้อมูลช็อตจากหน้าจอ GDR/TrackMan",
+    // LessonStartPromptModal
+    lesson_start_prompt_title: "เริ่มบทเรียน",
+    lesson_start_prompt_body: "ต้องการเริ่มบทเรียนของ {clientName} หรือไม่?",
+    lesson_start_prompt_minutes_before: "เริ่มในอีก {n} นาที",
+    lesson_start_prompt_now: "เริ่มเลย",
+    lesson_start_prompt_minutes_after: "ผ่านมา {n} นาทีแล้ว",
+    lesson_start_prompt_start_btn: "เริ่มเลย",
+    lesson_start_prompt_later_btn: "ทีหลัง",
+    lesson_start_prompt_skip_today_btn: "ข้ามวันนี้",
   }
 };
 
