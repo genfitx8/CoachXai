@@ -4,7 +4,7 @@
  * When the coach opens the app the service scans CONFIRMED reservations and
  * checks whether the current time falls inside the "start window" (10 min before
  * the lesson start up to 15 min after).  When a match is found the coach is
- * shown a prompt: "회원님 레슨을 시작하시겠습니까?"
+ * shown a prompt: "학생 레슨을 시작하시겠습니까?"
  *
  * Dismissals are persisted in localStorage so the same reservation is not
  * suggested again within the same calendar day.

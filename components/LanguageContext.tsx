@@ -37,8 +37,8 @@ const translations: Translations = {
     find_email_title: "이메일(ID) 찾기",
     find_pw_title: "비밀번호 찾기",
     find_btn: "찾기",
-    result_email: "회원님의 이메일은 다음과 같습니다:",
-    result_pw: "회원님의 비밀번호는 다음과 같습니다:",
+    result_email: "학생의 이메일은 다음과 같습니다:",
+    result_pw: "학생의 비밀번호는 다음과 같습니다:",
     not_found: "일치하는 정보를 찾을 수 없습니다.",
     // Common
     logout: "로그아웃",
@@ -558,7 +558,7 @@ const translations: Translations = {
     lesson_screen_capture_denied: "화면 캡처 권한이 거부되었습니다.",
     lesson_mic_permission: "마이크 접근 권한이 필요합니다.",
     lesson_media_added: "{count}개의 미디어가 추가되었습니다.",
-    lesson_feedback_request_confirm: "회원님께 피드백 작성을 요청하시겠습니까?",
+    lesson_feedback_request_confirm: "학생에게 피드백 작성을 요청하시겠습니까?",
     lesson_feedback_request_sent: "피드백 요청이 전송되었습니다.",
     lesson_course_name_required: "코스 이름을 입력해주세요.",
     lesson_scorecard_invalid: "모든 홀의 Par와 Score를 올바르게 입력해주세요.",
@@ -706,7 +706,7 @@ const translations: Translations = {
     new_lesson_ai_shot_desc: "GDR/트랙맨 화면에서 샷 데이터를 추출합니다.",
     // LessonStartPromptModal
     lesson_start_prompt_title: "레슨 시작",
-    lesson_start_prompt_body: "{clientName} 회원님 레슨을 시작하시겠습니까?",
+    lesson_start_prompt_body: "{clientName} 학생 레슨을 시작하시겠습니까?",
     lesson_start_prompt_minutes_before: "{n}분 후 시작",
     lesson_start_prompt_now: "지금 시작",
     lesson_start_prompt_minutes_after: "{n}분 경과",
@@ -718,7 +718,7 @@ const translations: Translations = {
     // Auth
     app_desc: "AI coach agent service for every coach and student worldwide",
     coach_login: "Coach Login",
-    client_login: "Member Login",
+    client_login: "Student Login",
     admin_login: "Admin Login",
     email: "Email",
     password: "Password",
