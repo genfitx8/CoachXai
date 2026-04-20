@@ -161,7 +161,7 @@ export const firebaseService = {
   },
 
   isInitialized: (): boolean => {
-    return !!app && !!db && !!storage;
+    return !!app && !!db && !!storage && !!auth;
   },
 
   /**

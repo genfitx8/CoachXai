@@ -312,6 +312,8 @@ export const authService = {
         };
         if (firebaseService.isInitialized()) {
           await firebaseService.saveClients([profile]);
+          // Also persist locally so future local lookups find the profile
+          storageService.saveClients([...clients, profile]);
         } else {
           storageService.saveClients([...clients, profile]);
         }
