@@ -1,4 +1,5 @@
 import { CoachingAction, CoachingPlan, SwingCause } from './types';
+import { FACE_PATH_MISMATCH_THRESHOLD_DEG } from './constants';
 
 const ACTION_MAP: Record<SwingCause['code'], CoachingAction> = {
   OPEN_FACE_AT_IMPACT: {
@@ -33,7 +34,7 @@ const ACTION_MAP: Record<SwingCause['code'], CoachingAction> = {
   },
   FACE_PATH_MISMATCH: {
     title: 'Synchronize face and path',
-    cue: 'Keep face-to-path gap within ±2° at impact checkpoints.',
+    cue: `Keep face-to-path gap within ±${FACE_PATH_MISMATCH_THRESHOLD_DEG}° at impact checkpoints.`,
     drill: 'Start-line gate + curvature window drill (5 sets x 6 balls).',
   },
 };

@@ -1,0 +1,8 @@
+export const FACE_PATH_MISMATCH_THRESHOLD_DEG = 2;
+
+export const MAX_TOP_CAUSES = 3;
+
+export const FACE_SEVERITY_MULTIPLIER = 1.2;
+export const PATH_SEVERITY_MULTIPLIER = 1;
+export const ATTACK_SEVERITY_MULTIPLIER = 0.9;
+export const FACE_PATH_SEVERITY_MULTIPLIER = 1.1;

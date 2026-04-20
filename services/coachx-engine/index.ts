@@ -2,6 +2,7 @@ import { analyzeSwingMetrics } from './analysisEngine';
 import { inferLikelyCauses } from './causeEngine';
 import { buildCoachingPlan } from './coachingEngine';
 import { DeterministicCoachingReport, GeminiCoachingContext, SwingMetricsInput, AnalysisConfig } from './types';
+import { MAX_TOP_CAUSES } from './constants';
 
 export * from './types';
 export { analyzeSwingMetrics } from './analysisEngine';
@@ -27,7 +28,7 @@ export function buildGeminiCoachingContext(
   report: DeterministicCoachingReport
 ): GeminiCoachingContext {
   const topCauses = report.causes
-    .slice(0, 3)
+    .slice(0, MAX_TOP_CAUSES)
     .map((cause, index) => `${index + 1}. ${cause.code}: ${cause.reason} (${cause.evidence})`)
     .join('\n');
 

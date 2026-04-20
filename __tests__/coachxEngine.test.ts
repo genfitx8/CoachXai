@@ -31,8 +31,9 @@ describe('coachx-engine deterministic pipeline', () => {
 
     const causes = inferLikelyCauses(analysis);
 
-    expect(causes[0]?.code).toBe('OPEN_FACE_AT_IMPACT');
+    expect(causes[0]?.code).toBe('FACE_PATH_MISMATCH');
     expect(causes.some((cause) => cause.code === 'FACE_PATH_MISMATCH')).toBe(true);
+    expect(causes.some((cause) => cause.code === 'OPEN_FACE_AT_IMPACT')).toBe(true);
     expect(causes.some((cause) => cause.code === 'STEPPED_DOWN_ATTACK')).toBe(true);
   });
 
