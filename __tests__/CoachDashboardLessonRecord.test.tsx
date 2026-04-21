@@ -129,6 +129,12 @@ describe('Coach dashboard – lesson-first MVP home', () => {
     expect(screen.queryByTestId('coach-client-add-btn')).toBeNull();
   });
 
+  it('does not show training program creation button in Student category', async () => {
+    await renderCoachApp();
+    fireEvent.click(screen.getByTestId('students-entry-btn'));
+    expect(screen.queryByRole('button', { name: /훈련 프로그램 생성|create training program/i })).toBeNull();
+  });
+
   it('moves direct member registration entry into Lesson start flow', async () => {
     await renderCoachApp();
 
