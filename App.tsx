@@ -1393,21 +1393,21 @@ const AppContent: React.FC = () => {
                 </Button>
 
                 <Button
-                  onClick={() => setCoachView('COACHX')}
-                  data-testid="coachx-entry-btn"
-                  className="w-full py-4 text-base rounded-2xl border border-slate-600/70 shadow-lg shadow-slate-900/40 bg-gradient-to-r from-slate-800 to-slate-700 hover:from-slate-700 hover:to-slate-600 justify-center"
-                  icon={<Sparkles className="w-5 h-5" />}
-                >
-                  coachx ai
-                </Button>
-
-                <Button
                   onClick={() => setCoachView('CLIENTS')}
                   data-testid="students-entry-btn"
                   className="w-full py-4 text-base rounded-2xl border border-cyan-500/30 shadow-lg shadow-slate-900/40 bg-gradient-to-r from-slate-900 to-slate-800 hover:from-slate-800 hover:to-slate-700 justify-center"
                   icon={<User className="w-5 h-5" />}
                 >
                   Student
+                </Button>
+
+                <Button
+                  onClick={() => setCoachView('COACHX')}
+                  data-testid="coachx-entry-btn"
+                  className="w-full py-4 text-base rounded-2xl border border-slate-600/70 shadow-lg shadow-slate-900/40 bg-gradient-to-r from-slate-800 to-slate-700 hover:from-slate-700 hover:to-slate-600 justify-center"
+                  icon={<Sparkles className="w-5 h-5" />}
+                >
+                  coachx ai
                 </Button>
               </div>
             </section>
