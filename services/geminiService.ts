@@ -40,12 +40,14 @@ const getBlobFromUrl = async (url: string): Promise<Blob> => {
 };
 
 const LONG_FORM_AUDIO_THRESHOLD_BYTES = 20 * 1024 * 1024; // ~20MB+
+const MAX_FILE_PROCESSING_RETRIES = 20;
+const FILE_PROCESSING_POLL_INTERVAL_MS = 1500;
 
 const wait = (ms: number) =>
   new Promise((resolve) => setTimeout(resolve, ms));
 
 const waitForUploadedFile = async (name: string) => {
-  for (let i = 0; i < 20; i++) {
+  for (let i = 0; i < MAX_FILE_PROCESSING_RETRIES; i++) {
     const file = await ai!.files.get({ name });
     if (file.state === 'ACTIVE' && file.uri) {
       return file;
@@ -53,7 +55,7 @@ const waitForUploadedFile = async (name: string) => {
     if (file.state === 'FAILED') {
       throw new Error('업로드한 오디오 파일 처리에 실패했습니다.');
     }
-    await wait(1500);
+    await wait(FILE_PROCESSING_POLL_INTERVAL_MS);
   }
   throw new Error('오디오 파일 처리 시간이 초과되었습니다.');
 };
