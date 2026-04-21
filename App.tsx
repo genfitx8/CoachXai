@@ -55,6 +55,7 @@ import {
   Filter,
   LogOut,
   User,
+  UserPlus,
   ListChecks,
   X,
   Mail,
@@ -141,6 +142,8 @@ const AppContent: React.FC = () => {
    * `NewLessonForm` so the CLIENT_SELECT step is skipped.
    */
   const [prefilledSuggestionClient, setPrefilledSuggestionClient] = useState<ClientProfile | null>(null);
+  const [autoOpenAddMemberFromLessonStart, setAutoOpenAddMemberFromLessonStart] = useState(false);
+  const [clientsOpenedFromLessonStart, setClientsOpenedFromLessonStart] = useState(false);
 
   // Modals
   const [showHomeworkModal, setShowHomeworkModal] = useState(false);
@@ -1549,27 +1552,45 @@ const AppContent: React.FC = () => {
         )}
 
         {coachView === 'NEW' && (
-          <NewLessonForm
-            existingClients={clients}
-            packages={lessonPackages}
-            lessons={lessons}
-            userRole="COACH"
-            currentUser={currentUser ?? undefined}
-            onSave={handleSaveLesson}
-            onCancel={() => {
-              if (pendingPackageSession) {
-                setPendingPackageSession(null);
-                setCoachView('LESSON_PACKAGE');
-              } else {
-                setCoachView('LIST');
-              }
-              setIsEditingLesson(false);
-              setSelectedLesson(null);
-              setPrefilledSuggestionClient(null);
-            }}
-            initialData={isEditingLesson ? selectedLesson ?? undefined : undefined}
-            prefilledClient={prefilledSuggestionClient ?? undefined}
-          />
+          <>
+            {!isEditingLesson && (
+              <div className="max-w-md mx-auto mb-3 flex justify-end">
+                <Button
+                  onClick={() => {
+                    setClientsOpenedFromLessonStart(true);
+                    setAutoOpenAddMemberFromLessonStart(true);
+                    setCoachView('CLIENTS');
+                  }}
+                  data-testid="lesson-start-direct-register-btn"
+                  className="bg-slate-900 hover:bg-slate-800 text-slate-100 border border-slate-700"
+                  icon={<UserPlus className="w-4 h-4" />}
+                >
+                  {t('coach_client_add_btn')}
+                </Button>
+              </div>
+            )}
+            <NewLessonForm
+              existingClients={clients}
+              packages={lessonPackages}
+              lessons={lessons}
+              userRole="COACH"
+              currentUser={currentUser ?? undefined}
+              onSave={handleSaveLesson}
+              onCancel={() => {
+                if (pendingPackageSession) {
+                  setPendingPackageSession(null);
+                  setCoachView('LESSON_PACKAGE');
+                } else {
+                  setCoachView('LIST');
+                }
+                setIsEditingLesson(false);
+                setSelectedLesson(null);
+                setPrefilledSuggestionClient(null);
+              }}
+              initialData={isEditingLesson ? selectedLesson ?? undefined : undefined}
+              prefilledClient={prefilledSuggestionClient ?? undefined}
+            />
+          </>
         )}
 
         {coachView === 'COMPARE' && (
@@ -1585,7 +1606,18 @@ const AppContent: React.FC = () => {
             onAdd={handleAddClient}
             onUpdate={handleUpdateClientProfile}
             onDelete={handleDeleteClient}
-            onBack={() => setCoachView('LIST')}
+            onBack={() => {
+              if (clientsOpenedFromLessonStart) {
+                setClientsOpenedFromLessonStart(false);
+                setAutoOpenAddMemberFromLessonStart(false);
+                setCoachView('NEW');
+                return;
+              }
+              setCoachView('LIST');
+            }}
+            showAddButton={false}
+            autoOpenAddModal={autoOpenAddMemberFromLessonStart}
+            onAutoOpenAddModalHandled={() => setAutoOpenAddMemberFromLessonStart(false)}
             coachId={
               currentUser && 'id' in currentUser ? currentUser.id : undefined
             }
