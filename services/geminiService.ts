@@ -152,8 +152,8 @@ export const parseBodyPhotoAnalysisResponse = (
 };
 
 /**
- * Analyzes multiple golf lesson assets (videos, images, audio) using Gemini 2.5 Flash.
- * Generates a comprehensive lesson note summarizing coach feedback and visual analysis.
+ * Summarizes multiple golf lesson assets (videos, images, audio) using Gemini 2.5 Flash.
+ * Generates a member-facing lesson summary report from coach feedback and media context.
  */
 export const analyzeSwingVideo = async (
   mediaInputs: AnalysisInput[],
@@ -188,45 +188,39 @@ export const analyzeSwingVideo = async (
         : '알 수 없음(자동 감지)';
 
     const prompt = `
-      당신은 골프 스윙 메커니즘에 정통한 전문 분석 AI입니다.
-      코치가 회원에게 더 나은 레슨을 제공할 수 있도록, 업로드된 자료를 바탕으로 심도 있고 전문적인 **'스윙 분석 리포트'**를 작성해주세요.
+      당신은 코치가 회원에게 전달할 레슨 리포트를 정리해주는 AI입니다.
+      업로드된 자료를 바탕으로, 평가/판정 중심이 아닌 **회원 친화적인 레슨 요약 리포트**를 작성해주세요.
 
-      **분석 자료:**
+      **리포트 참고 자료:**
       - **촬영 앵글**: ${angleText}
       - **오디오 데이터**: 레슨 현장의 대화 및 타구음
       - **비주얼 데이터**: 스윙 영상 및 이미지
-      - **추가 정보**: "${userNotes}"
+      - **추가 메모**: "${userNotes}"
 
-      **분석 지침:**
-      1. **전문성 강화**: 스윙의 기술적 결함과 장점을 골프 역학적 관점에서 구체적으로 분석하세요.
-      2. **문제 해결 중심**: 단순한 현상 나열이 아닌, 문제의 근본 원인(Root Cause)과 해결책을 제시하세요.
-      3. **코칭 지원**: 코치가 회원을 지도할 때 유용한 구체적인 교정법과 드릴을 포함하세요.
-      4. 다음 형식을 준수하여 마크다운으로 출력하세요:
-
-      ---
-      
-      ## 🎯 레슨 핵심 요약 (Voice & Context)
-      (현장 음성과 메모를 바탕으로 파악된 레슨의 주안점 및 현재 상태 요약)
-
-      ## 🔍 스윙 메커니즘 분석 (${
-        swingAngle === 'FRONT'
-          ? '정면'
-          : swingAngle === 'SIDE'
-          ? '측면'
-          : '종합'
-      })
-      - **Setup & Posture**: (어드레스 및 셋업 분석)
-      - **Backswing & Transition**: (백스윙 탑, 전환 동작의 시퀀스 분석)
-      - **Impact & Follow**: (임팩트 순간의 클럽 페이스/경로 및 피니쉬 분석)
-      - **Strength & Weakness**: (잘된 점과 보완이 시급한 점)
-
-      ## 🛠️ 솔루션 및 트레이닝 가이드
-      1. **Technical Fix**: (기술적 교정 방법)
-      2. **Practice Drills**: (구체적인 연습 방법 및 횟수 제안)
+      **작성 원칙:**
+      1. 회원이 바로 이해할 수 있는 쉬운 표현을 사용하세요.
+      2. 분석/진단/평가/판정 느낌의 과한 표현은 피하고, 관찰된 내용 중심으로 정리하세요.
+      3. 코치가 실제로 전달한 교정 포인트와 다음 연습 방향을 구체적으로 담아주세요.
+      4. 정보가 불충분하면 단정하지 말고 "추가 확인이 필요"하다고 부드럽게 표현하세요.
+      5. 아래 형식을 준수해 마크다운으로 출력하세요.
 
       ---
-      
-      *AI 분석을 통해 코치님의 레슨에 깊이를 더해드립니다.*
+
+      ## 📝 오늘의 레슨 요약
+      (오늘 어떤 동작과 흐름을 중심으로 레슨했는지 3~5문장으로 정리)
+
+      ## 🎯 핵심 코칭 포인트
+      - (교정/유지가 필요한 핵심 포인트를 3개 내외로 정리)
+      - (각 항목은 회원이 이해하기 쉬운 문장으로 작성)
+
+      ## ✅ 다음 연습 가이드
+      1. (다음 연습에서 우선순위가 높은 연습 2~3개 제안)
+      2. (연습 시 체크할 기준이나 감각 포인트 제시)
+      3. (무리 없는 빈도/순서 가이드 제시)
+
+      ---
+
+      *회원에게 바로 공유할 수 있는 톤으로 정리해주세요.*
     `;
 
     const response = await ai.models.generateContent({
@@ -242,10 +236,10 @@ export const analyzeSwingVideo = async (
     if (response.text) {
       return response.text;
     } else {
-      throw new Error('분석 결과를 생성하지 못했습니다.');
+      throw new Error('레슨 요약을 생성하지 못했습니다.');
     }
   } catch (error) {
-    console.error('Gemini Analysis Error:', error);
+    console.error('Gemini Lesson Summary Error:', error);
     throw error;
   }
 };
