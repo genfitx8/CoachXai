@@ -109,7 +109,7 @@ describe('Coach dashboard – lesson-first MVP home', () => {
     expect(screen.getByRole('button', { name: 'Lesson start' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'coachx ai' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Student' })).toBeInTheDocument();
-    expect(studentsEntryButton.compareDocumentPosition(coachxEntryButton) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0);
+    expect(studentsEntryButton.compareDocumentPosition(coachxEntryButton) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(screen.queryByTestId('lesson-records-entry-btn')).toBeNull();
     expect(screen.queryByTestId('coachx-attention-card')).toBeNull();
   });
