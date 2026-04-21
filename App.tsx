@@ -1373,68 +1373,75 @@ const AppContent: React.FC = () => {
       </header>
 
 
-      <main className="flex-1 max-w-7xl mx-auto w-full px-4 py-6">
+      <main className="flex-1 max-w-7xl mx-auto w-full px-4 py-6 md:py-8">
         {coachView === 'LIST' && (
           <div className="space-y-6 animate-fade-in">
+            <section className="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-4 md:p-5 shadow-xl shadow-black/20">
+              <div className="mb-4">
+                <p className="text-[11px] uppercase tracking-[0.16em] text-indigo-300/80 font-semibold">Coach workspace</p>
+                <h2 className="text-xl font-bold text-slate-50">빠른 실행</h2>
+              </div>
 
-            {/* ── Home actions ─────────────────────────────────────────────── */}
-            <Button
-              onClick={() => setCoachView('NEW')}
-              data-testid="start-lesson-btn"
-              className="w-full py-4 text-base shadow-lg shadow-indigo-900/40 bg-indigo-600 hover:bg-indigo-500 justify-center"
-              icon={<Play className="w-5 h-5 fill-current" />}
-            >
-              Lesson start
-            </Button>
+              {/* ── Home actions ─────────────────────────────────────────────── */}
+              <div className="space-y-3">
+                <Button
+                  onClick={() => setCoachView('NEW')}
+                  data-testid="start-lesson-btn"
+                  className="w-full py-4 text-base rounded-2xl border border-indigo-500/40 shadow-lg shadow-indigo-900/30 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 justify-center"
+                  icon={<Play className="w-5 h-5 fill-current" />}
+                >
+                  Lesson start
+                </Button>
 
-            <Button
-              onClick={() => setCoachView('COACHX')}
-              data-testid="coachx-entry-btn"
-              className="w-full py-4 text-base shadow-lg shadow-slate-900/40 bg-slate-800 hover:bg-slate-700 justify-center"
-              icon={<Sparkles className="w-5 h-5" />}
-            >
-              coachx ai
-            </Button>
+                <Button
+                  onClick={() => setCoachView('COACHX')}
+                  data-testid="coachx-entry-btn"
+                  className="w-full py-4 text-base rounded-2xl border border-slate-600/70 shadow-lg shadow-slate-900/40 bg-gradient-to-r from-slate-800 to-slate-700 hover:from-slate-700 hover:to-slate-600 justify-center"
+                  icon={<Sparkles className="w-5 h-5" />}
+                >
+                  coachx ai
+                </Button>
 
-            <Button
-              onClick={() => setCoachView('CLIENTS')}
-              data-testid="students-entry-btn"
-              className="w-full py-4 text-base shadow-lg shadow-slate-900/40 bg-slate-900 hover:bg-slate-800 justify-center"
-              icon={<User className="w-5 h-5" />}
-            >
-              Student
-            </Button>
-
+                <Button
+                  onClick={() => setCoachView('CLIENTS')}
+                  data-testid="students-entry-btn"
+                  className="w-full py-4 text-base rounded-2xl border border-cyan-500/30 shadow-lg shadow-slate-900/40 bg-gradient-to-r from-slate-900 to-slate-800 hover:from-slate-800 hover:to-slate-700 justify-center"
+                  icon={<User className="w-5 h-5" />}
+                >
+                  Student
+                </Button>
+              </div>
+            </section>
           </div>
         )}
 
         {coachView === 'LESSON_LIST' && (
           <div className="space-y-6 animate-fade-in">
             {/* Back to Dashboard */}
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => setCoachView('LIST')}
-                className="flex items-center gap-2 text-sm font-medium text-slate-400 hover:text-slate-100 transition-colors px-3 py-2 rounded-lg hover:bg-slate-800"
-              >
-                <X className="w-4 h-4" />
-                대시보드로 돌아가기
-              </button>
-              <h2 className="text-xl font-bold text-slate-100 flex items-center gap-2">
-                <BookOpen className="w-5 h-5 text-indigo-300" />
-                레슨 기록
-              </h2>
-            </div>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => setCoachView('LIST')}
+                  className="flex items-center gap-2 text-sm font-medium text-slate-300 hover:text-slate-100 transition-colors px-3 py-2 rounded-xl hover:bg-slate-800/80 border border-transparent hover:border-slate-700"
+                >
+                  <X className="w-4 h-4" />
+                  대시보드로 돌아가기
+                </button>
+                <h2 className="text-xl font-bold text-slate-100 flex items-center gap-2 tracking-tight">
+                  <BookOpen className="w-5 h-5 text-indigo-300" />
+                  레슨 기록
+                </h2>
+              </div>
 
             {/* Client Filter Section */}
             {userRole === 'COACH' && clients.length > 0 && (
-              <div className="bg-slate-900/70 rounded-xl shadow-sm border border-slate-800 p-4">
+              <div className="bg-slate-900/70 rounded-2xl shadow-sm border border-slate-800/80 p-4">
                 <div className="flex items-center gap-3">
                   <User className="w-5 h-5 text-indigo-300" />
                   <div className="flex-1">
                     <select
                       value={selectedClientFilter}
                       onChange={(e) => setSelectedClientFilter(e.target.value)}
-                      className="w-full px-4 py-2 border border-slate-700 bg-slate-900 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none font-medium text-slate-200"
+                      className="w-full px-4 py-2.5 border border-slate-700 bg-slate-900 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-medium text-slate-200"
                     >
                       <option value="">전체 회원 보기</option>
                       {clients
@@ -1452,7 +1459,7 @@ const AppContent: React.FC = () => {
                   {selectedClientFilter && (
                     <button
                       onClick={() => setCoachView('CLIENT_STATS')}
-                       className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-500 transition-colors flex items-center gap-2 font-medium"
+                        className="px-4 py-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-500 transition-colors flex items-center gap-2 font-medium shadow-md shadow-indigo-900/40"
                     >
                       <BarChart3 className="w-4 h-4" />
                       통계 보기
@@ -1462,7 +1469,7 @@ const AppContent: React.FC = () => {
                   {selectedClientFilter && (
                     <button
                       onClick={() => setSelectedClientFilter('')}
-                      className="text-sm text-slate-400 hover:text-red-400 flex items-center gap-1 px-3 py-1 rounded-lg hover:bg-red-500/10 transition-colors"
+                      className="text-sm text-slate-400 hover:text-red-400 flex items-center gap-1 px-3 py-1.5 rounded-xl hover:bg-red-500/10 transition-colors"
                     >
                       <X className="w-4 h-4" />
                       초기화
@@ -1478,7 +1485,7 @@ const AppContent: React.FC = () => {
             )}
 
             {/* Media Toggle Section */}
-            <div className="bg-slate-900/70 rounded-xl shadow-sm border border-slate-800 p-4">
+            <div className="bg-slate-900/70 rounded-2xl shadow-sm border border-slate-800/80 p-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Filter className="w-5 h-5 text-indigo-300" />
@@ -1486,13 +1493,13 @@ const AppContent: React.FC = () => {
                 </div>
                 <button
                   onClick={toggleShowMedia}
-                  className={`p-2 rounded-lg transition-colors ${
-                    showMedia
-                      ? 'bg-indigo-500/20 text-indigo-200'
-                      : 'bg-slate-800 text-slate-400'
-                  }`}
-                  title={showMedia ? '미디어 숨기기' : '미디어 표시'}
-                >
+                    className={`p-2.5 rounded-xl transition-colors ${
+                      showMedia
+                        ? 'bg-indigo-500/20 text-indigo-200'
+                        : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
+                    }`}
+                    title={showMedia ? '미디어 숨기기' : '미디어 표시'}
+                  >
                   {showMedia ? <Eye className="w-5 h-5" /> : <EyeOff className="w-5 h-5" />}
                 </button>
               </div>
@@ -1500,7 +1507,7 @@ const AppContent: React.FC = () => {
 
             {/* Lesson Grid */}
             {filteredLessons.length === 0 ? (
-              <div className="text-center py-20 bg-slate-900/70 rounded-2xl border border-dashed border-slate-700">
+                <div className="text-center py-20 bg-slate-900/70 rounded-2xl border border-dashed border-slate-700/90">
                 <div className="w-16 h-16 bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4">
                   <Filter className="w-8 h-8 text-slate-500" />
                 </div>
