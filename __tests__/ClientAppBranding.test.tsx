@@ -69,9 +69,10 @@ describe('ClientApp CoachX premium dark alignment', () => {
   it('organizes my info actions into golf profile and club sections', () => {
     renderClientApp();
 
-    expect(screen.getByText('골프 프로필')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: '골프 프로필' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '골프프로필' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '신체분석' })).toBeInTheDocument();
-    expect(screen.getAllByText('내 클럽')).toHaveLength(2);
+    expect(screen.getByRole('heading', { name: '내 클럽' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '내 클럽' })).toBeInTheDocument();
   });
 });
