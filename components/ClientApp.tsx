@@ -511,44 +511,6 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
                             )}
                         </div>
 
-                        <div className="space-y-2">
-                            <h4 className="text-xs font-bold text-emerald-200">골프 프로필</h4>
-                            <div className="grid gap-2 grid-cols-2">
-                                <button
-                                    onClick={() => openProfileSection('GOLF_PROFILE')}
-                                    className="flex flex-col items-center gap-2 py-4 px-2 bg-slate-950/70 hover:bg-slate-800/80 rounded-xl border border-slate-700/70 transition-colors group"
-                                >
-                                    <div className="w-9 h-9 bg-emerald-500/10 group-hover:bg-emerald-500/20 rounded-xl flex items-center justify-center border border-emerald-300/20 transition-colors">
-                                        <Award className="w-4 h-4 text-emerald-300" />
-                                    </div>
-                                    <span className="text-[11px] font-bold text-emerald-200 text-center leading-tight">골프프로필</span>
-                                </button>
-                                <button
-                                    onClick={() => openProfileSection('BODY_ANALYSIS')}
-                                    className="flex flex-col items-center gap-2 py-4 px-2 bg-slate-950/70 hover:bg-slate-800/80 rounded-xl border border-slate-700/70 transition-colors group"
-                                >
-                                    <div className="w-9 h-9 bg-amber-500/10 group-hover:bg-amber-500/20 rounded-xl flex items-center justify-center border border-amber-300/20 transition-colors">
-                                        <ScanLine className="w-4 h-4 text-amber-300" />
-                                    </div>
-                                    <span className="text-[11px] font-bold text-amber-200 text-center leading-tight">신체분석</span>
-                                </button>
-                            </div>
-                        </div>
-
-                        <div className="space-y-2">
-                            <h4 className="text-xs font-bold text-indigo-200">내 클럽</h4>
-                            <div className="grid gap-2 grid-cols-2">
-                                <button
-                                    onClick={() => openProfileSection('CLUB_BAG')}
-                                    className="flex flex-col items-center gap-2 py-4 px-2 bg-slate-950/70 hover:bg-slate-800/80 rounded-xl border border-slate-700/70 transition-colors group"
-                                >
-                                    <div className="w-9 h-9 bg-indigo-500/10 group-hover:bg-indigo-500/20 rounded-xl flex items-center justify-center border border-indigo-300/20 transition-colors">
-                                        <Briefcase className="w-4 h-4 text-indigo-300" />
-                                    </div>
-                                    <span className="text-[11px] font-bold text-indigo-200 text-center leading-tight">내 클럽</span>
-                                </button>
-                            </div>
-                        </div>
                     </div>
                 </div>
 

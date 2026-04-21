@@ -68,13 +68,13 @@ describe('ClientApp CoachX premium dark alignment', () => {
     expect(screen.getByRole('button', { name: '상세 통계' }).className).toContain('bg-slate-950/70');
   });
 
-  it('organizes my info actions into golf profile and club sections', () => {
+  it('does not render golf profile and club sections in my info', () => {
     renderClientApp();
 
-    expect(screen.getByRole('heading', { name: '골프 프로필' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: '골프프로필' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: '신체분석' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: '내 클럽' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: '내 클럽' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: '골프 프로필' })).toBeNull();
+    expect(screen.queryByRole('button', { name: '골프프로필' })).toBeNull();
+    expect(screen.queryByRole('button', { name: '신체분석' })).toBeNull();
+    expect(screen.queryByRole('heading', { name: '내 클럽' })).toBeNull();
+    expect(screen.queryByRole('button', { name: '내 클럽' })).toBeNull();
   });
 });
