@@ -234,24 +234,28 @@ export const CoachLessonReservationModal: React.FC<CoachLessonReservationModalPr
     onClose();
   };
 
+  const fieldClass =
+    'w-full px-3 py-2.5 border border-slate-700 rounded-xl text-sm bg-slate-900 text-slate-100 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none';
+  const sectionTitleClass = 'text-sm font-semibold text-slate-200 mb-2';
+
   // ── Render ─────────────────────────────────────────────────────────────────
 
   if (successMsg) {
     return (
       <>
         <div
-          className="fixed inset-0 bg-black bg-opacity-50 z-40"
+          className="fixed inset-0 bg-black/70 z-40"
           onClick={handleDone}
         />
         <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl max-w-sm w-full p-6 text-center">
-            <div className="mb-4 text-green-600">
+          <div className="bg-slate-900 text-slate-100 border border-slate-700/80 rounded-2xl shadow-2xl max-w-sm w-full p-6 text-center">
+            <div className="mb-4 text-emerald-400">
               <svg className="w-12 h-12 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
               </svg>
             </div>
-            <p className="text-gray-800 whitespace-pre-line mb-6">{successMsg}</p>
-            <Button onClick={handleDone} className="w-full">확인</Button>
+            <p className="text-slate-200 whitespace-pre-line mb-6">{successMsg}</p>
+            <Button onClick={handleDone} className="w-full bg-indigo-600 hover:bg-indigo-500">확인</Button>
           </div>
         </div>
       </>
@@ -262,19 +266,19 @@ export const CoachLessonReservationModal: React.FC<CoachLessonReservationModalPr
     <>
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-black bg-opacity-50 z-40"
+        className="fixed inset-0 bg-black/70 z-40"
         onClick={onClose}
       />
 
       {/* Modal */}
       <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
-        <div className="bg-white rounded-xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+        <div className="bg-slate-900 text-slate-100 rounded-2xl shadow-2xl border border-slate-700/80 max-w-lg w-full max-h-[90vh] overflow-y-auto">
           {/* Header */}
-          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 sticky top-0 bg-white z-10">
-            <h2 className="text-lg font-semibold text-gray-900">회원 레슨 예약 등록</h2>
+          <div className="flex items-center justify-between px-6 py-4 border-b border-slate-700 sticky top-0 bg-slate-900/95 backdrop-blur z-10">
+            <h2 className="text-lg font-semibold text-slate-100">회원 레슨 예약 등록</h2>
             <button
               onClick={onClose}
-              className="text-gray-400 hover:text-gray-600 transition-colors"
+              className="text-slate-400 hover:text-slate-200 transition-colors"
               aria-label="닫기"
             >
               <X size={22} />
@@ -284,20 +288,20 @@ export const CoachLessonReservationModal: React.FC<CoachLessonReservationModalPr
           <div className="px-6 py-5 space-y-6">
             {/* ── Member search ── */}
             <section>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                <User size={14} className="inline mr-1 text-gray-500" />
+              <label className="block text-sm font-medium text-slate-200 mb-1.5">
+                <User size={14} className="inline mr-1 text-slate-400" />
                 회원 검색 <span className="text-red-500">*</span>
               </label>
 
               {selectedMember ? (
-                <div className="flex items-center justify-between bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
+                <div className="flex items-center justify-between bg-indigo-500/10 border border-indigo-500/30 rounded-xl px-3 py-2">
                   <div>
-                    <p className="font-medium text-blue-900">{selectedMember.name}</p>
-                    <p className="text-xs text-blue-600">{selectedMember.phone}</p>
+                    <p className="font-medium text-indigo-200">{selectedMember.name}</p>
+                    <p className="text-xs text-indigo-300">{selectedMember.phone}</p>
                   </div>
                   <button
                     onClick={() => setSelectedMember(null)}
-                    className="text-blue-400 hover:text-blue-700 transition-colors ml-2"
+                    className="text-indigo-300 hover:text-indigo-100 transition-colors ml-2"
                     aria-label="회원 선택 취소"
                   >
                     <X size={16} />
@@ -306,7 +310,7 @@ export const CoachLessonReservationModal: React.FC<CoachLessonReservationModalPr
               ) : (
                 <div className="relative">
                   <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
-                    <Search size={16} className="text-gray-400" />
+                    <Search size={16} className="text-slate-500" />
                   </div>
                   <input
                     ref={searchRef}
@@ -314,30 +318,30 @@ export const CoachLessonReservationModal: React.FC<CoachLessonReservationModalPr
                     value={memberQuery}
                     onChange={(e) => setMemberQuery(e.target.value)}
                     placeholder="이름 또는 전화번호로 검색"
-                    className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className={`${fieldClass} pl-9`}
                   />
                   {searchLoading && (
                     <div className="absolute inset-y-0 right-3 flex items-center">
-                      <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                      <div className="w-4 h-4 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin" />
                     </div>
                   )}
                   {memberResults.length > 0 && (
-                    <ul className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                    <ul className="absolute z-20 mt-1 w-full bg-slate-900 border border-slate-700 rounded-xl shadow-lg max-h-48 overflow-y-auto">
                       {memberResults.map((m) => (
                         <li key={`${m.name}_${m.phone}`}>
                           <button
-                            className="w-full text-left px-4 py-2.5 hover:bg-blue-50 transition-colors flex items-center justify-between"
+                            className="w-full text-left px-4 py-2.5 hover:bg-slate-800 transition-colors flex items-center justify-between"
                             onClick={() => handleSelectMember(m)}
                           >
-                            <span className="font-medium text-gray-900">{m.name}</span>
-                            <span className="text-xs text-gray-500 ml-2">{m.phone}</span>
+                            <span className="font-medium text-slate-100">{m.name}</span>
+                            <span className="text-xs text-slate-400 ml-2">{m.phone}</span>
                           </button>
                         </li>
                       ))}
                     </ul>
                   )}
                   {memberQuery.trim() && memberResults.length === 0 && !searchLoading && (
-                    <p className="mt-1 text-xs text-gray-500">검색 결과가 없습니다.</p>
+                    <p className="mt-1 text-xs text-slate-400">검색 결과가 없습니다.</p>
                   )}
                 </div>
               )}
@@ -345,26 +349,26 @@ export const CoachLessonReservationModal: React.FC<CoachLessonReservationModalPr
 
             {/* ── Lesson details ── */}
             <section>
-              <p className="text-sm font-medium text-gray-700 mb-2">
-                <Clock size={14} className="inline mr-1 text-gray-500" />
+              <p className={sectionTitleClass}>
+                <Clock size={14} className="inline mr-1 text-slate-400" />
                 레슨 일시
               </p>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs text-gray-500 mb-1">날짜</label>
+                  <label className="block text-xs text-slate-400 mb-1">날짜</label>
                   <input
                     type="date"
                     value={date}
                     onChange={(e) => setDate(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className={fieldClass}
                   />
                 </div>
                 <div>
-                  <label className="block text-xs text-gray-500 mb-1">시작 시간 (1시간)</label>
+                  <label className="block text-xs text-slate-400 mb-1">시작 시간 (1시간)</label>
                   <select
                     value={hour}
                     onChange={(e) => setHour(Number(e.target.value))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className={fieldClass}
                   >
                     {Array.from({ length: 24 }, (_, i) => (
                       <option key={i} value={i}>
@@ -378,7 +382,7 @@ export const CoachLessonReservationModal: React.FC<CoachLessonReservationModalPr
 
             {/* ── Notes ── */}
             <section>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+              <label className={sectionTitleClass}>
                 메모 (선택)
               </label>
               <textarea
@@ -386,12 +390,12 @@ export const CoachLessonReservationModal: React.FC<CoachLessonReservationModalPr
                 onChange={(e) => setNotes(e.target.value)}
                 placeholder="레슨 내용이나 요청사항을 입력하세요"
                 rows={2}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                className={`${fieldClass} resize-none`}
               />
             </section>
 
             {/* ── Optional bay reservation ── */}
-            <section className="border border-gray-200 rounded-lg overflow-hidden">
+            <section className="border border-slate-700 rounded-xl overflow-hidden">
               <button
                 type="button"
                 onClick={() => {
@@ -399,20 +403,20 @@ export const CoachLessonReservationModal: React.FC<CoachLessonReservationModalPr
                   setBayError(null);
                   setSelectedBayEntry(null);
                 }}
-                className="w-full flex items-center justify-between px-4 py-3 bg-gray-50 hover:bg-gray-100 transition-colors text-sm font-medium text-gray-700"
+                className="w-full flex items-center justify-between px-4 py-3 bg-slate-800/80 hover:bg-slate-800 transition-colors text-sm font-medium text-slate-200"
               >
                 <span className="flex items-center gap-2">
-                  <MapPin size={14} className="text-gray-500" />
+                  <MapPin size={14} className="text-slate-400" />
                   타석도 함께 예약하기 (선택)
                 </span>
                 {includeBay ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
               </button>
 
               {includeBay && (
-                <div className="px-4 py-4 space-y-4 border-t border-gray-200">
+                <div className="px-4 py-4 space-y-4 border-t border-slate-700">
                   {/* Branch */}
                   <div>
-                    <label className="block text-xs text-gray-500 mb-1">지점 선택</label>
+                    <label className="block text-xs text-slate-400 mb-1">지점 선택</label>
                     <select
                       value={selectedBranch?.id ?? ''}
                       onChange={(e) => {
@@ -422,7 +426,7 @@ export const CoachLessonReservationModal: React.FC<CoachLessonReservationModalPr
                         setAvailableBays([]);
                         setSelectedBayEntry(null);
                       }}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className={fieldClass}
                     >
                       <option value="">-- 지점 선택 --</option>
                       {branches.map((b) => (
@@ -433,7 +437,7 @@ export const CoachLessonReservationModal: React.FC<CoachLessonReservationModalPr
 
                   {/* Bay date */}
                   <div>
-                    <label className="block text-xs text-gray-500 mb-1">날짜</label>
+                    <label className="block text-xs text-slate-400 mb-1">날짜</label>
                     <input
                       type="date"
                       value={bayDate}
@@ -442,14 +446,14 @@ export const CoachLessonReservationModal: React.FC<CoachLessonReservationModalPr
                         setAvailableBays([]);
                         setSelectedBayEntry(null);
                       }}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className={fieldClass}
                     />
                   </div>
 
                   {/* Time slots */}
                   {selectedBranch && timeSlots.length > 0 && (
                     <div>
-                      <label className="block text-xs text-gray-500 mb-1">시간대</label>
+                      <label className="block text-xs text-slate-400 mb-1">시간대</label>
                       <div className="grid grid-cols-3 gap-2">
                         {timeSlots.map((slot) => (
                           <button
@@ -459,15 +463,15 @@ export const CoachLessonReservationModal: React.FC<CoachLessonReservationModalPr
                             disabled={slot.pricePoints === null}
                             className={`px-2 py-1.5 rounded text-xs border transition-colors ${
                               bayHour === slot.startHour && availableBays.length > 0
-                                ? 'bg-blue-600 text-white border-blue-600'
+                                ? 'bg-indigo-600 text-white border-indigo-600'
                                 : slot.pricePoints === null
-                                ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
-                                : 'bg-white text-gray-700 border-gray-300 hover:border-blue-400'
+                                ? 'bg-slate-800 text-slate-500 border-slate-700 cursor-not-allowed'
+                                : 'bg-slate-900 text-slate-200 border-slate-700 hover:border-indigo-500'
                             }`}
                           >
                             {formatHour(slot.startHour)}
                             {slot.pricePoints !== null && (
-                              <span className="block text-gray-400">{slot.pricePoints}pt</span>
+                              <span className="block text-slate-400">{slot.pricePoints}pt</span>
                             )}
                           </button>
                         ))}
@@ -478,7 +482,7 @@ export const CoachLessonReservationModal: React.FC<CoachLessonReservationModalPr
                   {/* Available bays */}
                   {availableBays.length > 0 && (
                     <div>
-                      <label className="block text-xs text-gray-500 mb-1">타석 선택</label>
+                      <label className="block text-xs text-slate-400 mb-1">타석 선택</label>
                       <div className="grid grid-cols-2 gap-2">
                         {availableBays.map((entry) => (
                           <button
@@ -487,8 +491,8 @@ export const CoachLessonReservationModal: React.FC<CoachLessonReservationModalPr
                             onClick={() => setSelectedBayEntry(entry)}
                             className={`px-3 py-2 rounded border text-xs text-left transition-colors ${
                               selectedBayEntry?.bay.id === entry.bay.id
-                                ? 'bg-blue-600 text-white border-blue-600'
-                                : 'bg-white text-gray-700 border-gray-300 hover:border-blue-400'
+                                ? 'bg-indigo-600 text-white border-indigo-600'
+                                : 'bg-slate-900 text-slate-200 border-slate-700 hover:border-indigo-500'
                             }`}
                           >
                             <span className="font-medium">{entry.bay.floor}층 {entry.bay.roomNumber}번</span>
@@ -501,16 +505,16 @@ export const CoachLessonReservationModal: React.FC<CoachLessonReservationModalPr
 
                   {bayLoading && (
                     <div className="flex justify-center py-2">
-                      <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                      <div className="w-5 h-5 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin" />
                     </div>
                   )}
 
                   {bayError && (
-                    <p className="text-xs text-red-600 bg-red-50 rounded px-3 py-2">{bayError}</p>
+                    <p className="text-xs text-red-300 bg-red-500/10 border border-red-500/30 rounded-xl px-3 py-2">{bayError}</p>
                   )}
 
                   {includeBay && selectedBranch && !selectedBayEntry && !bayLoading && (
-                    <p className="text-xs text-amber-600 bg-amber-50 rounded px-3 py-2">
+                    <p className="text-xs text-amber-300 bg-amber-500/10 border border-amber-500/30 rounded-xl px-3 py-2">
                       타석을 선택하지 않으면 레슨 예약만 등록됩니다.
                     </p>
                   )}
@@ -520,21 +524,21 @@ export const CoachLessonReservationModal: React.FC<CoachLessonReservationModalPr
 
             {/* ── Error ── */}
             {error && (
-              <p className="text-sm text-red-600 bg-red-50 rounded-lg px-4 py-2">{error}</p>
+              <p className="text-sm text-red-300 bg-red-500/10 border border-red-500/30 rounded-xl px-4 py-2">{error}</p>
             )}
 
             {/* ── Actions ── */}
             <div className="flex gap-3 pt-1">
               <button
                 onClick={onClose}
-                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm hover:bg-gray-50 transition"
+                className="flex-1 px-4 py-2.5 border border-slate-700 text-slate-300 rounded-xl text-sm hover:bg-slate-800 transition"
               >
                 취소
               </button>
               <button
                 onClick={handleSave}
                 disabled={loading || !selectedMember}
-                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                className="flex-1 px-4 py-2.5 bg-indigo-600 text-white rounded-xl text-sm hover:bg-indigo-500 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
                 {loading ? (
                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
