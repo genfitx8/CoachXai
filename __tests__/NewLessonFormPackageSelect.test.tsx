@@ -17,7 +17,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import React from 'react';
 import { NewLessonForm } from '../components/NewLessonForm';
 import { LanguageProvider } from '../components/LanguageContext';
-import { ClientProfile, LessonPackage, Lesson } from '../types';
+import { ClientProfile, CoachProfile, LessonPackage, Lesson } from '../types';
 
 // ─── Fixtures ─────────────────────────────────────────────────────────────────
 
@@ -35,6 +35,20 @@ const CLIENT_NO_PKG: ClientProfile = {
   phone: '010-3333-4444',
   coachId: 'coach1',
   email: '',
+};
+
+const CLIENT_OTHER_COACH: ClientProfile = {
+  id: 'c3',
+  name: '김타코치회원',
+  phone: '010-5555-6666',
+  coachId: 'coach-other',
+  email: '',
+};
+
+const CURRENT_COACH: CoachProfile = {
+  id: 'coach1',
+  name: '박코치',
+  email: 'coach@example.com',
 };
 
 const PACKAGE: LessonPackage = {
@@ -72,6 +86,7 @@ interface RenderOptions {
   packages?: LessonPackage[];
   lessons?: Lesson[];
   clients?: ClientProfile[];
+  currentUser?: CoachProfile;
 }
 
 const renderForm = (opts: RenderOptions = {}) => {
@@ -86,6 +101,7 @@ const renderForm = (opts: RenderOptions = {}) => {
       packages={opts.packages ?? [PACKAGE]}
       lessons={opts.lessons ?? []}
       userRole="COACH"
+      currentUser={opts.currentUser}
       onSave={onSave}
       onCancel={onCancel}
     />
@@ -124,6 +140,21 @@ describe('NewLessonForm – PACKAGE_SELECT step', () => {
 
     await waitFor(() => {
       expect(screen.getByText(/레슨 패키지 선택/i)).toBeInTheDocument();
+    });
+  });
+
+  it('only shows students assigned to the current coach in lesson target suggestions', async () => {
+    renderForm({
+      clients: [CLIENT_WITH_PKG, CLIENT_OTHER_COACH],
+      currentUser: CURRENT_COACH,
+    });
+
+    const input = screen.getByPlaceholderText('이름을 입력하세요');
+    fireEvent.change(input, { target: { value: '김' } });
+
+    await waitFor(() => {
+      expect(screen.getByText('김패키지')).toBeInTheDocument();
+      expect(screen.queryByText('김타코치회원')).not.toBeInTheDocument();
     });
   });
 

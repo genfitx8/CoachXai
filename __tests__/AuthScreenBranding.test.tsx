@@ -60,7 +60,7 @@ describe('AuthScreen branding copy', () => {
       </LanguageProvider>
     );
 
-    const coachTab = screen.getByRole('button', { name: '코치님 로그인' });
+    const coachTab = screen.getByRole('button', { name: '코치 로그인' });
     const clientTab = screen.getByRole('button', { name: '학생 로그인' });
 
     expect(clientTab).toHaveAttribute('aria-pressed', 'true');

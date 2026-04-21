@@ -48,7 +48,7 @@ describe('authService signup phone uniqueness', () => {
       authService.signupCoach(
         '새코치',
         'new@coach.com',
-        'password123',
+        'Password!123',
         '010-1234-5678'
       )
     ).rejects.toBe('이미 가입된 휴대폰 번호입니다.');
@@ -69,7 +69,7 @@ describe('authService signup phone uniqueness', () => {
       authService.signupCoach(
         '새코치',
         'new2@coach.com',
-        'password123',
+        'Password!123',
         '+82 010-1234-5678'
       )
     ).rejects.toBe('이미 가입된 휴대폰 번호입니다.');
@@ -88,7 +88,7 @@ describe('authService signup phone uniqueness', () => {
     const signupPromise = authService.signupClient(
       '새회원',
       'new@client.com',
-      'password123',
+      'Password!123',
       '010-1234-5678'
     );
 
@@ -112,7 +112,7 @@ describe('authService signup phone uniqueness', () => {
     const signupPromise = authService.signupClient(
       '홍길동',
       'legacy@client.com',
-      'password123',
+      'Password!123',
       '010-1234-5678'
     );
 
