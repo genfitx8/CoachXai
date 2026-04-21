@@ -87,7 +87,7 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
   const timerRef = useRef<number | null>(null);
 
   const isClientView = role === 'CLIENT';
-  // Always show analysis unless explicitly restricted (which we are removing, so default to showing if exists)
+  // Always show AI lesson summary if it exists
   const showAiAnalysis = true; 
   const hasGolfData = !!lesson.golfData;
 
@@ -1271,13 +1271,13 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
               </div>
           )}
 
-          {/* Round Analysis Card (Scorecard Mode - Fallback or General) */}
+          {/* Round Summary Card (Scorecard Mode - Fallback or General) */}
           {lesson.recordType === 'SCORE' && !lesson.scorecardDetail && (
               <div className="bg-white rounded-xl shadow-sm border border-blue-100 overflow-hidden">
                    <div className="bg-blue-600 px-4 py-3 flex justify-between items-center text-white">
-                        <h3 className="font-bold flex items-center gap-2">
-                            <Trophy className="w-5 h-5 text-yellow-300" /> Round Analysis
-                        </h3>
+                         <h3 className="font-bold flex items-center gap-2">
+                            <Trophy className="w-5 h-5 text-yellow-300" /> Round Summary
+                         </h3>
                         {lesson.score && (
                             <span className="bg-white/20 px-3 py-1 rounded-full text-sm font-bold backdrop-blur-sm">
                                 Total: {lesson.score}
@@ -1291,11 +1291,11 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
                            </div>
                        ) : (
                            <div className="text-center py-6 text-gray-400 text-sm">
-                               라운드 분석 내용이 없습니다.
-                           </div>
-                       )}
-                   </div>
-              </div>
+                                라운드 요약 내용이 없습니다.
+                            </div>
+                        )}
+                    </div>
+               </div>
           )}
           
           {/* General AI Analysis Card (Detailed Scorecard Mode) */}
@@ -1311,13 +1311,13 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
               </div>
           )}
 
-          {/* AI Analysis Card (Lesson/Practice Mode) */}
+          {/* AI Lesson Summary Card (Lesson/Practice Mode) */}
           {showAiAnalysis && lesson.recordType !== 'SCORE' && (
             <div className="bg-white rounded-xl shadow-sm border border-emerald-100 overflow-hidden">
                 <div className="bg-emerald-50 px-4 py-3 border-b border-emerald-100 flex justify-between items-center">
                     <h3 className="font-bold text-emerald-800 flex items-center gap-2">
                         <Sparkles className="w-5 h-5 text-emerald-700" /> 
-                        AI Coach Note
+                        AI Lesson Summary
                     </h3>
                     <div className="flex gap-2">
                         {/* Audio Synthesis Controls */}
@@ -1326,7 +1326,7 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
                                 <button 
                                     onClick={isSpeaking ? handleStopSpeak : handleSpeakAnalysis}
                                     className={`p-1.5 rounded-full transition-colors ${isSpeaking ? 'bg-emerald-200 text-emerald-700 animate-pulse' : 'hover:bg-emerald-200 text-emerald-600'}`}
-                                    title={isSpeaking ? "읽기 중지" : "분석 내용 듣기"}
+                                    title={isSpeaking ? "읽기 중지" : "요약 내용 듣기"}
                                 >
                                     {isSpeaking ? <StopCircle className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
                                 </button>
@@ -1349,7 +1349,7 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
                     ) : (
                         <div className="text-center py-8">
                             <Sparkles className="w-12 h-12 text-gray-200 mx-auto mb-3" />
-                            <p className="text-gray-500 text-sm mb-4">아직 AI 분석 결과가 없습니다.</p>
+                            <p className="text-gray-500 text-sm mb-4">아직 AI 레슨 요약이 없습니다.</p>
                             {canEdit && (
                                 <Button 
                                     onClick={handleGenerateAIAnalysis} 
@@ -1357,7 +1357,7 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
                                     className="bg-emerald-800 hover:bg-emerald-900 text-white shadow-lg shadow-slate-200"
                                     icon={<Wand2 className="w-4 h-4" />}
                                 >
-                                    AI 분석 생성하기
+                                    AI 요약 생성하기
                                 </Button>
                             )}
                         </div>

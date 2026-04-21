@@ -957,7 +957,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
 
     if (shouldRunAI) {
       setIsAnalyzing(true);
-      setStatusMessage('AI 분석 준비 중...');
+      setStatusMessage('AI 요약 준비 중...');
     } else {
       setIsAnalyzing(true);
       setStatusMessage('저장 중...');
@@ -994,22 +994,22 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
 
         extractedScore = totalScore;
 
-        // Generate simple analysis summary if AI enabled
+        // Generate simple round summary if AI enabled
         if (enableAI) {
           const badHoles = holeRecords.filter((h) => h.score >= h.par + 2);
           const goodHoles = holeRecords.filter((h) => h.score < h.par);
-          analysisResult = `### ⛳ 라운드 요약 (AI)\n\n**${courseName}**에서의 라운드 결과입니다.\n- **총 타수**: ${totalScore}타\n- **총 퍼팅수**: ${totalPutts}개\n\n`;
+          analysisResult = `### ⛳ 오늘의 라운드 요약\n\n**${courseName}**에서의 라운드 기록입니다.\n- **총 타수**: ${totalScore}타\n- **총 퍼팅수**: ${totalPutts}개\n\n`;
           if (goodHoles.length > 0) {
-            analysisResult += `👍 **좋았던 홀**: ${goodHoles
+            analysisResult += `👍 **흐름이 좋았던 홀**: ${goodHoles
               .map((h) => `${h.holeNumber}번(${h.score})`)
               .join(', ')}\n`;
           }
           if (badHoles.length > 0) {
-            analysisResult += `⚠️ **아쉬운 홀**: ${badHoles
+            analysisResult += `🎯 **다음 연습 집중 홀**: ${badHoles
               .map((h) => `${h.holeNumber}번(${h.score})`)
               .join(', ')}\n`;
           }
-          analysisResult += `\n홀별 상세 분석 내용은 아래 기록표를 참고해주세요.`;
+          analysisResult += `\n홀별 상세 기록은 아래 기록표에서 확인해주세요.`;
         }
       }
       // Logic for SIMPLE Scorecard / Other Modes
@@ -1020,11 +1020,11 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
 
         try {
           if (isDataExtractionMode && extractionTargetImage?.file) {
-            setStatusMessage(
-              recordType === 'SCORE'
-                ? '스코어카드 데이터를 분석하고 있습니다...'
-                : '이미지에서 데이터를 추출하고 있습니다...'
-            );
+              setStatusMessage(
+                recordType === 'SCORE'
+                  ? '스코어카드 데이터를 정리하고 있습니다...'
+                  : '이미지에서 데이터를 추출하고 있습니다...'
+              );
 
             const nameToSearch = clientName.split('(')[0].trim();
 
@@ -1045,7 +1045,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
             }
           } else {
             setStatusMessage(
-              'AI가 미디어 자료와 코치님의 피드백을 분석하고 있습니다...'
+              'AI가 미디어 자료와 코치님의 피드백을 바탕으로 레슨 내용을 요약하고 있습니다...'
             );
 
             let promptContext = notes;
@@ -1072,7 +1072,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
           }
         } catch (err) {
           console.error('Analysis failed', err);
-          if (!analysisResult) analysisResult = 'AI 분석에 실패했습니다.';
+          if (!analysisResult) analysisResult = 'AI 요약 생성에 실패했습니다.';
         }
       }
 
@@ -1093,16 +1093,16 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
 
       // Auto-tagging based on record type
       const tags = [];
-      if (shouldRunAI) tags.push('AI분석');
+      if (shouldRunAI) tags.push('AI요약');
 
       if (recordType === 'SCORE')
         tags.push('스코어', '필드기록', courseName || '코스미정');
       else if (recordType === 'LESSON') tags.push('레슨복기', '프로레슨');
-      else tags.push('자율연습', '스윙분석');
+      else tags.push('자율연습', '스윙기록');
 
       if (club) tags.push(club);
       if (mainMedia?.type === 'audio') tags.push('음성기록');
-      else if (isDataExtractionMode) tags.push('데이터분석');
+      else if (isDataExtractionMode) tags.push('데이터정리');
 
       let finalScore: number | undefined = undefined;
       if (recordType === 'SCORE') {
@@ -2490,11 +2490,11 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
               <Sparkles className="w-5 h-5" />
             </div>
             <div>
-              <h4 className="font-bold text-gray-900 text-sm">AI 레슨 분석</h4>
+              <h4 className="font-bold text-gray-900 text-sm">AI 레슨 요약 리포트</h4>
               <p className="text-xs text-gray-500">
                 {recordType === 'SCORE' && scoreMode === 'DETAILED'
                   ? '18홀 기록을 바탕으로 라운드를 요약합니다.'
-                  : 'Coachx AI가 영상을 분석하여 리포트를 생성합니다.'}
+                  : 'Coachx AI가 영상을 바탕으로 회원용 레슨 요약 리포트를 생성합니다.'}
               </p>
             </div>
           </div>
