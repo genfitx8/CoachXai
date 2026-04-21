@@ -15,7 +15,7 @@ import { PaymentSuccess } from './PaymentSuccess';
 import { PaymentFail } from './PaymentFail';
 import { MembershipPurchase } from './MembershipPurchase';
 import { MembershipPaymentSuccess } from './MembershipPaymentSuccess';
-import { User, LogOut, History, PlayCircle, Plus, BarChart3, Bell, ListChecks, Globe, Calendar, Search, Filter, Eye, EyeOff, ChevronRight, ChevronLeft, Award, Target, ClipboardList, Crown, Sparkles, Briefcase, ScanLine } from 'lucide-react';
+import { User, LogOut, History, PlayCircle, Plus, BarChart3, Bell, ListChecks, Globe, Calendar, Search, Filter, Eye, EyeOff, ChevronRight, ChevronLeft, Award, Target, ClipboardList, Crown, Briefcase, ScanLine } from 'lucide-react';
 import { firebaseService } from '../services/firebase';
 import { storageService } from '../services/storage';
 import { pointService } from '../services/pointService';
