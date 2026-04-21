@@ -121,6 +121,13 @@ const DURATION_OPTIONS = [
   { label: '8주 (2개월)', value: 8 },
 ];
 
+const LESSON_FLOW_SHELL_CLASS =
+  'max-w-md mx-auto bg-white rounded-2xl border border-slate-200/80 shadow-xl shadow-slate-200/70 overflow-hidden animate-fade-in-up';
+const LESSON_FLOW_HEADER_CLASS =
+  'bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 px-5 py-4 flex items-center justify-between text-white';
+const LESSON_FLOW_INPUT_CLASS =
+  'w-full pl-10 pr-4 py-3 border border-slate-300 rounded-xl bg-white text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all';
+
 // Detailed Club Options Definition
 const CLUB_GROUPS = [
   {
@@ -1222,13 +1229,13 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
     };
 
     return (
-      <div className="max-w-md mx-auto bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden animate-fade-in-up">
+      <div className={LESSON_FLOW_SHELL_CLASS}>
         {/* Header */}
-        <div className="bg-slate-700 px-6 py-4 flex justify-between items-center text-white">
+        <div className={LESSON_FLOW_HEADER_CLASS}>
           <div className="flex items-center gap-2">
             <button
               onClick={() => setStep('CLIENT_SELECT')}
-              className="text-emerald-100 hover:text-white"
+              className="rounded-full p-1.5 text-slate-200 hover:text-white hover:bg-white/15 transition-colors"
               aria-label={t('new_lesson_back_member')}
             >
               <ArrowLeft className="w-5 h-5" />
@@ -1237,24 +1244,27 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
               <BookOpen className="w-5 h-5" /> {t('new_lesson_package_title')}
             </h2>
           </div>
-          <button onClick={onCancel} className="text-emerald-100 hover:text-white">
+          <button
+            onClick={onCancel}
+            className="rounded-full p-1.5 text-slate-200 hover:text-white hover:bg-white/15 transition-colors"
+          >
             <X className="w-6 h-6" />
           </button>
         </div>
 
         {/* Selected client info */}
-        <div className="px-5 py-3 bg-emerald-50 border-b border-emerald-100 flex items-center gap-3">
-          <div className="bg-emerald-100 p-2 rounded-full">
-            <UserCheck className="w-4 h-4 text-emerald-700" />
+        <div className="px-5 py-3 bg-slate-50 border-b border-slate-200 flex items-center gap-3">
+          <div className="bg-indigo-100 p-2 rounded-full">
+            <UserCheck className="w-4 h-4 text-indigo-700" />
           </div>
           <div>
-            <p className="font-bold text-emerald-800 text-sm">{clientName}</p>
-            <p className="text-xs text-emerald-600">{clientPhone}</p>
+            <p className="font-bold text-slate-800 text-sm">{clientName}</p>
+            <p className="text-xs text-slate-500">{clientPhone}</p>
           </div>
         </div>
 
         {/* Package list */}
-        <div className="p-5 max-h-[55vh] overflow-y-auto space-y-4">
+        <div className="p-5 max-h-[56vh] overflow-y-auto space-y-4 bg-slate-50/60">
           <p className="text-sm text-gray-600">
             기록할 레슨 패키지와 회차를 선택하세요.
           </p>
@@ -1267,18 +1277,18 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
             return (
               <div
                 key={pkg.id}
-                className="bg-white border border-gray-200 rounded-xl overflow-hidden"
+                className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm"
               >
                 {/* Package header */}
-                <div className="px-4 py-3 bg-indigo-50 border-b border-indigo-100 flex items-center justify-between">
+                <div className="px-4 py-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <BookOpen className="w-4 h-4 text-indigo-600" />
+                    <BookOpen className="w-4 h-4 text-slate-700" />
                     <span className="font-bold text-gray-900 text-sm">
                       {pkg.totalSessions}회 레슨 패키지
                     </span>
                   </div>
                   <div className="text-right text-xs">
-                    <span className="font-bold text-indigo-700">{completedCount}</span>
+                    <span className="font-bold text-indigo-600">{completedCount}</span>
                     <span className="text-gray-400">/{pkg.totalSessions}회 완료</span>
                     {remaining > 0 && (
                       <span className="text-gray-400 ml-1">({remaining}회 남음)</span>
@@ -1307,10 +1317,10 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
                               flex flex-col items-center justify-center gap-0.5 p-2 rounded-lg border-2 transition-all text-xs
                               ${
                                 isRecorded
-                                  ? 'border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed'
+                                  ? 'border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed'
                                   : isSelected
-                                  ? 'border-indigo-500 bg-indigo-100 text-indigo-700 font-bold'
-                                  : 'border-dashed border-gray-300 bg-gray-50 text-gray-500 hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-600'
+                                  ? 'border-indigo-500 bg-indigo-50 text-indigo-700 font-bold shadow-sm'
+                                  : 'border-dashed border-slate-300 bg-white text-slate-500 hover:border-indigo-300 hover:bg-indigo-50/50 hover:text-indigo-600'
                               }
                             `}
                           >
@@ -1340,7 +1350,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
         </div>
 
         {/* Action buttons */}
-        <div className="p-5 border-t border-gray-100 space-y-3">
+        <div className="p-5 border-t border-slate-200 bg-white space-y-3">
           <Button
             onClick={handleConfirmSession}
             disabled={!selectedPackageId || selectedSessionNumber === null}
@@ -1353,7 +1363,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
           </Button>
           <button
             onClick={handleSkipPackage}
-            className="w-full py-2 text-sm text-gray-500 hover:text-gray-700 transition-colors text-center"
+            className="w-full py-2.5 text-sm font-semibold text-slate-500 hover:text-slate-700 transition-colors text-center bg-slate-100 rounded-xl hover:bg-slate-200"
           >
             패키지 없이 기록하기
           </button>
@@ -1366,48 +1376,48 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
   // STEP: COACH CLIENT SELECT (Redesigned)
   if (step === 'CLIENT_SELECT') {
     return (
-      <div className="max-w-md mx-auto bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden animate-fade-in-up">
-        <div className="bg-emerald-800 px-6 py-4 flex justify-between items-center text-white">
+      <div className={LESSON_FLOW_SHELL_CLASS}>
+        <div className={LESSON_FLOW_HEADER_CLASS}>
           <h2 className="text-lg font-bold flex items-center gap-2">
             <UserCheck className="w-5 h-5" /> 레슨 대상 입력
           </h2>
           <button
             onClick={onCancel}
-            className="text-slate-200 hover:text-white"
+            className="rounded-full p-1.5 text-slate-200 hover:text-white hover:bg-white/15 transition-colors"
           >
             <X className="w-6 h-6" />
           </button>
         </div>
-        <div className="p-6 space-y-5">
+        <div className="p-6 space-y-5 bg-slate-50/60">
           <div className="space-y-2">
-            <label className="block text-sm font-bold text-gray-700">
+            <label className="block text-sm font-bold text-slate-700">
               회원 이름
             </label>
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <Search className="w-5 h-5 text-gray-400" />
+                <Search className="w-5 h-5 text-slate-400" />
               </div>
               <input
                 type="text"
                 placeholder="이름을 입력하세요"
                 value={clientName}
                 onChange={handleClientNameChange}
-                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-700 outline-none transition-all"
+                className={LESSON_FLOW_INPUT_CLASS}
               />
             </div>
             {/* Suggestion List */}
             {clientName.trim() &&
               matchingClients.length > 0 &&
               !isExistingClientSelected && (
-                <div className="bg-white border border-gray-200 rounded-lg shadow-lg mt-1 max-h-48 overflow-y-auto absolute z-50 w-[calc(100%-3rem)]">
+                <div className="bg-white border border-slate-200 rounded-xl shadow-lg mt-1 max-h-48 overflow-y-auto absolute z-50 w-[calc(100%-3rem)]">
                   {matchingClients.map((c) => (
                     <div
                       key={`${c.name}_${c.phone}`}
                       onClick={() => selectSuggestion(c)}
-                      className="px-4 py-3 hover:bg-emerald-50 cursor-pointer border-b border-gray-100 last:border-none flex justify-between items-center"
+                      className="px-4 py-3 hover:bg-indigo-50 cursor-pointer border-b border-slate-100 last:border-none flex justify-between items-center"
                     >
-                      <span className="font-bold text-gray-800">{c.name}</span>
-                      <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">
+                      <span className="font-bold text-slate-800">{c.name}</span>
+                      <span className="text-xs text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">
                         {c.phone}
                       </span>
                     </div>
@@ -1417,46 +1427,46 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
           </div>
 
           {/* Phone Input (Visible if new user) */}
-          {clientName && !isExistingClientSelected && (
-            <div className="space-y-2 animate-fade-in">
-              <label className="block text-sm font-bold text-gray-700">
-                전화번호{' '}
-                <span className="text-red-500 text-xs font-normal">
-                  (미등록 회원)
+            {clientName && !isExistingClientSelected && (
+              <div className="space-y-2 animate-fade-in">
+                <label className="block text-sm font-bold text-slate-700">
+                  전화번호{' '}
+                  <span className="text-red-500 text-xs font-normal">
+                    (미등록 회원)
                 </span>
               </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Smartphone className="w-5 h-5 text-gray-400" />
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Smartphone className="w-5 h-5 text-slate-400" />
+                  </div>
+                  <input
+                    type="tel"
+                    placeholder="010-0000-0000"
+                    value={clientPhone}
+                    onChange={(e) => setClientPhone(e.target.value)}
+                    className={LESSON_FLOW_INPUT_CLASS}
+                  />
                 </div>
-                <input
-                  type="tel"
-                  placeholder="010-0000-0000"
-                  value={clientPhone}
-                  onChange={(e) => setClientPhone(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-700 outline-none transition-all"
-                />
-              </div>
-              <p className="text-xs text-gray-500 bg-gray-50 p-2 rounded-lg">
-                * 처음 등록하는 회원은 전화번호 입력이 필요합니다.
-              </p>
-            </div>
-          )}
-
-          {/* Existing Client Badge */}
-          {isExistingClientSelected && (
-            <div className="bg-emerald-50 border border-emerald-100 p-3 rounded-xl flex items-center gap-3 animate-fade-in">
-              <div className="bg-emerald-100 p-2 rounded-full text-emerald-600">
-                <UserCheck className="w-5 h-5" />
-              </div>
-              <div>
-                <p className="font-bold text-emerald-800 text-sm">
-                  등록된 회원입니다
+                <p className="text-xs text-slate-500 bg-white border border-slate-200 p-2 rounded-lg">
+                  * 처음 등록하는 회원은 전화번호 입력이 필요합니다.
                 </p>
-                <p className="text-xs text-emerald-600">{clientPhone}</p>
               </div>
-            </div>
-          )}
+            )}
+
+            {/* Existing Client Badge */}
+            {isExistingClientSelected && (
+              <div className="bg-white border border-slate-200 p-3 rounded-xl flex items-center gap-3 animate-fade-in shadow-sm">
+                <div className="bg-indigo-100 p-2 rounded-full text-indigo-600">
+                  <UserCheck className="w-5 h-5" />
+                </div>
+                <div>
+                  <p className="font-bold text-slate-800 text-sm">
+                    등록된 회원입니다
+                  </p>
+                  <p className="text-xs text-slate-500">{clientPhone}</p>
+                </div>
+              </div>
+            )}
 
           {error && (
             <p className="text-red-500 text-sm font-bold bg-red-50 p-3 rounded-lg flex items-center gap-2">
