@@ -21,6 +21,10 @@ function formatHour(h: number) {
   return `${pad(h)}:00`;
 }
 
+const formInputFieldClass =
+  'w-full px-3 py-2.5 border border-slate-700 rounded-xl text-sm bg-slate-900 text-slate-100 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none';
+const formSectionTitleClass = 'text-sm font-semibold text-slate-200 mb-2';
+
 export const CoachLessonReservationModal: React.FC<CoachLessonReservationModalProps> = ({
   coachProfile,
   initialDate,
@@ -234,10 +238,6 @@ export const CoachLessonReservationModal: React.FC<CoachLessonReservationModalPr
     onClose();
   };
 
-  const fieldClass =
-    'w-full px-3 py-2.5 border border-slate-700 rounded-xl text-sm bg-slate-900 text-slate-100 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none';
-  const sectionTitleClass = 'text-sm font-semibold text-slate-200 mb-2';
-
   // ── Render ─────────────────────────────────────────────────────────────────
 
   if (successMsg) {
@@ -318,7 +318,7 @@ export const CoachLessonReservationModal: React.FC<CoachLessonReservationModalPr
                     value={memberQuery}
                     onChange={(e) => setMemberQuery(e.target.value)}
                     placeholder="이름 또는 전화번호로 검색"
-                    className={`${fieldClass} pl-9`}
+                    className={`${formInputFieldClass} pl-9`}
                   />
                   {searchLoading && (
                     <div className="absolute inset-y-0 right-3 flex items-center">
@@ -349,7 +349,7 @@ export const CoachLessonReservationModal: React.FC<CoachLessonReservationModalPr
 
             {/* ── Lesson details ── */}
             <section>
-              <p className={sectionTitleClass}>
+              <p className={formSectionTitleClass}>
                 <Clock size={14} className="inline mr-1 text-slate-400" />
                 레슨 일시
               </p>
@@ -360,7 +360,7 @@ export const CoachLessonReservationModal: React.FC<CoachLessonReservationModalPr
                     type="date"
                     value={date}
                     onChange={(e) => setDate(e.target.value)}
-                    className={fieldClass}
+                    className={formInputFieldClass}
                   />
                 </div>
                 <div>
@@ -368,7 +368,7 @@ export const CoachLessonReservationModal: React.FC<CoachLessonReservationModalPr
                   <select
                     value={hour}
                     onChange={(e) => setHour(Number(e.target.value))}
-                    className={fieldClass}
+                    className={formInputFieldClass}
                   >
                     {Array.from({ length: 24 }, (_, i) => (
                       <option key={i} value={i}>
@@ -382,7 +382,7 @@ export const CoachLessonReservationModal: React.FC<CoachLessonReservationModalPr
 
             {/* ── Notes ── */}
             <section>
-              <label className={sectionTitleClass}>
+              <label className={formSectionTitleClass}>
                 메모 (선택)
               </label>
               <textarea
@@ -390,7 +390,7 @@ export const CoachLessonReservationModal: React.FC<CoachLessonReservationModalPr
                 onChange={(e) => setNotes(e.target.value)}
                 placeholder="레슨 내용이나 요청사항을 입력하세요"
                 rows={2}
-                className={`${fieldClass} resize-none`}
+                className={`${formInputFieldClass} resize-none`}
               />
             </section>
 
@@ -426,7 +426,7 @@ export const CoachLessonReservationModal: React.FC<CoachLessonReservationModalPr
                         setAvailableBays([]);
                         setSelectedBayEntry(null);
                       }}
-                      className={fieldClass}
+                      className={formInputFieldClass}
                     >
                       <option value="">-- 지점 선택 --</option>
                       {branches.map((b) => (
@@ -446,7 +446,7 @@ export const CoachLessonReservationModal: React.FC<CoachLessonReservationModalPr
                         setAvailableBays([]);
                         setSelectedBayEntry(null);
                       }}
-                      className={fieldClass}
+                      className={formInputFieldClass}
                     />
                   </div>
 

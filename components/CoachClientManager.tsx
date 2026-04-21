@@ -48,6 +48,12 @@ interface CoachClientManagerProps {
   onAutoOpenAddModalHandled?: () => void;
 }
 
+const clientManagerPanelClass = 'bg-slate-900/70 border border-slate-800/80 rounded-2xl shadow-lg shadow-black/20';
+const clientFormInputClass =
+  'w-full px-4 py-2.5 border border-slate-700 rounded-xl bg-slate-900 text-slate-100 placeholder:text-slate-500 focus:ring-2 focus:ring-indigo-500 outline-none';
+const clientCardActionButtonClass =
+  'w-full flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl transition-colors text-sm font-semibold';
+
 export const CoachClientManager: React.FC<CoachClientManagerProps> = ({
   clients,
   onAdd,
@@ -248,12 +254,6 @@ export const CoachClientManager: React.FC<CoachClientManagerProps> = ({
     }
   };
 
-  const panelClass = 'bg-slate-900/70 border border-slate-800/80 rounded-2xl shadow-lg shadow-black/20';
-  const inputClass =
-    'w-full px-4 py-2.5 border border-slate-700 rounded-xl bg-slate-900 text-slate-100 placeholder:text-slate-500 focus:ring-2 focus:ring-indigo-500 outline-none';
-  const cardActionClass =
-    'w-full flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl transition-colors text-sm font-semibold';
-
   if (detailReport) {
     return (
       <MemberGrowthDetailScreen
@@ -274,7 +274,7 @@ export const CoachClientManager: React.FC<CoachClientManagerProps> = ({
       </div>
 
       {/* Toolbar */}
-      <div className={`flex flex-col sm:flex-row gap-4 justify-between items-center p-4 ${panelClass}`}>
+      <div className={`flex flex-col sm:flex-row gap-4 justify-between items-center p-4 ${clientManagerPanelClass}`}>
         <div className="relative w-full sm:w-auto flex-1">
           <Search className="absolute left-3 top-3 w-5 h-5 text-slate-500" />
           <input
@@ -282,7 +282,7 @@ export const CoachClientManager: React.FC<CoachClientManagerProps> = ({
             placeholder={t('coach_client_search')}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className={`${inputClass} pl-10`}
+            className={`${clientFormInputClass} pl-10`}
           />
         </div>
         {showAddButton && (
@@ -447,7 +447,7 @@ export const CoachClientManager: React.FC<CoachClientManagerProps> = ({
                 <button
                   onClick={() => onViewLessons(client)}
                   data-testid={`view-lessons-btn-${client.name}`}
-                  className={`mt-3 ${cardActionClass} bg-sky-500/10 text-sky-300 border border-sky-500/20 hover:bg-sky-500/20`}
+                  className={`mt-3 ${clientCardActionButtonClass} bg-sky-500/10 text-sky-300 border border-sky-500/20 hover:bg-sky-500/20`}
                 >
                   <BookOpen className="w-4 h-4" />
                   {t('coachx_stat_lessons')}
@@ -456,7 +456,7 @@ export const CoachClientManager: React.FC<CoachClientManagerProps> = ({
               {onManagePackages && isMyClient && (
                 <button
                   onClick={() => onManagePackages(client)}
-                  className={`mt-2 ${cardActionClass} bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 hover:bg-indigo-500/20`}
+                  className={`mt-2 ${clientCardActionButtonClass} bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 hover:bg-indigo-500/20`}
                 >
                   <ClipboardList className="w-4 h-4" />
                   {t('coach_client_package_manage')}
@@ -465,7 +465,7 @@ export const CoachClientManager: React.FC<CoachClientManagerProps> = ({
               {onGenerateProgram && isMyClient && (
                 <button
                   onClick={() => onGenerateProgram(client)}
-                  className={`mt-2 ${cardActionClass} bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 hover:bg-emerald-500/20`}
+                  className={`mt-2 ${clientCardActionButtonClass} bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 hover:bg-emerald-500/20`}
                 >
                   <Dumbbell className="w-4 h-4" />
                   {t('coach_client_training_create')}
@@ -475,7 +475,7 @@ export const CoachClientManager: React.FC<CoachClientManagerProps> = ({
                 <button
                   onClick={() => setDetailReport(report)}
                   data-testid={`growth-report-btn-${client.name}`}
-                  className={`mt-2 ${cardActionClass} bg-slate-800 text-slate-200 border border-slate-700 hover:bg-slate-700`}
+                  className={`mt-2 ${clientCardActionButtonClass} bg-slate-800 text-slate-200 border border-slate-700 hover:bg-slate-700`}
                 >
                   <FileBarChart className="w-4 h-4" />
                   {t('coachx_view_full_report')}
@@ -511,7 +511,7 @@ export const CoachClientManager: React.FC<CoachClientManagerProps> = ({
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className={inputClass}
+                  className={clientFormInputClass}
                   placeholder={t('coach_client_name_placeholder')}
                   required
                 />
@@ -524,7 +524,7 @@ export const CoachClientManager: React.FC<CoachClientManagerProps> = ({
                   type="tel"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
-                  className={inputClass}
+                  className={clientFormInputClass}
                   placeholder="010-0000-0000"
                   required
                 />
@@ -539,7 +539,7 @@ export const CoachClientManager: React.FC<CoachClientManagerProps> = ({
                 <textarea
                   value={memo}
                   onChange={(e) => setMemo(e.target.value)}
-                  className={inputClass}
+                  className={clientFormInputClass}
                   placeholder={t('coach_client_memo_placeholder')}
                   rows={3}
                 />
