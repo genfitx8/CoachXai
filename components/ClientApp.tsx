@@ -15,11 +15,10 @@ import { PaymentSuccess } from './PaymentSuccess';
 import { PaymentFail } from './PaymentFail';
 import { MembershipPurchase } from './MembershipPurchase';
 import { MembershipPaymentSuccess } from './MembershipPaymentSuccess';
-import { User, LogOut, History, PlayCircle, Plus, BarChart3, Bell, ListChecks, Globe, Calendar, Search, Filter, Eye, EyeOff, ChevronRight, ChevronLeft, TrendingUp, Award, Target, ClipboardList, Crown, Sparkles, Briefcase, ScanLine } from 'lucide-react';
+import { User, LogOut, History, PlayCircle, Plus, BarChart3, Bell, ListChecks, Globe, Calendar, Search, Filter, Eye, EyeOff, ChevronRight, ChevronLeft, Award, Target, ClipboardList, Crown, Briefcase, ScanLine } from 'lucide-react';
 import { firebaseService } from '../services/firebase';
 import { storageService } from '../services/storage';
 import { pointService } from '../services/pointService';
-import { WeeklyInsightCard } from './WeeklyInsightCard';
 import { NotificationToast } from './NotificationToast';
 import { useLanguage } from './LanguageContext';
 
@@ -48,7 +47,7 @@ const HIDE_RESERVATION_FEATURES = (import.meta.env.VITE_CLIENT_HIDE_RESERVATION 
 
 export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons, onLogout, onUpdateLesson, onSaveNewRecord, onDeleteLesson, onUpdateProfile }) => {
   const { t, language, setLanguage } = useLanguage();
-  const [view, setView] = useState<ViewState | 'STATS' | 'PROFILE' | 'RESERVATION' | 'BAY_RESERVATION' | 'MY_BAY_RESERVATIONS' | 'POINT_PURCHASE' | 'MEMBERSHIP_PURCHASE' | 'PAYMENT_SUCCESS' | 'MEMBERSHIP_PAYMENT_SUCCESS' | 'PAYMENT_FAIL' | 'RECENT_RECORDS' | 'WEEKLY_INSIGHT'>(() => {
+  const [view, setView] = useState<ViewState | 'STATS' | 'PROFILE' | 'RESERVATION' | 'BAY_RESERVATION' | 'MY_BAY_RESERVATIONS' | 'POINT_PURCHASE' | 'MEMBERSHIP_PURCHASE' | 'PAYMENT_SUCCESS' | 'MEMBERSHIP_PAYMENT_SUCCESS' | 'PAYMENT_FAIL' | 'RECENT_RECORDS'>(() => {
     const params = new URLSearchParams(window.location.search);
     const purchaseType = params.get('purchase');
     if (params.get('paymentKey') && params.get('orderId')) {
@@ -440,30 +439,6 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
                     </div>
                 )}
 
-                {/* ===== CoachX AI Section ===== */}
-                <div className="bg-slate-900/80 rounded-2xl p-5 shadow-sm border border-slate-700/70">
-                    <div className="flex items-center gap-2 mb-4">
-                        <div className="w-8 h-8 bg-violet-400/10 rounded-xl flex items-center justify-center border border-violet-300/20">
-                            <Sparkles className="w-4 h-4 text-violet-300" />
-                        </div>
-                        <h3 className="font-black text-slate-100 text-base">CoachX AI</h3>
-                    </div>
-                    <div className="grid grid-cols-1 gap-2">
-                        <button
-                            onClick={() => { setSelectedLesson(null); setView('WEEKLY_INSIGHT'); }}
-                            className="flex items-center justify-between gap-3 py-4 px-4 bg-slate-950/70 hover:bg-slate-800/80 rounded-xl border border-slate-700/70 transition-colors group"
-                        >
-                            <div className="flex items-center gap-3">
-                                <div className="w-9 h-9 bg-violet-400/10 group-hover:bg-violet-400/20 rounded-xl flex items-center justify-center border border-violet-300/20 transition-colors">
-                                    <TrendingUp className="w-4 h-4 text-violet-300" />
-                                </div>
-                                <span className="text-sm font-bold text-violet-200">주간 인사이트</span>
-                            </div>
-                            <ChevronRight className="w-4 h-4 text-violet-300" />
-                        </button>
-                    </div>
-                </div>
-
                 {/* ===== 레슨 Section ===== */}
                 <div className="bg-slate-900/80 rounded-2xl p-5 shadow-sm border border-slate-700/70">
                     <div className="flex items-center gap-2 mb-4">
@@ -705,18 +680,6 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
                     </div>
                 )}
             </div>
-        )}
-
-        {effectiveView === 'WEEKLY_INSIGHT' && (
-            <WeeklyInsightCard
-                clientId={clientId}
-                coachId={clientProfile.coachId}
-                clientProfile={clientProfile}
-                recentLogs={quickLogs}
-                recentLessons={allMyLessons}
-                onBack={handleBackToList}
-                isFirebaseMode={isFirebaseMode}
-            />
         )}
 
         {effectiveView === 'DETAIL' && selectedLesson && (
