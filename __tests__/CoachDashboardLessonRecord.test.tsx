@@ -99,12 +99,17 @@ describe('Coach dashboard – lesson-first MVP home', () => {
   it('shows exactly three main home buttons with required labels', async () => {
     await renderCoachApp();
 
-    expect(screen.getByTestId('start-lesson-btn')).toBeInTheDocument();
-    expect(screen.getByTestId('coachx-entry-btn')).toBeInTheDocument();
-    expect(screen.getByTestId('students-entry-btn')).toBeInTheDocument();
+    const startLessonButton = screen.getByTestId('start-lesson-btn');
+    const coachxEntryButton = screen.getByTestId('coachx-entry-btn');
+    const studentsEntryButton = screen.getByTestId('students-entry-btn');
+
+    expect(startLessonButton).toBeInTheDocument();
+    expect(coachxEntryButton).toBeInTheDocument();
+    expect(studentsEntryButton).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Lesson start' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'coachx ai' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Student' })).toBeInTheDocument();
+    expect(studentsEntryButton.compareDocumentPosition(coachxEntryButton) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0);
     expect(screen.queryByTestId('lesson-records-entry-btn')).toBeNull();
     expect(screen.queryByTestId('coachx-attention-card')).toBeNull();
   });
