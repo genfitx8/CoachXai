@@ -1407,7 +1407,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
             {clientName.trim() &&
               matchingClients.length > 0 &&
               !isExistingClientSelected && (
-                <div className="bg-white border border-slate-200 rounded-xl shadow-lg mt-1 max-h-48 overflow-y-auto absolute z-50 w-full">
+                <div className="bg-white border border-slate-200 rounded-xl shadow-lg mt-1 max-h-48 overflow-y-auto absolute z-50 w-[calc(100%-3rem)]">
                   {matchingClients.map((c) => (
                     <div
                       key={`${c.name}_${c.phone}`}

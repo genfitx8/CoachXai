@@ -785,13 +785,13 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
           <div className="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-sm">
             <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-slate-600">
               <span className="inline-flex items-center gap-1 bg-indigo-50 text-indigo-700 px-2.5 py-1 rounded-full">
-                <FileText className="w-3.5 h-3.5" /> {recordTypeLabel}
+                <FileText className="w-3.5 h-3.5" aria-hidden="true" /> {recordTypeLabel}
               </span>
               <span className="inline-flex items-center gap-1 bg-slate-100 text-slate-700 px-2.5 py-1 rounded-full">
-                <User className="w-3.5 h-3.5" /> {lesson.clientName}
+                <User className="w-3.5 h-3.5" aria-hidden="true" /> {lesson.clientName}
               </span>
               <span className="inline-flex items-center gap-1 bg-slate-100 text-slate-700 px-2.5 py-1 rounded-full">
-                <Calendar className="w-3.5 h-3.5" /> {lesson.date}
+                <Calendar className="w-3.5 h-3.5" aria-hidden="true" /> {lesson.date}
               </span>
             </div>
           </div>
