@@ -1629,10 +1629,6 @@ const AppContent: React.FC = () => {
               setSelectedClientFilter(client.name);
               setCoachView('LESSON_LIST');
             }}
-            onGenerateProgram={(client) => {
-              setSelectedClientForTraining(client);
-              setCoachView('TRAINING_PROGRAM');
-            }}
             memberReports={coachXMemberReports}
             onOpenCoachX={(query) => {
               setCoachXChatInitialQuery(query);
