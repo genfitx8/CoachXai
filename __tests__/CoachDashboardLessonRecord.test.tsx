@@ -148,7 +148,14 @@ describe('Coach dashboard – lesson-first MVP home', () => {
 
     fireEvent.click(screen.getByTestId('start-lesson-btn'));
 
+    const lessonRecordStartBtn = screen.getByRole('button', { name: /레슨 기록 시작/i });
     const directRegisterBtn = screen.getByTestId('lesson-start-direct-register-btn');
+    expect(
+      Boolean(
+        lessonRecordStartBtn.compareDocumentPosition(directRegisterBtn) &
+          Node.DOCUMENT_POSITION_FOLLOWING
+      )
+    ).toBe(true);
     expect(directRegisterBtn).toBeInTheDocument();
 
     fireEvent.click(directRegisterBtn);
