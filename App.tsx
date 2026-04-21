@@ -55,7 +55,6 @@ import {
   Filter,
   LogOut,
   User,
-  UserPlus,
   ListChecks,
   X,
   Mail,
@@ -1560,28 +1559,21 @@ const AppContent: React.FC = () => {
 
         {coachView === 'NEW' && (
           <>
-            {!isEditingLesson && (
-              <div className="max-w-md mx-auto mb-3 flex justify-end">
-                <Button
-                  onClick={() => {
-                    setClientsOpenedFromLessonStart(true);
-                    setAutoOpenAddMemberFromLessonStart(true);
-                    setCoachView('CLIENTS');
-                  }}
-                  data-testid="lesson-start-direct-register-btn"
-                  className="bg-slate-900 hover:bg-slate-800 text-slate-100 border border-slate-700"
-                  icon={<UserPlus className="w-4 h-4" />}
-                >
-                  {t('coach_client_add_btn')}
-                </Button>
-              </div>
-            )}
             <NewLessonForm
               existingClients={clients}
               packages={lessonPackages}
               lessons={lessons}
               userRole="COACH"
               currentUser={currentUser ?? undefined}
+              onDirectRegisterFromLessonStart={
+                !isEditingLesson
+                  ? () => {
+                      setClientsOpenedFromLessonStart(true);
+                      setAutoOpenAddMemberFromLessonStart(true);
+                      setCoachView('CLIENTS');
+                    }
+                  : undefined
+              }
               onSave={handleSaveLesson}
               onCancel={() => {
                 if (pendingPackageSession) {

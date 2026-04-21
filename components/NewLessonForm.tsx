@@ -81,6 +81,7 @@ interface NewLessonFormProps {
    * Used when the lesson-start suggestion flow triggers the new-lesson form.
    */
   prefilledClient?: ClientProfile;
+  onDirectRegisterFromLessonStart?: () => void;
 }
 
 interface PendingMedia {
@@ -197,6 +198,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
   currentUser,
   initialData,
   prefilledClient,
+  onDirectRegisterFromLessonStart,
 }) => {
   const { t } = useLanguage();
   // Wizard State: COACH starts at CLIENT_SELECT, CLIENT starts at TYPE_SELECT
@@ -1468,6 +1470,17 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
           >
             레슨 기록 시작 <Play className="w-5 h-5 ml-2 fill-current" />
           </Button>
+
+          {userRole === 'COACH' && onDirectRegisterFromLessonStart && (
+            <Button
+              onClick={onDirectRegisterFromLessonStart}
+              data-testid="lesson-start-direct-register-btn"
+              className="w-full py-3 mt-3 bg-slate-900 hover:bg-slate-800 text-slate-100 border border-slate-700"
+              icon={<UserPlus className="w-4 h-4" />}
+            >
+              {t('coach_client_add_btn')}
+            </Button>
+          )}
         </div>
       </div>
     );
