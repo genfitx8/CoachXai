@@ -1,10 +1,9 @@
 /**
  * Tests for CoachX integration in CoachClientManager:
  * 1. CoachX trend badge is shown next to a member's name when a report is provided.
- * 2. "Ask CoachX" button renders when both onOpenCoachX and a report are present.
- * 3. Clicking "Ask CoachX" calls onOpenCoachX with the member's name.
- * 4. No "Ask CoachX" button when onOpenCoachX is not provided.
- * 5. No "Ask CoachX" button when there is no report for the member.
+ * 2. "Ask CoachX" button does not render in the Student information list.
+ * 3. Full report button still renders when onOpenCoachX and report are present.
+ * 4. No "Ask CoachX" button when there is no report for the member.
  */
 
 import { describe, it, expect, vi } from 'vitest';
@@ -25,8 +24,8 @@ vi.mock('../components/LanguageContext', () => ({
         coachx_trend_plateau: '정체 구간',
         coachx_trend_inactive: '장기 미레슨',
         coachx_trend_new: '초기 단계',
-        coachx_client_ask_coachx: 'Coachx 분석',
         coachx_stat_lessons: '레슨 기록',
+        coachx_view_full_report: '분석 리포트',
       };
       return map[key] ?? key;
     },
@@ -107,7 +106,7 @@ describe('CoachClientManager – CoachX integration', () => {
     expect(screen.getByText('정체 구간')).toBeTruthy();
   });
 
-  it('renders Ask CoachX button when onOpenCoachX and report are both present', () => {
+  it('does not render Ask CoachX button in student information cards', () => {
     render(
       <CoachClientManager
         {...DEFAULT_PROPS}
@@ -115,21 +114,20 @@ describe('CoachClientManager – CoachX integration', () => {
         onOpenCoachX={vi.fn()}
       />
     );
-    expect(screen.getByTestId(`coachx-btn-${CLIENT.name}`)).toBeTruthy();
-    expect(screen.getByText('Coachx 분석')).toBeTruthy();
+    expect(screen.queryByTestId(`coachx-btn-${CLIENT.name}`)).toBeNull();
+    expect(screen.queryByText('Coachx 분석')).toBeNull();
   });
 
-  it('calls onOpenCoachX with the member name when Ask CoachX button is clicked', () => {
-    const onOpenCoachX = vi.fn();
+  it('renders full report button when onOpenCoachX and report are both present', () => {
     render(
       <CoachClientManager
         {...DEFAULT_PROPS}
         memberReports={[IMPROVING_REPORT]}
-        onOpenCoachX={onOpenCoachX}
+        onOpenCoachX={vi.fn()}
       />
     );
-    fireEvent.click(screen.getByTestId(`coachx-btn-${CLIENT.name}`));
-    expect(onOpenCoachX).toHaveBeenCalledWith(CLIENT.name);
+    expect(screen.getByTestId(`growth-report-btn-${CLIENT.name}`)).toBeTruthy();
+    expect(screen.getByText('분석 리포트')).toBeTruthy();
   });
 
   it('renders lesson-record button and opens member lesson list when clicked', () => {
@@ -145,7 +143,7 @@ describe('CoachClientManager – CoachX integration', () => {
     expect(onViewLessons).toHaveBeenCalledWith(CLIENT);
   });
 
-  it('does not render Ask CoachX button when onOpenCoachX is not provided', () => {
+  it('does not render CoachX report buttons when onOpenCoachX is not provided', () => {
     render(
       <CoachClientManager
         {...DEFAULT_PROPS}
@@ -154,6 +152,7 @@ describe('CoachClientManager – CoachX integration', () => {
       />
     );
     expect(screen.queryByTestId(`coachx-btn-${CLIENT.name}`)).toBeNull();
+    expect(screen.queryByTestId(`growth-report-btn-${CLIENT.name}`)).toBeNull();
   });
 
   it('does not render Ask CoachX button for members with no report', () => {
@@ -166,6 +165,7 @@ describe('CoachClientManager – CoachX integration', () => {
     );
     // CLIENT_NO_REPORT has no entry in memberReports
     expect(screen.queryByTestId(`coachx-btn-${CLIENT_NO_REPORT.name}`)).toBeNull();
+    expect(screen.queryByTestId(`growth-report-btn-${CLIENT_NO_REPORT.name}`)).toBeNull();
   });
 
   it('shows no trend badge when memberReports is not provided', () => {

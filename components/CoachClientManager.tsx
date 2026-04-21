@@ -15,7 +15,6 @@ import {
   Briefcase,
   ClipboardList,
   Dumbbell,
-  Sparkles,
   FileBarChart,
   AlertCircle,
   BookOpen,
@@ -443,24 +442,14 @@ export const CoachClientManager: React.FC<CoachClientManagerProps> = ({
                 </button>
               )}
               {onOpenCoachX && report && isMyClient && (
-                <>
-                  <button
-                    onClick={() => setDetailReport(report)}
-                    data-testid={`growth-report-btn-${client.name}`}
-                    className="mt-2 w-full flex items-center justify-center gap-2 py-2.5 px-3 bg-slate-50 text-slate-700 rounded-xl hover:bg-slate-100 transition-colors text-sm font-semibold"
-                  >
-                    <FileBarChart className="w-4 h-4" />
-                    {t('coachx_view_full_report')}
-                  </button>
-                  <button
-                    onClick={() => onOpenCoachX(client.name)}
-                    data-testid={`coachx-btn-${client.name}`}
-                    className="mt-2 w-full flex items-center justify-center gap-2 py-2.5 px-3 bg-violet-50 text-violet-700 rounded-xl hover:bg-violet-100 transition-colors text-sm font-semibold"
-                  >
-                    <Sparkles className="w-4 h-4" />
-                    {t('coachx_client_ask_coachx')}
-                  </button>
-                </>
+                <button
+                  onClick={() => setDetailReport(report)}
+                  data-testid={`growth-report-btn-${client.name}`}
+                  className="mt-2 w-full flex items-center justify-center gap-2 py-2.5 px-3 bg-slate-50 text-slate-700 rounded-xl hover:bg-slate-100 transition-colors text-sm font-semibold"
+                >
+                  <FileBarChart className="w-4 h-4" />
+                  {t('coachx_view_full_report')}
+                </button>
               )}
             </div>
             );
