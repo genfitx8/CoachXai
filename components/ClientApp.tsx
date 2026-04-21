@@ -503,63 +503,77 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
                         </div>
                         <h3 className="font-black text-slate-100 text-base">내 정보</h3>
                     </div>
-                    <div className="grid gap-2 grid-cols-2">
-                        <button
-                            onClick={() => openProfileSection('OVERVIEW')}
-                            className="flex flex-col items-center gap-2 py-4 px-2 bg-slate-950/70 hover:bg-slate-800/80 rounded-xl border border-slate-700/70 transition-colors group"
-                        >
-                            <div className="w-9 h-9 bg-slate-800 group-hover:bg-slate-700 rounded-xl flex items-center justify-center border border-slate-600/60 transition-colors">
-                                <User className="w-4 h-4 text-slate-300" />
-                            </div>
-                            <span className="text-[11px] font-bold text-slate-300 text-center leading-tight">내 정보</span>
-                        </button>
-                        <button
-                            onClick={() => { setSelectedLesson(null); setView('POINT_PURCHASE'); }}
-                            className="flex flex-col items-center gap-2 py-4 px-2 bg-slate-950/70 hover:bg-slate-800/80 rounded-xl border border-slate-700/70 transition-colors group"
-                        >
-                            <div className="w-9 h-9 bg-cyan-400/10 group-hover:bg-cyan-400/20 rounded-xl flex items-center justify-center border border-cyan-300/20 transition-colors">
-                                <Target className="w-4 h-4 text-cyan-300" />
-                            </div>
-                            <span className="text-[11px] font-bold text-cyan-200 text-center leading-tight">포인트</span>
-                        </button>
-                        <button
-                            onClick={() => openProfileSection('GOLF_PROFILE')}
-                            className="flex flex-col items-center gap-2 py-4 px-2 bg-slate-950/70 hover:bg-slate-800/80 rounded-xl border border-slate-700/70 transition-colors group"
-                        >
-                            <div className="w-9 h-9 bg-emerald-500/10 group-hover:bg-emerald-500/20 rounded-xl flex items-center justify-center border border-emerald-300/20 transition-colors">
-                                <Award className="w-4 h-4 text-emerald-300" />
-                            </div>
-                            <span className="text-[11px] font-bold text-emerald-200 text-center leading-tight">골프프로필</span>
-                        </button>
-                        <button
-                            onClick={() => openProfileSection('CLUB_BAG')}
-                            className="flex flex-col items-center gap-2 py-4 px-2 bg-slate-950/70 hover:bg-slate-800/80 rounded-xl border border-slate-700/70 transition-colors group"
-                        >
-                            <div className="w-9 h-9 bg-indigo-500/10 group-hover:bg-indigo-500/20 rounded-xl flex items-center justify-center border border-indigo-300/20 transition-colors">
-                                <Briefcase className="w-4 h-4 text-indigo-300" />
-                            </div>
-                            <span className="text-[11px] font-bold text-indigo-200 text-center leading-tight">내 클럽</span>
-                        </button>
-                        <button
-                            onClick={() => openProfileSection('BODY_ANALYSIS')}
-                            className="flex flex-col items-center gap-2 py-4 px-2 bg-slate-950/70 hover:bg-slate-800/80 rounded-xl border border-slate-700/70 transition-colors group"
-                        >
-                            <div className="w-9 h-9 bg-amber-500/10 group-hover:bg-amber-500/20 rounded-xl flex items-center justify-center border border-amber-300/20 transition-colors">
-                                <ScanLine className="w-4 h-4 text-amber-300" />
-                            </div>
-                            <span className="text-[11px] font-bold text-amber-200 text-center leading-tight">신체분석</span>
-                        </button>
-                        {!HIDE_MEMBERSHIP_FEATURES && (
+                    <div className="space-y-4">
+                        <div className="grid gap-2 grid-cols-2">
                             <button
-                                onClick={() => { setSelectedLesson(null); setView('MEMBERSHIP_PURCHASE'); }}
+                                onClick={() => openProfileSection('OVERVIEW')}
                                 className="flex flex-col items-center gap-2 py-4 px-2 bg-slate-950/70 hover:bg-slate-800/80 rounded-xl border border-slate-700/70 transition-colors group"
                             >
-                                <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${actionIconContainerTone} ${actionIconContainerHoverTone} transition-colors`}>
-                                    <Crown className={`w-4 h-4 ${actionIconTone}`} />
+                                <div className="w-9 h-9 bg-slate-800 group-hover:bg-slate-700 rounded-xl flex items-center justify-center border border-slate-600/60 transition-colors">
+                                    <User className="w-4 h-4 text-slate-300" />
                                 </div>
-                                <span className={`text-[11px] font-bold ${actionTextTone} text-center leading-tight`}>멤버십 결제</span>
+                                <span className="text-[11px] font-bold text-slate-300 text-center leading-tight">내 정보</span>
                             </button>
-                        )}
+                            <button
+                                onClick={() => { setSelectedLesson(null); setView('POINT_PURCHASE'); }}
+                                className="flex flex-col items-center gap-2 py-4 px-2 bg-slate-950/70 hover:bg-slate-800/80 rounded-xl border border-slate-700/70 transition-colors group"
+                            >
+                                <div className="w-9 h-9 bg-cyan-400/10 group-hover:bg-cyan-400/20 rounded-xl flex items-center justify-center border border-cyan-300/20 transition-colors">
+                                    <Target className="w-4 h-4 text-cyan-300" />
+                                </div>
+                                <span className="text-[11px] font-bold text-cyan-200 text-center leading-tight">포인트</span>
+                            </button>
+                            {!HIDE_MEMBERSHIP_FEATURES && (
+                                <button
+                                    onClick={() => { setSelectedLesson(null); setView('MEMBERSHIP_PURCHASE'); }}
+                                    className="flex flex-col items-center gap-2 py-4 px-2 bg-slate-950/70 hover:bg-slate-800/80 rounded-xl border border-slate-700/70 transition-colors group"
+                                >
+                                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${actionIconContainerTone} ${actionIconContainerHoverTone} transition-colors`}>
+                                        <Crown className={`w-4 h-4 ${actionIconTone}`} />
+                                    </div>
+                                    <span className={`text-[11px] font-bold ${actionTextTone} text-center leading-tight`}>멤버십 결제</span>
+                                </button>
+                            )}
+                        </div>
+
+                        <div className="space-y-2">
+                            <h4 className="text-xs font-bold text-emerald-200">골프 프로필</h4>
+                            <div className="grid gap-2 grid-cols-2">
+                                <button
+                                    onClick={() => openProfileSection('GOLF_PROFILE')}
+                                    className="flex flex-col items-center gap-2 py-4 px-2 bg-slate-950/70 hover:bg-slate-800/80 rounded-xl border border-slate-700/70 transition-colors group"
+                                >
+                                    <div className="w-9 h-9 bg-emerald-500/10 group-hover:bg-emerald-500/20 rounded-xl flex items-center justify-center border border-emerald-300/20 transition-colors">
+                                        <Award className="w-4 h-4 text-emerald-300" />
+                                    </div>
+                                    <span className="text-[11px] font-bold text-emerald-200 text-center leading-tight">골프프로필</span>
+                                </button>
+                                <button
+                                    onClick={() => openProfileSection('BODY_ANALYSIS')}
+                                    className="flex flex-col items-center gap-2 py-4 px-2 bg-slate-950/70 hover:bg-slate-800/80 rounded-xl border border-slate-700/70 transition-colors group"
+                                >
+                                    <div className="w-9 h-9 bg-amber-500/10 group-hover:bg-amber-500/20 rounded-xl flex items-center justify-center border border-amber-300/20 transition-colors">
+                                        <ScanLine className="w-4 h-4 text-amber-300" />
+                                    </div>
+                                    <span className="text-[11px] font-bold text-amber-200 text-center leading-tight">신체분석</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="space-y-2">
+                            <h4 className="text-xs font-bold text-indigo-200">내 클럽</h4>
+                            <div className="grid gap-2 grid-cols-2">
+                                <button
+                                    onClick={() => openProfileSection('CLUB_BAG')}
+                                    className="flex flex-col items-center gap-2 py-4 px-2 bg-slate-950/70 hover:bg-slate-800/80 rounded-xl border border-slate-700/70 transition-colors group"
+                                >
+                                    <div className="w-9 h-9 bg-indigo-500/10 group-hover:bg-indigo-500/20 rounded-xl flex items-center justify-center border border-indigo-300/20 transition-colors">
+                                        <Briefcase className="w-4 h-4 text-indigo-300" />
+                                    </div>
+                                    <span className="text-[11px] font-bold text-indigo-200 text-center leading-tight">내 클럽</span>
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
 

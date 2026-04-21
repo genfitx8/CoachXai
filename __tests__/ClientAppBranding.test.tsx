@@ -65,4 +65,13 @@ describe('ClientApp CoachX premium dark alignment', () => {
     expect(screen.queryByRole('button', { name: '레슨 예약' })).toBeNull();
     expect(screen.getByRole('button', { name: '상세 통계' }).className).toContain('bg-slate-950/70');
   });
+
+  it('organizes my info actions into golf profile and club sections', () => {
+    renderClientApp();
+
+    expect(screen.getByText('골프 프로필')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '골프프로필' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '신체분석' })).toBeInTheDocument();
+    expect(screen.getAllByText('내 클럽')).toHaveLength(2);
+  });
 });
