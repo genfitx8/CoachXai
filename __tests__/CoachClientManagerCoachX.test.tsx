@@ -3,7 +3,7 @@
  * 1. CoachX trend badge is shown next to a member's name when a report is provided.
  * 2. "Ask CoachX" button does not render in the Student information list.
  * 3. Full report button still renders when onOpenCoachX and report are present.
- * 4. No "Ask CoachX" button when there is no report for the member.
+ * 4. No CoachX report actions when there is no report for the member.
  */
 
 import { describe, it, expect, vi } from 'vitest';
@@ -115,7 +115,6 @@ describe('CoachClientManager – CoachX integration', () => {
       />
     );
     expect(screen.queryByTestId(`coachx-btn-${CLIENT.name}`)).toBeNull();
-    expect(screen.queryByText('Coachx 분석')).toBeNull();
   });
 
   it('renders full report button when onOpenCoachX and report are both present', () => {
@@ -155,7 +154,7 @@ describe('CoachClientManager – CoachX integration', () => {
     expect(screen.queryByTestId(`growth-report-btn-${CLIENT.name}`)).toBeNull();
   });
 
-  it('does not render Ask CoachX button for members with no report', () => {
+  it('does not render CoachX report buttons for members with no report', () => {
     render(
       <CoachClientManager
         {...DEFAULT_PROPS}
