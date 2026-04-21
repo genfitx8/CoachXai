@@ -63,6 +63,8 @@ describe('ClientApp CoachX premium dark alignment', () => {
 
     expect(screen.getByText('레슨 기록 시작').closest('button')?.className).toContain('from-indigo-600');
     expect(screen.queryByRole('button', { name: '레슨 예약' })).toBeNull();
+    expect(screen.queryByText('CoachX AI')).toBeNull();
+    expect(screen.queryByText('주간 인사이트')).toBeNull();
     expect(screen.getByRole('button', { name: '상세 통계' }).className).toContain('bg-slate-950/70');
   });
 });
