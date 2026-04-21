@@ -747,13 +747,26 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
       }
   }, [isAddingMedia, isCommentaryMode, isSequenceMode, selectedSequenceImage]);
 
+  const recordTypeLabel =
+    lesson.recordType === 'SCORE'
+      ? '라운드 기록'
+      : lesson.recordType === 'PRACTICE'
+      ? '연습 기록'
+      : '레슨 기록';
+
   return (
-    <div className="fixed inset-0 z-50 bg-white flex flex-col h-full overflow-hidden animate-fade-in">
+    <div className="fixed inset-0 z-50 bg-slate-50 flex flex-col h-full overflow-hidden animate-fade-in">
       {/* ... (Header and Main Content rendering remains same) ... */}
       {/* Header */}
-      <div className="bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 px-4 py-3 flex items-center justify-between text-white flex-shrink-0 safe-area-top relative shadow-lg">
-        <div className="w-10"></div> {/* Spacer for center alignment */}
-        <h2 className="text-lg font-bold truncate max-w-[200px] text-center">{lesson.title}</h2>
+      <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 px-4 py-3 flex items-center justify-between text-white flex-shrink-0 safe-area-top relative shadow-lg">
+        <button
+          onClick={onBack}
+          className="p-2 bg-white/10 backdrop-blur-sm rounded-full hover:bg-white/20 text-white transition-all duration-200 hover:scale-110 transform"
+          aria-label="목록으로 돌아가기"
+        >
+          <ArrowLeft className="w-4 h-4" />
+        </button>
+        <h2 className="text-lg font-bold truncate max-w-[220px] text-center">{lesson.title}</h2>
         <div className="w-10 flex justify-end">
             {canEdit && onEdit && (
                 <button 
@@ -769,6 +782,19 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
 
       <div className="flex-1 overflow-y-auto bg-gray-50 custom-scrollbar safe-area-bottom">
         <div className="max-w-4xl mx-auto p-4 space-y-6">
+          <div className="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-sm">
+            <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-slate-600">
+              <span className="inline-flex items-center gap-1 bg-indigo-50 text-indigo-700 px-2.5 py-1 rounded-full">
+                <FileText className="w-3.5 h-3.5" /> {recordTypeLabel}
+              </span>
+              <span className="inline-flex items-center gap-1 bg-slate-100 text-slate-700 px-2.5 py-1 rounded-full">
+                <User className="w-3.5 h-3.5" /> {lesson.clientName}
+              </span>
+              <span className="inline-flex items-center gap-1 bg-slate-100 text-slate-700 px-2.5 py-1 rounded-full">
+                <Calendar className="w-3.5 h-3.5" /> {lesson.date}
+              </span>
+            </div>
+          </div>
 
           {/* Media Player Section - Only if URL exists */}
           {lesson.videoUrl ? (
