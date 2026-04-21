@@ -52,7 +52,7 @@ describe('NewLessonForm – body analysis only save', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /레슨 기록/i }));
     expect(screen.queryByText('회원 신체 분석')).not.toBeInTheDocument();
-    expect(screen.getByText('AI 레슨 요약 리포트')).toBeInTheDocument();
+    expect(screen.getByText('레슨 요약 리포트')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /기록 저장하기/i }));
 
