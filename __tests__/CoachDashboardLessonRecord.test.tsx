@@ -150,12 +150,12 @@ describe('Coach dashboard – lesson-first MVP home', () => {
 
     const lessonRecordStartBtn = screen.getByRole('button', { name: /레슨 기록 시작/i });
     const directRegisterBtn = screen.getByTestId('lesson-start-direct-register-btn');
-    expect(
-      Boolean(
-        lessonRecordStartBtn.compareDocumentPosition(directRegisterBtn) &
-          Node.DOCUMENT_POSITION_FOLLOWING
-      )
-    ).toBe(true);
+    const buttonGroup = lessonRecordStartBtn.parentElement;
+    expect(buttonGroup).not.toBeNull();
+    const buttonsInOrder = Array.from(buttonGroup!.querySelectorAll('button'));
+    expect(buttonsInOrder.indexOf(directRegisterBtn)).toBe(
+      buttonsInOrder.indexOf(lessonRecordStartBtn) + 1
+    );
     expect(directRegisterBtn).toBeInTheDocument();
 
     fireEvent.click(directRegisterBtn);
