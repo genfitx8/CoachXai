@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { ClientProfile } from '../types';
 import { Button } from './Button';
 import {
@@ -41,6 +41,12 @@ interface CoachClientManagerProps {
   memberReports?: MemberGrowthReport[];
   /** Called when coach taps "Ask CoachX" for a specific member. */
   onOpenCoachX?: (query?: string) => void;
+  /** Shows the direct member registration button in toolbar. */
+  showAddButton?: boolean;
+  /** Auto-opens the add-member modal when entering this screen. */
+  autoOpenAddModal?: boolean;
+  /** Callback fired after auto-open has been handled. */
+  onAutoOpenAddModalHandled?: () => void;
 }
 
 export const CoachClientManager: React.FC<CoachClientManagerProps> = ({
@@ -55,10 +61,14 @@ export const CoachClientManager: React.FC<CoachClientManagerProps> = ({
   onGenerateProgram,
   memberReports,
   onOpenCoachX,
+  showAddButton = true,
+  autoOpenAddModal = false,
+  onAutoOpenAddModalHandled,
 }) => {
   const { t } = useLanguage();
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const hasHandledAutoOpenRef = useRef(false);
   const [editingClient, setEditingClient] = useState<ClientProfile | null>(
     null
   );
@@ -130,13 +140,24 @@ export const CoachClientManager: React.FC<CoachClientManagerProps> = ({
     }
   };
 
-  const openAddModal = () => {
+  const openAddModal = useCallback(() => {
     setEditingClient(null);
     setName('');
     setPhone('');
     setMemo('');
     setIsModalOpen(true);
-  };
+  }, []);
+
+  useEffect(() => {
+    if (!autoOpenAddModal) {
+      hasHandledAutoOpenRef.current = false;
+      return;
+    }
+    if (hasHandledAutoOpenRef.current) return;
+    hasHandledAutoOpenRef.current = true;
+    openAddModal();
+    onAutoOpenAddModalHandled?.();
+  }, [autoOpenAddModal, onAutoOpenAddModalHandled, openAddModal]);
 
   const openEditModal = (client: ClientProfile) => {
     setEditingClient(client);
@@ -259,12 +280,15 @@ export const CoachClientManager: React.FC<CoachClientManagerProps> = ({
             className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-xl bg-white text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:ring-indigo-500 outline-none"
           />
         </div>
-        <Button
-          onClick={openAddModal}
-          className="w-full sm:w-auto bg-slate-700 hover:bg-slate-800"
-        >
-          <UserPlus className="w-5 h-5 mr-2" /> {t('coach_client_add_btn')}
-        </Button>
+        {showAddButton && (
+          <Button
+            onClick={openAddModal}
+            data-testid="coach-client-add-btn"
+            className="w-full sm:w-auto bg-slate-700 hover:bg-slate-800"
+          >
+            <UserPlus className="w-5 h-5 mr-2" /> {t('coach_client_add_btn')}
+          </Button>
+        )}
       </div>
 
       {growthSummary && (
@@ -470,7 +494,10 @@ export const CoachClientManager: React.FC<CoachClientManagerProps> = ({
 
       {/* Add/Edit Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
+        <div
+          data-testid="coach-client-add-modal"
+          className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in"
+        >
           <div className="bg-white rounded-2xl w-full max-w-sm overflow-hidden shadow-2xl">
             <div className="bg-slate-800 px-6 py-4 flex justify-between items-center text-white">
               <h3 className="font-bold text-lg">
