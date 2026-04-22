@@ -15,6 +15,32 @@ describe('ClientProfileSettings – body analysis in My Info', () => {
     vi.clearAllMocks();
   });
 
+  it('uses refreshed dark background treatment for My Info screen shell', () => {
+    const profile: ClientProfile = {
+      name: '배경테스트',
+      phone: '010-0000-0000',
+    };
+
+    const { container } = render(
+      <LanguageProvider>
+        <ClientProfileSettings
+          profile={profile}
+          allLessons={[]}
+          onSave={vi.fn()}
+          onBack={vi.fn()}
+          onSearchCoach={vi.fn().mockResolvedValue([])}
+        />
+      </LanguageProvider>
+    );
+
+    const root = container.firstElementChild as HTMLDivElement;
+    expect(root.className).toContain('rounded-2xl');
+    expect(root.className).toContain('border-slate-700/70');
+    expect(root.className).toContain('bg-gradient-to-b');
+    expect(root.className).toContain('from-slate-900/80');
+    expect(root.className).toContain('to-slate-950/80');
+  });
+
   it('prefills body analysis from existing lessons and saves it to client profile', async () => {
     const profile: ClientProfile = {
       name: '홍길동',
