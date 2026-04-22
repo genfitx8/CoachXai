@@ -109,6 +109,7 @@ describe('Coach dashboard – lesson-first MVP home', () => {
     expect(screen.getByRole('button', { name: 'Lesson start' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'coachx ai' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Student' })).toBeInTheDocument();
+    expect(studentsButton.compareDocumentPosition(coachxButton)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
     [startButton, coachxButton, studentsButton].forEach((button) => {
       expect(button.className).toContain('rounded-2xl');
       expect(button.className).toContain('border');
