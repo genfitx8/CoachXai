@@ -39,6 +39,57 @@ const getBlobFromUrl = async (url: string): Promise<Blob> => {
   return await response.blob();
 };
 
+const LONG_FORM_AUDIO_THRESHOLD_BYTES = 20 * 1024 * 1024; // ~20MB+
+const MAX_FILE_PROCESSING_RETRIES = 20;
+const FILE_PROCESSING_POLL_INTERVAL_MS = 1500;
+
+const wait = (ms: number) =>
+  new Promise((resolve) => setTimeout(resolve, ms));
+
+const waitForUploadedFile = async (name: string) => {
+  for (let i = 0; i < MAX_FILE_PROCESSING_RETRIES; i++) {
+    const file = await ai!.files.get({ name });
+    if (file.state === 'ACTIVE' && file.uri) {
+      return file;
+    }
+    if (file.state === 'FAILED') {
+      throw new Error('업로드한 오디오 파일 처리에 실패했습니다.');
+    }
+    await wait(FILE_PROCESSING_POLL_INTERVAL_MS);
+  }
+  throw new Error('오디오 파일 처리 시간이 초과되었습니다.');
+};
+
+const toMediaPart = async (
+  blob: Blob,
+  mimeType: string,
+  uploadedFileNames: string[]
+) => {
+  // Long-form audio is uploaded as a Gemini file so the full lesson recording can be processed reliably.
+  if (mimeType.startsWith('audio/') && blob.size >= LONG_FORM_AUDIO_THRESHOLD_BYTES) {
+    const uploaded = await ai!.files.upload({
+      file: blob,
+      config: { mimeType },
+    });
+
+    if (!uploaded.name) {
+      throw new Error('오디오 파일 업로드에 실패했습니다.');
+    }
+
+    uploadedFileNames.push(uploaded.name);
+    const activeFile = await waitForUploadedFile(uploaded.name);
+
+    return {
+      fileData: {
+        fileUri: activeFile.uri,
+        mimeType: activeFile.mimeType || mimeType,
+      },
+    };
+  }
+
+  return fileToGenerativePart(blob, mimeType);
+};
+
 /**
  * Converts a File object or Blob to a Base64 string for Gemini inline data.
  */
@@ -166,6 +217,8 @@ export const analyzeSwingVideo = async (
     );
   }
 
+  const uploadedFileNames: string[] = [];
+
   try {
     // Convert all inputs to generative parts
     const mediaParts = await Promise.all(
@@ -176,7 +229,7 @@ export const analyzeSwingVideo = async (
         } else {
           blob = input.data;
         }
-        return fileToGenerativePart(blob, input.mimeType);
+        return toMediaPart(blob, input.mimeType, uploadedFileNames);
       })
     );
 
@@ -200,9 +253,12 @@ export const analyzeSwingVideo = async (
       **작성 원칙:**
       1. 회원이 바로 이해할 수 있는 쉬운 표현을 사용하세요.
       2. 분석/진단/평가/판정 느낌의 과한 표현은 피하고, 관찰된 내용 중심으로 정리하세요.
-      3. 코치가 실제로 전달한 교정 포인트와 다음 연습 방향을 구체적으로 담아주세요.
+      3. 코치가 실제로 전달한 교정 포인트를 중심으로 정리하세요.
       4. 정보가 불충분하면 단정하지 말고 "추가 확인이 필요"하다고 부드럽게 표현하세요.
-      5. 아래 형식을 준수해 마크다운으로 출력하세요.
+      5. 오디오가 포함된 경우, 반드시 **전체 녹음본이 끝난 뒤 확보된 전체 맥락**을 기준으로 요약하세요.
+      6. 여러 미디어/음성 조각이 있어도 최종 결과는 **하나의 통합 레슨 리포트**로 작성하세요.
+      7. "AI 분석" 같은 표현 대신 회원에게 공유 가능한 "레슨 리포트" 톤을 유지하세요.
+      8. 아래 형식을 준수해 마크다운으로 출력하세요.
 
       ---
 
@@ -212,11 +268,6 @@ export const analyzeSwingVideo = async (
       ## 🎯 핵심 코칭 포인트
       - (교정/유지가 필요한 핵심 포인트를 3개 내외로 정리)
       - (각 항목은 회원이 이해하기 쉬운 문장으로 작성)
-
-      ## ✅ 다음 연습 가이드
-      1. (다음 연습에서 우선순위가 높은 연습 2~3개 제안)
-      2. (연습 시 체크할 기준이나 감각 포인트 제시)
-      3. (무리 없는 빈도/순서 가이드 제시)
 
       ---
 
@@ -241,6 +292,10 @@ export const analyzeSwingVideo = async (
   } catch (error) {
     console.error('Gemini Lesson Summary Error:', error);
     throw error;
+  } finally {
+    await Promise.allSettled(
+      uploadedFileNames.map((name) => ai!.files.delete({ name }))
+    );
   }
 };
 

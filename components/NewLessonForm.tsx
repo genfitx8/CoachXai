@@ -948,6 +948,10 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
       setError(t('new_lesson_user_missing'));
       return;
     }
+    if (isRecording) {
+      setError('녹음이 완료된 뒤 저장해주세요.');
+      return;
+    }
 
     const shouldRunAI = enableAI || isDataExtractionMode;
 
@@ -966,7 +970,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
 
     if (shouldRunAI) {
       setIsAnalyzing(true);
-      setStatusMessage('AI 요약 준비 중...');
+      setStatusMessage('레슨 요약 리포트 준비 중...');
     } else {
       setIsAnalyzing(true);
       setStatusMessage('저장 중...');
@@ -1014,7 +1018,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
               .join(', ')}\n`;
           }
           if (badHoles.length > 0) {
-            analysisResult += `🎯 **다음 연습 집중 홀**: ${badHoles
+            analysisResult += `🎯 **중점 확인 홀**: ${badHoles
               .map((h) => `${h.holeNumber}번(${h.score})`)
               .join(', ')}\n`;
           }
@@ -1054,7 +1058,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
             }
           } else {
             setStatusMessage(
-              'AI가 미디어 자료와 코치님의 피드백을 바탕으로 레슨 내용을 요약하고 있습니다...'
+              '미디어 자료와 코치님 피드백을 바탕으로 레슨 리포트를 정리하고 있습니다...'
             );
 
             let promptContext = notes;
@@ -1081,7 +1085,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
           }
         } catch (err) {
           console.error('Analysis failed', err);
-          if (!analysisResult) analysisResult = 'AI 요약 생성에 실패했습니다.';
+          if (!analysisResult) analysisResult = '레슨 요약 리포트 생성에 실패했습니다.';
         }
       }
 
@@ -2513,11 +2517,11 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
               <Sparkles className="w-5 h-5" />
             </div>
             <div>
-              <h4 className="font-bold text-gray-900 text-sm">AI 레슨 요약 리포트</h4>
+              <h4 className="font-bold text-gray-900 text-sm">레슨 요약 리포트</h4>
               <p className="text-xs text-gray-500">
                 {recordType === 'SCORE' && scoreMode === 'DETAILED'
                   ? '18홀 기록을 바탕으로 라운드를 요약합니다.'
-                  : 'Coachx AI가 영상을 바탕으로 회원용 레슨 요약 리포트를 생성합니다.'}
+                  : '업로드한 미디어를 바탕으로 회원용 레슨 요약 리포트를 생성합니다.'}
               </p>
             </div>
           </div>

@@ -1324,12 +1324,12 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
                </div>
           )}
           
-          {/* General AI Analysis Card (Detailed Scorecard Mode) */}
+          {/* Round Report Summary Card (Detailed Scorecard Mode) */}
           {lesson.scorecardDetail && lesson.aiAnalysis && (
               <div className="bg-white rounded-xl shadow-sm border border-blue-100 overflow-hidden">
                    <div className="bg-blue-50 px-4 py-3 border-b border-blue-100 flex items-center gap-2">
                         <Sparkles className="w-5 h-5 text-blue-500" /> 
-                        <h3 className="font-bold text-blue-800">AI Round Summary</h3>
+                        <h3 className="font-bold text-blue-800">라운드 리포트 요약</h3>
                    </div>
                    <div className="p-5 prose prose-sm prose-blue text-gray-600 leading-relaxed max-w-none">
                         <ReactMarkdown>{lesson.aiAnalysis}</ReactMarkdown>
@@ -1337,13 +1337,13 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
               </div>
           )}
 
-          {/* AI Lesson Summary Card (Lesson/Practice Mode) */}
+          {/* Lesson Report Summary Card (Lesson/Practice Mode) */}
           {showAiAnalysis && lesson.recordType !== 'SCORE' && (
             <div className="bg-white rounded-xl shadow-sm border border-emerald-100 overflow-hidden">
                 <div className="bg-emerald-50 px-4 py-3 border-b border-emerald-100 flex justify-between items-center">
                     <h3 className="font-bold text-emerald-800 flex items-center gap-2">
                         <Sparkles className="w-5 h-5 text-emerald-700" /> 
-                        AI Lesson Summary
+                        레슨 리포트 요약
                     </h3>
                     <div className="flex gap-2">
                         {/* Audio Synthesis Controls */}
@@ -1375,7 +1375,7 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
                     ) : (
                         <div className="text-center py-8">
                             <Sparkles className="w-12 h-12 text-gray-200 mx-auto mb-3" />
-                            <p className="text-gray-500 text-sm mb-4">아직 AI 레슨 요약이 없습니다.</p>
+                            <p className="text-gray-500 text-sm mb-4">아직 레슨 요약 리포트가 없습니다.</p>
                             {canEdit && (
                                 <Button 
                                     onClick={handleGenerateAIAnalysis} 
@@ -1383,7 +1383,7 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
                                     className="bg-emerald-800 hover:bg-emerald-900 text-white shadow-lg shadow-slate-200"
                                     icon={<Wand2 className="w-4 h-4" />}
                                 >
-                                    AI 요약 생성하기
+                                    레슨 요약 리포트 생성하기
                                 </Button>
                             )}
                         </div>
