@@ -34,6 +34,9 @@ describe('ClientProfileSettings – body analysis in My Info', () => {
     );
 
     const root = container.firstElementChild as HTMLDivElement;
+    expect(root.className).toContain('rounded-2xl');
+    expect(root.className).toContain('border-slate-700/70');
+    expect(root.className).toContain('bg-gradient-to-b');
     expect(root.className).toContain('from-slate-900/80');
     expect(root.className).toContain('to-slate-950/80');
   });
