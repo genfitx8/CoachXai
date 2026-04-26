@@ -8,6 +8,7 @@ import {
   registerBackButtonHandler,
 } from './utils/capacitorService';
 import { isNative } from './utils/platformUtils';
+import { inject } from '@vercel/analytics';
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
@@ -20,6 +21,9 @@ root.render(
     <App />
   </React.StrictMode>
 );
+
+// Initialize Vercel Web Analytics
+inject();
 
 // ─── Capacitor native initialization ─────────────────────────────────────────
 // These calls no-op on the web, so this block is safe for all platforms.
