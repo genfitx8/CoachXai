@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { useLanguage } from './LanguageContext';
-import { Lesson, MediaItem, SwingSequenceItem, HoleRecord, ScorecardDetail, VideoEditMetadata } from '../types';
+import { Lesson, MediaItem, SwingSequenceItem, HoleRecord, ScorecardDetail, VideoEditMetadata, CompareVideoMetadata } from '../types';
 import { Button } from './Button';
 import { ArrowLeft, Calendar, User, Sparkles, Mic, Plus, Video, Image as ImageIcon, X, Camera, Square, Trash2, Mic2, PlayCircle, Lock, PenTool, Save, Target, AlertTriangle, MessageCircle, CheckCircle, AlertCircle, Clock, Volume2, StopCircle, Copy, Check, Film, ChevronRight, FileText, MonitorPlay, Scissors, GripHorizontal, RefreshCw, Maximize2, Zap, Play, Pause, ListChecks, Trophy, Wand2, MapPin, Edit2, TrendingUp, Send } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
@@ -12,7 +12,7 @@ import { VideoEditor } from './VideoEditor';
 import { firebaseService } from '../services/firebase';
 import { storageService } from '../services/storage';
 import { sendLessonNoteViaKakao, buildLessonShareUrl } from '../services/kakaoShareService';
-
+import { videoEditingService } from '../services/videoEditingService';
 
 interface LessonDetailProps {
   lesson: Lesson;
@@ -69,6 +69,11 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
 
   // Video Editor State
   const [showVideoEditor, setShowVideoEditor] = useState(false);
+
+  // Compare Video State
+  const [isGeneratingCompare, setIsGeneratingCompare] = useState(false);
+  const [compareProgress, setCompareProgress] = useState(0);
+  const [pendingRole, setPendingRole] = useState<'BEFORE' | 'AFTER' | undefined>(undefined);
 
   // KakaoTalk Share State
   const [kakaoShareStatus, setKakaoShareStatus] = useState<'idle' | 'loading' | 'no_key' | 'error'>('idle');
@@ -238,6 +243,67 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
       console.error('Error saving edited video:', error);
       alert(t('lesson_edit_save_error'));
     }
+  };
+
+  const handleGenerateCompareVideo = async () => {
+    const beforeItem = lesson.additionalMedia?.find(m => m.type === 'video' && m.role === 'BEFORE');
+    const afterItem = lesson.additionalMedia?.find(m => m.type === 'video' && m.role === 'AFTER');
+
+    if (!beforeItem || !afterItem) {
+      alert(t('lesson_compare_need_both'));
+      return;
+    }
+
+    setIsGeneratingCompare(true);
+    setCompareProgress(0);
+
+    try {
+      const [beforeBlob, afterBlob] = await Promise.all([
+        fetch(beforeItem.url).then(r => r.blob()),
+        fetch(afterItem.url).then(r => r.blob()),
+      ]);
+
+      const compareBlob = await videoEditingService.createSideBySideCompareVideo(
+        beforeBlob,
+        afterBlob,
+        { watermarkText: 'CoachXai' },
+        (progress) => setCompareProgress(Math.round(progress * 100))
+      );
+
+      let compareUrl: string;
+      if (firebaseService.isInitialized()) {
+        const userId = lesson.coachId || 'unknown';
+        compareUrl = await firebaseService.uploadCompareVideo(compareBlob, lesson.id, userId);
+      } else {
+        compareUrl = URL.createObjectURL(compareBlob);
+      }
+
+      const metadata: CompareVideoMetadata = {
+        beforeMediaId: beforeItem.id,
+        afterMediaId: afterItem.id,
+        watermarkText: 'CoachXai',
+        createdAt: new Date().toISOString(),
+      };
+
+      onUpdate({ ...lesson, compareVideoUrl: compareUrl, compareVideoMetadata: metadata });
+      showTempNotification(t('lesson_compare_saved'));
+    } catch (error) {
+      console.error('Error generating compare video:', error);
+      alert(t('lesson_compare_save_error'));
+    } finally {
+      setIsGeneratingCompare(false);
+      setCompareProgress(0);
+    }
+  };
+
+  const handleToggleMediaRole = (mediaId: string, currentRole?: 'BEFORE' | 'AFTER') => {
+    const nextRole: 'BEFORE' | 'AFTER' | undefined =
+      currentRole === undefined ? 'BEFORE' : currentRole === 'BEFORE' ? 'AFTER' : undefined;
+
+    const updatedMedia = (lesson.additionalMedia || []).map(m =>
+      m.id === mediaId ? { ...m, role: nextRole } : m
+    );
+    onUpdate({ ...lesson, additionalMedia: updatedMedia });
   };
 
 
@@ -614,6 +680,7 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
           id: crypto.randomUUID(),
           url: capturedMedia.url,
           type: capturedMedia.type,
+          role: capturedMedia.type === 'video' ? pendingRole : undefined,
           createdAt: Date.now()
       };
 
@@ -623,6 +690,7 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
       };
       
       onUpdate(updatedLesson);
+      setPendingRole(undefined);
       closeAddModal();
       closeCommentaryModal();
   };
@@ -685,6 +753,7 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
       setIsAddingMedia(false);
       setAddMode('SELECT');
       setCapturedMedia(null);
+      setPendingRole(undefined);
       stopMediaStream();
   };
 
@@ -882,11 +951,11 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
                         {activeMedia.type === 'video' ? <Video className="w-3 h-3" /> : activeMedia.type === 'image' ? <ImageIcon className="w-3 h-3" /> : <Mic className="w-3 h-3" />}
                         {activeMedia.type.toUpperCase()}
                     </div>
-                    {activeMedia.videoCategory && (
+                    {activeMedia.role && (
                       <div className={`absolute top-3 right-3 px-2 py-1 rounded-lg text-xs font-bold text-white z-20 ${
-                        activeMedia.videoCategory === 'BEFORE' ? 'bg-blue-600/80 backdrop-blur-md' : 'bg-orange-500/80 backdrop-blur-md'
+                        activeMedia.role === 'BEFORE' ? 'bg-blue-600/80 backdrop-blur-md' : 'bg-orange-500/80 backdrop-blur-md'
                       }`}>
-                        {activeMedia.videoCategory === 'BEFORE' ? '레슨 전 영상' : '레슨 후 영상'}
+                        {activeMedia.role === 'BEFORE' ? '레슨 전 영상' : '레슨 후 영상'}
                       </div>
                     )}
               </div>
@@ -911,14 +980,22 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
                             {media.type === 'video' ? <video src={media.url} className="w-full h-full object-cover" /> : 
                              media.type === 'image' ? <img src={media.url} className="w-full h-full object-cover" alt="thumb" /> :
                              <div className="w-full h-full bg-gray-800 flex items-center justify-center"><Mic className="w-6 h-6 text-white" /></div>}
-                            {media.videoCategory && (
-                              <div className={`absolute bottom-0 left-0 right-0 text-white text-[8px] text-center py-0.5 font-bold ${
-                                media.videoCategory === 'BEFORE' ? 'bg-blue-600/90' : 'bg-orange-500/90'
-                              }`}>
-                                {media.videoCategory === 'BEFORE' ? '레슨 전' : '레슨 후'}
-                              </div>
-                            )}
                           </button>
+                          {/* Role badge for video items */}
+                          {media.type === 'video' && (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); if (canEdit) handleToggleMediaRole(media.id, media.role); }}
+                              className={`absolute bottom-0 left-0 right-0 text-[9px] font-bold py-0.5 text-center transition-colors ${
+                                media.role === 'BEFORE' ? 'bg-blue-600 text-white' :
+                                media.role === 'AFTER'  ? 'bg-emerald-600 text-white' :
+                                'bg-black/50 text-gray-300'
+                              }`}
+                              title={canEdit ? t('lesson_compare_role_none') : undefined}
+                            >
+                              {media.role === 'BEFORE' ? t('lesson_compare_role_before') :
+                               media.role === 'AFTER'  ? t('lesson_compare_role_after') : '—'}
+                            </button>
+                          )}
                           {canEdit && (
                               <button 
                                 onClick={(e) => handleDeleteMedia(media.id, e)}
@@ -953,6 +1030,69 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
                            영상 편집
                        </Button>
                    </div>
+               )}
+
+               {/* Before/After Compare Video Button */}
+               {(() => {
+                 const beforeItem = lesson.additionalMedia?.find(m => m.type === 'video' && m.role === 'BEFORE');
+                 const afterItem  = lesson.additionalMedia?.find(m => m.type === 'video' && m.role === 'AFTER');
+                 const hasCompareVideos = !!(beforeItem && afterItem);
+                 return hasCompareVideos && canEdit ? (
+                   <div className="space-y-2 pt-2">
+                     <div className="flex justify-center">
+                       <Button
+                         onClick={handleGenerateCompareVideo}
+                         disabled={isGeneratingCompare}
+                         className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 disabled:opacity-60 text-sm"
+                       >
+                         <Film className="w-4 h-4" />
+                         {isGeneratingCompare ? t('lesson_compare_generating') : t('lesson_compare_btn')}
+                       </Button>
+                     </div>
+                     {isGeneratingCompare && (
+                       <div className="px-4">
+                         <div className="w-full bg-gray-200 rounded-full h-2">
+                           <div
+                             className="bg-purple-600 h-2 rounded-full transition-all duration-300"
+                             style={{ width: `${compareProgress}%` }}
+                           />
+                         </div>
+                         <p className="text-center text-xs text-gray-500 mt-1">{compareProgress}%</p>
+                       </div>
+                     )}
+                   </div>
+                 ) : null;
+               })()}
+
+               {/* Compare Video Preview */}
+               {lesson.compareVideoUrl && (
+                 <div className="bg-white rounded-xl shadow-sm border border-purple-100 p-4 mt-2">
+                   <div className="flex justify-between items-center mb-3">
+                     <h3 className="font-bold text-gray-900 flex items-center gap-2 text-sm">
+                       <Film className="w-4 h-4 text-purple-600" />
+                       {t('lesson_compare_preview_title')}
+                     </h3>
+                     {canEdit && (
+                       <Button
+                         onClick={handleGenerateCompareVideo}
+                         disabled={isGeneratingCompare}
+                         className="flex items-center gap-1 bg-purple-100 hover:bg-purple-200 text-purple-700 text-xs py-1 px-2"
+                         variant="secondary"
+                       >
+                         <RefreshCw className="w-3 h-3" />
+                         {t('lesson_compare_regenerate')}
+                       </Button>
+                     )}
+                   </div>
+                   <div className="max-w-xs mx-auto aspect-[9/16] rounded-lg overflow-hidden bg-black">
+                     <video
+                       src={lesson.compareVideoUrl}
+                       controls
+                       playsInline
+                       className="w-full h-full object-contain"
+                     />
+                   </div>
+                 </div>
                )}
 
                {/* Manual Capture Toolbar - Restrict to Swing Videos */}
@@ -1728,9 +1868,34 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
                                  <audio src={capturedMedia.url} controls className="w-full px-4" />
                              )}
                          </div>
+                         {/* Role selection for video media */}
+                         {capturedMedia.type === 'video' && (
+                           <div className="space-y-1">
+                             <p className="text-white/70 text-xs text-center">{t('lesson_compare_role_select')}</p>
+                             <div className="flex gap-2 justify-center">
+                               {(['BEFORE', 'AFTER', undefined] as const).map((role) => (
+                                 <button
+                                   key={String(role)}
+                                   onClick={() => setPendingRole(role)}
+                                   className={`px-4 py-1.5 rounded-full text-xs font-bold transition-colors ${
+                                     pendingRole === role
+                                       ? role === 'BEFORE' ? 'bg-blue-600 text-white' :
+                                         role === 'AFTER'  ? 'bg-emerald-600 text-white' :
+                                         'bg-gray-400 text-white'
+                                       : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                                   }`}
+                                 >
+                                   {role === 'BEFORE' ? t('lesson_compare_role_before') :
+                                    role === 'AFTER'  ? t('lesson_compare_role_after') :
+                                    t('lesson_compare_role_none')}
+                                 </button>
+                               ))}
+                             </div>
+                           </div>
+                         )}
                          <div className="flex gap-3">
-                             <Button onClick={closeAddModal} variant="secondary" className="flex-1 bg-gray-800 text-white border-gray-700 hover:bg-gray-700">다시하기</Button>
-                             <Button onClick={saveAdditionalMedia} className="flex-[2] bg-emerald-800 hover:bg-emerald-900 text-white">저장하기</Button>
+                             <Button onClick={closeAddModal} variant="secondary" className="flex-1 bg-gray-800 text-white border-gray-700 hover:bg-gray-700">{t('lesson_redo')}</Button>
+                             <Button onClick={saveAdditionalMedia} className="flex-[2] bg-emerald-800 hover:bg-emerald-900 text-white">{t('lesson_save_media')}</Button>
                          </div>
                      </div>
                  )}

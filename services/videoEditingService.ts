@@ -1,6 +1,12 @@
 import { FFmpeg } from '@ffmpeg/ffmpeg';
 import { fetchFile, toBlobURL } from '@ffmpeg/util';
-import { DrawingFrame, VideoMetadata } from '../types';
+import { CompareVideoMetadata, DrawingFrame, VideoMetadata } from '../types';
+
+export interface SideBySideOptions {
+  outputWidth?: number;   // default 1080
+  outputHeight?: number;  // default 1920
+  watermarkText?: string; // default 'CoachXai'
+}
 
 class VideoEditingService {
   private ffmpeg: FFmpeg | null = null;
@@ -167,6 +173,83 @@ class VideoEditingService {
     console.warn('Drawing overlay not yet fully implemented - returning original video');
     console.log('Drawing data will be saved in metadata for future implementation');
     return videoBlob;
+  }
+
+  async createSideBySideCompareVideo(
+    beforeFile: File | Blob,
+    afterFile: File | Blob,
+    options: SideBySideOptions = {},
+    onProgress?: (progress: number) => void
+  ): Promise<Blob> {
+    await this.initFFmpeg();
+    if (!this.ffmpeg) {
+      throw new Error('FFmpeg not initialized');
+    }
+
+    const {
+      outputWidth = 1080,
+      outputHeight = 1920,
+      watermarkText = 'CoachXai',
+    } = options;
+
+    // Each side occupies half the output width
+    const halfWidth = outputWidth / 2;
+
+    const beforeName = 'before.mp4';
+    const afterName = 'after.mp4';
+    const outputName = 'compare.mp4';
+
+    try {
+      await this.ffmpeg.writeFile(beforeName, await fetchFile(beforeFile));
+      await this.ffmpeg.writeFile(afterName, await fetchFile(afterFile));
+
+      if (onProgress) {
+        this.ffmpeg.on('progress', ({ progress }) => {
+          onProgress(Math.min(progress, 1));
+        });
+      }
+
+      // Filter graph:
+      // 1. Scale each input to fill its half (halfWidth x outputHeight) using center-crop
+      // 2. Stack side by side with hstack
+      // 3. Burn watermark at bottom-right
+      const scaleFilter = `scale=${halfWidth}:${outputHeight}:force_original_aspect_ratio=increase,crop=${halfWidth}:${outputHeight}`;
+      const watermarkFilter =
+        `drawtext=text='${watermarkText}':fontsize=36:fontcolor=white:alpha=0.75:` +
+        `x=w-tw-20:y=h-th-20:shadowcolor=black:shadowx=2:shadowy=2`;
+
+      const filterComplex =
+        `[0:v]${scaleFilter}[left];` +
+        `[1:v]${scaleFilter}[right];` +
+        `[left][right]hstack=inputs=2,${watermarkFilter}[vout]`;
+
+      await this.ffmpeg.exec([
+        '-i', beforeName,
+        '-i', afterName,
+        '-filter_complex', filterComplex,
+        '-map', '[vout]',
+        '-map', '1:a?',   // Use 'after' audio if present
+        '-c:v', 'libx264',
+        '-preset', 'fast',
+        '-crf', '23',
+        '-c:a', 'aac',
+        '-shortest',
+        '-movflags', '+faststart',
+        outputName,
+      ]);
+
+      const data = await this.ffmpeg.readFile(outputName);
+      const blob = new Blob([data], { type: 'video/mp4' });
+
+      await this.ffmpeg.deleteFile(beforeName);
+      await this.ffmpeg.deleteFile(afterName);
+      await this.ffmpeg.deleteFile(outputName);
+
+      return blob;
+    } catch (error) {
+      console.error('Error creating side-by-side compare video:', error);
+      throw error;
+    }
   }
 
   async getVideoMetadata(videoFile: File | Blob): Promise<VideoMetadata> {
