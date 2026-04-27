@@ -3,6 +3,8 @@ export interface MediaItem {
   id: string;
   url: string;
   type: 'video' | 'image' | 'audio';
+  /** Optional category to distinguish pre-lesson and post-lesson videos. */
+  videoCategory?: 'BEFORE' | 'AFTER';
   createdAt: number;
 }
 
