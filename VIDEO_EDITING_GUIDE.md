@@ -5,6 +5,45 @@ CoachX now includes comprehensive video editing capabilities designed specifical
 
 ## Features
 
+### 0. Before/After Comparison Video (전/후 비교영상)
+Automatically compose a side-by-side 9:16 (Instagram Reels) comparison video from two lesson clips.
+
+**How to use:**
+1. Open a lesson detail
+2. In the media thumbnail strip, add two videos with roles:
+   - Tap the role badge at the bottom of a video thumbnail to cycle through **레슨 전 (Before) → 레슨 후 (After) → 태그 없음**.
+   - Or, when adding new media, choose a role in the preview step before saving.
+3. Once both a **레슨 전** and a **레슨 후** video are tagged, the **전/후 비교영상 만들기** button appears.
+4. Tap the button. A progress bar shows the render status.
+5. The finished video is saved as `compareVideoUrl` in the lesson and displayed in a preview card below the button.
+6. Use the **다시 만들기** button to regenerate.
+
+**Output specs:**
+- Resolution: **1080 × 1920** (9:16)
+- Layout: Left = Before, Right = After (each 540 × 1920, center-cropped)
+- Watermark: `CoachXai` bottom-right, white with drop shadow
+- Audio: After clip audio (silent if none)
+- Length: Trimmed to the shorter clip (`-shortest`)
+- Codec: H.264 / AAC, `movflags +faststart` (Instagram-compatible)
+
+**Storage path (Firebase Storage):**
+```
+compare-videos/{userId}/{lessonId}_{timestamp}.mp4
+```
+
+**Firestore metadata:**
+```typescript
+{
+  compareVideoUrl: "https://...",
+  compareVideoMetadata: {
+    beforeMediaId: "uuid-of-before-media",
+    afterMediaId:  "uuid-of-after-media",
+    watermarkText: "CoachXai",
+    createdAt: "2026-04-27T09:00:00.000Z"
+  }
+}
+```
+
 ### 1. Video Trimming (영상 자르기)
 Extract specific portions of lesson videos with precise control.
 
@@ -77,6 +116,7 @@ Core video processing service using FFmpeg.js.
 - `trimVideo()` - Extract video segment
 - `mergeAudioWithVideo()` - Combine audio tracks
 - `getVideoMetadata()` - Extract duration, dimensions, FPS
+- `createSideBySideCompareVideo(before, after, options?, onProgress?)` - Compose 9:16 side-by-side comparison video with watermark
 
 #### drawingService.ts
 Manages drawing annotations frame-by-frame.
@@ -159,6 +199,11 @@ interface VideoMetadata {
 Edited videos are uploaded to Firebase Storage with the path:
 ```
 edited-videos/{userId}/{lessonId}_{timestamp}.mp4
+```
+
+Before/After comparison videos use a distinct prefix:
+```
+compare-videos/{userId}/{lessonId}_{timestamp}.mp4
 ```
 
 ### Firestore
