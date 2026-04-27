@@ -1864,7 +1864,7 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
                          {/* Role selection for video media */}
                          {capturedMedia.type === 'video' && (
                            <div className="space-y-1">
-                             <p className="text-white/70 text-xs text-center">{t('lesson_compare_role_before')} / {t('lesson_compare_role_after')} 태그 선택</p>
+                             <p className="text-white/70 text-xs text-center">{t('lesson_compare_role_select')}</p>
                              <div className="flex gap-2 justify-center">
                                {(['BEFORE', 'AFTER', undefined] as const).map((role) => (
                                  <button
@@ -1887,8 +1887,8 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
                            </div>
                          )}
                          <div className="flex gap-3">
-                             <Button onClick={closeAddModal} variant="secondary" className="flex-1 bg-gray-800 text-white border-gray-700 hover:bg-gray-700">다시하기</Button>
-                             <Button onClick={saveAdditionalMedia} className="flex-[2] bg-emerald-800 hover:bg-emerald-900 text-white">저장하기</Button>
+                             <Button onClick={closeAddModal} variant="secondary" className="flex-1 bg-gray-800 text-white border-gray-700 hover:bg-gray-700">{t('lesson_redo')}</Button>
+                             <Button onClick={saveAdditionalMedia} className="flex-[2] bg-emerald-800 hover:bg-emerald-900 text-white">{t('lesson_save_media')}</Button>
                          </div>
                      </div>
                  )}
