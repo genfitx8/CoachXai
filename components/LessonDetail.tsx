@@ -882,6 +882,13 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
                         {activeMedia.type === 'video' ? <Video className="w-3 h-3" /> : activeMedia.type === 'image' ? <ImageIcon className="w-3 h-3" /> : <Mic className="w-3 h-3" />}
                         {activeMedia.type.toUpperCase()}
                     </div>
+                    {activeMedia.videoCategory && (
+                      <div className={`absolute top-3 right-3 px-2 py-1 rounded-lg text-xs font-bold text-white z-20 ${
+                        activeMedia.videoCategory === 'BEFORE' ? 'bg-blue-600/80 backdrop-blur-md' : 'bg-orange-500/80 backdrop-blur-md'
+                      }`}>
+                        {activeMedia.videoCategory === 'BEFORE' ? '레슨 전 영상' : '레슨 후 영상'}
+                      </div>
+                    )}
               </div>
 
               {/* Media Thumbnails */}
@@ -904,6 +911,13 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
                             {media.type === 'video' ? <video src={media.url} className="w-full h-full object-cover" /> : 
                              media.type === 'image' ? <img src={media.url} className="w-full h-full object-cover" alt="thumb" /> :
                              <div className="w-full h-full bg-gray-800 flex items-center justify-center"><Mic className="w-6 h-6 text-white" /></div>}
+                            {media.videoCategory && (
+                              <div className={`absolute bottom-0 left-0 right-0 text-white text-[8px] text-center py-0.5 font-bold ${
+                                media.videoCategory === 'BEFORE' ? 'bg-blue-600/90' : 'bg-orange-500/90'
+                              }`}>
+                                {media.videoCategory === 'BEFORE' ? '레슨 전' : '레슨 후'}
+                              </div>
+                            )}
                           </button>
                           {canEdit && (
                               <button 
