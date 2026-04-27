@@ -91,8 +91,7 @@ interface PendingMedia {
   type: 'video' | 'image' | 'audio';
   duration?: number;
   isRemote?: boolean; // Flag for existing files
-  /** Category for lesson videos: before or after the lesson. */
-  videoCategory?: 'BEFORE' | 'AFTER';
+  role?: 'BEFORE' | 'AFTER';
 }
 
 type RecordType = 'PRACTICE' | 'SCORE' | 'LESSON';
@@ -366,7 +365,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
             previewUrl: m.url,
             type: m.type,
             isRemote: true,
-            videoCategory: m.videoCategory,
+            role: m.role,
           });
         });
       }
@@ -700,12 +699,12 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
       prev.map((item) => {
         if (item.id !== id) return item;
         const next: 'BEFORE' | 'AFTER' | undefined =
-          item.videoCategory === undefined
+          item.role === undefined
             ? 'BEFORE'
-            : item.videoCategory === 'BEFORE'
+            : item.role === 'BEFORE'
             ? 'AFTER'
             : undefined;
-        return { ...item, videoCategory: next };
+        return { ...item, role: next };
       })
     );
   };
@@ -1120,7 +1119,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
           id: item.id,
           url: item.previewUrl,
           type: item.type,
-          videoCategory: item.videoCategory,
+          role: item.role,
           createdAt: Date.now(),
         }));
 
@@ -2186,30 +2185,30 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
                             type="button"
                             onClick={(e) => toggleVideoCategory(item.id, e)}
                             className={`absolute top-1 left-1 px-1.5 py-0.5 rounded text-[9px] font-bold leading-tight transition-colors shadow ${
-                              item.videoCategory === 'BEFORE'
+                              item.role === 'BEFORE'
                                 ? 'bg-blue-600 text-white'
-                                : item.videoCategory === 'AFTER'
+                                : item.role === 'AFTER'
                                 ? 'bg-orange-500 text-white'
                                 : 'bg-black/50 text-white/80'
                             }`}
                           >
-                            {item.videoCategory === 'BEFORE'
+                            {item.role === 'BEFORE'
                               ? '레슨 전'
-                              : item.videoCategory === 'AFTER'
+                              : item.role === 'AFTER'
                               ? '레슨 후'
                               : '구분'}
                           </button>
                         )}
-                        {index === 0 && !item.videoCategory && (
+                        {index === 0 && !item.role && (
                           <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-[10px] text-center py-0.5">
                             메인 미디어
                           </div>
                         )}
-                        {item.videoCategory && (
+                        {item.role && (
                           <div className={`absolute bottom-0 left-0 right-0 text-white text-[10px] text-center py-0.5 ${
-                            item.videoCategory === 'BEFORE' ? 'bg-blue-600/80' : 'bg-orange-500/80'
+                            item.role === 'BEFORE' ? 'bg-blue-600/80' : 'bg-orange-500/80'
                           }`}>
-                            {item.videoCategory === 'BEFORE' ? '레슨 전 영상' : '레슨 후 영상'}
+                            {item.role === 'BEFORE' ? '레슨 전 영상' : '레슨 후 영상'}
                           </div>
                         )}
                       </div>

@@ -3,8 +3,7 @@ export interface MediaItem {
   id: string;
   url: string;
   type: 'video' | 'image' | 'audio';
-  /** Optional category to distinguish pre-lesson and post-lesson videos. */
-  videoCategory?: 'BEFORE' | 'AFTER';
+  role?: 'BEFORE' | 'AFTER';
   createdAt: number;
 }
 
@@ -128,6 +127,8 @@ export interface Lesson {
   assignedHomework?: string[]; // Added: Homework tasks assigned during this lesson
   editedVideoUrl?: string; // Added: Edited video URL (Firebase Storage)
   videoEditMetadata?: VideoEditMetadata; // Added: Video editing metadata
+  compareVideoUrl?: string; // Added: Before/After comparison video URL
+  compareVideoMetadata?: CompareVideoMetadata; // Added: Comparison video metadata
   /** ID of the lesson package this record belongs to. Always set together with `sessionNumber`. */
   lessonPackageId?: string;
   /** 1-based session number within the lesson package. Always set together with `lessonPackageId`. */
@@ -435,6 +436,14 @@ export interface LessonReservation {
   createdByCoachId?: string;
   createdAt: number;
   updatedAt: number;
+}
+
+// Before/After Comparison Video Types
+export interface CompareVideoMetadata {
+  beforeMediaId: string; // ID of the BEFORE media item
+  afterMediaId: string;  // ID of the AFTER media item
+  watermarkText: string; // Watermark text burned into the video
+  createdAt: string;     // ISO 8601
 }
 
 // Video Editing Types

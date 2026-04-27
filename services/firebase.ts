@@ -585,6 +585,28 @@ export const firebaseService = {
     return downloadUrl;
   },
 
+  /**
+   * Upload before/after comparison video to Firebase Storage
+   */
+  uploadCompareVideo: async (
+    videoBlob: Blob,
+    lessonId: string,
+    userId: string
+  ): Promise<string> => {
+    if (!storage) {
+      throw new Error('Firebase Storage not initialized');
+    }
+
+    const timestamp = Date.now();
+    const path = `compare-videos/${userId}/${lessonId}_${timestamp}.mp4`;
+    const storageRef = ref(storage, path);
+
+    await uploadBytes(storageRef, videoBlob);
+    const downloadUrl = await getDownloadURL(storageRef);
+
+    return downloadUrl;
+  },
+
   // --- Reservation Methods ---
 
   /**
