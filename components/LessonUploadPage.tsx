@@ -154,6 +154,15 @@ export const LessonUploadPage: React.FC<LessonUploadPageProps> = ({
   const [beforeUrl, setBeforeUrl] = useState<string | undefined>();
   const [afterUrl, setAfterUrl] = useState<string | undefined>();
 
+  // Revoke object URLs when the component unmounts to prevent memory leaks
+  React.useEffect(() => {
+    return () => {
+      if (beforeUrl) URL.revokeObjectURL(beforeUrl);
+      if (afterUrl) URL.revokeObjectURL(afterUrl);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const handleSelectFile = (label: 'BEFORE' | 'AFTER', file: File) => {
     const url = URL.createObjectURL(file);
     if (label === 'BEFORE') {

@@ -99,7 +99,8 @@ const VideoScrubber: React.FC<VideoScrubberProps> = ({
         </div>
       </div>
 
-      {/* Fine-adjust buttons (±1 frame @ 30 fps ≈ 0.033 s) */}
+      {/* Fine-adjust buttons (±1 frame at 30 fps ≈ 0.033 s; matches the FFmpeg
+           pipeline default. For 60 fps footage the coach can tap twice.) */}
       <div className="flex gap-2">
         <button
           type="button"
