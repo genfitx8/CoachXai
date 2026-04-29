@@ -23,8 +23,9 @@ dist-ssr
 *.sln
 *.sw?
 
-# Environment secrets
+# Environment secrets — NEVER commit real credentials
 .env
+.env.bak
 .env.local
 .env.production
 

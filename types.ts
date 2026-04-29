@@ -239,7 +239,7 @@ export interface TrainingProgram {
   updatedAt: number;
 }
 
-export type ViewState = 'LIST' | 'DETAIL' | 'NEW' | 'COMPARE' | 'CLIENTS' | 'CLIENT_STATS' | 'LESSON_LIST' | 'LESSON_PACKAGE' | 'TRAINING_PROGRAM' | 'COACHX' | 'COACHX_CHAT';
+export type ViewState = 'LIST' | 'DETAIL' | 'NEW' | 'COMPARE' | 'CLIENTS' | 'CLIENT_STATS' | 'LESSON_LIST' | 'LESSON_PACKAGE' | 'TRAINING_PROGRAM' | 'COACHX' | 'COACHX_CHAT' | 'LESSON_UPLOAD' | 'LESSON_IMPACT';
 
 // Branch / BranchAdmin types (for driving range bay reservation)
 
@@ -555,4 +555,48 @@ export interface WeeklyInsight {
   keyPatterns: string[];
   recommendedFocus: string;
   generatedAt: number;
+}
+
+// ── Golf Lesson Upload / Impact Selection Types (MVP scaffolding) ─────────────
+
+/**
+ * A student enrolled under a coach.
+ * Kept minimal for the MVP; extended in future phases.
+ */
+export interface Student {
+  id: string;
+  name: string;
+  phone: string;
+  email?: string;
+  coachId?: string;
+}
+
+/**
+ * Represents a pending lesson upload with BEFORE and AFTER video files.
+ * Files are held in local state until submitted; URLs are set after upload.
+ */
+export interface LessonUpload {
+  id: string;
+  studentId: string;
+  /** Local File object selected by the coach (not persisted to server yet). */
+  beforeVideoFile?: File;
+  /** Local File object selected by the coach (not persisted to server yet). */
+  afterVideoFile?: File;
+  /** Object URL created from beforeVideoFile for preview. */
+  beforeVideoUrl?: string;
+  /** Object URL created from afterVideoFile for preview. */
+  afterVideoUrl?: string;
+  createdAt: number;
+}
+
+/**
+ * Stores the coach-specified impact timestamps for a lesson upload.
+ * Both timestamps are in seconds relative to the start of each video.
+ */
+export interface ImpactSelection {
+  lessonId: string;
+  /** Impact timestamp in the BEFORE video (seconds). */
+  beforeImpactTimeSec: number;
+  /** Impact timestamp in the AFTER video (seconds). */
+  afterImpactTimeSec: number;
 }
