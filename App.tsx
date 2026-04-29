@@ -8,11 +8,15 @@ import {
   NotificationMessage,
   LessonPackage,
   TrainingProgram,
+  LessonUpload,
+  ImpactSelection,
 } from './types';
 import { LessonCard } from './components/LessonCard';
 import { LessonDetail } from './components/LessonDetail';
 import { NewLessonForm } from './components/NewLessonForm';
 import { ClientApp } from './components/ClientApp';
+import { LessonUploadPage } from './components/LessonUploadPage';
+import { ImpactSelectionPage } from './components/ImpactSelectionPage';
 import { AuthScreen } from './components/AuthScreen';
 import { CoachXLanding } from './components/CoachXLanding';
 import { AdminDashboard } from './components/AdminDashboard';
@@ -123,6 +127,9 @@ const AppContent: React.FC = () => {
   // Training Program State
   const [trainingPrograms, setTrainingPrograms] = useState<TrainingProgram[]>([]);
   const [selectedClientForTraining, setSelectedClientForTraining] = useState<ClientProfile | null>(null);
+
+  // Lesson Upload / Impact Selection State (golf video editing MVP)
+  const [pendingLessonUpload, setPendingLessonUpload] = useState<LessonUpload | null>(null);
 
   // CoachX chat initial query (set when opening chat from a member card)
   const [coachXChatInitialQuery, setCoachXChatInitialQuery] = useState<string | undefined>(undefined);
@@ -1402,6 +1409,15 @@ const AppContent: React.FC = () => {
                 </Button>
 
                 <Button
+                  onClick={() => setCoachView('LESSON_UPLOAD')}
+                  data-testid="lesson-upload-entry-btn"
+                  className="w-full py-4 text-base rounded-2xl border border-violet-500/30 shadow-lg shadow-slate-900/40 bg-gradient-to-r from-slate-900 to-slate-800 hover:from-slate-800 hover:to-slate-700 justify-center"
+                  icon={<Play className="w-5 h-5" />}
+                >
+                  Upload Swing Video
+                </Button>
+
+                <Button
                   onClick={() => setCoachView('COACHX')}
                   data-testid="coachx-entry-btn"
                   className="w-full py-4 text-base rounded-2xl border border-slate-600/70 shadow-lg shadow-slate-900/40 bg-gradient-to-r from-slate-800 to-slate-700 hover:from-slate-700 hover:to-slate-600 justify-center"
@@ -1737,6 +1753,28 @@ const AppContent: React.FC = () => {
               setCoachView('COACHX');
             }}
             initialQuery={coachXChatInitialQuery}
+          />
+        )}
+
+        {coachView === 'LESSON_UPLOAD' && (
+          <LessonUploadPage
+            onBack={() => setCoachView('LIST')}
+            onNext={(upload) => {
+              setPendingLessonUpload(upload);
+              setCoachView('LESSON_IMPACT');
+            }}
+          />
+        )}
+
+        {coachView === 'LESSON_IMPACT' && pendingLessonUpload && (
+          <ImpactSelectionPage
+            lessonUpload={pendingLessonUpload}
+            onBack={() => setCoachView('LESSON_UPLOAD')}
+            onConfirm={(_selection: ImpactSelection) => {
+              // TODO: submit to processing pipeline in a future phase
+              setPendingLessonUpload(null);
+              setCoachView('LIST');
+            }}
           />
         )}
       </main>
