@@ -126,11 +126,11 @@ const DURATION_OPTIONS = [
 ];
 
 const LESSON_FLOW_SHELL_CLASS =
-  'max-w-md mx-auto bg-white rounded-2xl border border-slate-200/80 shadow-xl shadow-slate-200/70 overflow-hidden animate-fade-in-up';
+  'max-w-md mx-auto bg-bg-raised rounded-2xl border border-line-default/80 shadow-xl shadow-slate-200/70 overflow-hidden animate-fade-in-up';
 const LESSON_FLOW_HEADER_CLASS =
   'bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 px-5 py-4 flex items-center justify-between text-white';
 const LESSON_FLOW_INPUT_CLASS =
-  'w-full pl-10 pr-4 py-3 border border-slate-300 rounded-xl bg-white text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all';
+  'w-full pl-10 pr-4 py-3 border border-line-default rounded-xl bg-bg-raised text-ink-high placeholder:text-ink-muted focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all';
 
 // Detailed Club Options Definition
 const CLUB_GROUPS = [
@@ -1261,7 +1261,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
           <div className="flex items-center gap-2">
             <button
               onClick={() => setStep('CLIENT_SELECT')}
-              className="rounded-full p-1.5 text-slate-200 hover:text-white hover:bg-white/15 transition-colors"
+              className="rounded-full p-1.5 text-ink-high hover:text-white hover:bg-white/15 transition-colors"
               aria-label={t('new_lesson_back_member')}
             >
               <ArrowLeft className="w-5 h-5" />
@@ -1272,26 +1272,26 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
           </div>
           <button
             onClick={onCancel}
-            className="rounded-full p-1.5 text-slate-200 hover:text-white hover:bg-white/15 transition-colors"
+            className="rounded-full p-1.5 text-ink-high hover:text-white hover:bg-white/15 transition-colors"
           >
             <X className="w-6 h-6" />
           </button>
         </div>
 
         {/* Selected client info */}
-        <div className="px-5 py-3 bg-slate-50 border-b border-slate-200 flex items-center gap-3">
-          <div className="bg-indigo-100 p-2 rounded-full">
-            <UserCheck className="w-4 h-4 text-indigo-700" />
+        <div className="px-5 py-3 bg-bg-base border-b border-line-default flex items-center gap-3">
+          <div className="bg-primary-500/15 p-2 rounded-full">
+            <UserCheck className="w-4 h-4 text-primary-300" />
           </div>
           <div>
-            <p className="font-bold text-slate-800 text-sm">{clientName}</p>
-            <p className="text-xs text-slate-500">{clientPhone}</p>
+            <p className="font-bold text-ink-high text-sm">{clientName}</p>
+            <p className="text-xs text-ink-medium">{clientPhone}</p>
           </div>
         </div>
 
         {/* Package list */}
-        <div className="p-5 max-h-[56vh] overflow-y-auto space-y-4 bg-slate-50/60">
-          <p className="text-sm text-gray-600">
+        <div className="p-5 max-h-[56vh] overflow-y-auto space-y-4 bg-bg-base/60">
+          <p className="text-sm text-ink-medium">
             기록할 레슨 패키지와 회차를 선택하세요.
           </p>
 
@@ -1303,21 +1303,21 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
             return (
               <div
                 key={pkg.id}
-                className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm"
+                className="bg-bg-raised border border-line-default rounded-xl overflow-hidden shadow-sm"
               >
                 {/* Package header */}
-                <div className="px-4 py-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+                <div className="px-4 py-3 bg-bg-base border-b border-line-default flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <BookOpen className="w-4 h-4 text-slate-700" />
-                    <span className="font-bold text-gray-900 text-sm">
+                    <BookOpen className="w-4 h-4 text-ink-high" />
+                    <span className="font-bold text-ink-high text-sm">
                       {pkg.totalSessions}회 레슨 패키지
                     </span>
                   </div>
                   <div className="text-right text-xs">
                     <span className="font-bold text-indigo-600">{completedCount}</span>
-                    <span className="text-gray-400">/{pkg.totalSessions}회 완료</span>
+                    <span className="text-ink-muted">/{pkg.totalSessions}회 완료</span>
                     {remaining > 0 && (
-                      <span className="text-gray-400 ml-1">({remaining}회 남음)</span>
+                      <span className="text-ink-muted ml-1">({remaining}회 남음)</span>
                     )}
                   </div>
                 </div>
@@ -1343,15 +1343,15 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
                               flex flex-col items-center justify-center gap-0.5 p-2 rounded-lg border-2 transition-all text-xs
                               ${
                                 isRecorded
-                                  ? 'border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed'
+                                  ? 'border-line-default bg-bg-overlay text-ink-muted cursor-not-allowed'
                                   : isSelected
-                                  ? 'border-indigo-500 bg-indigo-50 text-indigo-700 font-bold shadow-sm'
-                                  : 'border-dashed border-slate-300 bg-white text-slate-500 hover:border-indigo-300 hover:bg-indigo-50/50 hover:text-indigo-600'
+                                  ? 'border-indigo-500 bg-primary-500/10 text-primary-300 font-bold shadow-sm'
+                                  : 'border-dashed border-line-default bg-bg-raised text-ink-medium hover:border-indigo-300 hover:bg-primary-500/10/50 hover:text-indigo-600'
                               }
                             `}
                           >
                             {isRecorded ? (
-                              <CheckCircle className="w-3.5 h-3.5 text-gray-400" />
+                              <CheckCircle className="w-3.5 h-3.5 text-ink-muted" />
                             ) : isSelected ? (
                               <CheckCircle className="w-3.5 h-3.5 text-indigo-500" />
                             ) : (
@@ -1369,14 +1369,14 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
           })}
 
           {error && (
-            <p className="text-red-500 text-sm font-bold bg-red-50 p-3 rounded-lg flex items-center gap-2">
+            <p className="text-red-500 text-sm font-bold bg-red-500/10 p-3 rounded-lg flex items-center gap-2">
               <AlertCircle className="w-4 h-4" /> {error}
             </p>
           )}
         </div>
 
         {/* Action buttons */}
-        <div className="p-5 border-t border-slate-200 bg-white space-y-3">
+        <div className="p-5 border-t border-line-default bg-bg-raised space-y-3">
           <Button
             onClick={handleConfirmSession}
             disabled={!selectedPackageId || selectedSessionNumber === null}
@@ -1389,7 +1389,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
           </Button>
           <button
             onClick={handleSkipPackage}
-            className="w-full py-2.5 text-sm font-semibold text-slate-500 hover:text-slate-700 transition-colors text-center bg-slate-100 rounded-xl hover:bg-slate-200"
+            className="w-full py-2.5 text-sm font-semibold text-ink-medium hover:text-ink-high transition-colors text-center bg-bg-overlay rounded-xl hover:bg-bg-inset"
           >
             패키지 없이 기록하기
           </button>
@@ -1409,19 +1409,19 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
           </h2>
           <button
             onClick={onCancel}
-            className="rounded-full p-1.5 text-slate-200 hover:text-white hover:bg-white/15 transition-colors"
+            className="rounded-full p-1.5 text-ink-high hover:text-white hover:bg-white/15 transition-colors"
           >
             <X className="w-6 h-6" />
           </button>
         </div>
-        <div className="p-6 space-y-5 bg-slate-50/60">
+        <div className="p-6 space-y-5 bg-bg-base/60">
           <div className="space-y-2">
-            <label className="block text-sm font-bold text-slate-700">
+            <label className="block text-sm font-bold text-ink-high">
               회원 이름
             </label>
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <Search className="w-5 h-5 text-slate-400" />
+                <Search className="w-5 h-5 text-ink-muted" />
               </div>
               <input
                 type="text"
@@ -1435,15 +1435,15 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
             {clientName.trim() &&
               matchingClients.length > 0 &&
               !isExistingClientSelected && (
-                <div className="bg-white border border-slate-200 rounded-xl shadow-lg mt-1 max-h-48 overflow-y-auto absolute z-50 w-[calc(100%-3rem)]">
+                <div className="bg-bg-raised border border-line-default rounded-xl shadow-lg mt-1 max-h-48 overflow-y-auto absolute z-50 w-[calc(100%-3rem)]">
                   {matchingClients.map((c) => (
                     <div
                       key={`${c.name}_${c.phone}`}
                       onClick={() => selectSuggestion(c)}
-                      className="px-4 py-3 hover:bg-indigo-50 cursor-pointer border-b border-slate-100 last:border-none flex justify-between items-center"
+                      className="px-4 py-3 hover:bg-primary-500/10 cursor-pointer border-b border-line-subtle last:border-none flex justify-between items-center"
                     >
-                      <span className="font-bold text-slate-800">{c.name}</span>
-                      <span className="text-xs text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">
+                      <span className="font-bold text-ink-high">{c.name}</span>
+                      <span className="text-xs text-ink-medium bg-bg-overlay px-2 py-0.5 rounded-full">
                         {c.phone}
                       </span>
                     </div>
@@ -1455,7 +1455,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
           {/* Phone Input (Visible if new user) */}
             {clientName && !isExistingClientSelected && (
               <div className="space-y-2 animate-fade-in">
-                <label className="block text-sm font-bold text-slate-700">
+                <label className="block text-sm font-bold text-ink-high">
                   전화번호{' '}
                   <span className="text-red-500 text-xs font-normal">
                     (미등록 회원)
@@ -1463,7 +1463,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
               </label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Smartphone className="w-5 h-5 text-slate-400" />
+                    <Smartphone className="w-5 h-5 text-ink-muted" />
                   </div>
                   <input
                     type="tel"
@@ -1473,7 +1473,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
                     className={LESSON_FLOW_INPUT_CLASS}
                   />
                 </div>
-                <p className="text-xs text-slate-500 bg-white border border-slate-200 p-2 rounded-lg">
+                <p className="text-xs text-ink-medium bg-bg-raised border border-line-default p-2 rounded-lg">
                   * 처음 등록하는 회원은 전화번호 입력이 필요합니다.
                 </p>
               </div>
@@ -1481,21 +1481,21 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
 
             {/* Existing Client Badge */}
             {isExistingClientSelected && (
-              <div className="bg-white border border-slate-200 p-3 rounded-xl flex items-center gap-3 animate-fade-in shadow-sm">
-                <div className="bg-indigo-100 p-2 rounded-full text-indigo-600">
+              <div className="bg-bg-raised border border-line-default p-3 rounded-xl flex items-center gap-3 animate-fade-in shadow-sm">
+                <div className="bg-primary-500/15 p-2 rounded-full text-indigo-600">
                   <UserCheck className="w-5 h-5" />
                 </div>
                 <div>
-                  <p className="font-bold text-slate-800 text-sm">
+                  <p className="font-bold text-ink-high text-sm">
                     등록된 회원입니다
                   </p>
-                  <p className="text-xs text-slate-500">{clientPhone}</p>
+                  <p className="text-xs text-ink-medium">{clientPhone}</p>
                 </div>
               </div>
             )}
 
           {error && (
-            <p className="text-red-500 text-sm font-bold bg-red-50 p-3 rounded-lg flex items-center gap-2">
+            <p className="text-red-500 text-sm font-bold bg-red-500/10 p-3 rounded-lg flex items-center gap-2">
               <AlertCircle className="w-4 h-4" /> {error}
             </p>
           )}
@@ -1511,7 +1511,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
             <Button
               onClick={onDirectRegisterFromLessonStart}
               data-testid="lesson-start-direct-register-btn"
-              className="w-full py-3 mt-3 bg-slate-900 hover:bg-slate-800 text-slate-100 border border-slate-700"
+              className="w-full py-3 mt-3 bg-bg-overlay hover:bg-bg-inset text-ink-high border border-line-default"
               icon={<UserPlus className="w-4 h-4" />}
             >
               {t('coach_client_add_btn')}
@@ -1525,7 +1525,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
   // STEP: CLIENT TYPE SELECTION
   if (step === 'TYPE_SELECT') {
     return (
-      <div className="max-w-md mx-auto bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden animate-fade-in-up">
+      <div className="max-w-md mx-auto bg-bg-raised rounded-xl shadow-lg border border-line-subtle overflow-hidden animate-fade-in-up">
         <div className="bg-emerald-800 px-6 py-4 flex justify-between items-center text-white">
           <h2 className="text-lg font-bold">기록 유형 선택</h2>
           <button
@@ -1536,22 +1536,22 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
           </button>
         </div>
         <div className="p-6 space-y-4">
-          <p className="text-center text-gray-500 mb-6">
+          <p className="text-center text-ink-medium mb-6">
             어떤 활동을 기록하시겠습니까?
           </p>
 
           <button
             onClick={() => handleSelectType('PRACTICE')}
-            className="w-full flex items-center p-4 border-2 border-gray-100 rounded-xl hover:border-emerald-700 hover:bg-emerald-50 transition-all group text-left"
+            className="w-full flex items-center p-4 border-2 border-line-subtle rounded-xl hover:border-emerald-700 hover:bg-primary-500/10 transition-all group text-left"
           >
-            <div className="bg-emerald-100 p-3 rounded-full text-emerald-600 group-hover:bg-emerald-200 group-hover:text-emerald-800 mr-4">
+            <div className="bg-primary-500/15 p-3 rounded-full text-emerald-600 group-hover:bg-emerald-200 group-hover:text-primary-200 mr-4">
               <Target className="w-6 h-6" />
             </div>
             <div>
-              <h4 className="font-bold text-gray-900 group-hover:text-emerald-700">
+              <h4 className="font-bold text-ink-high group-hover:text-primary-300">
                 연습 기록
               </h4>
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-ink-medium">
                 나의 스윙 연습 영상과 사진을 남깁니다.
               </p>
             </div>
@@ -1559,16 +1559,16 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
 
           <button
             onClick={() => handleSelectType('SCORE')}
-            className="w-full flex items-center p-4 border-2 border-gray-100 rounded-xl hover:border-blue-500 hover:bg-blue-50 transition-all group text-left"
+            className="w-full flex items-center p-4 border-2 border-line-subtle rounded-xl hover:border-blue-500 hover:bg-interactive-500/10 transition-all group text-left"
           >
-            <div className="bg-blue-100 p-3 rounded-full text-blue-600 group-hover:bg-blue-200 group-hover:text-blue-800 mr-4">
+            <div className="bg-interactive-500/15 p-3 rounded-full text-blue-600 group-hover:bg-blue-200 group-hover:text-interactive-200 mr-4">
               <Trophy className="w-6 h-6" />
             </div>
             <div>
-              <h4 className="font-bold text-gray-900 group-hover:text-blue-700">
+              <h4 className="font-bold text-ink-high group-hover:text-interactive-300">
                 라운드 기록
               </h4>
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-ink-medium">
                 필드나 스크린 골프 라운드 기록을 저장합니다.
               </p>
             </div>
@@ -1576,16 +1576,16 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
 
           <button
             onClick={() => handleSelectType('LESSON')}
-            className="w-full flex items-center p-4 border-2 border-gray-100 rounded-xl hover:border-purple-500 hover:bg-purple-50 transition-all group text-left"
+            className="w-full flex items-center p-4 border-2 border-line-subtle rounded-xl hover:border-purple-500 hover:bg-accent-500/10 transition-all group text-left"
           >
-            <div className="bg-purple-100 p-3 rounded-full text-purple-600 group-hover:bg-purple-200 group-hover:text-purple-800 mr-4">
+            <div className="bg-accent-500/15 p-3 rounded-full text-purple-600 group-hover:bg-purple-200 group-hover:text-accent-200 mr-4">
               <BookOpen className="w-6 h-6" />
             </div>
             <div>
-              <h4 className="font-bold text-gray-900 group-hover:text-purple-700">
+              <h4 className="font-bold text-ink-high group-hover:text-accent-300">
                 레슨 기록
               </h4>
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-ink-medium">
                 코치님께 받은 레슨 내용을 메모합니다.
               </p>
             </div>
@@ -1597,14 +1597,14 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
 
   // STEP: FORM
   return (
-    <div className="max-w-2xl mx-auto bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden animate-fade-in">
+    <div className="max-w-2xl mx-auto bg-bg-raised rounded-xl shadow-lg border border-line-subtle overflow-hidden animate-fade-in">
       {/* ... (Header and other parts remain same) ... */}
       <div
         className={`px-6 py-4 flex justify-between items-center ${
           recordType === 'SCORE'
             ? 'bg-blue-600'
             : recordType === 'LESSON'
-            ? 'bg-slate-700'
+            ? 'bg-bg-overlay'
             : 'bg-emerald-800'
         }`}
       >
@@ -1637,7 +1637,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
       <form onSubmit={handleSubmit} className="p-6 space-y-6">
         {/* Title Input */}
         <div>
-          <label className="block text-sm font-bold text-gray-700 mb-2">
+          <label className="block text-sm font-bold text-ink-high mb-2">
             제목 <span className="text-red-500">*</span>
           </label>
           <input
@@ -1649,14 +1649,14 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
                 ? '예: 00CC 필드 라운딩'
                 : '예: 7번 아이언 스윙 교정'
             }
-            className="w-full px-4 py-3 border border-gray-300 rounded-xl text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:ring-emerald-700 focus:border-emerald-700 outline-none transition-all"
+            className="w-full px-4 py-3 border border-line-default rounded-xl text-ink-high placeholder:text-ink-muted focus:ring-2 focus:ring-emerald-700 focus:border-emerald-700 outline-none transition-all"
             required
           />
         </div>
 
         {/* SCORE MODE TOGGLE & DETAILED INPUT (Omitted for brevity, logic remains same) */}
         {recordType === 'SCORE' && (
-          <div className="flex bg-gray-100 p-1 rounded-lg mb-4">
+          <div className="flex bg-bg-overlay p-1 rounded-lg mb-4">
             <button
               type="button"
               onClick={() => {
@@ -1665,8 +1665,8 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
               }}
               className={`flex-1 py-2 text-sm font-bold rounded-md transition-all ${
                 scoreMode === 'SIMPLE'
-                  ? 'bg-white shadow-sm text-blue-600'
-                  : 'text-gray-500 hover:text-gray-700'
+                  ? 'bg-bg-raised shadow-sm text-blue-600'
+                  : 'text-ink-medium hover:text-ink-high'
               }`}
             >
               <div className="flex items-center justify-center gap-2">
@@ -1681,8 +1681,8 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
               }}
               className={`flex-1 py-2 text-sm font-bold rounded-md transition-all ${
                 scoreMode === 'DETAILED'
-                  ? 'bg-white shadow-sm text-blue-600'
-                  : 'text-gray-500 hover:text-gray-700'
+                  ? 'bg-bg-raised shadow-sm text-blue-600'
+                  : 'text-ink-medium hover:text-ink-high'
               }`}
             >
               <div className="flex items-center justify-center gap-2">
@@ -1697,33 +1697,33 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
           <div className="space-y-6 animate-fade-in">
             {/* Course Info with Search */}
             <div>
-              <label className="block text-sm font-bold text-gray-700 mb-2">
+              <label className="block text-sm font-bold text-ink-high mb-2">
                 골프장 이름 / 코스명
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <MapPin className="w-5 h-5 text-gray-400" />
+                  <MapPin className="w-5 h-5 text-ink-muted" />
                 </div>
                 <input
                   type="text"
                   value={courseName}
                   onChange={handleCourseNameChange}
                   placeholder="골프장 검색 또는 직접 입력"
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
+                  className="w-full pl-10 pr-4 py-3 border border-line-default rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
                 />
                 {/* Course Search Dropdown */}
                 {showCourseSearch && courseSearchResults.length > 0 && (
-                  <div className="absolute z-50 left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                  <div className="absolute z-50 left-0 right-0 mt-1 bg-bg-raised border border-line-default rounded-lg shadow-lg max-h-60 overflow-y-auto">
                     {courseSearchResults.map((course) => (
                       <div
                         key={course.id}
                         onClick={() => selectCourse(course)}
-                        className="px-4 py-3 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-none flex justify-between items-center"
+                        className="px-4 py-3 hover:bg-interactive-500/10 cursor-pointer border-b border-line-subtle last:border-none flex justify-between items-center"
                       >
-                        <span className="font-bold text-gray-800">
+                        <span className="font-bold text-ink-high">
                           {course.name}
                         </span>
-                        <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">
+                        <span className="text-xs text-ink-medium bg-bg-overlay px-2 py-0.5 rounded-full">
                           18홀 Par {course.pars.reduce((a, b) => a + b, 0)}
                         </span>
                       </div>
@@ -1734,8 +1734,8 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
             </div>
 
             {/* Hole List (Same as before) */}
-            <div className="border border-gray-200 rounded-xl overflow-hidden">
-              <div className="bg-gray-50 px-4 py-3 border-b border-gray-200 grid grid-cols-12 gap-1 text-xs font-bold text-gray-500 text-center">
+            <div className="border border-line-default rounded-xl overflow-hidden">
+              <div className="bg-bg-base px-4 py-3 border-b border-line-default grid grid-cols-12 gap-1 text-xs font-bold text-ink-medium text-center">
                 <div className="col-span-1">HOLE</div>
                 <div className="col-span-2">PAR</div>
                 <div className="col-span-2">SCORE</div>
@@ -1746,10 +1746,10 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
                 {holeRecords.map((hole) => (
                   <div
                     key={hole.holeNumber}
-                    className="bg-white hover:bg-gray-50 transition-colors"
+                    className="bg-bg-raised hover:bg-bg-base transition-colors"
                   >
                     <div className="grid grid-cols-12 gap-1 px-4 py-3 items-center text-center">
-                      <div className="col-span-1 font-bold text-gray-900">
+                      <div className="col-span-1 font-bold text-ink-high">
                         {hole.holeNumber}
                       </div>
                       <div className="col-span-2">
@@ -1763,7 +1763,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
                               Number(e.target.value)
                             )
                           }
-                          className="w-full text-center p-1 border border-gray-200 rounded text-sm"
+                          className="w-full text-center p-1 border border-line-default rounded text-sm"
                         />
                       </div>
                       <div className="col-span-2">
@@ -1781,11 +1781,11 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
                           className={`w-full text-center p-1 border rounded text-sm font-bold ${
                             hole.score > 0
                               ? hole.score < hole.par
-                                ? 'text-red-500 border-red-200 bg-red-50'
+                                ? 'text-red-500 border-red-200 bg-red-500/10'
                                 : hole.score > hole.par
-                                ? 'text-blue-600 border-blue-200 bg-blue-50'
-                                : 'text-gray-900 border-gray-200'
-                              : 'border-gray-200'
+                                ? 'text-blue-600 border-blue-200 bg-interactive-500/10'
+                                : 'text-ink-high border-line-default'
+                              : 'border-line-default'
                           }`}
                         />
                       </div>
@@ -1801,7 +1801,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
                               Number(e.target.value)
                             )
                           }
-                          className="w-full text-center p-1 border border-gray-200 rounded text-sm text-gray-500"
+                          className="w-full text-center p-1 border border-line-default rounded text-sm text-ink-medium"
                         />
                       </div>
                       <div className="col-span-5 flex justify-end gap-2">
@@ -1820,8 +1820,8 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
                             onClick={() => startHoleRecording(hole.holeNumber)}
                             className={`px-2 py-1 rounded-full text-xs flex items-center gap-1 border transition-colors ${
                               hole.voiceUrl
-                                ? 'bg-emerald-50 text-emerald-600 border-emerald-200'
-                                : 'bg-white text-gray-500 border-gray-200 hover:border-emerald-700 hover:text-emerald-600'
+                                ? 'bg-primary-500/10 text-emerald-600 border-emerald-200'
+                                : 'bg-bg-raised text-ink-medium border-line-default hover:border-emerald-700 hover:text-emerald-600'
                             }`}
                           >
                             <Mic className="w-3 h-3" />{' '}
@@ -1833,27 +1833,27 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
                     {/* ... (Hole details) ... */}
                     {hole.aiSummary && (
                       <div className="px-4 pb-3 pl-14 text-left space-y-2">
-                        <div className="bg-blue-50 p-2 rounded-lg border border-blue-100 flex items-start gap-2">
-                          <Sparkles className="w-3 h-3 text-blue-500 mt-1 flex-shrink-0" />
-                          <p className="text-xs text-blue-800 leading-relaxed">
+                        <div className="bg-interactive-500/10 p-2 rounded-lg border border-blue-100 flex items-start gap-2">
+                          <Sparkles className="w-3 h-3 text-interactive-400 mt-1 flex-shrink-0" />
+                          <p className="text-xs text-interactive-200 leading-relaxed">
                             {hole.aiSummary}
                           </p>
                         </div>
                         {hole.shotMetrics && (
                           <div className="flex flex-wrap gap-2 text-[10px]">
                             {hole.shotMetrics.teeDistance && (
-                              <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded border border-gray-200">
+                              <span className="bg-bg-overlay text-ink-medium px-2 py-0.5 rounded border border-line-default">
                                 티샷: {hole.shotMetrics.teeDistance}m
                               </span>
                             )}
                             {hole.shotMetrics.secondShotDistance && (
-                              <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded border border-gray-200">
+                              <span className="bg-bg-overlay text-ink-medium px-2 py-0.5 rounded border border-line-default">
                                 세컨: {hole.shotMetrics.secondShotDistance}m
                                 남음
                               </span>
                             )}
                             {hole.shotMetrics.firstPuttDistance && (
-                              <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded border border-gray-200">
+                              <span className="bg-bg-overlay text-ink-medium px-2 py-0.5 rounded border border-line-default">
                                 퍼팅: {hole.shotMetrics.firstPuttDistance}m
                               </span>
                             )}
@@ -1865,16 +1865,16 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
                 ))}
               </div>
               {/* Totals Footer */}
-              <div className="bg-gray-100 px-4 py-3 border-t border-gray-200 grid grid-cols-12 gap-1 text-sm font-bold text-center">
+              <div className="bg-bg-overlay px-4 py-3 border-t border-line-default grid grid-cols-12 gap-1 text-sm font-bold text-center">
                 <div className="col-span-1">TOTAL</div>
                 <div className="col-span-2">
                   {holeRecords.reduce((a, b) => a + b.par, 0)}
                 </div>
                 <div className="col-span-2 text-blue-600">{score}</div>
-                <div className="col-span-2 text-gray-600">
+                <div className="col-span-2 text-ink-medium">
                   {holeRecords.reduce((a, b) => a + (b.putts || 0), 0)}
                 </div>
-                <div className="col-span-5 text-right text-xs text-gray-500 pr-2">
+                <div className="col-span-5 text-right text-xs text-ink-medium pr-2">
                   {holeRecords.filter((h) => h.voiceUrl).length}개 홀 기록됨
                 </div>
               </div>
@@ -1886,21 +1886,21 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
         {(recordType !== 'SCORE' || scoreMode === 'SIMPLE') && (
           <>
             <div>
-              <label className="block text-sm font-bold text-gray-700 mb-2">
+              <label className="block text-sm font-bold text-ink-high mb-2">
                 미디어 (영상/사진/음성) <span className="text-red-500">*</span>
               </label>
 
               {showAddInterface ? (
-                <div className="border-2 border-dashed border-gray-300 rounded-2xl p-8 bg-gray-50 hover:bg-gray-100 transition-colors">
+                <div className="border-2 border-dashed border-line-default rounded-2xl p-8 bg-bg-base hover:bg-bg-overlay transition-colors">
                   {/* Method Selection Tabs */}
-                  <div className="flex justify-center mb-6 bg-white rounded-full p-1 inline-flex mx-auto shadow-sm border border-gray-200">
+                  <div className="flex justify-center mb-6 bg-bg-raised rounded-full p-1 inline-flex mx-auto shadow-sm border border-line-default">
                     <button
                       type="button"
                       onClick={() => setInputMethod('upload')}
                       className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all ${
                         inputMethod === 'upload'
-                          ? 'bg-gray-900 text-white shadow-md'
-                          : 'text-gray-500 hover:text-gray-900'
+                          ? 'bg-bg-overlay text-ink-high shadow-md'
+                          : 'text-ink-medium hover:text-ink-high'
                       }`}
                     >
                       파일 업로드
@@ -1913,8 +1913,8 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
                       }}
                       className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all ${
                         inputMethod === 'camera'
-                          ? 'bg-gray-900 text-white shadow-md'
-                          : 'text-gray-500 hover:text-gray-900'
+                          ? 'bg-bg-overlay text-ink-high shadow-md'
+                          : 'text-ink-medium hover:text-ink-high'
                       }`}
                     >
                       카메라 촬영
@@ -1927,8 +1927,8 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
                       }}
                       className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all ${
                         inputMethod === 'voice'
-                          ? 'bg-gray-900 text-white shadow-md'
-                          : 'text-gray-500 hover:text-gray-900'
+                          ? 'bg-bg-overlay text-ink-high shadow-md'
+                          : 'text-ink-medium hover:text-ink-high'
                       }`}
                     >
                       음성 녹음
@@ -1941,8 +1941,8 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
                       }}
                       className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all ${
                         inputMethod === 'screen'
-                          ? 'bg-gray-900 text-white shadow-md'
-                          : 'text-gray-500 hover:text-gray-900'
+                          ? 'bg-bg-overlay text-ink-high shadow-md'
+                          : 'text-ink-medium hover:text-ink-high'
                       }`}
                     >
                       {t('new_lesson_screen_capture')}
@@ -1954,13 +1954,13 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
                       className="text-center"
                       onClick={() => fileInputRef.current?.click()}
                     >
-                      <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm text-emerald-700 cursor-pointer">
+                      <div className="w-16 h-16 bg-bg-raised rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm text-primary-300 cursor-pointer">
                         <Upload className="w-8 h-8" />
                       </div>
-                      <p className="text-sm text-gray-600 font-medium mb-1">
+                      <p className="text-sm text-ink-medium font-medium mb-1">
                         클릭하여 파일 업로드
                       </p>
-                      <p className="text-xs text-gray-400">
+                      <p className="text-xs text-ink-muted">
                         영상, 사진, 오디오 파일 지원 (최대 5GB)
                       </p>
                       <input
@@ -2012,9 +2012,9 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
                             <button
                               type="button"
                               onClick={takePhoto}
-                              className="w-14 h-14 bg-white border-4 border-gray-300 rounded-full flex items-center justify-center shadow-sm hover:bg-gray-50"
+                              className="w-14 h-14 bg-bg-raised border-4 border-line-default rounded-full flex items-center justify-center shadow-sm hover:bg-bg-base"
                             >
-                              <Camera className="w-6 h-6 text-gray-600" />
+                              <Camera className="w-6 h-6 text-ink-medium" />
                             </button>
                             <button
                               type="button"
@@ -2031,7 +2031,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
                             <button
                               type="button"
                               onClick={stopRecording}
-                              className="w-16 h-16 bg-white border-4 border-gray-200 rounded-sm flex items-center justify-center shadow-md"
+                              className="w-16 h-16 bg-bg-raised border-4 border-line-default rounded-sm flex items-center justify-center shadow-md"
                             >
                               <div className="w-6 h-6 bg-red-600 rounded-sm"></div>
                             </button>
@@ -2047,17 +2047,17 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
                         className={`w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 transition-all ${
                           isRecording
                             ? 'bg-red-500 animate-pulse'
-                            : 'bg-gray-100'
+                            : 'bg-bg-overlay'
                         }`}
                       >
                         <Mic
                           className={`w-10 h-10 ${
-                            isRecording ? 'text-white' : 'text-gray-400'
+                            isRecording ? 'text-white' : 'text-ink-muted'
                           }`}
                         />
                       </div>
                       {isRecording && (
-                        <p className="text-2xl font-bold text-gray-800 mb-4 font-mono">
+                        <p className="text-2xl font-bold text-ink-high mb-4 font-mono">
                           {Math.floor(recordingTime / 60)}:
                           {String(recordingTime % 60).padStart(2, '0')}
                         </p>
@@ -2101,7 +2101,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
                         />
                         {isRecording && (
                           <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-red-600 px-3 py-1 rounded-full text-white font-bold text-sm flex items-center gap-2 animate-pulse">
-                            <div className="w-2 h-2 bg-white rounded-full" />
+                            <div className="w-2 h-2 bg-bg-raised rounded-full" />
                             {Math.floor(recordingTime / 60)}:{String(recordingTime % 60).padStart(2, '0')}
                           </div>
                         )}
@@ -2113,9 +2113,9 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
                               type="button"
                               onClick={takePhoto}
                               disabled={!isMediaReady}
-                              className="w-14 h-14 bg-white border-4 border-gray-300 rounded-full flex items-center justify-center shadow-sm hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                              className="w-14 h-14 bg-bg-raised border-4 border-line-default rounded-full flex items-center justify-center shadow-sm hover:bg-bg-base disabled:opacity-50 disabled:cursor-not-allowed"
                             >
-                              <Camera className="w-6 h-6 text-gray-600" />
+                              <Camera className="w-6 h-6 text-ink-medium" />
                             </button>
                             <button
                               type="button"
@@ -2133,7 +2133,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
                             <button
                               type="button"
                               onClick={stopRecording}
-                              className="w-16 h-16 bg-white border-4 border-gray-200 rounded-sm flex items-center justify-center shadow-md"
+                              className="w-16 h-16 bg-bg-raised border-4 border-line-default rounded-sm flex items-center justify-center shadow-md"
                             >
                               <div className="w-6 h-6 bg-red-600 rounded-sm"></div>
                             </button>
@@ -2169,7 +2169,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
                             alt="preview"
                           />
                         ) : (
-                          <div className="w-full h-full bg-gray-100 flex items-center justify-center text-gray-500 flex-col gap-2">
+                          <div className="w-full h-full bg-bg-overlay flex items-center justify-center text-ink-medium flex-col gap-2">
                             <Mic className="w-8 h-8" />
                             <span className="text-xs">오디오</span>
                           </div>
@@ -2221,7 +2221,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
                     <button
                       type="button"
                       onClick={() => setIsAddingMore(true)}
-                      className="aspect-square rounded-xl border-2 border-dashed border-gray-300 flex flex-col items-center justify-center text-gray-400 hover:text-emerald-700 hover:border-emerald-300 hover:bg-emerald-50 transition-all gap-1"
+                      className="aspect-square rounded-xl border-2 border-dashed border-line-default flex flex-col items-center justify-center text-ink-muted hover:text-primary-300 hover:border-emerald-300 hover:bg-primary-500/10 transition-all gap-1"
                     >
                       <Plus className="w-6 h-6" />
                       <span className="text-xs font-bold">추가</span>
@@ -2231,7 +2231,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
                   {/* Active Item Preview (Larger) */}
                   {activeMediaItem && (
                     <div className="bg-black rounded-xl overflow-hidden relative group">
-                      <div className="aspect-video flex items-center justify-center bg-gray-900">
+                      <div className="aspect-video flex items-center justify-center bg-bg-overlay">
                         {activeMediaItem.type === 'video' && (
                           <video
                             src={activeMediaItem.previewUrl}
@@ -2256,11 +2256,11 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
                           </div>
                         )}
                       </div>
-                      <div className="bg-gray-900 px-4 py-2 flex justify-between items-center border-t border-gray-800">
-                        <span className="text-xs text-gray-400 font-mono truncate max-w-[200px]">
+                      <div className="bg-bg-overlay px-4 py-2 flex justify-between items-center border-t border-line-default">
+                        <span className="text-xs text-ink-muted font-mono truncate max-w-[200px]">
                           {activeMediaItem.file?.name || 'Existing File'}
                         </span>
-                        <span className="text-xs text-gray-500 uppercase">
+                        <span className="text-xs text-ink-medium uppercase">
                           {activeMediaItem.type}
                         </span>
                       </div>
@@ -2277,13 +2277,13 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
           {/* Club Selection - Only for Non-Score records (Practice/Lesson) */}
           {recordType !== 'SCORE' && (
             <div>
-              <label className="block text-sm font-bold text-gray-700 mb-2">
+              <label className="block text-sm font-bold text-ink-high mb-2">
                 사용 클럽
               </label>
               <select
                 value={club}
                 onChange={(e) => setClub(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-700 outline-none"
+                className="w-full px-4 py-3 border border-line-default rounded-xl focus:ring-2 focus:ring-emerald-700 outline-none"
               >
                 <option value="">선택안함</option>
                 {CLUB_GROUPS.map((group) => (
@@ -2302,7 +2302,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
           {/* Score Input (Simple Mode Only) */}
           {recordType === 'SCORE' && scoreMode === 'SIMPLE' && (
             <div>
-              <label className="block text-sm font-bold text-gray-700 mb-2">
+              <label className="block text-sm font-bold text-ink-high mb-2">
                 라운드 스코어 (Total)
               </label>
               <input
@@ -2312,7 +2312,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
                   setScore(e.target.value === '' ? '' : Number(e.target.value))
                 }
                 placeholder="예: 85"
-                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-lg"
+                className="w-full px-4 py-3 border border-line-default rounded-xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-lg"
               />
             </div>
           )}
@@ -2333,24 +2333,24 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
               }}
               className={`p-4 rounded-xl border-2 cursor-pointer transition-all flex items-center gap-4 ${
                 isDataExtractionMode
-                  ? 'border-blue-500 bg-blue-50'
-                  : 'border-gray-200 hover:border-gray-300'
+                  ? 'border-blue-500 bg-interactive-500/10'
+                  : 'border-line-default hover:border-line-default'
               }`}
             >
               <div
                 className={`p-2 rounded-full ${
                   isDataExtractionMode
                     ? 'bg-blue-500 text-white'
-                    : 'bg-gray-200 text-gray-500'
+                    : 'bg-bg-inset text-ink-medium'
                 }`}
               >
                 <TableProperties className="w-5 h-5" />
               </div>
               <div>
-                <h4 className="font-bold text-gray-900 text-sm">
+                <h4 className="font-bold text-ink-high text-sm">
                   AI 스코어카드 분석
                 </h4>
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-ink-medium">
                   이미지에서 스코어 및 라운드 내용을 분석합니다.
                 </p>
               </div>
@@ -2373,24 +2373,24 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
               }}
               className={`p-4 rounded-xl border-2 cursor-pointer transition-all flex items-center gap-4 ${
                 isDataExtractionMode
-                  ? 'border-blue-500 bg-blue-50'
-                  : 'border-gray-200 hover:border-gray-300'
+                  ? 'border-blue-500 bg-interactive-500/10'
+                  : 'border-line-default hover:border-line-default'
               }`}
             >
               <div
                 className={`p-2 rounded-full ${
                   isDataExtractionMode
                     ? 'bg-blue-500 text-white'
-                    : 'bg-gray-200 text-gray-500'
+                    : 'bg-bg-inset text-ink-medium'
                 }`}
               >
                 <TableProperties className="w-5 h-5" />
               </div>
               <div>
-                <h4 className="font-bold text-gray-900 text-sm">
+                <h4 className="font-bold text-ink-high text-sm">
                   AI 샷 데이터 분석
                 </h4>
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-ink-medium">
                   GDR/트랙맨 화면에서 샷 데이터를 추출합니다.
                 </p>
               </div>
@@ -2404,7 +2404,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
 
         {/* Coach Notes */}
         <div>
-          <label className="block text-sm font-bold text-gray-700 mb-2">
+          <label className="block text-sm font-bold text-ink-high mb-2">
             {userRole === 'COACH' ? '코치 메모 / 피드백' : '나의 메모'}
           </label>
           <textarea
@@ -2416,14 +2416,14 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
                 : '연습 내용이나 느낀 점을 기록하세요.'
             }
             rows={4}
-            className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-700 focus:border-emerald-700 outline-none transition-all resize-none"
+            className="w-full px-4 py-3 border border-line-default rounded-xl focus:ring-2 focus:ring-emerald-700 focus:border-emerald-700 outline-none transition-all resize-none"
           />
         </div>
 
         {/* Homework Input Section (Inside Lesson Form) */}
-        <div className="bg-indigo-50 p-4 rounded-xl border border-indigo-100 space-y-4">
+        <div className="bg-primary-500/10 p-4 rounded-xl border border-indigo-100 space-y-4">
           <div className="flex items-center justify-between">
-            <label className="text-sm font-bold text-indigo-800 flex items-center gap-2">
+            <label className="text-sm font-bold text-primary-200 flex items-center gap-2">
               <ListChecks className="w-4 h-4" />{' '}
               {userRole === 'COACH' ? '숙제/미션 부여' : '다음 연습 계획'}
             </label>
@@ -2455,7 +2455,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
             <button
               type="button"
               onClick={addHomework}
-              className="bg-slate-700 text-white px-3 py-2 rounded-lg text-sm font-bold hover:bg-slate-800 transition-colors"
+              className="bg-bg-overlay text-white px-3 py-2 rounded-lg text-sm font-bold hover:bg-bg-inset transition-colors"
             >
               추가
             </button>
@@ -2463,27 +2463,27 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
 
           {/* Advanced Options (Frequency, Duration) */}
           {showHwOptions && (
-            <div className="bg-white p-3 rounded-lg border border-indigo-100 animate-fade-in space-y-3">
+            <div className="bg-bg-raised p-3 rounded-lg border border-indigo-100 animate-fade-in space-y-3">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-gray-500 mb-1">
+                  <label className="block text-xs font-bold text-ink-medium mb-1">
                     시작일
                   </label>
                   <input
                     type="date"
                     value={hwStartDate}
                     onChange={(e) => setHwStartDate(e.target.value)}
-                    className="w-full text-xs p-2 border border-gray-200 rounded focus:border-indigo-500 outline-none"
+                    className="w-full text-xs p-2 border border-line-default rounded focus:border-indigo-500 outline-none"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-gray-500 mb-1">
+                  <label className="block text-xs font-bold text-ink-medium mb-1">
                     기간
                   </label>
                   <select
                     value={hwDuration}
                     onChange={(e) => setHwDuration(Number(e.target.value))}
-                    className="w-full text-xs p-2 border border-gray-200 rounded focus:border-indigo-500 outline-none"
+                    className="w-full text-xs p-2 border border-line-default rounded focus:border-indigo-500 outline-none"
                   >
                     {DURATION_OPTIONS.map((opt) => (
                       <option key={opt.value} value={opt.value}>
@@ -2494,7 +2494,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
                 </div>
               </div>
               <div>
-                <label className="block text-xs font-bold text-gray-500 mb-1">
+                <label className="block text-xs font-bold text-ink-medium mb-1">
                   반복 요일
                 </label>
                 <div className="flex justify-between gap-1">
@@ -2505,8 +2505,8 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
                       onClick={() => toggleDay(day.value)}
                       className={`w-8 h-8 rounded-full text-xs font-bold transition-all ${
                         hwDays.includes(day.value)
-                          ? 'bg-slate-700 text-white shadow-sm'
-                          : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
+                          ? 'bg-bg-overlay text-white shadow-sm'
+                          : 'bg-bg-overlay text-ink-muted hover:bg-bg-inset'
                       }`}
                     >
                       {day.label}
@@ -2523,26 +2523,26 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
               {homeworkSummaries.map((item, idx) => (
                 <li
                   key={idx}
-                  className="bg-white px-3 py-2 rounded-lg border border-indigo-100 shadow-sm"
+                  className="bg-bg-raised px-3 py-2 rounded-lg border border-indigo-100 shadow-sm"
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <CheckSquare className="w-4 h-4 text-indigo-500" />
-                      <span className="text-sm font-bold text-gray-800">
+                      <span className="text-sm font-bold text-ink-high">
                         {item.title}
                       </span>
                     </div>
                     <button
                       type="button"
                       onClick={() => removeHomeworkSummary(idx)}
-                      className="text-gray-400 hover:text-red-500 p-1"
+                      className="text-ink-muted hover:text-red-500 p-1"
                     >
                       <X className="w-4 h-4" />
                     </button>
                   </div>
-                  <div className="flex items-center gap-2 mt-1 ml-6 text-xs text-gray-500">
+                  <div className="flex items-center gap-2 mt-1 ml-6 text-xs text-ink-medium">
                     <Repeat className="w-3 h-3" /> {item.summary}
-                    <span className="bg-indigo-50 text-indigo-600 px-1.5 rounded-full font-bold">
+                    <span className="bg-primary-500/10 text-indigo-600 px-1.5 rounded-full font-bold">
                       Total {item.count}
                     </span>
                   </div>
@@ -2553,20 +2553,20 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
         </div>
 
         {/* AI Analysis Toggle */}
-        <div className="flex items-center justify-between bg-gray-50 p-4 rounded-xl border border-gray-200">
+        <div className="flex items-center justify-between bg-bg-base p-4 rounded-xl border border-line-default">
           <div className="flex items-center gap-3">
             <div
               className={`p-2 rounded-full ${
                 enableAI || isDataExtractionMode
-                  ? 'bg-emerald-100 text-emerald-600'
-                  : 'bg-gray-200 text-gray-400'
+                  ? 'bg-primary-500/15 text-emerald-600'
+                  : 'bg-bg-inset text-ink-muted'
               }`}
             >
               <Sparkles className="w-5 h-5" />
             </div>
             <div>
-              <h4 className="font-bold text-gray-900 text-sm">레슨 요약 리포트</h4>
-              <p className="text-xs text-gray-500">
+              <h4 className="font-bold text-ink-high text-sm">레슨 요약 리포트</h4>
+              <p className="text-xs text-ink-medium">
                 {recordType === 'SCORE' && scoreMode === 'DETAILED'
                   ? '18홀 기록을 바탕으로 라운드를 요약합니다.'
                   : '업로드한 미디어를 바탕으로 회원용 레슨 요약 리포트를 생성합니다.'}
@@ -2579,11 +2579,11 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
             className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
               enableAI || isDataExtractionMode
                 ? 'bg-emerald-800'
-                : 'bg-gray-300'
+                : 'bg-bg-overlay'
             }`}
           >
             <span
-              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+              className={`inline-block h-4 w-4 transform rounded-full bg-bg-raised transition-transform ${
                 enableAI || isDataExtractionMode
                   ? 'translate-x-6'
                   : 'translate-x-1'
@@ -2593,25 +2593,25 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
         </div>
 
         {error && (
-          <div className="flex items-center gap-2 text-red-600 bg-red-50 p-3 rounded-lg text-sm font-medium animate-pulse">
+          <div className="flex items-center gap-2 text-red-400 bg-red-500/10 p-3 rounded-lg text-sm font-medium animate-pulse">
             <AlertCircle className="w-5 h-5" />
             {error}
           </div>
         )}
 
         {statusMessage && (
-          <div className="flex items-center gap-2 text-emerald-600 bg-emerald-50 p-3 rounded-lg text-sm font-medium animate-pulse">
+          <div className="flex items-center gap-2 text-emerald-600 bg-primary-500/10 p-3 rounded-lg text-sm font-medium animate-pulse">
             <div className="w-4 h-4 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" />
             {statusMessage}
           </div>
         )}
 
-        <div className="pt-4 border-t border-gray-100 flex gap-3">
+        <div className="pt-4 border-t border-line-subtle flex gap-3">
           <Button
             type="button"
             variant="secondary"
             onClick={onCancel}
-            className="flex-1 py-3 text-gray-500"
+            className="flex-1 py-3 text-ink-medium"
           >
             취소
           </Button>
