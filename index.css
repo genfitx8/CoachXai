@@ -2,8 +2,36 @@
 
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700;800;900&display=swap');
 
+/* ─── Design tokens ──────────────────────────────────────────────────────────
+   Single source of truth for runtime themable values. The Tailwind palette
+   in tailwind.config.js mirrors these for build-time class generation; any
+   value duplicated below is intentionally kept in sync.
+   ───────────────────────────────────────────────────────────────────────── */
 :root {
-  --app-bg-color: #05070A;
+  /* Background layers (warm-tinted neutrals harmonising with emerald brand) */
+  --bg-base:    #080c0a;
+  --bg-raised:  #10160d;
+  --bg-overlay: #1c221d;
+  --bg-inset:   #040605;
+
+  /* Ink (foreground) layers */
+  --ink-high:   #f3f5f4;
+  --ink-medium: #b9bfbc;
+  --ink-muted:  #8a918e;
+  --ink-faint:  #5e6562;
+
+  /* Hairlines */
+  --line-subtle:  rgba(255, 255, 255, 0.06);
+  --line-default: rgba(255, 255, 255, 0.10);
+  --line-strong:  rgba(255, 255, 255, 0.18);
+
+  /* Brand accents */
+  --brand-500: #10b981;
+  --brand-600: #059669;
+  --brand-700: #047857;
+
+  /* Legacy alias (kept so existing markup keeps working) */
+  --app-bg-color: var(--bg-base);
 }
 
 body {
@@ -12,14 +40,14 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
-  color: #e2e8f0;
+  color: var(--ink-high);
 }
 
 html,
 body,
 #root {
   min-height: 100vh;
-  background-color: var(--app-bg-color);
+  background-color: var(--bg-base);
 }
 
 /* ─── iOS / Android Safe Area Support ────────────────────────────────────────

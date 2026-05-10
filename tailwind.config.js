@@ -4,7 +4,7 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Modern primary palette (emerald/green - enhanced for 2026 trends)
+        // ─── Brand: deep emerald, tuned for AA contrast on dark surfaces ────
         primary: {
           50: '#ecfdf5',
           100: '#d1fae5',
@@ -18,7 +18,7 @@ export default {
           900: '#064e3b',
           950: '#022c22',
         },
-        // Modern accent color palette (purple-based)
+        // ─── Accent: muted violet for highlights / second brand voice ───────
         accent: {
           50: '#faf5ff',
           100: '#f3e8ff',
@@ -32,7 +32,6 @@ export default {
           900: '#581c87',
           950: '#3b0764',
         },
-        // Modern blue palette for interactive elements
         interactive: {
           50: '#eff6ff',
           100: '#dbeafe',
@@ -45,7 +44,44 @@ export default {
           800: '#1e40af',
           900: '#1e3a8a',
         },
-        // Gradient colors for premium deep-green effects
+        // ─── Surface: warm neutral scale for backgrounds & elevation ────────
+        // Tinted slightly green-warm so it harmonises with the emerald brand
+        // instead of the cold pure-blue slate. Use these for app chrome,
+        // cards, sheets, dividers, body text, etc.
+        surface: {
+          0:   '#ffffff',
+          50:  '#f7f8f7',
+          100: '#eceeed',
+          200: '#d8dcda',
+          300: '#b9bfbc',
+          400: '#8a918e',
+          500: '#5e6562',
+          600: '#414844',
+          700: '#2d3431',
+          800: '#1c2220',
+          900: '#101614',
+          950: '#080c0a',
+        },
+        // ─── Semantic aliases — prefer these in app code ────────────────────
+        // Components should reference role-based names so a future light-mode
+        // pass can swap values without touching markup.
+        bg: {
+          base:    '#080c0a',  // page background (matches --app-bg-color)
+          raised:  '#10160d',  // cards, sheets one level above page
+          overlay: '#1c221d',  // modals, dropdowns, tooltips
+          inset:   '#040605',  // pressed / inset wells
+        },
+        ink: {
+          high:   '#f3f5f4',   // primary text, AA on bg.base
+          medium: '#b9bfbc',   // secondary labels
+          muted:  '#8a918e',   // captions, meta
+          faint:  '#5e6562',   // disabled / placeholders
+        },
+        line: {
+          subtle: 'rgba(255,255,255,0.06)',
+          default:'rgba(255,255,255,0.10)',
+          strong: 'rgba(255,255,255,0.18)',
+        },
         gradient: {
           from: '#065f46',
           via: '#047857',
@@ -65,12 +101,22 @@ export default {
       },
       fontSize: {
         '2xs': ['0.625rem', { lineHeight: '0.875rem' }],
+        // Display sizes for hero / section headings
+        'display-sm': ['1.875rem', { lineHeight: '2.25rem', letterSpacing: '-0.015em' }],
+        'display':    ['2.25rem',  { lineHeight: '2.5rem',  letterSpacing: '-0.02em'  }],
+        'display-lg': ['3rem',     { lineHeight: '3.25rem', letterSpacing: '-0.025em' }],
       },
       boxShadow: {
-        'soft': '0 2px 15px -3px rgba(0, 0, 0, 0.07), 0 10px 20px -2px rgba(0, 0, 0, 0.04)',
-        'soft-lg': '0 10px 40px -15px rgba(0, 0, 0, 0.1), 0 20px 25px -5px rgba(0, 0, 0, 0.04)',
-        'glow': '0 0 20px rgba(16, 185, 129, 0.3)',
-        'glow-lg': '0 0 30px rgba(16, 185, 129, 0.4)',
+        // Premium elevation scale: warm dark tints, no harsh black
+        'soft':    '0 2px 15px -3px rgba(0, 0, 0, 0.07), 0 10px 20px -2px rgba(0, 0, 0, 0.04)',
+        'soft-lg': '0 10px 40px -15px rgba(0, 0, 0, 0.1),  0 20px 25px -5px rgba(0, 0, 0, 0.04)',
+        'elev-1':  '0 1px 2px rgba(0,0,0,0.30), 0 1px 1px rgba(0,0,0,0.18)',
+        'elev-2':  '0 4px 12px -2px rgba(0,0,0,0.35), 0 2px 4px -1px rgba(0,0,0,0.20)',
+        'elev-3':  '0 12px 32px -8px rgba(0,0,0,0.45), 0 6px 12px -4px rgba(0,0,0,0.25)',
+        'elev-4':  '0 24px 56px -16px rgba(0,0,0,0.55), 0 12px 24px -8px rgba(0,0,0,0.30)',
+        'glow':    '0 0 20px rgba(16, 185, 129, 0.30)',
+        'glow-lg': '0 0 30px rgba(16, 185, 129, 0.40)',
+        'ring-primary': '0 0 0 3px rgba(16, 185, 129, 0.35)',
       },
       animation: {
         'slide-in-up': 'slideInUp 0.5s cubic-bezier(0.16, 1, 0.3, 1)',
