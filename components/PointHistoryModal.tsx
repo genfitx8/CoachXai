@@ -3,6 +3,9 @@ import React, { useEffect, useState } from 'react';
 import { PointTransaction, ClientProfile } from '../types';
 import { pointService } from '../services/pointService';
 import { X, ShoppingBag, Coins, TrendingUp, TrendingDown, Calendar } from 'lucide-react';
+import { createLogger } from '../utils/logger';
+
+const log = createLogger('pointHistoryModal');
 
 interface PointHistoryModalProps {
   isOpen: boolean;
@@ -26,7 +29,7 @@ export const PointHistoryModal: React.FC<PointHistoryModalProps> = ({ isOpen, on
       const data = await pointService.getHistory(client);
       setHistory(data);
     } catch (e) {
-      console.error("Failed to load point history", e);
+      log.error("Failed to load point history", e);
     } finally {
       setIsLoading(false);
     }

@@ -1,6 +1,9 @@
 import React, { useState, useRef } from 'react';
 import { Button } from './Button';
 import { Mic, Square, Play, Trash2 } from 'lucide-react';
+import { createLogger } from '../utils/logger';
+
+const log = createLogger('audioRecorder');
 
 interface AudioRecorderProps {
   onRecordingComplete: (audioBlob: Blob) => void;
@@ -27,7 +30,7 @@ export const AudioRecorder: React.FC<AudioRecorderProps> = ({
       setHasPermission(true);
       return stream;
     } catch (error) {
-      console.error('Microphone permission denied:', error);
+      log.error('Microphone permission denied:', error);
       alert('마이크 접근 권한이 필요합니다.');
       return null;
     }

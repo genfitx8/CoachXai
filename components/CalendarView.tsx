@@ -8,6 +8,9 @@ import { reservationService } from '../services/reservationService';
 import { realtimeSubscribe, realtimeUnsubscribe, realtimeConnect } from '../services/realtime';
 import { LessonReservation, CoachProfile, ClientProfile } from '../types';
 import { X } from 'lucide-react';
+import { createLogger } from '../utils/logger';
+
+const log = createLogger('calendarView');
 
 // Extended EventInput type that includes LessonReservation in extendedProps
 interface ExtendedEventInput extends EventInput {
@@ -126,7 +129,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({
       }));
       setEvents(mapped);
     } catch (err) {
-      console.error('failed to fetch calendar', err);
+      log.error('failed to fetch calendar', err);
     } finally {
       setLoading(false);
     }
@@ -221,7 +224,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({
       clickInfo.event.remove();
       alert('예약이 취소되었습니다.');
     } catch (err) {
-      console.error(err);
+      log.error(err);
       alert('예약 취소에 실패했습니다. 다시 시도해주세요.');
     }
   };
@@ -322,7 +325,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({
       setSelectedDateEvents(prev => prev.filter(e => e.id !== eventId));
       alert('예약이 취소되었습니다.');
     } catch (err) {
-      console.error(err);
+      log.error(err);
       alert('예약 취소에 실패했습니다. 다시 시도해주세요.');
     }
   };

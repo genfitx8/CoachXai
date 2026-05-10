@@ -14,6 +14,9 @@ import {
   XCircle,
   KeyRound,
 } from 'lucide-react';
+import { createLogger } from '../utils/logger';
+
+const log = createLogger('adminBranchStaffManager');
 
 interface AdminBranchStaffManagerProps {
   isFirebaseMode: boolean;
@@ -62,7 +65,7 @@ export const AdminBranchStaffManager: React.FC<
       setBranches(bData.filter((b) => b.isActive));
       setAccounts(aData);
     } catch (e) {
-      console.error(e);
+      log.error(e);
     } finally {
       setIsLoading(false);
     }
@@ -156,7 +159,7 @@ export const AdminBranchStaffManager: React.FC<
       setCopiedResetPw(false);
       await loadAll();
     } catch (e) {
-      console.error(e);
+      log.error(e);
     }
   };
 
@@ -174,7 +177,7 @@ export const AdminBranchStaffManager: React.FC<
       }
       await loadAll();
     } catch (e) {
-      console.error(e);
+      log.error(e);
     }
   };
 

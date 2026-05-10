@@ -3,6 +3,9 @@ import { ClientProfile, LessonReservation, ReservationStatus } from '../types';
 import { reservationService, VIRTUAL_SLOT_ID_PREFIX } from '../services/reservationService';
 import { Calendar, Clock, User, ArrowLeft, Filter, XCircle } from 'lucide-react';
 import { Button } from './Button';
+import { createLogger } from '../utils/logger';
+
+const log = createLogger('clientReservation');
 
 interface ClientReservationProps {
   clientProfile: ClientProfile;
@@ -44,7 +47,7 @@ export const ClientReservation: React.FC<ClientReservationProps> = ({ clientProf
       const data = await reservationService.getAvailableSlots(coachId);
       setAvailableSlots(data);
     } catch (error) {
-      console.error('Failed to load available slots:', error);
+      log.error('Failed to load available slots:', error);
     } finally {
       setLoading(false);
     }
@@ -56,7 +59,7 @@ export const ClientReservation: React.FC<ClientReservationProps> = ({ clientProf
       const data = await reservationService.getClientReservations(clientId);
       setMyReservations(data);
     } catch (error) {
-      console.error('Failed to load my reservations:', error);
+      log.error('Failed to load my reservations:', error);
     } finally {
       setLoading(false);
     }
@@ -103,7 +106,7 @@ export const ClientReservation: React.FC<ClientReservationProps> = ({ clientProf
       const slots = await reservationService.getAvailableWorkingHourSlots(coachId, date);
       setDateSlotsForDate(slots);
     } catch (error) {
-      console.error('Failed to load slots for date:', error);
+      log.error('Failed to load slots for date:', error);
       // Fallback to explicit available slots only
       try {
         const fallback = await reservationService.getAvailableSlots(

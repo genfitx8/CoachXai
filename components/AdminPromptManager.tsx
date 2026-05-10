@@ -19,6 +19,9 @@ import {
 } from 'lucide-react';
 import { promptService } from '../services/promptService';
 import { useLanguage } from './LanguageContext';
+import { createLogger } from '../utils/logger';
+
+const log = createLogger('adminPromptManager');
 
 interface AdminPromptManagerProps {
   isFirebaseMode: boolean;
@@ -84,7 +87,7 @@ export const AdminPromptManager: React.FC<AdminPromptManagerProps> = ({ isFireba
         })
       );
     } catch (e) {
-      console.error('Failed to load prompt templates:', e);
+      log.error('Failed to load prompt templates:', e);
     } finally {
       setIsLoading(false);
     }
@@ -148,7 +151,7 @@ export const AdminPromptManager: React.FC<AdminPromptManagerProps> = ({ isFireba
       await loadTemplates();
       resetForm();
     } catch (e) {
-      console.error('Failed to save prompt template:', e);
+      log.error('Failed to save prompt template:', e);
       alert(t('save_failed_msg'));
     } finally {
       setIsSaving(false);
@@ -162,7 +165,7 @@ export const AdminPromptManager: React.FC<AdminPromptManagerProps> = ({ isFireba
       await loadTemplates();
       if (editingId === id) resetForm();
     } catch (e) {
-      console.error('Failed to delete prompt template:', e);
+      log.error('Failed to delete prompt template:', e);
       alert(t('admin_prompt_delete_failed'));
     }
   };
@@ -173,7 +176,7 @@ export const AdminPromptManager: React.FC<AdminPromptManagerProps> = ({ isFireba
       await promptService.save(updated, isFirebaseMode);
       await loadTemplates();
     } catch (e) {
-      console.error('Failed to activate prompt template:', e);
+      log.error('Failed to activate prompt template:', e);
       alert(t('admin_prompt_activate_failed'));
     }
   };
@@ -184,7 +187,7 @@ export const AdminPromptManager: React.FC<AdminPromptManagerProps> = ({ isFireba
       await promptService.save(updated, isFirebaseMode);
       await loadTemplates();
     } catch (e) {
-      console.error('Failed to deactivate prompt template:', e);
+      log.error('Failed to deactivate prompt template:', e);
     }
   };
 
@@ -195,7 +198,7 @@ export const AdminPromptManager: React.FC<AdminPromptManagerProps> = ({ isFireba
       await promptService.uploadAttachment(templateId, file, isFirebaseMode);
       await loadTemplates();
     } catch (e) {
-      console.error('Failed to upload attachment:', e);
+      log.error('Failed to upload attachment:', e);
       alert(t('admin_prompt_upload_failed'));
     } finally {
       setUploadingFor(null);
@@ -216,7 +219,7 @@ export const AdminPromptManager: React.FC<AdminPromptManagerProps> = ({ isFireba
       );
       await loadTemplates();
     } catch (e) {
-      console.error('Failed to delete attachment:', e);
+      log.error('Failed to delete attachment:', e);
       alert(t('admin_prompt_file_delete_failed'));
     }
   };

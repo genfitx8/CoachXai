@@ -11,6 +11,9 @@ import { AdminBranchStaffManager } from './AdminBranchStaffManager';
 import { AdminPromptManager } from './AdminPromptManager';
 import { AdminCoachActivity } from './AdminCoachActivity';
 import { useLanguage } from './LanguageContext';
+import { createLogger } from '../utils/logger';
+
+const log = createLogger('adminDashboard');
 
 interface AdminDashboardProps {
   clients: ClientProfile[];
@@ -233,7 +236,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           setMsgBody('');
           alert("메시지가 성공적으로 전송되었습니다.");
       } catch (e) {
-          console.error(e);
+          log.error(e);
           alert(t('admin_message_send_failed'));
       } finally {
           setIsSendingMsg(false);

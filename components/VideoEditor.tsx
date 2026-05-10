@@ -7,6 +7,9 @@ import { X, Scissors, Mic, PenTool, Loader2 } from 'lucide-react';
 import { videoEditingService } from '../services/videoEditingService';
 import { drawingService } from '../services/drawingService';
 import { VideoEditMetadata } from '../types';
+import { createLogger } from '../utils/logger';
+
+const log = createLogger('videoEditor');
 
 interface VideoEditorProps {
   videoUrl: string;
@@ -60,7 +63,7 @@ export const VideoEditor: React.FC<VideoEditorProps> = ({
       setEditMode('SELECT');
       alert('영상이 성공적으로 잘렸습니다.');
     } catch (error) {
-      console.error('Error trimming video:', error);
+      log.error('Error trimming video:', error);
       alert('영상 자르기 중 오류가 발생했습니다.');
     } finally {
       setIsProcessing(false);
@@ -117,7 +120,7 @@ export const VideoEditor: React.FC<VideoEditorProps> = ({
       
       onSave(finalBlob, metadata);
     } catch (error) {
-      console.error('Error saving edited video:', error);
+      log.error('Error saving edited video:', error);
       alert('영상 저장 중 오류가 발생했습니다.');
     } finally {
       setIsProcessing(false);

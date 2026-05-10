@@ -63,6 +63,9 @@ import {
 } from '../types';
 import { firebaseService } from '../services/firebase';
 import { storageService } from '../services/storage';
+import { createLogger } from '../utils/logger';
+
+const log = createLogger('newLessonForm');
 
 interface NewLessonFormProps {
   existingClients: ClientProfile[];
@@ -558,7 +561,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
             )
           );
         } catch (e) {
-          console.error(e);
+          log.error(e);
           // Save voice even if AI fails
           setHoleRecords((prev) =>
             prev.map((h) =>
@@ -583,7 +586,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
         1000
       );
     } catch (e) {
-      console.error(e);
+      log.error(e);
       setError(t('new_lesson_mic_required'));
     }
   };
@@ -781,7 +784,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
       if (err.name === 'NotAllowedError') {
         setError(t('lesson_screen_capture_denied'));
       } else if (err.name !== 'AbortError') {
-        console.error(err);
+        log.error(err);
       }
       setInputMethod('upload');
     }
@@ -1102,7 +1105,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
             );
           }
         } catch (err) {
-          console.error('Analysis failed', err);
+          log.error('Analysis failed', err);
           if (!analysisResult) analysisResult = '레슨 요약 리포트 생성에 실패했습니다.';
         }
       }
@@ -1202,7 +1205,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
         pendingHomeworkBatch.length > 0 ? pendingHomeworkBatch : undefined
       );
     } catch (err) {
-      console.error(err);
+      log.error(err);
       setError(t('new_lesson_save_error'));
     } finally {
       setIsAnalyzing(false);

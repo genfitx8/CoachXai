@@ -5,6 +5,9 @@ import { Button } from './Button';
 import { generateGolfMissions } from '../services/geminiService';
 import { firebaseService } from '../services/firebase';
 import { storageService } from '../services/storage';
+import { createLogger } from '../utils/logger';
+
+const log = createLogger('golfAIAgent');
 
 interface GolfAIAgentProps {
   clientProfile: ClientProfile;
@@ -54,7 +57,7 @@ export const GolfAIAgent: React.FC<GolfAIAgentProps> = ({
       const suggestions = await generateGolfMissions(clientProfile, recentLessons);
       setMissions(suggestions);
     } catch (e) {
-      console.error(e);
+      log.error(e);
       setErrorMsg('AI 미션 생성 중 문제가 발생했습니다. 다시 시도해주세요.');
     } finally {
       setIsGenerating(false);

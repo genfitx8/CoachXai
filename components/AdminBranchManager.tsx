@@ -12,6 +12,9 @@ import {
   CheckCircle,
   XCircle,
 } from 'lucide-react';
+import { createLogger } from '../utils/logger';
+
+const log = createLogger('adminBranchManager');
 
 interface AdminBranchManagerProps {
   isFirebaseMode: boolean;
@@ -46,7 +49,7 @@ export const AdminBranchManager: React.FC<AdminBranchManagerProps> = ({
         : storageService.getBranches();
       setBranches(data);
     } catch (e) {
-      console.error(e);
+      log.error(e);
     } finally {
       setIsLoading(false);
     }
@@ -115,7 +118,7 @@ export const AdminBranchManager: React.FC<AdminBranchManagerProps> = ({
       }
       await loadBranches();
     } catch (e) {
-      console.error(e);
+      log.error(e);
     }
   };
 

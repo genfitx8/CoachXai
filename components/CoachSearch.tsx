@@ -8,6 +8,9 @@ import {
   Check,
 } from 'lucide-react';
 import { Button } from './Button';
+import { createLogger } from '../utils/logger';
+
+const log = createLogger('coachSearch');
 
 export interface CoachSearchResult {
   id: string;
@@ -45,7 +48,7 @@ export const CoachSearch: React.FC<CoachSearchProps> = ({
       const data = await onSearch(searchTerm);
       setResults(data);
     } catch (error) {
-      console.error('Search failed', error);
+      log.error('Search failed', error);
       setResults([]);
     } finally {
       setIsLoading(false);

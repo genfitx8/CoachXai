@@ -4,6 +4,9 @@ import { Sparkles, ChevronLeft, RefreshCw, TrendingUp, Target, List } from 'luci
 import { generateWeeklyInsight } from '../services/geminiService';
 import { firebaseService } from '../services/firebase';
 import { storageService } from '../services/storage';
+import { createLogger } from '../utils/logger';
+
+const log = createLogger('weeklyInsightCard');
 
 interface WeeklyInsightCardProps {
   clientId: string;
@@ -98,7 +101,7 @@ export const WeeklyInsightCard: React.FC<WeeklyInsightCardProps> = ({
       }
       setInsights((prev) => [insight, ...prev]);
     } catch (err) {
-      console.error('Failed to generate weekly insight:', err);
+      log.error('Failed to generate weekly insight:', err);
     } finally {
       setIsGenerating(false);
     }

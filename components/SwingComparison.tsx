@@ -5,6 +5,9 @@ import { Button } from './Button';
 import { ArrowLeft, CheckCircle2, Sparkles, Layers, Layout, Play, Pause, Mic } from 'lucide-react';
 import { compareSwings } from '../services/geminiService';
 import ReactMarkdown from 'react-markdown';
+import { createLogger } from '../utils/logger';
+
+const log = createLogger('swingComparison');
 
 interface SwingComparisonProps {
   lessons: Lesson[];
@@ -50,7 +53,7 @@ export const SwingComparison: React.FC<SwingComparisonProps> = ({ lessons, onBac
       );
       setResult(data);
     } catch (error) {
-      console.error(error);
+      log.error(error);
       alert("분석 중 오류가 발생했습니다.");
     } finally {
       setIsAnalyzing(false);

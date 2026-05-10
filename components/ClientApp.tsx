@@ -21,6 +21,9 @@ import { storageService } from '../services/storage';
 import { pointService } from '../services/pointService';
 import { NotificationToast } from './NotificationToast';
 import { useLanguage } from './LanguageContext';
+import { createLogger } from '../utils/logger';
+
+const log = createLogger('clientApp');
 
 interface ClientAppProps {
   clientProfile: ClientProfile;
@@ -269,7 +272,7 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
                   );
                   onUpdateProfile(updatedProfile);
                   setNotification({ title: "포인트 적립", message: `💰 ${rule}P가 적립되었습니다!` });
-              } catch(e) { console.error(e); }
+              } catch(e) { log.error(e); }
           }
       }
 

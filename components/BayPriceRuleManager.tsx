@@ -4,6 +4,9 @@ import { Plus, Trash2, ToggleLeft, ToggleRight, Save, X } from 'lucide-react';
 import { BayPriceRule, DAY_OF_WEEK_LABELS } from '../types';
 import { firebaseService } from '../services/firebase';
 import { storageService } from '../services/storage';
+import { createLogger } from '../utils/logger';
+
+const log = createLogger('bayPriceRuleManager');
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
@@ -99,7 +102,7 @@ export const BayPriceRuleManager: React.FC<BayPriceRuleManagerProps> = ({
       });
       setRules(sorted);
     } catch (e) {
-      console.error('Failed to fetch price rules:', e);
+      log.error('Failed to fetch price rules:', e);
       onError?.('가격 규칙을 불러오는 중 오류가 발생했습니다.');
     } finally {
       setLoading(false);
@@ -208,7 +211,7 @@ export const BayPriceRuleManager: React.FC<BayPriceRuleManagerProps> = ({
       setEditingId(null);
       await fetchRules();
     } catch (e) {
-      console.error('Failed to save price rule:', e);
+      log.error('Failed to save price rule:', e);
       onError?.('가격 규칙 저장 중 오류가 발생했습니다.');
     } finally {
       setSaving(false);
@@ -239,7 +242,7 @@ export const BayPriceRuleManager: React.FC<BayPriceRuleManagerProps> = ({
       onSuccess?.(updated.isActive ? '규칙이 활성화되었습니다.' : '규칙이 비활성화되었습니다.');
       await fetchRules();
     } catch (e) {
-      console.error('Failed to toggle price rule:', e);
+      log.error('Failed to toggle price rule:', e);
       onError?.('상태 변경 중 오류가 발생했습니다.');
     }
   };
@@ -253,7 +256,7 @@ export const BayPriceRuleManager: React.FC<BayPriceRuleManagerProps> = ({
       onSuccess?.('가격 규칙이 삭제되었습니다.');
       await fetchRules();
     } catch (e) {
-      console.error('Failed to delete price rule:', e);
+      log.error('Failed to delete price rule:', e);
       onError?.('가격 규칙 삭제 중 오류가 발생했습니다.');
     }
   };

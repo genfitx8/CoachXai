@@ -2,6 +2,9 @@ import React, { useState } from 'react';
 import { QuickLogEntry, QuickLogMood, PracticeArea } from '../types';
 import { ChevronLeft, CheckCircle, Smile, Frown, Meh, ThumbsUp, ThumbsDown } from 'lucide-react';
 import { useLanguage } from './LanguageContext';
+import { createLogger } from '../utils/logger';
+
+const log = createLogger('quickGolfLog');
 
 interface QuickGolfLogProps {
   clientId: string;
@@ -71,7 +74,7 @@ export const QuickGolfLog: React.FC<QuickGolfLogProps> = ({ clientId, coachId, o
         onBack();
       }, 1200);
     } catch (err) {
-      console.error('Failed to save quick log:', err);
+      log.error('Failed to save quick log:', err);
     } finally {
       setIsSaving(false);
     }

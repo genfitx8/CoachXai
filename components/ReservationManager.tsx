@@ -7,6 +7,9 @@ import { Button } from './Button';
 import { CoachLessonReservationModal } from './CoachLessonReservationModal';
 import CalendarView from './CalendarView';
 import { useLanguage } from './LanguageContext';
+import { createLogger } from '../utils/logger';
+
+const log = createLogger('reservationManager');
 
 interface ReservationManagerProps {
   coachProfile: CoachProfile;
@@ -79,7 +82,7 @@ export const ReservationManager: React.FC<ReservationManagerProps> = ({
       const data = await reservationService.getCoachReservations(coachProfile.id);
       setReservations(data);
     } catch (error) {
-      console.error('Failed to load reservations:', error);
+      log.error('Failed to load reservations:', error);
     } finally {
       setLoading(false);
     }

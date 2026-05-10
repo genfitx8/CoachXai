@@ -13,6 +13,9 @@ import { firebaseService } from '../services/firebase';
 import { storageService } from '../services/storage';
 import { sendLessonNoteViaKakao, buildLessonShareUrl } from '../services/kakaoShareService';
 import { videoEditingService } from '../services/videoEditingService';
+import { createLogger } from '../utils/logger';
+
+const log = createLogger('lessonDetail');
 
 interface LessonDetailProps {
   lesson: Lesson;
@@ -202,7 +205,7 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
           
           onUpdate({ ...lesson, aiAnalysis: result });
       } catch (err) {
-          console.error(err);
+          log.error(err);
           alert(t('lesson_ai_failed'));
       } finally {
           setIsGeneratingAnalysis(false);
@@ -240,7 +243,7 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
       setShowVideoEditor(false);
       alert(t('lesson_edit_saved'));
     } catch (error) {
-      console.error('Error saving edited video:', error);
+      log.error('Error saving edited video:', error);
       alert(t('lesson_edit_save_error'));
     }
   };
@@ -288,7 +291,7 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
       onUpdate({ ...lesson, compareVideoUrl: compareUrl, compareVideoMetadata: metadata });
       showTempNotification(t('lesson_compare_saved'));
     } catch (error) {
-      console.error('Error generating compare video:', error);
+      log.error('Error generating compare video:', error);
       alert(t('lesson_compare_save_error'));
     } finally {
       setIsGeneratingCompare(false);
@@ -415,7 +418,7 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
               onUpdate({ ...lesson, swingSequence: updatedSeq });
               showTempNotification(t('lesson_capture_done').replace('{label}', label));
           } catch (e) {
-              console.error(e);
+              log.error(e);
               alert(t('lesson_capture_failed'));
           }
       }
@@ -452,7 +455,7 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
       streamRef.current = stream;
       setAddMode('CAMERA');
     } catch (err) {
-      console.error(err);
+      log.error(err);
       alert(t('lesson_camera_permission'));
     }
   };
@@ -471,7 +474,7 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
       if (err.name === 'NotAllowedError') {
         alert(t('lesson_screen_capture_denied'));
       } else if (err.name !== 'AbortError') {
-        console.error(err);
+        log.error(err);
       }
     }
   };
@@ -575,7 +578,7 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
         }
 
     } catch (err) {
-        console.error(err);
+        log.error(err);
         alert(t('lesson_mic_permission'));
     }
   };

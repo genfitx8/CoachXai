@@ -23,6 +23,9 @@ import { BayManager } from './BayManager';
 import { BayPriceRuleManager } from './BayPriceRuleManager';
 import { BranchReservationStatus } from './BranchReservationStatus';
 import { BranchMemberPointGrant } from './BranchMemberPointGrant';
+import { createLogger } from '../utils/logger';
+
+const log = createLogger('branchAdminDashboard');
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
@@ -130,7 +133,7 @@ export const BranchAdminDashboard: React.FC<BranchAdminDashboardProps> = ({
       setHoursState(initialHours);
       setHolidays([...(found.holidays ?? [])].sort());
     } catch (e) {
-      console.error('Failed to fetch branch data:', e);
+      log.error('Failed to fetch branch data:', e);
       setFetchError(t('branch_fetch_error2'));
     } finally {
       setLoading(false);
@@ -176,7 +179,7 @@ export const BranchAdminDashboard: React.FC<BranchAdminDashboardProps> = ({
       await persistBranchFields({ openingHours });
       showSuccess(t('branch_hours_save_success'));
     } catch (e) {
-      console.error('Failed to save opening hours:', e);
+      log.error('Failed to save opening hours:', e);
       showError(t('branch_hours_save_error'));
     } finally {
       setHoursSaving(false);
@@ -206,7 +209,7 @@ export const BranchAdminDashboard: React.FC<BranchAdminDashboardProps> = ({
       await persistBranchFields({ holidays });
       showSuccess(t('branch_holiday_save_success'));
     } catch (e) {
-      console.error('Failed to save holidays:', e);
+      log.error('Failed to save holidays:', e);
       showError(t('branch_holiday_save_error'));
     } finally {
       setHolidaysSaving(false);

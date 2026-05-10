@@ -4,6 +4,9 @@ import { LayoutGrid, Plus, Trash2, ToggleLeft, ToggleRight } from 'lucide-react'
 import { Bay } from '../types';
 import { firebaseService } from '../services/firebase';
 import { storageService } from '../services/storage';
+import { createLogger } from '../utils/logger';
+
+const log = createLogger('bayManager');
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
@@ -85,7 +88,7 @@ export const BayManager: React.FC<BayManagerProps> = ({
       });
       setBays(sorted);
     } catch (e) {
-      console.error('Failed to fetch bays:', e);
+      log.error('Failed to fetch bays:', e);
       onError?.('타석 정보를 불러오는 중 오류가 발생했습니다.');
     } finally {
       setLoading(false);
@@ -138,7 +141,7 @@ export const BayManager: React.FC<BayManagerProps> = ({
       await fetchBays();
       onSuccess?.(`${bayLabel(bay)} 타석이 추가되었습니다.`);
     } catch (e) {
-      console.error('Failed to add bay:', e);
+      log.error('Failed to add bay:', e);
       onError?.('타석 추가 중 오류가 발생했습니다.');
     } finally {
       setSaving(false);
@@ -157,7 +160,7 @@ export const BayManager: React.FC<BayManagerProps> = ({
         `${bayLabel(bay)} 타석이 ${newActive ? '활성화' : '비활성화'}되었습니다.`
       );
     } catch (e) {
-      console.error('Failed to toggle bay:', e);
+      log.error('Failed to toggle bay:', e);
       onError?.('타석 상태 변경 중 오류가 발생했습니다.');
     } finally {
       setSaving(false);
@@ -174,7 +177,7 @@ export const BayManager: React.FC<BayManagerProps> = ({
       await fetchBays();
       onSuccess?.(`${bayLabel(bay)} 타석이 비활성화되었습니다.`);
     } catch (e) {
-      console.error('Failed to delete bay:', e);
+      log.error('Failed to delete bay:', e);
       onError?.('타석 삭제 중 오류가 발생했습니다.');
     } finally {
       setSaving(false);

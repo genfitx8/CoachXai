@@ -6,6 +6,9 @@ import { X, ListChecks, Calendar as CalendarIcon, Repeat, Trash2, CheckSquare, S
 import { firebaseService } from '../services/firebase';
 import { storageService } from '../services/storage';
 import { useLanguage } from './LanguageContext';
+import { createLogger } from '../utils/logger';
+
+const log = createLogger('homeworkModal');
 
 interface HomeworkModalProps {
   isOpen: boolean;
@@ -190,7 +193,7 @@ export const HomeworkModal: React.FC<HomeworkModalProps> = ({ isOpen, onClose, c
         alert(t('hw_assign_success').replace('{name}', clientName).replace('{count}', String(newHomeworkBatch.length)));
         setActiveTab('LIST'); // Switch to list view after adding
     } catch (e) {
-        console.error(e);
+        log.error(e);
         alert(t('hw_assign_error'));
     } finally {
         setIsLoading(false);
@@ -210,7 +213,7 @@ export const HomeworkModal: React.FC<HomeworkModalProps> = ({ isOpen, onClose, c
               storageService.updateHomeworkStatus(id, newStatus);
           }
       } catch (e) {
-          console.error(e);
+          log.error(e);
       }
   };
 
@@ -226,7 +229,7 @@ export const HomeworkModal: React.FC<HomeworkModalProps> = ({ isOpen, onClose, c
               storageService.deleteHomework(id);
           }
       } catch (e) {
-          console.error(e);
+          log.error(e);
       }
   };
 

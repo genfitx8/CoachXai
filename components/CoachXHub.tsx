@@ -44,6 +44,9 @@ import {
 import { generateCoachXInsights, generateCoachXGrowthProfile } from '../services/geminiService';
 import { useLanguage } from './LanguageContext';
 import { MemberGrowthDetailScreen } from './MemberGrowthDetailScreen';
+import { createLogger } from '../utils/logger';
+
+const log = createLogger('coachXHub');
 
 interface CoachXHubProps {
   coachProfile: CoachProfile;
@@ -963,7 +966,7 @@ export const CoachXHub: React.FC<CoachXHubProps> = ({
       })
       .catch((err) => {
         if (!cancelled) {
-          console.error('CoachX Hub insights error:', err);
+          log.error('CoachX Hub insights error:', err);
           setInsightsLoading(false);
         }
       });
@@ -992,7 +995,7 @@ export const CoachXHub: React.FC<CoachXHubProps> = ({
       })
       .catch((err) => {
         if (!cancelled) {
-          console.error('CoachX Gemini growth profile error:', err);
+          log.error('CoachX Gemini growth profile error:', err);
           setCoachGrowthLoading(false);
         }
       });

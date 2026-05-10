@@ -5,6 +5,9 @@ import { storageService } from '../services/storage';
 import { pointService } from '../services/pointService';
 import { Button } from './Button';
 import { Search, Gift, User, CheckCircle, X } from 'lucide-react';
+import { createLogger } from '../utils/logger';
+
+const log = createLogger('branchMemberPointGrant');
 
 interface BranchMemberPointGrantProps {
   branchAdminUsername: string;
@@ -74,7 +77,7 @@ export const BranchMemberPointGrant: React.FC<BranchMemberPointGrantProps> = ({
 
       setRecipients([...memberRecipients, ...coachRecipients]);
     } catch (e) {
-      console.error('Failed to load recipients', e);
+      log.error('Failed to load recipients', e);
     } finally {
       setLoading(false);
     }
@@ -182,7 +185,7 @@ export const BranchMemberPointGrant: React.FC<BranchMemberPointGrantProps> = ({
         `${selectedRecipient.name} ${typeLabel}에게 ${points.toLocaleString()} 포인트를 지급했습니다.`
       );
     } catch (e) {
-      console.error('Failed to grant points', e);
+      log.error('Failed to grant points', e);
       onError('포인트 지급 중 오류가 발생했습니다.');
     } finally {
       setIsSubmitting(false);
