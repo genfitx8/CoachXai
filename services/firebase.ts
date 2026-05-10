@@ -57,6 +57,9 @@ import {
   PromptAttachment,
   PromptTarget,
 } from '../types';
+import { createLogger } from '../utils/logger';
+
+const log = createLogger('firebase');
 
 let app: FirebaseApp | null = null;
 let db: Firestore | null = null;
@@ -118,7 +121,7 @@ export const firebaseService = {
       );
       return true;
     } catch (e) {
-      console.error('Firebase Initialization Error:', e);
+      log.error('Firebase Initialization Error:', e);
       return false;
     }
   },
@@ -188,7 +191,7 @@ export const firebaseService = {
       const snapshot = await getDocs(q);
       return snapshot.docs.map((doc) => doc.data() as Lesson);
     } catch (e) {
-      console.error('Failed to fetch lessons:', e);
+      log.error('Failed to fetch lessons:', e);
       return [];
     }
   },
@@ -200,7 +203,7 @@ export const firebaseService = {
       const cleanedLesson = removeUndefinedFields(lesson);
       await setDoc(doc(db, 'lessons', lesson.id), cleanedLesson);
     } catch (e) {
-      console.error('Failed to save lesson:', e);
+      log.error('Failed to save lesson:', e);
       throw e;
     }
   },
@@ -220,7 +223,7 @@ export const firebaseService = {
         }
       }
     } catch (e) {
-      console.error('Failed to delete lesson:', e);
+      log.error('Failed to delete lesson:', e);
       throw e;
     }
   },
@@ -233,7 +236,7 @@ export const firebaseService = {
       const snapshot = await getDocs(collection(db, 'clients'));
       return snapshot.docs.map((doc) => doc.data() as ClientProfile);
     } catch (e) {
-      console.error('Failed to fetch clients:', e);
+      log.error('Failed to fetch clients:', e);
       return [];
     }
   },
@@ -250,7 +253,7 @@ export const firebaseService = {
       });
       await batch.commit();
     } catch (e) {
-      console.error('Failed to save clients:', e);
+      log.error('Failed to save clients:', e);
       throw e;
     }
   },
@@ -260,7 +263,7 @@ export const firebaseService = {
     try {
       await deleteDoc(doc(db, 'clients', `${client.name}_${client.phone}`));
     } catch (e) {
-      console.error(e);
+      log.error('firebase operation failed', e);
       throw e;
     }
   },
@@ -273,7 +276,7 @@ export const firebaseService = {
       const snapshot = await getDocs(collection(db, 'coaches'));
       return snapshot.docs.map((doc) => doc.data() as CoachProfile);
     } catch (e) {
-      console.error('Failed to fetch coaches:', e);
+      log.error('Failed to fetch coaches:', e);
       return [];
     }
   },
@@ -285,7 +288,7 @@ export const firebaseService = {
       const cleanedCoach = removeUndefinedFields(coach);
       await setDoc(doc(db, 'coaches', coach.id), cleanedCoach);
     } catch (e) {
-      console.error('Failed to save coach:', e);
+      log.error('Failed to save coach:', e);
       throw e;
     }
   },
@@ -314,7 +317,7 @@ export const firebaseService = {
       if (!snap.empty) return snap.docs[0].data() as CoachProfile;
       return null;
     } catch (e) {
-      console.error('Failed to fetch coach by id:', e);
+      log.error('Failed to fetch coach by id:', e);
       return null;
     }
   },
@@ -334,9 +337,9 @@ export const firebaseService = {
     if (!db) throw new Error('Firebase not initialized');
     try {
       await deleteDoc(doc(db, 'coaches', coach.id));
-      console.log(`✅ Firebase: Coach ${coach.name} (${coach.id}) deleted`);
+      log.info(`✅ Firebase: Coach ${coach.name} (${coach.id}) deleted`);
     } catch (e) {
-      console.error('Failed to delete coach:', e);
+      log.error('Failed to delete coach:', e);
       throw e;
     }
   },
@@ -662,7 +665,7 @@ export const firebaseService = {
       const snap = await getDocs(collection(db, 'branches'));
       return snap.docs.map((d) => d.data() as Branch);
     } catch (e) {
-      console.error('Failed to fetch branches:', e);
+      log.error('Failed to fetch branches:', e);
       return [];
     }
   },
@@ -705,7 +708,7 @@ export const firebaseService = {
       const snap = await getDocs(q);
       return snap.docs.map((d) => d.data() as BranchAdminAccount);
     } catch (e) {
-      console.error('Failed to fetch branch admin accounts:', e);
+      log.error('Failed to fetch branch admin accounts:', e);
       return [];
     }
   },
@@ -739,7 +742,7 @@ export const firebaseService = {
       const snap = await getDocs(q);
       return snap.docs.map((d) => d.data() as Bay);
     } catch (e) {
-      console.error('Failed to fetch bays:', e);
+      log.error('Failed to fetch bays:', e);
       return [];
     }
   },
@@ -779,7 +782,7 @@ export const firebaseService = {
       const snap = await getDocs(q);
       return snap.docs.map((d) => d.data() as BayPriceRule);
     } catch (e) {
-      console.error('Failed to fetch bay price rules:', e);
+      log.error('Failed to fetch bay price rules:', e);
       return [];
     }
   },
@@ -823,7 +826,7 @@ export const firebaseService = {
       }
       return results;
     } catch (e) {
-      console.error('Failed to fetch bay reservations by branch:', e);
+      log.error('Failed to fetch bay reservations by branch:', e);
       return [];
     }
   },
@@ -840,7 +843,7 @@ export const firebaseService = {
       const snap = await getDocs(q);
       return snap.docs.map((d) => d.data() as BayReservation);
     } catch (e) {
-      console.error('Failed to fetch bay reservations by client:', e);
+      log.error('Failed to fetch bay reservations by client:', e);
       return [];
     }
   },
@@ -872,7 +875,7 @@ export const firebaseService = {
       const snap = await getDocs(q);
       return snap.docs.map((d) => d.data() as LessonPackage);
     } catch (e) {
-      console.error('Failed to fetch lesson packages:', e);
+      log.error('Failed to fetch lesson packages:', e);
       return [];
     }
   },
@@ -900,7 +903,7 @@ export const firebaseService = {
       const snap = await getDocs(q);
       return snap.docs.map((d) => d.data() as TrainingProgram);
     } catch (e) {
-      console.error('Failed to fetch training programs:', e);
+      log.error('Failed to fetch training programs:', e);
       return [];
     }
   },
@@ -935,7 +938,7 @@ export const firebaseService = {
       const snap = await getDocs(q);
       return snap.docs.map((d) => d.data() as QuickLogEntry);
     } catch (e) {
-      console.error('Failed to fetch quick logs:', e);
+      log.error('Failed to fetch quick logs:', e);
       return [];
     }
   },
@@ -964,7 +967,7 @@ export const firebaseService = {
       const snap = await getDocs(q);
       return snap.docs.map((d) => d.data() as WeeklyInsight);
     } catch (e) {
-      console.error('Failed to fetch weekly insights:', e);
+      log.error('Failed to fetch weekly insights:', e);
       return [];
     }
   },
@@ -977,7 +980,7 @@ export const firebaseService = {
       const snap = await getDocs(collection(db, 'prompt_templates'));
       return snap.docs.map((d) => d.data() as PromptTemplate);
     } catch (e) {
-      console.error('Failed to fetch prompt templates:', e);
+      log.error('Failed to fetch prompt templates:', e);
       return [];
     }
   },
@@ -994,7 +997,7 @@ export const firebaseService = {
       if (snap.empty) return null;
       return snap.docs[0].data() as PromptTemplate;
     } catch (e) {
-      console.error('Failed to fetch active prompt template:', e);
+      log.error('Failed to fetch active prompt template:', e);
       return null;
     }
   },
@@ -1018,7 +1021,7 @@ export const firebaseService = {
         });
         await batch.commit();
       } catch (e) {
-        console.error('Failed to deactivate other prompt templates:', e);
+        log.error('Failed to deactivate other prompt templates:', e);
       }
     }
     const cleaned = removeUndefinedFields(template);
@@ -1053,7 +1056,7 @@ export const firebaseService = {
       const storageRef = ref(storage, storagePath);
       await deleteObject(storageRef);
     } catch (e) {
-      console.error('Failed to delete prompt attachment file:', e);
+      log.error('Failed to delete prompt attachment file:', e);
     }
   },
 

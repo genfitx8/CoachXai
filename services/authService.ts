@@ -1,6 +1,9 @@
 import { CoachProfile, ClientProfile } from '../types';
 import { storageService } from './storage';
 import { firebaseService } from './firebase';
+import { createLogger } from '../utils/logger';
+
+const log = createLogger('auth');
 
 const STORAGE_KEYS = {
   COACH_PROFILE: 'swingnote_coach_profile', // Database for coach accounts
@@ -115,7 +118,7 @@ export const authService = {
         );
         resolve(newProfile);
       } catch (error) {
-        console.error('Signup error:', error);
+        log.error('Signup error:', error);
         reject('회원가입 중 오류가 발생했습니다.');
       }
     });
@@ -162,7 +165,7 @@ export const authService = {
           reject('이메일 또는 비밀번호가 일치하지 않습니다.');
         }
       } catch (error) {
-        console.error('Login error:', error);
+        log.error('Login error:', error);
         reject('로그인 중 오류가 발생했습니다.');
       }
     });
@@ -275,7 +278,7 @@ export const authService = {
           reject('이메일 또는 비밀번호가 일치하지 않습니다.');
         }
       } catch (error) {
-        console.error('Login error:', error);
+        log.error('Login error:', error);
         reject('로그인 중 오류가 발생했습니다.');
       }
     });
@@ -319,7 +322,7 @@ export const authService = {
       if (mappedMessage) {
         throw mappedMessage;
       }
-      console.error('Google sign-in error:', err);
+      log.error('Google sign-in error:', err);
       throw '구글 로그인 중 오류가 발생했습니다.';
     }
 
@@ -474,7 +477,7 @@ export const authService = {
       };
     } catch (error) {
       if (typeof error === 'string') throw error;
-      console.error('Branch admin login error:', error);
+      log.error('Branch admin login error:', error);
       throw '로그인 중 오류가 발생했습니다.';
     }
   },
@@ -512,7 +515,7 @@ export const authService = {
         );
         resolve(found ? found.email : null);
       } catch (error) {
-        console.error('Find email error:', error);
+        log.error('Find email error:', error);
         resolve(null);
       }
     });
@@ -551,7 +554,7 @@ export const authService = {
         // For this simulation, we will return the password to the user.
         resolve(found ? found.password : null);
       } catch (error) {
-        console.error('Find password error:', error);
+        log.error('Find password error:', error);
         resolve(null);
       }
     });
