@@ -89,7 +89,7 @@ export const SwingComparison: React.FC<SwingComparisonProps> = ({ lessons, onBac
     const allowGhostMode = showControls;
 
     const renderMedia = (lesson: Lesson, ref: React.RefObject<HTMLVideoElement | null>, className: string) => {
-      if (!lesson.videoUrl) return <div className="w-full h-full flex items-center justify-center bg-gray-900 text-gray-500 text-sm">No Media</div>;
+      if (!lesson.videoUrl) return <div className="w-full h-full flex items-center justify-center bg-gray-900 text-ink-medium text-sm">No Media</div>;
 
       if (lesson.mediaType === 'image') {
         return <img src={lesson.videoUrl} className={className} alt={lesson.title} />;
@@ -120,8 +120,8 @@ export const SwingComparison: React.FC<SwingComparisonProps> = ({ lessons, onBac
             <Button variant="ghost" onClick={() => setResult(null)} className="pl-0">
                 <ArrowLeft className="w-5 h-5 mr-1" /> 다른 레슨 선택하기
             </Button>
-            <h1 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-                <Sparkles className="w-5 h-5 text-emerald-700" /> 레슨 비교 분석
+            <h1 className="text-xl font-bold text-ink-high flex items-center gap-2">
+                <Sparkles className="w-5 h-5 text-primary-300" /> 레슨 비교 분석
             </h1>
         </div>
 
@@ -170,14 +170,14 @@ export const SwingComparison: React.FC<SwingComparisonProps> = ({ lessons, onBac
                             <div className="flex bg-white/20 backdrop-blur-md rounded-lg p-1 shadow-lg">
                                 <button 
                                     onClick={() => setViewMode('SPLIT')}
-                                    className={`p-2 rounded transition-all duration-200 ${viewMode === 'SPLIT' ? 'bg-white text-black shadow-md' : 'text-white hover:bg-white/10'}`}
+                                    className={`p-2 rounded transition-all duration-200 ${viewMode === 'SPLIT' ? 'bg-white text-bg-base shadow-md' : 'text-white hover:bg-white/10'}`}
                                     title="나란히 보기"
                                 >
                                     <Layout className="w-5 h-5" />
                                 </button>
                                 <button 
                                     onClick={() => setViewMode('GHOST')}
-                                    className={`p-2 rounded transition-all duration-200 ${viewMode === 'GHOST' ? 'bg-white text-black shadow-md' : 'text-white hover:bg-white/10'}`}
+                                    className={`p-2 rounded transition-all duration-200 ${viewMode === 'GHOST' ? 'bg-white text-bg-base shadow-md' : 'text-white hover:bg-white/10'}`}
                                     title="겹쳐 보기 (고스트 모드)"
                                 >
                                     <Layers className="w-5 h-5" />
@@ -187,12 +187,12 @@ export const SwingComparison: React.FC<SwingComparisonProps> = ({ lessons, onBac
                     )}
                 </div>
 
-                <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-lg hover:shadow-xl transition-shadow">
+                <div className="bg-bg-raised p-4 rounded-xl border border-line-subtle shadow-lg hover:shadow-xl transition-shadow">
                     <div className="flex items-center gap-2 mb-2">
-                         <h3 className="font-bold text-gray-900">향상 점수</h3>
-                         <div className="text-xs px-2 py-0.5 bg-gradient-to-r from-emerald-50 to-emerald-100 text-emerald-700 rounded-full font-semibold border border-emerald-200">AI 추정</div>
+                         <h3 className="font-bold text-ink-high">향상 점수</h3>
+                         <div className="text-xs px-2 py-0.5 bg-gradient-to-r from-emerald-50 to-emerald-100 text-primary-300 rounded-full font-semibold border border-emerald-200">AI 추정</div>
                     </div>
-                    <div className="w-full bg-gray-100 rounded-full h-4 overflow-hidden mb-1 shadow-inner">
+                    <div className="w-full bg-bg-overlay rounded-full h-4 overflow-hidden mb-1 shadow-inner">
                         <div 
                             className="bg-gradient-to-r from-emerald-700 via-emerald-600 to-teal-600 h-full rounded-full transition-all duration-1000 ease-out shadow-lg"
                             style={{ width: `${result.improvementScore}%` }}
@@ -206,19 +206,19 @@ export const SwingComparison: React.FC<SwingComparisonProps> = ({ lessons, onBac
 
             {/* Analysis Text */}
             <div className="lg:col-span-1 space-y-4">
-                 <div className="bg-white p-6 rounded-xl border border-emerald-100 shadow-lg h-full">
-                    <h3 className="font-bold text-lg text-gray-900 mb-4 flex items-center gap-2">
-                        <CheckCircle2 className="w-5 h-5 text-emerald-700" /> 분석 요약
+                 <div className="bg-bg-raised p-6 rounded-xl border border-emerald-100 shadow-lg h-full">
+                    <h3 className="font-bold text-lg text-ink-high mb-4 flex items-center gap-2">
+                        <CheckCircle2 className="w-5 h-5 text-primary-300" /> 분석 요약
                     </h3>
                     
                     <div className="mb-6">
-                        <p className="text-gray-800 font-medium mb-3 bg-emerald-50 p-3 rounded-lg border border-emerald-100">
+                        <p className="text-ink-high font-medium mb-3 bg-primary-500/10 p-3 rounded-lg border border-emerald-100">
                             "{result.summary}"
                         </p>
-                        <h4 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-2">주요 변경점</h4>
+                        <h4 className="text-sm font-bold text-ink-medium uppercase tracking-wider mb-2">주요 변경점</h4>
                         <ul className="space-y-2">
                             {result.keyChanges.map((change, idx) => (
-                                <li key={idx} className="flex items-start gap-2 text-sm text-gray-700">
+                                <li key={idx} className="flex items-start gap-2 text-sm text-ink-high">
                                     <span className="w-1.5 h-1.5 bg-emerald-700 rounded-full mt-1.5 flex-shrink-0" />
                                     {change}
                                 </li>
@@ -226,9 +226,9 @@ export const SwingComparison: React.FC<SwingComparisonProps> = ({ lessons, onBac
                         </ul>
                     </div>
 
-                    <div className="border-t border-gray-100 pt-4">
-                        <h4 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-2">코치 코멘트</h4>
-                        <div className="prose prose-sm prose-emerald text-gray-600 max-h-[300px] overflow-y-auto">
+                    <div className="border-t border-line-subtle pt-4">
+                        <h4 className="text-sm font-bold text-ink-medium uppercase tracking-wider mb-2">코치 코멘트</h4>
+                        <div className="prose prose-sm prose-emerald text-ink-medium max-h-[300px] overflow-y-auto">
                             <ReactMarkdown>{result.coachComment}</ReactMarkdown>
                         </div>
                     </div>
@@ -249,8 +249,8 @@ export const SwingComparison: React.FC<SwingComparisonProps> = ({ lessons, onBac
       </div>
 
       <div className="text-center py-8">
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">레슨 비교 분석</h2>
-        <p className="text-gray-500">비교하고 싶은 두 개의 레슨을 선택해주세요.</p>
+        <h2 className="text-2xl font-bold text-ink-high mb-2">레슨 비교 분석</h2>
+        <p className="text-ink-medium">비교하고 싶은 두 개의 레슨을 선택해주세요.</p>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -266,16 +266,16 @@ export const SwingComparison: React.FC<SwingComparisonProps> = ({ lessons, onBac
                 relative cursor-pointer rounded-xl overflow-hidden border-2 transition-all
                 ${isSelected 
                   ? 'border-emerald-700 ring-2 ring-emerald-200 transform scale-[1.02]' 
-                  : 'border-transparent hover:border-gray-200 bg-white shadow-sm'}
+                  : 'border-transparent hover:border-line-default bg-bg-raised shadow-sm'}
               `}
             >
-              <div className="aspect-video bg-gray-100 relative flex items-center justify-center overflow-hidden">
+              <div className="aspect-video bg-bg-overlay relative flex items-center justify-center overflow-hidden">
                  {lesson.mediaType === 'image' && <img src={lesson.videoUrl} className="w-full h-full object-cover" alt={lesson.title} />}
                  {lesson.mediaType === 'video' && (
                     lesson.videoUrl ? (
                         <video src={lesson.videoUrl} className="w-full h-full object-cover" />
                     ) : (
-                        <div className="w-full h-full flex items-center justify-center bg-gray-200 text-gray-400">No Video</div>
+                        <div className="w-full h-full flex items-center justify-center bg-bg-inset text-ink-muted">No Video</div>
                     )
                  )}
                  {lesson.mediaType === 'audio' && (
@@ -292,11 +292,11 @@ export const SwingComparison: React.FC<SwingComparisonProps> = ({ lessons, onBac
                    </div>
                  )}
               </div>
-              <div className="p-3 bg-white">
-                <h3 className="font-bold text-gray-900 text-sm truncate">{lesson.title}</h3>
-                <p className="text-xs text-gray-500 flex justify-between">
+              <div className="p-3 bg-bg-raised">
+                <h3 className="font-bold text-ink-high text-sm truncate">{lesson.title}</h3>
+                <p className="text-xs text-ink-medium flex justify-between">
                     <span>{lesson.date}</span>
-                    <span className="text-[10px] bg-gray-100 px-1 rounded border border-gray-200 uppercase">{lesson.mediaType}</span>
+                    <span className="text-[10px] bg-bg-overlay px-1 rounded border border-line-default uppercase">{lesson.mediaType}</span>
                 </p>
               </div>
             </div>
@@ -305,8 +305,8 @@ export const SwingComparison: React.FC<SwingComparisonProps> = ({ lessons, onBac
       </div>
 
       <div className="fixed bottom-8 left-0 right-0 flex justify-center px-4 pointer-events-none">
-         <div className="bg-white p-2 rounded-xl shadow-xl border border-gray-100 pointer-events-auto flex items-center gap-4 max-w-md w-full">
-            <div className="flex-1 px-2 text-sm text-gray-600">
+         <div className="bg-bg-raised p-2 rounded-xl shadow-xl border border-line-subtle pointer-events-auto flex items-center gap-4 max-w-md w-full">
+            <div className="flex-1 px-2 text-sm text-ink-medium">
                 {selectedIds.length === 0 && "레슨 2개를 선택해주세요"}
                 {selectedIds.length === 1 && "하나 더 선택해주세요"}
                 {selectedIds.length === 2 && "준비 완료!"}

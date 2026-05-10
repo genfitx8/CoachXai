@@ -94,7 +94,7 @@ export const AdminCourseManager: React.FC<AdminCourseManagerProps> = ({ isFireba
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+        <h2 className="text-lg font-bold text-ink-high flex items-center gap-2">
           <MapPin className="w-5 h-5" /> 골프장 정보 관리
         </h2>
         <Button onClick={() => { resetForm(); setIsEditing(true); }} icon={<Plus className="w-4 h-4" />}>
@@ -103,33 +103,33 @@ export const AdminCourseManager: React.FC<AdminCourseManagerProps> = ({ isFireba
       </div>
 
       {isEditing ? (
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 animate-fade-in">
+        <div className="bg-bg-raised p-6 rounded-xl shadow-sm border border-line-default animate-fade-in">
           <div className="mb-6">
-            <label className="block text-sm font-bold text-gray-700 mb-2">골프장 이름</label>
+            <label className="block text-sm font-bold text-ink-high mb-2">골프장 이름</label>
             <input 
               type="text" 
               value={courseName}
               onChange={(e) => setCourseName(e.target.value)}
               placeholder="예: 스카이72 오션코스"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-700 outline-none"
+              className="w-full px-4 py-2 border border-line-default rounded-lg focus:ring-2 focus:ring-emerald-700 outline-none"
             />
           </div>
 
           <div className="mb-6">
-            <h4 className="text-sm font-bold text-gray-700 mb-3">홀별 Par 설정</h4>
+            <h4 className="text-sm font-bold text-ink-high mb-3">홀별 Par 설정</h4>
             
             {/* OUT COURSE (1-9) */}
             <div className="mb-4">
-              <span className="text-xs font-bold text-gray-500 block mb-2">OUT / 전반 (1-9)</span>
+              <span className="text-xs font-bold text-ink-medium block mb-2">OUT / 전반 (1-9)</span>
               <div className="grid grid-cols-9 gap-2">
                 {pars.slice(0, 9).map((par, i) => (
                   <div key={i} className="text-center">
-                    <label className="block text-xs text-gray-400 mb-1">{i + 1}H</label>
+                    <label className="block text-xs text-ink-muted mb-1">{i + 1}H</label>
                     <input 
                       type="number" 
                       value={par}
                       onChange={(e) => handleParChange(i, Number(e.target.value))}
-                      className="w-full text-center border border-gray-300 rounded py-1 text-sm font-bold focus:border-emerald-700 outline-none"
+                      className="w-full text-center border border-line-default rounded py-1 text-sm font-bold focus:border-emerald-700 outline-none"
                       min="3" max="6"
                     />
                   </div>
@@ -139,16 +139,16 @@ export const AdminCourseManager: React.FC<AdminCourseManagerProps> = ({ isFireba
 
             {/* IN COURSE (10-18) */}
             <div>
-              <span className="text-xs font-bold text-gray-500 block mb-2">IN / 후반 (10-18)</span>
+              <span className="text-xs font-bold text-ink-medium block mb-2">IN / 후반 (10-18)</span>
               <div className="grid grid-cols-9 gap-2">
                 {pars.slice(9, 18).map((par, i) => (
                   <div key={i + 9} className="text-center">
-                    <label className="block text-xs text-gray-400 mb-1">{i + 10}H</label>
+                    <label className="block text-xs text-ink-muted mb-1">{i + 10}H</label>
                     <input 
                       type="number" 
                       value={par}
                       onChange={(e) => handleParChange(i + 9, Number(e.target.value))}
-                      className="w-full text-center border border-gray-300 rounded py-1 text-sm font-bold focus:border-emerald-700 outline-none"
+                      className="w-full text-center border border-line-default rounded py-1 text-sm font-bold focus:border-emerald-700 outline-none"
                       min="3" max="6"
                     />
                   </div>
@@ -156,7 +156,7 @@ export const AdminCourseManager: React.FC<AdminCourseManagerProps> = ({ isFireba
               </div>
             </div>
             
-            <div className="mt-2 text-right text-xs text-gray-500">
+            <div className="mt-2 text-right text-xs text-ink-medium">
               Total Par: {pars.reduce((a, b) => a + b, 0)}
             </div>
           </div>
@@ -169,22 +169,22 @@ export const AdminCourseManager: React.FC<AdminCourseManagerProps> = ({ isFireba
       ) : (
         <div className="space-y-4">
           <div className="relative">
-            <Search className="absolute left-3 top-2.5 w-5 h-5 text-gray-400" />
+            <Search className="absolute left-3 top-2.5 w-5 h-5 text-ink-muted" />
             <input 
               type="text" 
               placeholder="골프장 이름 검색..." 
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+              className="w-full pl-10 pr-4 py-2 border border-line-default rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
             />
           </div>
 
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+          <div className="bg-bg-raised rounded-xl shadow-sm border border-line-default overflow-hidden">
             {filteredCourses.length === 0 ? (
-              <div className="p-8 text-center text-gray-400">등록된 골프장이 없습니다.</div>
+              <div className="p-8 text-center text-ink-muted">등록된 골프장이 없습니다.</div>
             ) : (
               <table className="w-full text-sm text-left">
-                <thead className="bg-gray-50 text-gray-500 font-medium border-b border-gray-200">
+                <thead className="bg-bg-base text-ink-medium font-medium border-b border-line-default">
                   <tr>
                     <th className="px-6 py-3">골프장 이름</th>
                     <th className="px-6 py-3">Total Par</th>
@@ -193,12 +193,12 @@ export const AdminCourseManager: React.FC<AdminCourseManagerProps> = ({ isFireba
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {filteredCourses.map(course => (
-                    <tr key={course.id} className="hover:bg-gray-50 transition-colors">
-                      <td className="px-6 py-4 font-bold text-gray-900">{course.name}</td>
-                      <td className="px-6 py-4 text-gray-600">{course.pars.reduce((a, b) => a + b, 0)}</td>
+                    <tr key={course.id} className="hover:bg-bg-base transition-colors">
+                      <td className="px-6 py-4 font-bold text-ink-high">{course.name}</td>
+                      <td className="px-6 py-4 text-ink-medium">{course.pars.reduce((a, b) => a + b, 0)}</td>
                       <td className="px-6 py-4 text-right flex justify-end gap-2">
                         <Button variant="secondary" className="py-1 px-3 text-xs" onClick={() => handleEdit(course)}>수정</Button>
-                        <button onClick={() => handleDelete(course.id)} className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
+                        <button onClick={() => handleDelete(course.id)} className="p-2 text-ink-muted hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors">
                           <Trash2 className="w-4 h-4" />
                         </button>
                       </td>

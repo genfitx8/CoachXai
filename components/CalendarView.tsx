@@ -50,31 +50,31 @@ const getStatusStyling = (status: string): { typeLabel: string; bgColorClass: st
     case 'BLOCKED':
       return {
         typeLabel: '블럭됨',
-        bgColorClass: 'bg-red-100 border-red-300',
+        bgColorClass: 'bg-red-500/15 border-red-300',
         badgeColorClass: 'bg-red-600',
       };
     case 'PENDING':
       return {
         typeLabel: '대기중',
-        bgColorClass: 'bg-yellow-100 border-yellow-300',
+        bgColorClass: 'bg-amber-500/15 border-yellow-300',
         badgeColorClass: 'bg-yellow-600',
       };
     case 'CONFIRMED':
       return {
         typeLabel: '승인됨',
-        bgColorClass: 'bg-green-100 border-green-300',
+        bgColorClass: 'bg-emerald-500/15 border-green-300',
         badgeColorClass: 'bg-green-600',
       };
     case 'AVAILABLE':
       return {
         typeLabel: '예약 가능',
-        bgColorClass: 'bg-blue-100 border-blue-300',
+        bgColorClass: 'bg-interactive-500/15 border-blue-300',
         badgeColorClass: 'bg-blue-600',
       };
     default:
       return {
         typeLabel: status,
-        bgColorClass: 'bg-gray-100 border-gray-300',
+        bgColorClass: 'bg-bg-overlay border-line-default',
         badgeColorClass: 'bg-gray-600',
       };
   }
@@ -350,7 +350,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-3 sm:mb-4 gap-2">
         <h2 className="text-xl sm:text-2xl font-bold">레슨 캘린더</h2>
       </div>
-      {loading && <div className="text-center py-2 text-gray-600">로딩 중...</div>}
+      {loading && <div className="text-center py-2 text-ink-medium">로딩 중...</div>}
       <FullCalendar
         plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
         initialView={isMobile ? "timeGridDay" : "dayGridMonth"}
@@ -395,20 +395,20 @@ const CalendarView: React.FC<CalendarViewProps> = ({
           />
           
           {/* Side Panel */}
-          <div className="fixed right-0 top-0 h-full w-full md:w-96 bg-white shadow-xl z-50 overflow-y-auto">
+          <div className="fixed right-0 top-0 h-full w-full md:w-96 bg-bg-raised shadow-xl z-50 overflow-y-auto">
             {/* Header */}
-            <div className="sticky top-0 bg-white border-b border-gray-200 px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between">
+            <div className="sticky top-0 bg-bg-raised border-b border-line-default px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between">
               <div className="flex-1 min-w-0">
-                <h3 className="text-base sm:text-lg font-semibold text-gray-900 truncate">일정 상세</h3>
+                <h3 className="text-base sm:text-lg font-semibold text-ink-high truncate">일정 상세</h3>
                 {selectedDate && (
-                  <p className="text-xs sm:text-sm text-gray-600 mt-1 truncate">
+                  <p className="text-xs sm:text-sm text-ink-medium mt-1 truncate">
                     {formatDate(selectedDate)}
                   </p>
                 )}
               </div>
               <button
                 onClick={() => setShowDateDetail(false)}
-                className="ml-2 text-gray-400 hover:text-gray-600 transition-colors flex-shrink-0"
+                className="ml-2 text-ink-muted hover:text-ink-medium transition-colors flex-shrink-0"
                 aria-label="닫기"
               >
                 <X size={isMobile ? 20 : 24} />
@@ -418,7 +418,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({
             {/* Content */}
             <div className="px-4 sm:px-6 py-3 sm:py-4">
               {selectedDateEvents.length === 0 ? (
-                <div className="text-center py-8 sm:py-12 text-gray-500">
+                <div className="text-center py-8 sm:py-12 text-ink-medium">
                   <p className="text-base sm:text-lg">일정이 없습니다</p>
                 </div>
               ) : (
@@ -441,10 +441,10 @@ const CalendarView: React.FC<CalendarViewProps> = ({
                                 {typeLabel}
                               </span>
                             </div>
-                            <h4 className="font-semibold text-gray-900 mb-1 text-sm sm:text-base truncate">
+                            <h4 className="font-semibold text-ink-high mb-1 text-sm sm:text-base truncate">
                               {event.title}
                             </h4>
-                            <div className="text-xs sm:text-sm text-gray-600">
+                            <div className="text-xs sm:text-sm text-ink-medium">
                               <p>
                                 {formatTime(event.start as string)} - {formatTime(event.end as string)}
                               </p>
@@ -453,7 +453,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({
                           {!readOnly && !coachProfile && (
                             <button
                               onClick={() => handleCancelEventFromDetail(event.id as string)}
-                              className="ml-2 px-2 sm:px-3 py-1 text-xs sm:text-sm text-red-600 hover:text-red-800 hover:bg-red-50 rounded transition-colors flex-shrink-0"
+                              className="ml-2 px-2 sm:px-3 py-1 text-xs sm:text-sm text-red-400 hover:text-red-200 hover:bg-red-500/10 rounded transition-colors flex-shrink-0"
                             >
                               취소
                             </button>
@@ -480,12 +480,12 @@ const CalendarView: React.FC<CalendarViewProps> = ({
           
           {/* Modal */}
           <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+            <div className="bg-bg-raised rounded-lg shadow-xl max-w-md w-full p-6">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-gray-900">레슨 예약</h3>
+                <h3 className="text-lg font-semibold text-ink-high">레슨 예약</h3>
                 <button
                   onClick={() => setShowBookingModal(false)}
-                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                  className="text-ink-muted hover:text-ink-medium transition-colors"
                 >
                   <X size={24} />
                 </button>
@@ -493,17 +493,17 @@ const CalendarView: React.FC<CalendarViewProps> = ({
               
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-ink-high mb-1">
                     코치
                   </label>
-                  <div className="text-base text-gray-900">{selectedSlot.coachName}</div>
+                  <div className="text-base text-ink-high">{selectedSlot.coachName}</div>
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-ink-high mb-1">
                     일시
                   </label>
-                  <div className="text-base text-gray-900">
+                  <div className="text-base text-ink-high">
                     {new Date(selectedSlot.startTime).toLocaleString('ko-KR', {
                       year: 'numeric',
                       month: 'long',
@@ -518,14 +518,14 @@ const CalendarView: React.FC<CalendarViewProps> = ({
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-ink-high mb-1">
                     요청 사항 (선택)
                   </label>
                   <textarea
                     value={bookingNotes}
                     onChange={(e) => setBookingNotes(e.target.value)}
                     placeholder="레슨에 대한 요청사항이 있으시면 입력해주세요"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                    className="w-full px-3 py-2 border border-line-default rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
                     rows={3}
                   />
                 </div>
@@ -533,7 +533,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({
                 <div className="flex gap-3 pt-2">
                   <button
                     onClick={() => setShowBookingModal(false)}
-                    className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition"
+                    className="flex-1 px-4 py-2 border border-line-default text-ink-high rounded-lg hover:bg-bg-base transition"
                   >
                     취소
                   </button>

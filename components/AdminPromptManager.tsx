@@ -233,7 +233,7 @@ export const AdminPromptManager: React.FC<AdminPromptManagerProps> = ({ isFireba
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+        <h2 className="text-lg font-bold text-ink-high flex items-center gap-2">
           <Sparkles className="w-5 h-5 text-indigo-500" /> {t('admin_prompt_title')}
         </h2>
         <Button
@@ -248,9 +248,9 @@ export const AdminPromptManager: React.FC<AdminPromptManagerProps> = ({ isFireba
       </div>
 
       {/* Info banner */}
-      <div className="flex items-start gap-3 bg-indigo-50 border border-indigo-200 rounded-xl p-4">
+      <div className="flex items-start gap-3 bg-primary-500/10 border border-indigo-200 rounded-xl p-4">
         <AlertTriangle className="w-5 h-5 text-indigo-500 flex-shrink-0 mt-0.5" />
-        <p className="text-sm text-indigo-700">
+        <p className="text-sm text-primary-300">
           {t('admin_prompt_info')}
           {!isFirebaseMode && (
             <span className="block mt-1 text-indigo-500 text-xs">
@@ -262,30 +262,30 @@ export const AdminPromptManager: React.FC<AdminPromptManagerProps> = ({ isFireba
 
       {/* Edit / Create form */}
       {isEditing && (
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-indigo-200 animate-fade-in space-y-5">
-          <h3 className="font-bold text-gray-800 text-base">
+        <div className="bg-bg-raised p-6 rounded-xl shadow-sm border border-indigo-200 animate-fade-in space-y-5">
+          <h3 className="font-bold text-ink-high text-base">
             {editingId ? t('admin_prompt_edit_title') : t('admin_prompt_create_title')}
           </h3>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-bold text-gray-500 mb-1">{t('admin_prompt_name_label')}</label>
+              <label className="block text-xs font-bold text-ink-medium mb-1">{t('admin_prompt_name_label')}</label>
               <input
                 type="text"
                 value={form.name}
                 onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
                 placeholder="예: Coachx Chat — 한국어 v1"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
+                className="w-full px-4 py-2 border border-line-default rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
               />
             </div>
             <div>
-              <label className="block text-xs font-bold text-gray-500 mb-1">{t('admin_prompt_target_label')}</label>
+              <label className="block text-xs font-bold text-ink-medium mb-1">{t('admin_prompt_target_label')}</label>
               <select
                 value={form.target}
                 onChange={(e) =>
                   setForm((f) => ({ ...f, target: e.target.value as PromptTarget }))
                 }
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
+                className="w-full px-4 py-2 border border-line-default rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
               >
                 {ALL_TARGETS.map((tgt) => (
                   <option key={tgt} value={tgt}>
@@ -298,7 +298,7 @@ export const AdminPromptManager: React.FC<AdminPromptManagerProps> = ({ isFireba
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-bold text-gray-500 mb-1">{t('admin_prompt_language_label')}</label>
+              <label className="block text-xs font-bold text-ink-medium mb-1">{t('admin_prompt_language_label')}</label>
               <select
                 value={form.language ?? 'all'}
                 onChange={(e) =>
@@ -307,7 +307,7 @@ export const AdminPromptManager: React.FC<AdminPromptManagerProps> = ({ isFireba
                     language: e.target.value as PromptTemplate['language'],
                   }))
                 }
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
+                className="w-full px-4 py-2 border border-line-default rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
               >
                 <option value="all">{t('admin_prompt_lang_all')}</option>
                 <option value="ko">한국어 (ko)</option>
@@ -324,46 +324,46 @@ export const AdminPromptManager: React.FC<AdminPromptManagerProps> = ({ isFireba
                   onChange={(e) => setForm((f) => ({ ...f, isActive: e.target.checked }))}
                   className="w-4 h-4 accent-indigo-600"
                 />
-                <span className="text-sm font-bold text-gray-700">{t('admin_prompt_activate_on_save')}</span>
+                <span className="text-sm font-bold text-ink-high">{t('admin_prompt_activate_on_save')}</span>
               </label>
             </div>
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-gray-500 mb-1">
-              {t('admin_prompt_system_label')} <span className="font-normal text-gray-400">(Gemini에 전달되는 역할/규칙 지시문)</span>
+            <label className="block text-xs font-bold text-ink-medium mb-1">
+              {t('admin_prompt_system_label')} <span className="font-normal text-ink-muted">(Gemini에 전달되는 역할/규칙 지시문)</span>
             </label>
             <textarea
               value={form.systemPrompt}
               onChange={(e) => setForm((f) => ({ ...f, systemPrompt: e.target.value }))}
               placeholder="You are Coachx, an AI coaching assistant..."
               rows={8}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none resize-y text-sm font-mono"
+              className="w-full px-4 py-3 border border-line-default rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none resize-y text-sm font-mono"
             />
-            <p className="text-xs text-gray-400 mt-1">
+            <p className="text-xs text-ink-muted mt-1">
               {form.systemPrompt.length}자
             </p>
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-gray-500 mb-1">
-              {t('admin_prompt_dev_note_label')} <span className="font-normal text-gray-400">(관리자 전용 — Gemini에 전달되지 않음)</span>
+            <label className="block text-xs font-bold text-ink-medium mb-1">
+              {t('admin_prompt_dev_note_label')} <span className="font-normal text-ink-muted">(관리자 전용 — Gemini에 전달되지 않음)</span>
             </label>
             <textarea
               value={form.developerNote ?? ''}
               onChange={(e) => setForm((f) => ({ ...f, developerNote: e.target.value }))}
               placeholder="변경 이력, 테스트 결과, 주의사항 등..."
               rows={3}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none resize-y text-sm"
+              className="w-full px-4 py-3 border border-line-default rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none resize-y text-sm"
             />
           </div>
 
           {/* File attachments in form */}
           <div>
-            <label className="block text-xs font-bold text-gray-500 mb-1">
+            <label className="block text-xs font-bold text-ink-medium mb-1">
               {t('admin_prompt_attachments_label')}
             </label>
-            <div className="border border-dashed border-gray-300 rounded-lg p-3 bg-gray-50">
+            <div className="border border-dashed border-line-default rounded-lg p-3 bg-bg-base">
               <input
                 ref={formFileRef}
                 type="file"
@@ -378,14 +378,14 @@ export const AdminPromptManager: React.FC<AdminPromptManagerProps> = ({ isFireba
               {pendingFiles.length > 0 && (
                 <div className="space-y-1 mb-2">
                   {pendingFiles.map((f, i) => (
-                    <div key={i} className="flex items-center gap-2 p-1.5 bg-white rounded border border-gray-200 text-xs">
-                      <FileText className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
-                      <span className="flex-1 truncate text-gray-700">{f.name}</span>
-                      <span className="text-gray-400">{formatFileSize(f.size)}</span>
+                    <div key={i} className="flex items-center gap-2 p-1.5 bg-bg-raised rounded border border-line-default text-xs">
+                      <FileText className="w-3.5 h-3.5 text-ink-muted flex-shrink-0" />
+                      <span className="flex-1 truncate text-ink-high">{f.name}</span>
+                      <span className="text-ink-muted">{formatFileSize(f.size)}</span>
                       <button
                         type="button"
                         onClick={() => setPendingFiles((prev) => prev.filter((_, j) => j !== i))}
-                        className="p-0.5 text-gray-400 hover:text-red-500"
+                        className="p-0.5 text-ink-muted hover:text-red-500"
                       >
                         <X className="w-3 h-3" />
                       </button>
@@ -397,10 +397,10 @@ export const AdminPromptManager: React.FC<AdminPromptManagerProps> = ({ isFireba
               {form.attachments.length > 0 && (
                 <div className="space-y-1 mb-2">
                   {form.attachments.map((att) => (
-                    <div key={att.id} className="flex items-center gap-2 p-1.5 bg-white rounded border border-gray-200 text-xs">
+                    <div key={att.id} className="flex items-center gap-2 p-1.5 bg-bg-raised rounded border border-line-default text-xs">
                       <FileText className="w-3.5 h-3.5 text-indigo-400 flex-shrink-0" />
-                      <span className="flex-1 truncate text-gray-700">{att.fileName}</span>
-                      <span className="text-gray-400">{formatFileSize(att.fileSize)}</span>
+                      <span className="flex-1 truncate text-ink-high">{att.fileName}</span>
+                      <span className="text-ink-muted">{formatFileSize(att.fileSize)}</span>
                     </div>
                   ))}
                 </div>
@@ -408,13 +408,13 @@ export const AdminPromptManager: React.FC<AdminPromptManagerProps> = ({ isFireba
               <button
                 type="button"
                 onClick={() => formFileRef.current?.click()}
-                className="text-xs font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1"
+                className="text-xs font-bold text-indigo-600 hover:text-primary-200 flex items-center gap-1"
               >
                 <Paperclip className="w-3 h-3" /> {t('admin_prompt_attach_file_btn')}
               </button>
             </div>
             {pendingFiles.length > 0 && (
-              <p className="text-xs text-gray-400 mt-1">{t('admin_prompt_files_will_upload')}</p>
+              <p className="text-xs text-ink-muted mt-1">{t('admin_prompt_files_will_upload')}</p>
             )}
           </div>
 
@@ -431,12 +431,12 @@ export const AdminPromptManager: React.FC<AdminPromptManagerProps> = ({ isFireba
 
       {/* Template list */}
       {isLoading ? (
-        <div className="text-center py-10 text-gray-400 text-sm">{t('loading')}</div>
+        <div className="text-center py-10 text-ink-muted text-sm">{t('loading')}</div>
       ) : templates.length === 0 ? (
-        <div className="bg-white rounded-xl border border-gray-200 p-10 text-center">
-          <Sparkles className="w-10 h-10 text-gray-300 mx-auto mb-3" />
-          <p className="text-gray-400 text-sm">{t('admin_prompt_empty')}</p>
-          <p className="text-gray-300 text-xs mt-1">
+        <div className="bg-bg-raised rounded-xl border border-line-default p-10 text-center">
+          <Sparkles className="w-10 h-10 text-ink-muted mx-auto mb-3" />
+          <p className="text-ink-muted text-sm">{t('admin_prompt_empty')}</p>
+          <p className="text-ink-muted text-xs mt-1">
             위 버튼으로 새 프롬프트를 추가하거나, 내장 기본 프롬프트가 자동으로 사용됩니다.
           </p>
         </div>
@@ -452,7 +452,7 @@ export const AdminPromptManager: React.FC<AdminPromptManagerProps> = ({ isFireba
                   <span className="text-xs font-bold text-indigo-600 uppercase tracking-wide">
                     {TARGET_LABELS[target]}
                   </span>
-                  <span className="text-xs text-gray-400">— {TARGET_DESCRIPTIONS[target]}</span>
+                  <span className="text-xs text-ink-muted">— {TARGET_DESCRIPTIONS[target]}</span>
                 </div>
                 <div className="space-y-2">
                   {group.map((template) => (
@@ -525,8 +525,8 @@ const PromptCard: React.FC<PromptCardProps> = ({
 
   return (
     <div
-      className={`bg-white rounded-xl border shadow-sm transition-all ${
-        template.isActive ? 'border-indigo-300 ring-1 ring-indigo-200' : 'border-gray-200'
+      className={`bg-bg-raised rounded-xl border shadow-sm transition-all ${
+        template.isActive ? 'border-indigo-300 ring-1 ring-indigo-200' : 'border-line-default'
       }`}
     >
       {/* Card header */}
@@ -540,30 +540,30 @@ const PromptCard: React.FC<PromptCardProps> = ({
           {template.isActive ? (
             <CheckCircle className="w-5 h-5 text-indigo-500" />
           ) : (
-            <Circle className="w-5 h-5 text-gray-300 hover:text-indigo-400 transition-colors" />
+            <Circle className="w-5 h-5 text-ink-muted hover:text-indigo-400 transition-colors" />
           )}
         </button>
 
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="font-bold text-gray-900 text-sm truncate">{template.name}</span>
+            <span className="font-bold text-ink-high text-sm truncate">{template.name}</span>
             {template.isActive && (
-              <span className="text-[10px] font-bold px-1.5 py-0.5 bg-indigo-100 text-indigo-700 rounded-full">
+              <span className="text-[10px] font-bold px-1.5 py-0.5 bg-primary-500/15 text-primary-300 rounded-full">
                 ACTIVE
               </span>
             )}
             {template.language && template.language !== 'all' && (
-              <span className="text-[10px] font-bold px-1.5 py-0.5 bg-gray-100 text-gray-500 rounded-full uppercase">
+              <span className="text-[10px] font-bold px-1.5 py-0.5 bg-bg-overlay text-ink-medium rounded-full uppercase">
                 {template.language}
               </span>
             )}
             {template.attachments.length > 0 && (
-              <span className="text-[10px] font-bold px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded-full flex items-center gap-0.5">
+              <span className="text-[10px] font-bold px-1.5 py-0.5 bg-amber-500/15 text-amber-300 rounded-full flex items-center gap-0.5">
                 <Paperclip className="w-2.5 h-2.5" /> {template.attachments.length}
               </span>
             )}
           </div>
-          <p className="text-xs text-gray-400 mt-0.5">
+          <p className="text-xs text-ink-muted mt-0.5">
             {new Date(template.updatedAt).toLocaleString()}
           </p>
         </div>
@@ -571,21 +571,21 @@ const PromptCard: React.FC<PromptCardProps> = ({
         <div className="flex items-center gap-1">
           <button
             onClick={onEdit}
-            className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+            className="p-1.5 text-ink-muted hover:text-indigo-600 hover:bg-primary-500/10 rounded-lg transition-colors"
             title={t('edit')}
           >
             <Edit2 className="w-4 h-4" />
           </button>
           <button
             onClick={onDelete}
-            className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+            className="p-1.5 text-ink-muted hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors"
             title={t('delete')}
           >
             <Trash2 className="w-4 h-4" />
           </button>
           <button
             onClick={onToggleExpand}
-            className="p-1.5 text-gray-400 hover:text-gray-700 rounded-lg transition-colors"
+            className="p-1.5 text-ink-muted hover:text-ink-high rounded-lg transition-colors"
             title={isExpanded ? t('admin_prompt_collapse') : t('admin_prompt_expand')}
           >
             {isExpanded ? (
@@ -599,18 +599,18 @@ const PromptCard: React.FC<PromptCardProps> = ({
 
       {/* Expanded detail */}
       {isExpanded && (
-        <div className="border-t border-gray-100 px-5 py-4 space-y-4">
+        <div className="border-t border-line-subtle px-5 py-4 space-y-4">
           <div>
-            <p className="text-xs font-bold text-gray-500 mb-2">{t('admin_prompt_system_label')}</p>
-            <pre className="text-xs text-gray-700 bg-gray-50 rounded-lg p-3 overflow-auto max-h-48 whitespace-pre-wrap font-mono">
+            <p className="text-xs font-bold text-ink-medium mb-2">{t('admin_prompt_system_label')}</p>
+            <pre className="text-xs text-ink-high bg-bg-base rounded-lg p-3 overflow-auto max-h-48 whitespace-pre-wrap font-mono">
               {template.systemPrompt}
             </pre>
           </div>
 
           {template.developerNote && (
             <div>
-              <p className="text-xs font-bold text-gray-500 mb-1">{t('admin_prompt_dev_note_label')}</p>
-              <p className="text-xs text-gray-600 bg-amber-50 rounded-lg p-3">
+              <p className="text-xs font-bold text-ink-medium mb-1">{t('admin_prompt_dev_note_label')}</p>
+              <p className="text-xs text-ink-medium bg-amber-500/10 rounded-lg p-3">
                 {template.developerNote}
               </p>
             </div>
@@ -619,7 +619,7 @@ const PromptCard: React.FC<PromptCardProps> = ({
           {/* Attachments */}
           <div>
             <div className="flex items-center justify-between mb-2">
-              <p className="text-xs font-bold text-gray-500 flex items-center gap-1">
+              <p className="text-xs font-bold text-ink-medium flex items-center gap-1">
                 <Paperclip className="w-3 h-3" /> {t('admin_prompt_attachments_section')} ({template.attachments.length})
               </p>
               <div>
@@ -633,7 +633,7 @@ const PromptCard: React.FC<PromptCardProps> = ({
                 <button
                   onClick={() => localFileRef.current?.click()}
                   disabled={isUploadingAttachment}
-                  className="text-xs font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1 disabled:opacity-50"
+                  className="text-xs font-bold text-indigo-600 hover:text-primary-200 flex items-center gap-1 disabled:opacity-50"
                 >
                   {isUploadingAttachment ? (
                     t('admin_prompt_uploading')
@@ -647,7 +647,7 @@ const PromptCard: React.FC<PromptCardProps> = ({
             </div>
 
             {template.attachments.length === 0 ? (
-              <p className="text-xs text-gray-400 text-center py-3 bg-gray-50 rounded-lg">
+              <p className="text-xs text-ink-muted text-center py-3 bg-bg-base rounded-lg">
                 {t('admin_prompt_no_files')}
               </p>
             ) : (
@@ -655,12 +655,12 @@ const PromptCard: React.FC<PromptCardProps> = ({
                 {template.attachments.map((att) => (
                   <div
                     key={att.id}
-                    className="flex items-center gap-2 p-2 bg-gray-50 rounded-lg border border-gray-100"
+                    className="flex items-center gap-2 p-2 bg-bg-base rounded-lg border border-line-subtle"
                   >
-                    <FileText className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                    <FileText className="w-4 h-4 text-ink-muted flex-shrink-0" />
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs font-medium text-gray-800 truncate">{att.fileName}</p>
-                      <p className="text-[10px] text-gray-400">
+                      <p className="text-xs font-medium text-ink-high truncate">{att.fileName}</p>
+                      <p className="text-[10px] text-ink-muted">
                         {formatFileSize(att.fileSize)} · {att.mimeType}
                       </p>
                     </div>
@@ -669,7 +669,7 @@ const PromptCard: React.FC<PromptCardProps> = ({
                         href={att.downloadUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="p-1 text-gray-400 hover:text-indigo-600 transition-colors"
+                        className="p-1 text-ink-muted hover:text-indigo-600 transition-colors"
                         title={t('admin_prompt_download')}
                       >
                         <Download className="w-3.5 h-3.5" />
@@ -677,7 +677,7 @@ const PromptCard: React.FC<PromptCardProps> = ({
                     )}
                     <button
                       onClick={() => onDeleteAttachment(att)}
-                      className="p-1 text-gray-400 hover:text-red-500 transition-colors"
+                      className="p-1 text-ink-muted hover:text-red-500 transition-colors"
                       title={t('delete')}
                     >
                       <X className="w-3.5 h-3.5" />

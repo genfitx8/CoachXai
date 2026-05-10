@@ -57,7 +57,7 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ role, user
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-gray-900/90 backdrop-blur-md p-4 animate-fade-in">
-      <div className="bg-white rounded-2xl w-full max-w-md overflow-hidden shadow-2xl relative">
+      <div className="bg-bg-raised rounded-2xl w-full max-w-md overflow-hidden shadow-2xl relative">
         <div className={`px-8 py-8 text-center text-white relative overflow-hidden ${isCoach ? 'bg-slate-800' : 'bg-emerald-800'}`}>
           <div className="absolute top-0 left-0 w-full h-full bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10"></div>
           <div className="relative z-10">
@@ -65,7 +65,7 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ role, user
                 {isCoach ? <Sparkles className="w-8 h-8 text-yellow-300 fill-current" /> : <Star className="w-8 h-8 text-yellow-300 fill-current" />}
             </div>
             <h2 className="text-2xl font-bold mb-1">{isCoach ? '프리미엄 코치 1주일 무료' : '멤버십 구독이 필요합니다'}</h2>
-            <p className={`${isCoach ? 'text-slate-300' : 'text-emerald-100'} text-sm`}>
+            <p className={`${isCoach ? 'text-ink-muted' : 'text-emerald-100'} text-sm`}>
                 {isCoach ? '지금 시작하고 7일간 모든 기능을 무료로 체험하세요.' : 'CoachX AI의 모든 기능을 이용해보세요.'}
             </p>
           </div>
@@ -73,10 +73,10 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ role, user
 
         <div className="p-8">
           <div className="text-center mb-6">
-            <p className="text-gray-500 text-sm font-medium uppercase tracking-wider mb-2">{isCoach ? 'Coach Premium Plan' : 'Member Plan'}</p>
-            <h3 className="text-4xl font-extrabold text-gray-900">
+            <p className="text-ink-medium text-sm font-medium uppercase tracking-wider mb-2">{isCoach ? 'Coach Premium Plan' : 'Member Plan'}</p>
+            <h3 className="text-4xl font-extrabold text-ink-high">
               ₩{finalPrice.toLocaleString()}
-              <span className="text-lg text-gray-400 font-normal"> / 월</span>
+              <span className="text-lg text-ink-muted font-normal"> / 월</span>
             </h3>
             {discount > 0 && (
                 <p className="text-sm text-emerald-600 font-bold mt-1">
@@ -84,7 +84,7 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ role, user
                 </p>
             )}
             {isCoach && (
-                <div className="mt-2 inline-flex items-center gap-1 bg-slate-100 text-slate-700 px-3 py-1 rounded-full text-xs font-bold border border-slate-200">
+                <div className="mt-2 inline-flex items-center gap-1 bg-bg-overlay text-ink-high px-3 py-1 rounded-full text-xs font-bold border border-line-default">
                     <CalendarClock className="w-3 h-3" /> 첫 7일 무료 체험 (언제든 취소 가능)
                 </div>
             )}
@@ -94,18 +94,18 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ role, user
           {canUsePoints && (
               <div 
                 onClick={() => setUsePoints(!usePoints)}
-                className={`mb-6 p-4 rounded-xl border-2 cursor-pointer transition-all flex items-center justify-between ${usePoints ? 'border-emerald-700 bg-emerald-50' : 'border-gray-200 hover:border-emerald-200'}`}
+                className={`mb-6 p-4 rounded-xl border-2 cursor-pointer transition-all flex items-center justify-between ${usePoints ? 'border-emerald-700 bg-primary-500/10' : 'border-line-default hover:border-primary-500/30'}`}
               >
                   <div className="flex items-center gap-3">
-                      <div className={`p-2 rounded-full ${usePoints ? 'bg-emerald-700 text-white' : 'bg-gray-200 text-gray-500'}`}>
+                      <div className={`p-2 rounded-full ${usePoints ? 'bg-emerald-700 text-white' : 'bg-bg-inset text-ink-medium'}`}>
                           <Coins className="w-5 h-5" />
                       </div>
                       <div className="text-left">
-                          <p className="font-bold text-gray-900 text-sm">포인트 사용하기</p>
-                          <p className="text-xs text-gray-500">보유: {availablePoints.toLocaleString()} P</p>
+                          <p className="font-bold text-ink-high text-sm">포인트 사용하기</p>
+                          <p className="text-xs text-ink-medium">보유: {availablePoints.toLocaleString()} P</p>
                       </div>
                   </div>
-                  <div className={`w-6 h-6 rounded-full border flex items-center justify-center ${usePoints ? 'bg-emerald-700 border-emerald-700' : 'border-gray-300 bg-white'}`}>
+                  <div className={`w-6 h-6 rounded-full border flex items-center justify-center ${usePoints ? 'bg-emerald-700 border-emerald-700' : 'border-line-default bg-bg-raised'}`}>
                       {usePoints && <CheckCircle className="w-4 h-4 text-white" />}
                   </div>
               </div>
@@ -113,19 +113,19 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ role, user
 
           <div className="space-y-4 mb-8">
             {!isCoach && (
-              <div className="rounded-xl border border-gray-200 overflow-hidden">
+              <div className="rounded-xl border border-line-default overflow-hidden">
                 <div className="grid grid-cols-2">
-                  <div className="bg-emerald-50 p-3 border-r border-gray-200">
-                    <p className="text-xs font-black text-emerald-700 mb-1">🟢 FREE</p>
-                    <ul className="text-[11px] text-gray-600 space-y-1">
+                  <div className="bg-primary-500/10 p-3 border-r border-line-default">
+                    <p className="text-xs font-black text-primary-300 mb-1">🟢 FREE</p>
+                    <ul className="text-[11px] text-ink-medium space-y-1">
                       <li>기록 10개</li>
                       <li>AI 분석 1회/일</li>
                       <li>기본 피드백</li>
                     </ul>
                   </div>
-                  <div className="bg-indigo-50 p-3">
-                    <p className="text-xs font-black text-indigo-700 mb-1">🔵 PRO (월 29,000원)</p>
-                    <ul className="text-[11px] text-gray-700 space-y-1">
+                  <div className="bg-primary-500/10 p-3">
+                    <p className="text-xs font-black text-primary-300 mb-1">🔵 PRO (월 29,000원)</p>
+                    <ul className="text-[11px] text-ink-high space-y-1">
                       <li>기록 무제한</li>
                       <li>AI 무제한</li>
                       <li>상세 분석 · 성장 그래프</li>
@@ -136,28 +136,28 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ role, user
               </div>
             )}
             <div className="flex items-center gap-3">
-               <div className={`${isCoach ? 'bg-slate-100 text-slate-600' : 'bg-emerald-100 text-emerald-600'} p-1 rounded-full`}><CheckCircle className="w-4 h-4" /></div>
-               <span className="text-gray-600 text-sm">무제한 레슨 영상 저장</span>
+               <div className={`${isCoach ? 'bg-bg-overlay text-ink-medium' : 'bg-primary-500/15 text-emerald-600'} p-1 rounded-full`}><CheckCircle className="w-4 h-4" /></div>
+               <span className="text-ink-medium text-sm">무제한 레슨 영상 저장</span>
             </div>
             <div className="flex items-center gap-3">
-               <div className={`${isCoach ? 'bg-slate-100 text-slate-600' : 'bg-emerald-100 text-emerald-600'} p-1 rounded-full`}><CheckCircle className="w-4 h-4" /></div>
-               <span className="text-gray-600 text-sm">AI 스윙 정밀 분석</span>
+               <div className={`${isCoach ? 'bg-bg-overlay text-ink-medium' : 'bg-primary-500/15 text-emerald-600'} p-1 rounded-full`}><CheckCircle className="w-4 h-4" /></div>
+               <span className="text-ink-medium text-sm">AI 스윙 정밀 분석</span>
             </div>
             {isCoach ? (
                 <>
                     <div className="flex items-center gap-3">
-                        <div className="bg-slate-100 text-slate-600 p-1 rounded-full"><CheckCircle className="w-4 h-4" /></div>
-                        <span className="text-gray-600 text-sm">회원별 포트폴리오 관리 & 전송</span>
+                        <div className="bg-bg-overlay text-ink-medium p-1 rounded-full"><CheckCircle className="w-4 h-4" /></div>
+                        <span className="text-ink-medium text-sm">회원별 포트폴리오 관리 & 전송</span>
                     </div>
                     <div className="flex items-center gap-3">
-                        <div className="bg-slate-100 text-slate-600 p-1 rounded-full"><CheckCircle className="w-4 h-4" /></div>
-                        <span className="text-gray-600 text-sm">회원 앱 연동 기능</span>
+                        <div className="bg-bg-overlay text-ink-medium p-1 rounded-full"><CheckCircle className="w-4 h-4" /></div>
+                        <span className="text-ink-medium text-sm">회원 앱 연동 기능</span>
                     </div>
                 </>
             ) : (
                 <div className="flex items-center gap-3">
-                   <div className="bg-emerald-100 p-1 rounded-full"><CheckCircle className="w-4 h-4" /></div>
-                   <span className="text-gray-600 text-sm">과거 스윙 비교 (스윙 변천사)</span>
+                   <div className="bg-primary-500/15 p-1 rounded-full"><CheckCircle className="w-4 h-4" /></div>
+                   <span className="text-ink-medium text-sm">과거 스윙 비교 (스윙 변천사)</span>
                 </div>
             )}
           </div>
@@ -171,19 +171,19 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ role, user
             {isCoach ? '7일 무료 체험 시작하기' : '지금 결제하고 시작하기'}
           </Button>
           
-          <p className="text-center text-xs text-gray-400 mb-4">
+          <p className="text-center text-xs text-ink-muted mb-4">
             {isCoach ? '7일 후 29,900원이 결제됩니다.' : '매월 자동 결제됩니다.'} 설정에서 언제든지 해지할 수 있습니다.
           </p>
           
           <button 
             onClick={onLogout}
-            className="w-full py-2 text-sm text-gray-400 hover:text-gray-600 transition-colors"
+            className="w-full py-2 text-sm text-ink-muted hover:text-ink-medium transition-colors"
           >
             로그아웃
           </button>
         </div>
 
-        <div className="bg-gray-50 px-6 py-4 flex items-center justify-center gap-2 text-xs text-gray-400">
+        <div className="bg-bg-base px-6 py-4 flex items-center justify-center gap-2 text-xs text-ink-muted">
             <ShieldCheck className="w-3 h-3" /> 안전한 결제 시스템으로 보호됩니다.
         </div>
       </div>

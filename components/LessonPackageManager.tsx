@@ -117,8 +117,8 @@ export const LessonPackageManager: React.FC<LessonPackageManagerProps> = ({
           <ArrowLeft className="w-5 h-5 mr-1" /> 돌아가기
         </Button>
         <div className="text-right">
-          <h2 className="text-xl font-bold text-gray-900">{t('pkg_title')}</h2>
-          <p className="text-sm text-gray-500">
+          <h2 className="text-xl font-bold text-ink-high">{t('pkg_title')}</h2>
+          <p className="text-sm text-ink-medium">
             {client.name} ({client.phone})
           </p>
         </div>
@@ -140,12 +140,12 @@ export const LessonPackageManager: React.FC<LessonPackageManagerProps> = ({
 
       {/* Package list */}
       {clientPackages.length === 0 ? (
-        <div className="text-center py-16 bg-white rounded-2xl border border-dashed border-gray-300">
-          <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">
-            <ClipboardList className="w-8 h-8 text-gray-300" />
+        <div className="text-center py-16 bg-bg-raised rounded-2xl border border-dashed border-line-default">
+          <div className="w-16 h-16 bg-bg-base rounded-full flex items-center justify-center mx-auto mb-4">
+            <ClipboardList className="w-8 h-8 text-ink-muted" />
           </div>
-          <p className="text-gray-500 font-medium">{t('pkg_no_packages')}</p>
-          <p className="text-sm text-gray-400 mt-1">
+          <p className="text-ink-medium font-medium">{t('pkg_no_packages')}</p>
+          <p className="text-sm text-ink-muted mt-1">
             새 레슨 패키지를 등록하여 회차별 레슨을 기록하세요.
           </p>
         </div>
@@ -161,17 +161,17 @@ export const LessonPackageManager: React.FC<LessonPackageManagerProps> = ({
             return (
               <div
                 key={pkg.id}
-                className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden"
+                className="bg-bg-raised rounded-2xl border border-line-subtle shadow-sm overflow-hidden"
               >
                 {/* Package header */}
-                <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 bg-indigo-50">
+                <div className="flex items-center justify-between px-5 py-4 border-b border-line-subtle bg-primary-500/10">
                   <div className="flex items-center gap-3">
                     <BookOpen className="w-5 h-5 text-indigo-600" />
                     <div>
-                      <span className="font-bold text-gray-900">
+                      <span className="font-bold text-ink-high">
                         {pkg.totalSessions}회 레슨 패키지
                       </span>
-                      <p className="text-xs text-gray-500 mt-0.5">
+                      <p className="text-xs text-ink-medium mt-0.5">
                         등록일: {new Date(pkg.createdAt).toLocaleDateString('ko-KR')}
                       </p>
                     </div>
@@ -179,15 +179,15 @@ export const LessonPackageManager: React.FC<LessonPackageManagerProps> = ({
                   <div className="flex items-center gap-4">
                     {/* Progress summary */}
                     <div className="text-right text-sm">
-                      <span className="font-bold text-indigo-700">{completedSessions}</span>
-                      <span className="text-gray-400">/{pkg.totalSessions}회 완료</span>
+                      <span className="font-bold text-primary-300">{completedSessions}</span>
+                      <span className="text-ink-muted">/{pkg.totalSessions}회 완료</span>
                       {remaining > 0 && (
-                        <p className="text-xs text-gray-400">{remaining}회 남음</p>
+                        <p className="text-xs text-ink-muted">{remaining}회 남음</p>
                       )}
                     </div>
                     <button
                       onClick={() => handleDeletePackage(pkg)}
-                      className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                      className="p-1.5 text-ink-muted hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors"
                       title="패키지 삭제"
                     >
                       <Trash2 className="w-4 h-4" />
@@ -197,7 +197,7 @@ export const LessonPackageManager: React.FC<LessonPackageManagerProps> = ({
 
                 {/* Progress bar */}
                 <div className="px-5 pt-3 pb-1">
-                  <div className="w-full bg-gray-100 rounded-full h-2">
+                  <div className="w-full bg-bg-overlay rounded-full h-2">
                     <div
                       className="bg-indigo-500 h-2 rounded-full transition-all duration-300"
                       style={{
@@ -229,8 +229,8 @@ export const LessonPackageManager: React.FC<LessonPackageManagerProps> = ({
                               flex flex-col items-center justify-center gap-1 p-3 rounded-xl border-2 transition-all
                               ${
                                 isCompleted
-                                  ? 'border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100'
-                                  : 'border-dashed border-gray-200 bg-gray-50 text-gray-400 hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-600'
+                                  ? 'border-indigo-200 bg-primary-500/10 text-primary-300 hover:bg-primary-500/15'
+                                  : 'border-dashed border-line-default bg-bg-base text-ink-muted hover:border-indigo-300 hover:bg-primary-500/10 hover:text-indigo-600'
                               }
                             `}
                           >
@@ -263,7 +263,7 @@ export const LessonPackageManager: React.FC<LessonPackageManagerProps> = ({
       {/* New Package Modal */}
       {showNewPackageModal && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
-          <div className="bg-white rounded-2xl w-full max-w-sm overflow-hidden shadow-2xl">
+          <div className="bg-bg-raised rounded-2xl w-full max-w-sm overflow-hidden shadow-2xl">
             <div className="bg-slate-800 px-6 py-4 flex justify-between items-center text-white">
               <h3 className="font-bold text-lg">{t('pkg_create_title')}</h3>
               <button onClick={() => setShowNewPackageModal(false)}>
@@ -272,11 +272,11 @@ export const LessonPackageManager: React.FC<LessonPackageManagerProps> = ({
             </div>
             <form onSubmit={handleCreatePackage} className="p-6 space-y-4">
               <div>
-                <p className="text-sm text-gray-600 mb-3">
-                  <span className="font-bold text-gray-900">{client.name}</span> 회원의
+                <p className="text-sm text-ink-medium mb-3">
+                  <span className="font-bold text-ink-high">{client.name}</span> 회원의
                   레슨 총 횟수를 입력하세요.
                 </p>
-                <label className="block text-xs font-bold text-gray-500 mb-1">
+                <label className="block text-xs font-bold text-ink-medium mb-1">
                   {t('pkg_sessions_input')} <span className="text-red-500">*</span>
                 </label>
                 <input
@@ -288,7 +288,7 @@ export const LessonPackageManager: React.FC<LessonPackageManagerProps> = ({
                     setTotalSessionsInput(e.target.value);
                     setFormError('');
                   }}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-center text-2xl font-bold"
+                  className="w-full px-4 py-2 border border-line-default rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-center text-2xl font-bold"
                   placeholder="예: 10"
                   autoFocus
                   required
@@ -296,7 +296,7 @@ export const LessonPackageManager: React.FC<LessonPackageManagerProps> = ({
                 {formError && (
                   <p className="text-xs text-red-500 mt-1">{formError}</p>
                 )}
-                <p className="text-xs text-gray-400 mt-1">
+                <p className="text-xs text-ink-muted mt-1">
                   {MIN_SESSIONS}회~{MAX_SESSIONS}회까지 입력 가능합니다.
                 </p>
               </div>

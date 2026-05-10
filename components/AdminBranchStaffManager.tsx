@@ -209,11 +209,11 @@ export const AdminBranchStaffManager: React.FC<
     <div className="space-y-4">
       {/* Reset Password Modal */}
       {resetPw && (
-        <div className="bg-amber-50 border border-amber-200 rounded-xl p-5 space-y-3">
+        <div className="bg-amber-500/10 border border-amber-200 rounded-xl p-5 space-y-3">
           <h3 className="font-bold text-amber-900">비밀번호 재발급 완료</h3>
-          <p className="text-sm text-amber-800">
+          <p className="text-sm text-amber-200">
             <span className="font-mono font-semibold">{resetPw.accountLabel}</span>의 새 비밀번호입니다.{' '}
-            <span className="font-semibold text-red-600">
+            <span className="font-semibold text-red-400">
               이 화면을 닫으면 다시 확인할 수 없습니다.
             </span>
           </p>
@@ -241,7 +241,7 @@ export const AdminBranchStaffManager: React.FC<
       )}
 
       <div className="flex items-center justify-between flex-wrap gap-2">
-        <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+        <h2 className="text-lg font-bold text-ink-high flex items-center gap-2">
           <Users className="w-5 h-5" /> 지점 직원 관리
         </h2>
         <Button
@@ -254,18 +254,18 @@ export const AdminBranchStaffManager: React.FC<
 
       {/* Create Form */}
       {showForm && (
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 space-y-4">
-          <h3 className="font-bold text-gray-900">새 직원 계정 추가</h3>
+        <div className="bg-bg-raised rounded-xl border border-line-default shadow-sm p-6 space-y-4">
+          <h3 className="font-bold text-ink-high">새 직원 계정 추가</h3>
 
           {error && (
-            <div className="bg-red-50 text-red-600 text-sm p-3 rounded-lg">
+            <div className="bg-red-500/10 text-red-400 text-sm p-3 rounded-lg">
               {error}
             </div>
           )}
 
           {generatedPw ? (
             <div className="space-y-3">
-              <p className="text-sm text-gray-600">
+              <p className="text-sm text-ink-medium">
                 계정이 생성되었습니다. 아래 비밀번호를 반드시 직원에게 안전하게 전달하세요.
                 <br />
                 <span className="text-red-500 font-semibold">
@@ -299,13 +299,13 @@ export const AdminBranchStaffManager: React.FC<
           ) : (
             <>
               <div>
-                <label className="block text-xs font-bold text-gray-500 mb-1 uppercase">
+                <label className="block text-xs font-bold text-ink-medium mb-1 uppercase">
                   지점 선택 *
                 </label>
                 <select
                   value={selectedBranchId}
                   onChange={(e) => setSelectedBranchId(e.target.value)}
-                  className="w-full px-4 py-2 bg-white text-gray-900 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-700 outline-none"
+                  className="w-full px-4 py-2 bg-bg-raised text-ink-high border border-line-default rounded-xl focus:ring-2 focus:ring-emerald-700 outline-none"
                 >
                   <option value="">-- 지점 선택 --</option>
                   {branches.map((b) => (
@@ -317,17 +317,17 @@ export const AdminBranchStaffManager: React.FC<
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-gray-500 mb-1 uppercase">
+                <label className="block text-xs font-bold text-ink-medium mb-1 uppercase">
                   유저이름 *
                 </label>
                 <input
                   type="text"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  className="w-full px-4 py-2 bg-white text-gray-900 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-700 outline-none"
+                  className="w-full px-4 py-2 bg-bg-raised text-ink-high border border-line-default rounded-xl focus:ring-2 focus:ring-emerald-700 outline-none"
                   placeholder="예: mina"
                 />
-                <p className="text-xs text-gray-400 mt-1">
+                <p className="text-xs text-ink-muted mt-1">
                   로그인 아이디:{' '}
                   <span className="font-mono">
                     {selectedBranchId
@@ -337,7 +337,7 @@ export const AdminBranchStaffManager: React.FC<
                 </p>
               </div>
 
-              <p className="text-xs text-gray-400">
+              <p className="text-xs text-ink-muted">
                 비밀번호는 자동으로 생성됩니다 (12자 임의 문자).
               </p>
 
@@ -348,7 +348,7 @@ export const AdminBranchStaffManager: React.FC<
                 <button
                   type="button"
                   onClick={() => setShowForm(false)}
-                  className="flex-1 py-2 text-sm font-bold text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors"
+                  className="flex-1 py-2 text-sm font-bold text-ink-medium bg-bg-overlay hover:bg-bg-inset rounded-xl transition-colors"
                 >
                   취소
                 </button>
@@ -360,13 +360,13 @@ export const AdminBranchStaffManager: React.FC<
 
       {/* Filter by branch */}
       <div className="flex items-center gap-3">
-        <label className="text-xs font-bold text-gray-500 uppercase whitespace-nowrap">
+        <label className="text-xs font-bold text-ink-medium uppercase whitespace-nowrap">
           지점 필터
         </label>
         <select
           value={filterBranchId}
           onChange={(e) => setFilterBranchId(e.target.value)}
-          className="px-3 py-1.5 text-sm bg-white text-gray-900 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-700 outline-none"
+          className="px-3 py-1.5 text-sm bg-bg-raised text-ink-high border border-line-default rounded-lg focus:ring-2 focus:ring-emerald-700 outline-none"
         >
           <option value="">전체</option>
           {branches.map((b) => (
@@ -379,42 +379,42 @@ export const AdminBranchStaffManager: React.FC<
 
       {/* Account List */}
       {isLoading ? (
-        <div className="text-center py-10 text-gray-400 text-sm">불러오는 중...</div>
+        <div className="text-center py-10 text-ink-muted text-sm">불러오는 중...</div>
       ) : filteredAccounts.length === 0 ? (
-        <div className="text-center py-10 text-gray-400 text-sm">
+        <div className="text-center py-10 text-ink-muted text-sm">
           등록된 직원 계정이 없습니다.
         </div>
       ) : (
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+        <div className="bg-bg-raised rounded-xl border border-line-default shadow-sm overflow-hidden">
           <table className="w-full text-sm text-left">
-            <thead className="bg-gray-50 border-b border-gray-200">
+            <thead className="bg-bg-base border-b border-line-default">
               <tr>
-                <th className="px-4 py-3 font-bold text-gray-600">지점</th>
-                <th className="px-4 py-3 font-bold text-gray-600">유저이름</th>
-                <th className="px-4 py-3 font-bold text-gray-600">로그인 아이디</th>
-                <th className="px-4 py-3 font-bold text-gray-600">상태</th>
-                <th className="px-4 py-3 font-bold text-gray-600">관리</th>
+                <th className="px-4 py-3 font-bold text-ink-medium">지점</th>
+                <th className="px-4 py-3 font-bold text-ink-medium">유저이름</th>
+                <th className="px-4 py-3 font-bold text-ink-medium">로그인 아이디</th>
+                <th className="px-4 py-3 font-bold text-ink-medium">상태</th>
+                <th className="px-4 py-3 font-bold text-ink-medium">관리</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {filteredAccounts.map((account) => (
                 <tr
                   key={account.id}
-                  className="hover:bg-gray-50 transition-colors"
+                  className="hover:bg-bg-base transition-colors"
                 >
-                  <td className="px-4 py-3 font-medium text-gray-900">
+                  <td className="px-4 py-3 font-medium text-ink-high">
                     {account.branchName}
                   </td>
-                  <td className="px-4 py-3 text-gray-700">{account.username}</td>
-                  <td className="px-4 py-3 font-mono text-gray-500 text-xs">
+                  <td className="px-4 py-3 text-ink-high">{account.username}</td>
+                  <td className="px-4 py-3 font-mono text-ink-medium text-xs">
                     {account.branchName}:{account.username}
                   </td>
                   <td className="px-4 py-3">
                     <span
                       className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold ${
                         account.isActive
-                          ? 'bg-emerald-100 text-emerald-700'
-                          : 'bg-gray-100 text-gray-500'
+                          ? 'bg-primary-500/15 text-primary-300'
+                          : 'bg-bg-overlay text-ink-medium'
                       }`}
                     >
                       {account.isActive ? (
@@ -429,7 +429,7 @@ export const AdminBranchStaffManager: React.FC<
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => handleResetPassword(account)}
-                        className="p-1.5 text-gray-500 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
+                        className="p-1.5 text-ink-medium hover:text-amber-600 hover:bg-amber-500/10 rounded-lg transition-colors"
                         title="비밀번호 재발급"
                       >
                         <KeyRound className="w-4 h-4" />
@@ -438,8 +438,8 @@ export const AdminBranchStaffManager: React.FC<
                         onClick={() => handleToggleActive(account)}
                         className={`p-1.5 rounded-lg transition-colors ${
                           account.isActive
-                            ? 'text-emerald-600 hover:bg-emerald-50'
-                            : 'text-gray-400 hover:bg-gray-100'
+                            ? 'text-emerald-600 hover:bg-primary-500/10'
+                            : 'text-ink-muted hover:bg-bg-overlay'
                         }`}
                         title={account.isActive ? '비활성화' : '활성화'}
                       >

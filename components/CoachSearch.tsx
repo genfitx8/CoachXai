@@ -70,15 +70,15 @@ export const CoachSearch: React.FC<CoachSearchProps> = ({
   };
 
   return (
-    <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm space-y-4">
+    <div className="bg-bg-raised p-5 rounded-xl border border-line-default shadow-sm space-y-4">
       <div className="flex justify-between items-center mb-1">
-        <label className="text-sm font-bold text-gray-900 flex items-center gap-2">
+        <label className="text-sm font-bold text-ink-high flex items-center gap-2">
           <UserCheck className="w-4 h-4 text-emerald-600" /> 담당 코치 지정
         </label>
         {assignedCoachName && (
           <button
             onClick={onRemove}
-            className="text-xs text-red-500 hover:text-red-700 underline font-medium"
+            className="text-xs text-red-500 hover:text-red-300 underline font-medium"
           >
             지정 해제
           </button>
@@ -86,19 +86,19 @@ export const CoachSearch: React.FC<CoachSearchProps> = ({
       </div>
 
       {assignedCoachName ? (
-        <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-4 flex items-center gap-3 animate-fade-in">
-          <div className="bg-emerald-100 p-2 rounded-full text-emerald-600">
+        <div className="bg-primary-500/10 border border-primary-500/20 rounded-xl p-4 flex items-center gap-3 animate-fade-in">
+          <div className="bg-primary-500/15 p-2 rounded-full text-emerald-600">
             <UserCheck className="w-6 h-6" />
           </div>
           <div>
             <p className="text-xs text-emerald-600 font-bold mb-0.5">
               현재 담당 코치
             </p>
-            <p className="text-lg font-bold text-gray-900">
+            <p className="text-lg font-bold text-ink-high">
               {assignedCoachName}
             </p>
           </div>
-          <div className="ml-auto bg-white p-1 rounded-full text-emerald-700 shadow-sm">
+          <div className="ml-auto bg-bg-raised p-1 rounded-full text-primary-300 shadow-sm">
             <Check className="w-4 h-4" />
           </div>
         </div>
@@ -106,7 +106,7 @@ export const CoachSearch: React.FC<CoachSearchProps> = ({
         <div className="space-y-4">
           <div className="relative">
             <div className="relative">
-              <Search className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
+              <Search className="absolute left-3 top-3 w-5 h-5 text-ink-muted" />
               <input
                 type="text"
                 placeholder="코치 이름으로 검색하세요"
@@ -119,7 +119,7 @@ export const CoachSearch: React.FC<CoachSearchProps> = ({
                     handleSearch(e as any);
                   }
                 }}
-                className="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-700 outline-none transition-all"
+                className="w-full pl-10 pr-12 py-3 border border-line-default rounded-xl focus:ring-2 focus:ring-emerald-700 outline-none transition-all"
               />
               <button
                 type="button"
@@ -145,23 +145,23 @@ export const CoachSearch: React.FC<CoachSearchProps> = ({
 
           {/* Results List */}
           {!isLoading && hasSearched && (
-            <div className="border border-gray-100 rounded-xl overflow-hidden animate-fade-in">
+            <div className="border border-line-subtle rounded-xl overflow-hidden animate-fade-in">
               {results.length > 0 ? (
                 <ul className="divide-y divide-gray-100">
                   {results.map((coach) => (
                     <li
                       key={coach.id}
-                      className="p-3 hover:bg-gray-50 flex items-center justify-between transition-colors"
+                      className="p-3 hover:bg-bg-base flex items-center justify-between transition-colors"
                     >
                       <div className="flex items-center gap-3">
-                        <div className="bg-gray-100 p-2 rounded-full text-gray-500">
+                        <div className="bg-bg-overlay p-2 rounded-full text-ink-medium">
                           <User className="w-4 h-4" />
                         </div>
                         <div>
-                          <p className="font-bold text-gray-900 text-sm">
+                          <p className="font-bold text-ink-high text-sm">
                             {coach.name}
                           </p>
-                          <p className="text-xs text-gray-500 font-mono">
+                          <p className="text-xs text-ink-medium font-mono">
                             ***-****-{coach.phoneLast4}
                           </p>
                         </div>
@@ -177,8 +177,8 @@ export const CoachSearch: React.FC<CoachSearchProps> = ({
                   ))}
                 </ul>
               ) : (
-                <div className="py-6 text-center text-gray-500 text-sm bg-gray-50 flex flex-col items-center gap-2">
-                  <AlertCircle className="w-5 h-5 text-gray-400" />
+                <div className="py-6 text-center text-ink-medium text-sm bg-bg-base flex flex-col items-center gap-2">
+                  <AlertCircle className="w-5 h-5 text-ink-muted" />
                   <p>검색 결과가 없습니다.</p>
                 </div>
               )}

@@ -59,13 +59,13 @@ export const MembershipPurchase: React.FC<MembershipPurchaseProps> = ({
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-blue-50">
-      <div className="bg-white/80 backdrop-blur-sm border-b border-gray-100 px-4 py-4 flex items-center gap-3 sticky top-0 z-10">
-        <button onClick={onBack} className="p-2 rounded-full hover:bg-gray-100 transition-colors">
-          <ChevronLeft className="w-5 h-5 text-gray-700" />
+      <div className="bg-white/80 backdrop-blur-sm border-b border-line-subtle px-4 py-4 flex items-center gap-3 sticky top-0 z-10">
+        <button onClick={onBack} className="p-2 rounded-full hover:bg-bg-overlay transition-colors">
+          <ChevronLeft className="w-5 h-5 text-ink-high" />
         </button>
         <div>
-          <h1 className="text-lg font-bold text-gray-900">PRO 멤버십 결제</h1>
-          <p className="text-xs text-gray-500">1분 안에 업그레이드 가능</p>
+          <h1 className="text-lg font-bold text-ink-high">PRO 멤버십 결제</h1>
+          <p className="text-xs text-ink-medium">1분 안에 업그레이드 가능</p>
         </div>
       </div>
 
@@ -83,9 +83,9 @@ export const MembershipPurchase: React.FC<MembershipPurchaseProps> = ({
           <p className="text-3xl font-black mt-4">₩{price.toLocaleString()}<span className="text-base font-medium"> / 월</span></p>
         </div>
 
-        <div className="bg-white rounded-2xl border border-indigo-100 p-4 space-y-3">
+        <div className="bg-bg-raised rounded-2xl border border-primary-500/20 p-4 space-y-3">
           {['기록 무제한', 'AI 분석 무제한', '성장 그래프 · 훈련 추천', '상세 분석 리포트'].map((item) => (
-            <div key={item} className="flex items-center gap-2 text-sm text-gray-700">
+            <div key={item} className="flex items-center gap-2 text-sm text-ink-high">
               <CheckCircle2 className="w-4 h-4 text-indigo-600" />
               <span>{item}</span>
             </div>
@@ -93,7 +93,7 @@ export const MembershipPurchase: React.FC<MembershipPurchaseProps> = ({
         </div>
 
         {error && (
-          <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-sm text-red-700">
+          <div className="bg-red-500/10 border border-red-200 rounded-xl p-3 text-sm text-red-300">
             {error}
           </div>
         )}
@@ -116,7 +116,7 @@ export const MembershipPurchase: React.FC<MembershipPurchaseProps> = ({
           )}
         </button>
 
-        <p className="text-center text-xs text-gray-400 pb-4 flex items-center justify-center gap-1">
+        <p className="text-center text-xs text-ink-muted pb-4 flex items-center justify-center gap-1">
           <Sparkles className="w-3 h-3" /> PayApp으로 안전하게 결제됩니다
         </p>
       </div>

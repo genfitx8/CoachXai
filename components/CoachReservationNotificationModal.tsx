@@ -25,7 +25,7 @@ export const CoachReservationNotificationModal: React.FC<
 
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
-      <div className="bg-white rounded-2xl w-full max-w-sm overflow-hidden shadow-2xl">
+      <div className="bg-bg-raised rounded-2xl w-full max-w-sm overflow-hidden shadow-2xl">
         {/* Header */}
         <div className="bg-gradient-to-br from-slate-700 to-slate-900 p-5 text-white relative">
           <button
@@ -53,16 +53,16 @@ export const CoachReservationNotificationModal: React.FC<
           {notifications.map((n) => (
             <div
               key={n.id}
-              className="flex items-start gap-3 bg-slate-50 rounded-xl p-3"
+              className="flex items-start gap-3 bg-bg-base rounded-xl p-3"
             >
               <Calendar className="w-4 h-4 text-indigo-500 mt-0.5 flex-shrink-0" />
-              <p className="text-sm text-gray-700 leading-snug">{n.body}</p>
+              <p className="text-sm text-ink-high leading-snug">{n.body}</p>
             </div>
           ))}
         </div>
 
         {/* Actions */}
-        <div className="p-4 flex flex-col gap-2 border-t border-gray-100">
+        <div className="p-4 flex flex-col gap-2 border-t border-line-subtle">
           {onGoToReservations && (
             <Button
               onClick={handleGoToReservations}
@@ -75,7 +75,7 @@ export const CoachReservationNotificationModal: React.FC<
           <Button
             onClick={onClose}
             variant="secondary"
-            className="w-full text-gray-600 border-gray-200 hover:bg-gray-50"
+            className="w-full text-ink-medium border-line-default hover:bg-bg-base"
           >
             나중에 보기
           </Button>

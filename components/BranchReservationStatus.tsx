@@ -64,7 +64,7 @@ const STATUS_CONFIG: Record<
 > = {
   CONFIRMED: {
     label: '예약 확정',
-    color: 'text-emerald-600 bg-emerald-50 border-emerald-200',
+    color: 'text-emerald-600 bg-primary-500/10 border-primary-500/30',
     icon: <CheckCircle className="w-3.5 h-3.5" />,
   },
   CANCEL_REQUESTED: {
@@ -74,12 +74,12 @@ const STATUS_CONFIG: Record<
   },
   CANCELLED: {
     label: '취소됨',
-    color: 'text-gray-500 bg-gray-50 border-gray-200',
+    color: 'text-ink-medium bg-bg-base border-line-default',
     icon: <XCircle className="w-3.5 h-3.5" />,
   },
   REJECTED: {
     label: '거절됨',
-    color: 'text-red-500 bg-red-50 border-red-200',
+    color: 'text-red-500 bg-red-500/10 border-red-200',
     icon: <XCircle className="w-3.5 h-3.5" />,
   },
 };
@@ -189,11 +189,11 @@ export const BranchReservationStatus: React.FC<BranchReservationStatusProps> = (
     <div className="space-y-4">
       {/* Header row */}
       <div className="flex items-center justify-between">
-        <h3 className="font-bold text-gray-900">타석 예약 현황</h3>
+        <h3 className="font-bold text-ink-high">타석 예약 현황</h3>
         <button
           onClick={fetchData}
           disabled={loading}
-          className="flex items-center gap-1.5 text-sm text-emerald-600 hover:text-emerald-700 disabled:opacity-50 transition-colors"
+          className="flex items-center gap-1.5 text-sm text-emerald-600 hover:text-primary-300 disabled:opacity-50 transition-colors"
           aria-label="새로고침"
         >
           <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
@@ -212,8 +212,8 @@ export const BranchReservationStatus: React.FC<BranchReservationStatusProps> = (
       )}
 
       {/* Filters */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 space-y-3">
-        <div className="flex items-center gap-1.5 text-sm font-medium text-gray-700">
+      <div className="bg-bg-raised rounded-2xl border border-line-subtle shadow-sm p-4 space-y-3">
+        <div className="flex items-center gap-1.5 text-sm font-medium text-ink-high">
           <Filter className="w-4 h-4" />
           필터
         </div>
@@ -221,23 +221,23 @@ export const BranchReservationStatus: React.FC<BranchReservationStatusProps> = (
         {/* Date range */}
         <div className="flex flex-wrap gap-3 items-center">
           <div className="flex items-center gap-1.5">
-            <label className="text-xs text-gray-500 flex-shrink-0">시작일</label>
+            <label className="text-xs text-ink-medium flex-shrink-0">시작일</label>
             <input
               type="date"
               value={dateFrom}
               onChange={(e) => setDateFrom(e.target.value)}
-              className="border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300"
+              className="border border-line-default rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300"
             />
           </div>
-          <span className="text-gray-400 text-sm">~</span>
+          <span className="text-ink-muted text-sm">~</span>
           <div className="flex items-center gap-1.5">
-            <label className="text-xs text-gray-500 flex-shrink-0">종료일</label>
+            <label className="text-xs text-ink-medium flex-shrink-0">종료일</label>
             <input
               type="date"
               value={dateTo}
               min={dateFrom}
               onChange={(e) => setDateTo(e.target.value)}
-              className="border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300"
+              className="border border-line-default rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300"
             />
           </div>
         </div>
@@ -246,11 +246,11 @@ export const BranchReservationStatus: React.FC<BranchReservationStatusProps> = (
         <div className="flex flex-wrap gap-3">
           {/* Bay filter */}
           <div className="flex items-center gap-1.5">
-            <label className="text-xs text-gray-500">타석</label>
+            <label className="text-xs text-ink-medium">타석</label>
             <select
               value={filterBayId}
               onChange={(e) => setFilterBayId(e.target.value)}
-              className="border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300"
+              className="border border-line-default rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300"
             >
               <option value="ALL">전체 타석</option>
               {bays
@@ -265,13 +265,13 @@ export const BranchReservationStatus: React.FC<BranchReservationStatusProps> = (
 
           {/* Status filter */}
           <div className="flex items-center gap-1.5">
-            <label className="text-xs text-gray-500">상태</label>
+            <label className="text-xs text-ink-medium">상태</label>
             <select
               value={filterStatus}
               onChange={(e) =>
                 setFilterStatus(e.target.value as BayReservationStatus | 'ALL')
               }
-              className="border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300"
+              className="border border-line-default rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300"
             >
               <option value="ALL">전체 상태</option>
               <option value="CONFIRMED">예약 확정</option>
@@ -293,18 +293,18 @@ export const BranchReservationStatus: React.FC<BranchReservationStatusProps> = (
       </div>
 
       {/* Results summary */}
-      <p data-testid="reservation-summary" className="text-xs text-gray-500 px-1">
+      <p data-testid="reservation-summary" className="text-xs text-ink-medium px-1">
         총 <strong>{filtered.length}</strong>건의 예약이 있습니다.
       </p>
 
       {/* Reservation list */}
       {loading ? (
-        <div className="flex items-center justify-center py-16 text-gray-400 text-sm gap-2">
+        <div className="flex items-center justify-center py-16 text-ink-muted text-sm gap-2">
           <RefreshCw className="w-4 h-4 animate-spin" />
           불러오는 중...
         </div>
       ) : filtered.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-16 text-gray-400 text-sm gap-2">
+        <div className="flex flex-col items-center justify-center py-16 text-ink-muted text-sm gap-2">
           <Calendar className="w-10 h-10 text-gray-200" />
           해당 기간에 예약이 없습니다.
         </div>
@@ -316,7 +316,7 @@ export const BranchReservationStatus: React.FC<BranchReservationStatusProps> = (
             return (
               <li
                 key={res.id}
-                className="bg-white border border-gray-200 rounded-xl overflow-hidden"
+                className="bg-bg-raised border border-line-default rounded-xl overflow-hidden"
               >
                 <div className="px-4 py-3 space-y-2">
                   {/* Status + Bay */}
@@ -327,34 +327,34 @@ export const BranchReservationStatus: React.FC<BranchReservationStatusProps> = (
                       {cfg.icon}
                       {cfg.label}
                     </span>
-                    <span className="text-sm font-semibold text-gray-800">
+                    <span className="text-sm font-semibold text-ink-high">
                       {getBayLabel(res.bayId)}
                     </span>
                   </div>
 
                   {/* Date / time */}
                   <div className="space-y-1">
-                    <div className="flex items-center gap-1.5 text-sm text-gray-700">
-                      <Calendar className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                    <div className="flex items-center gap-1.5 text-sm text-ink-high">
+                      <Calendar className="w-4 h-4 text-ink-muted flex-shrink-0" />
                       <span>{formatDateOnly(res.startTime)}</span>
                     </div>
-                    <div className="flex items-center gap-1.5 text-sm text-gray-700">
-                      <Clock className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                    <div className="flex items-center gap-1.5 text-sm text-ink-high">
+                      <Clock className="w-4 h-4 text-ink-muted flex-shrink-0" />
                       <span>{formatHourRange(res.startTime, res.endTime)}</span>
                     </div>
                   </div>
 
                   {/* Reserver info */}
                   <div className="space-y-0.5 pt-1 border-t border-gray-50">
-                    <div className="flex items-center gap-1.5 text-sm text-gray-700">
-                      <User className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                    <div className="flex items-center gap-1.5 text-sm text-ink-high">
+                      <User className="w-4 h-4 text-ink-muted flex-shrink-0" />
                       <span>{res.clientName}</span>
                     </div>
-                    <div className="flex items-center gap-1.5 text-sm text-gray-500">
-                      <Phone className="w-4 h-4 text-gray-300 flex-shrink-0" />
+                    <div className="flex items-center gap-1.5 text-sm text-ink-medium">
+                      <Phone className="w-4 h-4 text-ink-muted flex-shrink-0" />
                       <span>{res.clientPhone}</span>
                     </div>
-                    <div className="text-xs text-gray-400">
+                    <div className="text-xs text-ink-muted">
                       결제 포인트: {res.paidPoints}pt
                     </div>
                   </div>

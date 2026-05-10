@@ -113,13 +113,13 @@ export const WeeklyInsightCard: React.FC<WeeklyInsightCardProps> = ({
       <div className="flex items-center gap-3">
         <button
           onClick={onBack}
-          className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-600 transition-colors"
+          className="p-2 rounded-lg bg-bg-overlay hover:bg-bg-inset text-ink-medium transition-colors"
           aria-label="뒤로"
         >
           <ChevronLeft className="w-5 h-5" />
         </button>
         <div className="w-1 h-6 bg-gradient-to-b from-slate-600 to-slate-700 rounded-full" />
-        <h2 className="text-xl font-black text-gray-900 flex items-center gap-2">
+        <h2 className="text-xl font-black text-ink-high flex items-center gap-2">
           <Sparkles className="w-5 h-5 text-indigo-500" />
           주간 AI 인사이트
         </h2>
@@ -145,19 +145,19 @@ export const WeeklyInsightCard: React.FC<WeeklyInsightCardProps> = ({
       </button>
 
       {recentLogs.length === 0 && (
-        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-700 text-center">
+        <div className="bg-amber-500/10 border border-amber-200 rounded-xl p-4 text-sm text-amber-300 text-center">
           💡 빠른 기록을 먼저 작성하면 AI가 주간 인사이트를 생성해줍니다!
         </div>
       )}
 
       {/* Latest Insight */}
       {latestInsight && (
-        <div className="bg-slate-50 rounded-2xl p-5 border border-slate-100 shadow-sm space-y-4">
+        <div className="bg-bg-base rounded-2xl p-5 border border-line-subtle shadow-sm space-y-4">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-indigo-600 bg-indigo-100 px-2 py-0.5 rounded-full">
+            <span className="text-xs font-bold text-indigo-600 bg-primary-500/15 px-2 py-0.5 rounded-full">
               {formatWeekRange(latestInsight.weekStart, latestInsight.weekEnd)}
             </span>
-            <span className="text-[10px] text-gray-400">
+            <span className="text-[10px] text-ink-muted">
               {new Date(latestInsight.generatedAt).toLocaleDateString('ko-KR')} 생성
             </span>
           </div>
@@ -166,9 +166,9 @@ export const WeeklyInsightCard: React.FC<WeeklyInsightCardProps> = ({
           <div>
             <div className="flex items-center gap-1.5 mb-1.5">
               <TrendingUp className="w-4 h-4 text-indigo-500" />
-              <span className="text-xs font-bold text-indigo-700">이번 주 요약</span>
+              <span className="text-xs font-bold text-primary-300">이번 주 요약</span>
             </div>
-            <p className="text-sm text-gray-700 leading-relaxed">{latestInsight.summary}</p>
+            <p className="text-sm text-ink-high leading-relaxed">{latestInsight.summary}</p>
           </div>
 
           {/* Key Patterns */}
@@ -176,11 +176,11 @@ export const WeeklyInsightCard: React.FC<WeeklyInsightCardProps> = ({
             <div>
               <div className="flex items-center gap-1.5 mb-2">
                 <List className="w-4 h-4 text-purple-500" />
-                <span className="text-xs font-bold text-purple-700">주요 패턴</span>
+                <span className="text-xs font-bold text-accent-300">주요 패턴</span>
               </div>
               <ul className="space-y-1.5">
                 {latestInsight.keyPatterns.map((pattern, i) => (
-                  <li key={i} className="flex items-start gap-2 text-sm text-gray-700">
+                  <li key={i} className="flex items-start gap-2 text-sm text-ink-high">
                     <span className="mt-1 w-1.5 h-1.5 rounded-full bg-purple-400 flex-shrink-0" />
                     {pattern}
                   </li>
@@ -190,12 +190,12 @@ export const WeeklyInsightCard: React.FC<WeeklyInsightCardProps> = ({
           )}
 
           {/* Recommended Focus */}
-          <div className="bg-white/70 rounded-xl p-3 border border-indigo-100">
+          <div className="bg-white/70 rounded-xl p-3 border border-primary-500/20">
             <div className="flex items-center gap-1.5 mb-1">
               <Target className="w-4 h-4 text-emerald-600" />
-              <span className="text-xs font-bold text-emerald-700">다음 주 추천 포커스</span>
+              <span className="text-xs font-bold text-primary-300">다음 주 추천 포커스</span>
             </div>
-            <p className="text-sm text-gray-700 leading-relaxed">{latestInsight.recommendedFocus}</p>
+            <p className="text-sm text-ink-high leading-relaxed">{latestInsight.recommendedFocus}</p>
           </div>
         </div>
       )}
@@ -214,17 +214,17 @@ export const WeeklyInsightCard: React.FC<WeeklyInsightCardProps> = ({
               {insights.slice(1).map((insight) => (
                 <div
                   key={insight.id}
-                  className="bg-white rounded-xl p-4 border border-gray-200 shadow-sm"
+                  className="bg-bg-raised rounded-xl p-4 border border-line-default shadow-sm"
                 >
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs font-bold text-gray-600">
+                    <span className="text-xs font-bold text-ink-medium">
                       {formatWeekRange(insight.weekStart, insight.weekEnd)}
                     </span>
-                    <span className="text-[10px] text-gray-400">
+                    <span className="text-[10px] text-ink-muted">
                       {new Date(insight.generatedAt).toLocaleDateString('ko-KR')}
                     </span>
                   </div>
-                  <p className="text-xs text-gray-600 leading-relaxed">{insight.summary}</p>
+                  <p className="text-xs text-ink-medium leading-relaxed">{insight.summary}</p>
                   {insight.recommendedFocus && (
                     <p className="text-xs text-indigo-600 mt-2 font-medium">
                       → {insight.recommendedFocus}

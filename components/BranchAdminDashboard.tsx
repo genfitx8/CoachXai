@@ -219,22 +219,22 @@ export const BranchAdminDashboard: React.FC<BranchAdminDashboardProps> = ({
   // ── render ───────────────────────────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
+    <div className="min-h-screen bg-bg-base flex flex-col">
       {/* Header */}
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-40">
+      <header className="bg-bg-raised border-b border-line-default sticky top-0 z-40">
         <div className="max-w-3xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 bg-emerald-100 rounded-full flex items-center justify-center">
+            <div className="w-9 h-9 bg-primary-500/15 rounded-full flex items-center justify-center">
               <Building2 className="w-5 h-5 text-emerald-600" />
             </div>
             <div>
-              <h1 className="font-bold text-gray-900 text-lg leading-tight">{branchName}</h1>
-              <p className="text-xs text-gray-500">{username} · {t('branch_manager_label')}</p>
+              <h1 className="font-bold text-ink-high text-lg leading-tight">{branchName}</h1>
+              <p className="text-xs text-ink-medium">{username} · {t('branch_manager_label')}</p>
             </div>
           </div>
           <Button
             onClick={onLogout}
-            className="bg-gray-100 text-gray-700 hover:bg-gray-200 text-sm py-2 px-4 flex items-center gap-2"
+            className="bg-bg-overlay text-ink-high hover:bg-bg-inset text-sm py-2 px-4 flex items-center gap-2"
           >
             <LogOut className="w-4 h-4" />
             {t('branch_logout_btn')}
@@ -252,13 +252,13 @@ export const BranchAdminDashboard: React.FC<BranchAdminDashboardProps> = ({
 
         {/* Feedback banners */}
         {successMsg && (
-          <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-xl px-4 py-3 text-sm">
+          <div className="flex items-center gap-2 bg-primary-500/10 border border-emerald-200 text-primary-300 rounded-xl px-4 py-3 text-sm">
             <CheckCircle className="w-4 h-4 flex-shrink-0" />
             {successMsg}
           </div>
         )}
         {errorMsg && (
-          <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm">
+          <div className="flex items-center gap-2 bg-red-500/10 border border-red-200 text-red-300 rounded-xl px-4 py-3 text-sm">
             <XCircle className="w-4 h-4 flex-shrink-0" />
             {errorMsg}
           </div>
@@ -266,7 +266,7 @@ export const BranchAdminDashboard: React.FC<BranchAdminDashboardProps> = ({
 
         {/* Loading / Error */}
         {loading ? (
-          <div className="flex items-center justify-center py-20 text-gray-500 text-sm">
+          <div className="flex items-center justify-center py-20 text-ink-medium text-sm">
             {t('branch_loading')}
           </div>
         ) : fetchError ? (
@@ -276,13 +276,13 @@ export const BranchAdminDashboard: React.FC<BranchAdminDashboardProps> = ({
         ) : (
           <>
             {/* Tabs */}
-            <div className="flex gap-2 border-b border-gray-200">
+            <div className="flex gap-2 border-b border-line-default">
               <button
                 onClick={() => setActiveTab('hours')}
                 className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
                   activeTab === 'hours'
                     ? 'border-emerald-700 text-emerald-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                    : 'border-transparent text-ink-medium hover:text-ink-high'
                 }`}
               >
                 <Clock className="w-4 h-4" />
@@ -293,7 +293,7 @@ export const BranchAdminDashboard: React.FC<BranchAdminDashboardProps> = ({
                 className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
                   activeTab === 'holidays'
                     ? 'border-emerald-700 text-emerald-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                    : 'border-transparent text-ink-medium hover:text-ink-high'
                 }`}
               >
                 <CalendarOff className="w-4 h-4" />
@@ -304,7 +304,7 @@ export const BranchAdminDashboard: React.FC<BranchAdminDashboardProps> = ({
                 className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
                   activeTab === 'bays'
                     ? 'border-emerald-700 text-emerald-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                    : 'border-transparent text-ink-medium hover:text-ink-high'
                 }`}
               >
                 <LayoutGrid className="w-4 h-4" />
@@ -315,7 +315,7 @@ export const BranchAdminDashboard: React.FC<BranchAdminDashboardProps> = ({
                 className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
                   activeTab === 'prices'
                     ? 'border-emerald-700 text-emerald-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                    : 'border-transparent text-ink-medium hover:text-ink-high'
                 }`}
               >
                 <CircleDollarSign className="w-4 h-4" />
@@ -326,7 +326,7 @@ export const BranchAdminDashboard: React.FC<BranchAdminDashboardProps> = ({
                 className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
                   activeTab === 'reservations'
                     ? 'border-emerald-700 text-emerald-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                    : 'border-transparent text-ink-medium hover:text-ink-high'
                 }`}
               >
                 <ClipboardList className="w-4 h-4" />
@@ -337,7 +337,7 @@ export const BranchAdminDashboard: React.FC<BranchAdminDashboardProps> = ({
                 className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
                   activeTab === 'points'
                     ? 'border-emerald-700 text-emerald-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                    : 'border-transparent text-ink-medium hover:text-ink-high'
                 }`}
               >
                 <Gift className="w-4 h-4" />
@@ -347,8 +347,8 @@ export const BranchAdminDashboard: React.FC<BranchAdminDashboardProps> = ({
 
             {/* Tab: Opening Hours */}
             {activeTab === 'hours' && (
-              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4">
-                <h3 className="font-bold text-gray-900">{t('branch_hours_settings')}</h3>
+              <div className="bg-bg-raised rounded-2xl border border-line-subtle shadow-sm p-5 space-y-4">
+                <h3 className="font-bold text-ink-high">{t('branch_hours_settings')}</h3>
                 <div className="space-y-3">
                   {DAYS.map((day) => {
                     const entry = hoursState[day];
@@ -357,7 +357,7 @@ export const BranchAdminDashboard: React.FC<BranchAdminDashboardProps> = ({
                         key={day}
                         className="flex flex-wrap items-center gap-3 py-3 border-b border-gray-50 last:border-0"
                       >
-                        <span className="w-16 text-sm font-medium text-gray-700 flex-shrink-0">
+                        <span className="w-16 text-sm font-medium text-ink-high flex-shrink-0">
                           {DAY_LABELS[day]}
                         </span>
 
@@ -374,14 +374,14 @@ export const BranchAdminDashboard: React.FC<BranchAdminDashboardProps> = ({
                             }
                             className="w-4 h-4 accent-emerald-700"
                           />
-                          <span className="text-sm text-gray-600">{t('branch_day_off')}</span>
+                          <span className="text-sm text-ink-medium">{t('branch_day_off')}</span>
                         </label>
 
                         {/* Time inputs */}
                         {!entry.isClosed && (
                           <>
                             <div className="flex items-center gap-1.5">
-                              <label className="text-xs text-gray-500">{t('branch_open_time')}</label>
+                              <label className="text-xs text-ink-medium">{t('branch_open_time')}</label>
                               <input
                                 type="time"
                                 value={entry.open}
@@ -391,12 +391,12 @@ export const BranchAdminDashboard: React.FC<BranchAdminDashboardProps> = ({
                                     [day]: { ...prev[day], open: e.target.value },
                                   }))
                                 }
-                                className="border border-gray-200 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300"
+                                className="border border-line-default rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300"
                               />
                             </div>
-                            <span className="text-gray-400 text-sm">~</span>
+                            <span className="text-ink-muted text-sm">~</span>
                             <div className="flex items-center gap-1.5">
-                              <label className="text-xs text-gray-500">{t('branch_close_time')}</label>
+                              <label className="text-xs text-ink-medium">{t('branch_close_time')}</label>
                               <input
                                 type="time"
                                 value={entry.close}
@@ -406,14 +406,14 @@ export const BranchAdminDashboard: React.FC<BranchAdminDashboardProps> = ({
                                     [day]: { ...prev[day], close: e.target.value },
                                   }))
                                 }
-                                className="border border-gray-200 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300"
+                                className="border border-line-default rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300"
                               />
                             </div>
                           </>
                         )}
 
                         {entry.isClosed && (
-                          <span className="text-sm text-gray-400 italic">{t('branch_day_off')}</span>
+                          <span className="text-sm text-ink-muted italic">{t('branch_day_off')}</span>
                         )}
                       </div>
                     );
@@ -433,8 +433,8 @@ export const BranchAdminDashboard: React.FC<BranchAdminDashboardProps> = ({
 
             {/* Tab: Holidays */}
             {activeTab === 'holidays' && (
-              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4">
-                <h3 className="font-bold text-gray-900">{t('branch_holidays_settings')}</h3>
+              <div className="bg-bg-raised rounded-2xl border border-line-subtle shadow-sm p-5 space-y-4">
+                <h3 className="font-bold text-ink-high">{t('branch_holidays_settings')}</h3>
 
                 {/* Add holiday */}
                 <div className="flex gap-2">
@@ -442,7 +442,7 @@ export const BranchAdminDashboard: React.FC<BranchAdminDashboardProps> = ({
                     type="date"
                     value={newHoliday}
                     onChange={(e) => setNewHoliday(e.target.value)}
-                    className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300"
+                    className="flex-1 border border-line-default rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300"
                   />
                   <Button
                     onClick={handleAddHoliday}
@@ -456,7 +456,7 @@ export const BranchAdminDashboard: React.FC<BranchAdminDashboardProps> = ({
 
                 {/* Holiday list */}
                 {holidays.length === 0 ? (
-                  <p className="text-sm text-gray-400 text-center py-6">
+                  <p className="text-sm text-ink-muted text-center py-6">
                     {t('branch_no_holidays')}
                   </p>
                 ) : (
@@ -464,12 +464,12 @@ export const BranchAdminDashboard: React.FC<BranchAdminDashboardProps> = ({
                     {holidays.map((date) => (
                       <li
                         key={date}
-                        className="flex items-center justify-between bg-gray-50 rounded-xl px-4 py-2.5"
+                        className="flex items-center justify-between bg-bg-base rounded-xl px-4 py-2.5"
                       >
-                        <span className="text-sm font-medium text-gray-700">{date}</span>
+                        <span className="text-sm font-medium text-ink-high">{date}</span>
                         <button
                           onClick={() => handleRemoveHoliday(date)}
-                          className="text-red-400 hover:text-red-600 transition-colors"
+                          className="text-red-400 hover:text-red-400 transition-colors"
                           aria-label={`${date} 삭제`}
                         >
                           <Trash2 className="w-4 h-4" />

@@ -92,13 +92,13 @@ export const GolfAIAgent: React.FC<GolfAIAgentProps> = ({
       <div className="flex items-center gap-3 pb-2">
         <button
           onClick={onBack}
-          className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-600 transition-colors"
+          className="p-2 rounded-lg bg-bg-overlay hover:bg-bg-inset text-ink-medium transition-colors"
           aria-label="뒤로가기"
         >
           <ChevronLeft className="w-5 h-5" />
         </button>
         <div className="w-1 h-6 bg-gradient-to-b from-slate-500 to-slate-600 rounded-full" />
-        <h2 className="text-xl font-black text-gray-900">Golf AI 에이전트</h2>
+        <h2 className="text-xl font-black text-ink-high">Golf AI 에이전트</h2>
       </div>
 
       {/* Hero Banner */}
@@ -133,7 +133,7 @@ export const GolfAIAgent: React.FC<GolfAIAgentProps> = ({
 
       {/* Error */}
       {errorMsg && (
-        <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl p-4 text-sm font-medium">
+        <div className="bg-red-500/10 border border-red-200 text-red-300 rounded-xl p-4 text-sm font-medium">
           {errorMsg}
         </div>
       )}
@@ -143,8 +143,8 @@ export const GolfAIAgent: React.FC<GolfAIAgentProps> = ({
         <div className="space-y-3">
           <div className="flex items-center gap-2">
             <Zap className="w-4 h-4 text-indigo-500" />
-            <h4 className="font-bold text-gray-800 text-sm">추천 미션</h4>
-            <span className="text-xs text-gray-400">클릭하여 미션으로 등록</span>
+            <h4 className="font-bold text-ink-high text-sm">추천 미션</h4>
+            <span className="text-xs text-ink-muted">클릭하여 미션으로 등록</span>
           </div>
           {missions.map((mission, idx) => {
             const isSaved = savedMissions.has(idx);
@@ -155,8 +155,8 @@ export const GolfAIAgent: React.FC<GolfAIAgentProps> = ({
                 disabled={isSaved}
                 className={`w-full text-left p-4 rounded-xl border transition-all group ${
                   isSaved
-                    ? 'bg-emerald-50 border-emerald-200 cursor-default'
-                    : 'bg-white hover:bg-indigo-50 border-gray-100 hover:border-indigo-200 shadow-sm hover:shadow-md'
+                    ? 'bg-primary-500/10 border-primary-500/30 cursor-default'
+                    : 'bg-bg-raised hover:bg-primary-500/10 border-line-subtle hover:border-primary-500/30 shadow-sm hover:shadow-md'
                 }`}
               >
                 <div className="flex items-start gap-3">
@@ -164,7 +164,7 @@ export const GolfAIAgent: React.FC<GolfAIAgentProps> = ({
                     className={`p-2 rounded-full shadow-sm font-bold text-xs border flex-shrink-0 ${
                       isSaved
                         ? 'bg-emerald-700 border-emerald-700 text-white'
-                        : 'bg-white border-gray-100 text-indigo-500'
+                        : 'bg-bg-raised border-line-subtle text-indigo-500'
                     }`}
                   >
                     {isSaved ? (
@@ -177,13 +177,13 @@ export const GolfAIAgent: React.FC<GolfAIAgentProps> = ({
                     <p
                       className={`font-bold text-sm ${
                         isSaved
-                          ? 'text-emerald-700'
-                          : 'text-gray-800 group-hover:text-indigo-700'
+                          ? 'text-primary-300'
+                          : 'text-ink-high group-hover:text-primary-300'
                       }`}
                     >
                       {mission}
                     </p>
-                    <p className="text-xs text-gray-400 mt-0.5">
+                    <p className="text-xs text-ink-muted mt-0.5">
                       {isSaved ? '✓ 미션 등록 완료' : '클릭하여 내 미션으로 등록'}
                     </p>
                   </div>
@@ -196,9 +196,9 @@ export const GolfAIAgent: React.FC<GolfAIAgentProps> = ({
 
       {/* Empty State */}
       {!isGenerating && missions.length === 0 && !errorMsg && (
-        <div className="text-center py-10 bg-gradient-to-br from-gray-50 to-indigo-50/30 rounded-2xl border border-indigo-100">
+        <div className="text-center py-10 bg-gradient-to-br from-gray-50 to-indigo-50/30 rounded-2xl border border-primary-500/20">
           <Sparkles className="w-10 h-10 text-indigo-300 mx-auto mb-3" />
-          <p className="text-gray-500 text-sm font-medium">
+          <p className="text-ink-medium text-sm font-medium">
             버튼을 눌러 AI 맞춤 미션을 추천받으세요
           </p>
         </div>

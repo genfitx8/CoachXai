@@ -264,7 +264,7 @@ export const BayPriceRuleManager: React.FC<BayPriceRuleManagerProps> = ({
   // ── render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4">
+    <div className="bg-bg-raised rounded-2xl border border-line-subtle shadow-sm p-5 space-y-4">
       <div className="flex items-center justify-between">
         <h3 className="font-bold text-gray-900">가격 규칙 관리</h3>
         {!showForm && (
@@ -383,8 +383,8 @@ export const BayPriceRuleManager: React.FC<BayPriceRuleManagerProps> = ({
               key={rule.id}
               className={`flex items-center justify-between rounded-xl px-4 py-3 border ${
                 rule.isActive
-                  ? 'bg-white border-gray-100'
-                  : 'bg-gray-50 border-gray-100 opacity-60'
+                  ? 'bg-bg-raised border-line-subtle'
+                  : 'bg-bg-base border-line-subtle opacity-60'
               }`}
             >
               <div className="flex-1 min-w-0">

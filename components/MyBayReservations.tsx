@@ -46,7 +46,7 @@ const STATUS_CONFIG: Record<
 > = {
   CONFIRMED: {
     label: '예약 확정',
-    color: 'text-emerald-600 bg-emerald-50 border-emerald-200',
+    color: 'text-emerald-600 bg-primary-500/10 border-emerald-200',
     icon: <CheckCircle className="w-3.5 h-3.5" />,
   },
   CANCEL_REQUESTED: {
@@ -56,12 +56,12 @@ const STATUS_CONFIG: Record<
   },
   CANCELLED: {
     label: '취소됨',
-    color: 'text-gray-500 bg-gray-50 border-gray-200',
+    color: 'text-ink-medium bg-bg-base border-line-default',
     icon: <XCircle className="w-3.5 h-3.5" />,
   },
   REJECTED: {
     label: '거절됨',
-    color: 'text-red-500 bg-red-50 border-red-200',
+    color: 'text-red-500 bg-red-500/10 border-red-200',
     icon: <XCircle className="w-3.5 h-3.5" />,
   },
 };
@@ -120,24 +120,24 @@ export const MyBayReservations: React.FC<MyBayReservationsProps> = ({
   );
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-bg-base">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 sticky top-0 z-10">
+      <div className="bg-bg-raised border-b border-line-default sticky top-0 z-10">
         <div className="max-w-lg mx-auto px-4 py-3 flex items-center gap-3">
           <button
             onClick={onBack}
-            className="p-1 rounded-lg hover:bg-gray-100 transition-colors"
+            className="p-1 rounded-lg hover:bg-bg-overlay transition-colors"
           >
-            <ArrowLeft className="w-5 h-5 text-gray-600" />
+            <ArrowLeft className="w-5 h-5 text-ink-medium" />
           </button>
-          <h1 className="font-bold text-lg text-gray-900">나의 타석 예약</h1>
+          <h1 className="font-bold text-lg text-ink-high">나의 타석 예약</h1>
         </div>
       </div>
 
       <div className="max-w-lg mx-auto px-4 py-6 space-y-4">
         {/* Error */}
         {error && (
-          <div className="flex items-start gap-2 bg-red-50 border border-red-200 text-red-700 rounded-xl p-3 text-sm">
+          <div className="flex items-start gap-2 bg-red-500/10 border border-red-200 text-red-300 rounded-xl p-3 text-sm">
             <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
             <span>{error}</span>
           </div>
@@ -146,21 +146,21 @@ export const MyBayReservations: React.FC<MyBayReservationsProps> = ({
         {/* Loading */}
         {loading && (
           <div className="flex items-center justify-center py-12">
-            <Loader className="w-8 h-8 text-emerald-700 animate-spin" />
+            <Loader className="w-8 h-8 text-primary-300 animate-spin" />
           </div>
         )}
 
         {!loading && reservations.length === 0 && (
           <div className="text-center py-16">
-            <Target className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-            <p className="text-gray-500 text-sm">예약 내역이 없습니다.</p>
+            <Target className="w-12 h-12 text-ink-muted mx-auto mb-3" />
+            <p className="text-ink-medium text-sm">예약 내역이 없습니다.</p>
           </div>
         )}
 
         {/* Upcoming / Active reservations */}
         {!loading && upcomingReservations.length > 0 && (
           <div className="space-y-3">
-            <h2 className="text-sm font-bold text-gray-600 uppercase tracking-wide">진행 중인 예약</h2>
+            <h2 className="text-sm font-bold text-ink-medium uppercase tracking-wide">진행 중인 예약</h2>
             {upcomingReservations.map((res) => {
               const cfg = STATUS_CONFIG[res.status];
               const isCanceling = cancelingId === res.id;
@@ -169,7 +169,7 @@ export const MyBayReservations: React.FC<MyBayReservationsProps> = ({
               return (
                 <div
                   key={res.id}
-                  className="bg-white border border-gray-200 rounded-xl overflow-hidden"
+                  className="bg-bg-raised border border-line-default rounded-xl overflow-hidden"
                 >
                   <div className="px-4 py-3 space-y-2">
                     {/* Status badge */}
@@ -180,59 +180,59 @@ export const MyBayReservations: React.FC<MyBayReservationsProps> = ({
                         {cfg.icon}
                         {cfg.label}
                       </span>
-                      <span className="text-xs text-gray-400 font-mono truncate max-w-[50%]">{res.id}</span>
+                      <span className="text-xs text-ink-muted font-mono truncate max-w-[50%]">{res.id}</span>
                     </div>
 
                     {/* Details */}
                     <div className="space-y-1">
-                      <div className="flex items-center gap-1.5 text-sm text-gray-700">
-                        <Calendar className="w-4 h-4 text-gray-400" />
+                      <div className="flex items-center gap-1.5 text-sm text-ink-high">
+                        <Calendar className="w-4 h-4 text-ink-muted" />
                         <span>{formatDateOnly(res.startTime)}</span>
                       </div>
-                      <div className="flex items-center gap-1.5 text-sm text-gray-700">
-                        <Clock className="w-4 h-4 text-gray-400" />
+                      <div className="flex items-center gap-1.5 text-sm text-ink-high">
+                        <Clock className="w-4 h-4 text-ink-muted" />
                         <span>{formatHourRange(res.startTime, res.endTime)}</span>
                       </div>
-                      <div className="flex items-center gap-1.5 text-sm text-gray-700">
-                        <Target className="w-4 h-4 text-gray-400" />
+                      <div className="flex items-center gap-1.5 text-sm text-ink-high">
+                        <Target className="w-4 h-4 text-ink-muted" />
                         <span>타석 ID: {res.bayId}</span>
                       </div>
-                      <div className="flex items-center gap-1.5 text-sm text-gray-700">
-                        <MapPin className="w-4 h-4 text-gray-400" />
+                      <div className="flex items-center gap-1.5 text-sm text-ink-high">
+                        <MapPin className="w-4 h-4 text-ink-muted" />
                         <span>지점 ID: {res.branchId}</span>
                       </div>
                     </div>
 
                     <div className="pt-1 flex items-center justify-between">
-                      <span className="text-sm text-gray-500">
-                        차감 포인트: <span className="font-bold text-gray-700">{res.paidPoints.toLocaleString()}pt</span>
+                      <span className="text-sm text-ink-medium">
+                        차감 포인트: <span className="font-bold text-ink-high">{res.paidPoints.toLocaleString()}pt</span>
                       </span>
                     </div>
                   </div>
 
                   {/* Cancel button (only for CONFIRMED) */}
                   {res.status === 'CONFIRMED' && (
-                    <div className="border-t border-gray-100 px-4 py-2">
+                    <div className="border-t border-line-subtle px-4 py-2">
                       {!isConfirming ? (
                         <button
                           onClick={() => setConfirmCancelId(res.id)}
-                          className="text-xs text-red-500 hover:text-red-600 font-medium transition-colors"
+                          className="text-xs text-red-500 hover:text-red-400 font-medium transition-colors"
                         >
                           취소 요청
                         </button>
                       ) : (
                         <div className="flex items-center gap-2">
-                          <span className="text-xs text-gray-600">정말 취소 요청하시겠습니까?</span>
+                          <span className="text-xs text-ink-medium">정말 취소 요청하시겠습니까?</span>
                           <button
                             onClick={() => handleRequestCancel(res.id)}
                             disabled={isCanceling}
-                            className="text-xs font-bold text-red-500 hover:text-red-600 disabled:opacity-50"
+                            className="text-xs font-bold text-red-500 hover:text-red-400 disabled:opacity-50"
                           >
                             {isCanceling ? '처리 중...' : '확인'}
                           </button>
                           <button
                             onClick={() => setConfirmCancelId(null)}
-                            className="text-xs text-gray-500 hover:text-gray-700"
+                            className="text-xs text-ink-medium hover:text-ink-high"
                           >
                             취소
                           </button>
@@ -242,7 +242,7 @@ export const MyBayReservations: React.FC<MyBayReservationsProps> = ({
                   )}
 
                   {res.status === 'CANCEL_REQUESTED' && res.cancelRequestedAt && (
-                    <div className="border-t border-gray-100 px-4 py-2">
+                    <div className="border-t border-line-subtle px-4 py-2">
                       <span className="text-xs text-orange-500">
                         취소 요청일: {new Date(res.cancelRequestedAt).toLocaleDateString('ko-KR')}
                       </span>
@@ -257,13 +257,13 @@ export const MyBayReservations: React.FC<MyBayReservationsProps> = ({
         {/* Past reservations */}
         {!loading && pastReservations.length > 0 && (
           <div className="space-y-3">
-            <h2 className="text-sm font-bold text-gray-600 uppercase tracking-wide">지난 예약</h2>
+            <h2 className="text-sm font-bold text-ink-medium uppercase tracking-wide">지난 예약</h2>
             {pastReservations.map((res) => {
               const cfg = STATUS_CONFIG[res.status];
               return (
                 <div
                   key={res.id}
-                  className="bg-white border border-gray-100 rounded-xl px-4 py-3 opacity-70 space-y-2"
+                  className="bg-bg-raised border border-line-subtle rounded-xl px-4 py-3 opacity-70 space-y-2"
                 >
                   <div className="flex items-center justify-between">
                     <span
@@ -274,16 +274,16 @@ export const MyBayReservations: React.FC<MyBayReservationsProps> = ({
                     </span>
                   </div>
                   <div className="space-y-1">
-                    <div className="flex items-center gap-1.5 text-sm text-gray-600">
-                      <Calendar className="w-4 h-4 text-gray-300" />
+                    <div className="flex items-center gap-1.5 text-sm text-ink-medium">
+                      <Calendar className="w-4 h-4 text-ink-muted" />
                       <span>{formatDateOnly(res.startTime)}</span>
                     </div>
-                    <div className="flex items-center gap-1.5 text-sm text-gray-600">
-                      <Clock className="w-4 h-4 text-gray-300" />
+                    <div className="flex items-center gap-1.5 text-sm text-ink-medium">
+                      <Clock className="w-4 h-4 text-ink-muted" />
                       <span>{formatHourRange(res.startTime, res.endTime)}</span>
                     </div>
                   </div>
-                  <div className="text-xs text-gray-400">
+                  <div className="text-xs text-ink-muted">
                     {res.paidPoints.toLocaleString()}pt 차감
                   </div>
                 </div>

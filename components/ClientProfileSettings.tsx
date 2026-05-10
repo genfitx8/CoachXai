@@ -422,16 +422,16 @@ export const ClientProfileSettings: React.FC<ClientProfileSettingsProps> = ({ pr
 
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Golf Profile Section */}
-        <div ref={golfProfileRef} className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm">
-            <h3 className="text-sm font-bold text-gray-900 mb-4 flex items-center gap-2">
+        <div ref={golfProfileRef} className="bg-bg-raised p-5 rounded-xl border border-line-subtle shadow-sm">
+            <h3 className="text-sm font-bold text-ink-high mb-4 flex items-center gap-2">
                 <Award className="w-4 h-4 text-emerald-600" /> {t('golf_profile_section')}
             </h3>
 
             {/* Auto Calculation Badge */}
             {stats && (
-                <div className="mb-4 bg-indigo-50 border border-indigo-100 p-3 rounded-lg flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+                <div className="mb-4 bg-primary-500/10 border border-indigo-100 p-3 rounded-lg flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
                     <div>
-                        <div className="text-xs font-bold text-indigo-800 mb-0.5 flex items-center gap-1">
+                        <div className="text-xs font-bold text-primary-200 mb-0.5 flex items-center gap-1">
                             <Activity className="w-3 h-3" /> {t('stats_based_analysis').replace('{n}', String(stats.count))}
                         </div>
                         <div className="text-xs text-indigo-600">
@@ -444,10 +444,10 @@ export const ClientProfileSettings: React.FC<ClientProfileSettingsProps> = ({ pr
             <div className="space-y-4">
                 {/* Golf Experience */}
                 <div>
-                    <label className="block text-xs font-bold text-gray-500 mb-1 flex items-center justify-between">
+                    <label className="block text-xs font-bold text-ink-medium mb-1 flex items-center justify-between">
                         <span className="flex items-center gap-1"><CalendarClock className="w-3 h-3" /> {t('golf_experience_label')}</span>
                         {dDay !== null && (
-                            <span className="text-emerald-600 font-extrabold text-xs bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">
+                            <span className="text-emerald-600 font-extrabold text-xs bg-primary-500/10 px-2 py-0.5 rounded-full border border-emerald-100">
                                 D+{dDay.toLocaleString()}일
                             </span>
                         )}
@@ -460,9 +460,9 @@ export const ClientProfileSettings: React.FC<ClientProfileSettingsProps> = ({ pr
                                 onChange={(e) => handleExperienceChange(e.target.value, expMonths)}
                                 placeholder="0"
                                 min="0"
-                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-700 focus:border-emerald-700 outline-none text-right pr-8"
+                                className="w-full px-4 py-2 border border-line-default rounded-lg focus:ring-2 focus:ring-emerald-700 focus:border-emerald-700 outline-none text-right pr-8"
                             />
-                            <span className="absolute right-3 top-2.5 text-gray-400 text-sm">{t('exp_years_unit')}</span>
+                            <span className="absolute right-3 top-2.5 text-ink-muted text-sm">{t('exp_years_unit')}</span>
                         </div>
                         <div className="flex-1 relative">
                              <input
@@ -472,27 +472,27 @@ export const ClientProfileSettings: React.FC<ClientProfileSettingsProps> = ({ pr
                                 placeholder="0"
                                 min="0"
                                 max="11"
-                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-700 focus:border-emerald-700 outline-none text-right pr-8"
+                                className="w-full px-4 py-2 border border-line-default rounded-lg focus:ring-2 focus:ring-emerald-700 focus:border-emerald-700 outline-none text-right pr-8"
                             />
-                            <span className="absolute right-3 top-2.5 text-gray-400 text-sm">{t('exp_months_unit')}</span>
+                            <span className="absolute right-3 top-2.5 text-ink-muted text-sm">{t('exp_months_unit')}</span>
                         </div>
                     </div>
                 </div>
                 
                 <div className="w-full">
-                    <label className="block text-xs font-bold text-gray-500 mb-1">{t('handicap_label')}</label>
+                    <label className="block text-xs font-bold text-ink-medium mb-1">{t('handicap_label')}</label>
                     <input
                         type="number"
                         name="handicap"
                         value={formData.handicap || ''}
                         onChange={handleChange}
                         placeholder="예: 18"
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-700 focus:border-emerald-700 outline-none transition-all"
+                        className="w-full px-4 py-2 border border-line-default rounded-lg focus:ring-2 focus:ring-emerald-700 focus:border-emerald-700 outline-none transition-all"
                     />
                 </div>
 
                 <div className="w-full">
-                    <label className="block text-xs font-bold text-gray-500 mb-1 flex items-center justify-between">
+                    <label className="block text-xs font-bold text-ink-medium mb-1 flex items-center justify-between">
                         <span>{t('best_score_label')}</span>
                         {stats && stats.best < (formData.bestScore || 999) && (
                             <span className="text-[10px] text-indigo-600 font-normal">
@@ -506,7 +506,7 @@ export const ClientProfileSettings: React.FC<ClientProfileSettingsProps> = ({ pr
                         value={formData.bestScore || ''}
                         onChange={handleChange}
                         placeholder="예: 85"
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-700 focus:border-emerald-700 outline-none transition-all font-bold text-gray-900"
+                        className="w-full px-4 py-2 border border-line-default rounded-lg focus:ring-2 focus:ring-emerald-700 focus:border-emerald-700 outline-none transition-all font-bold text-ink-high"
                     />
                 </div>
                 
@@ -521,31 +521,31 @@ export const ClientProfileSettings: React.FC<ClientProfileSettingsProps> = ({ pr
                 </div>
             </div>
 
-            <div ref={bodyAnalysisRef} className="mt-8 pt-6 border-t border-gray-100 space-y-4">
+            <div ref={bodyAnalysisRef} className="mt-8 pt-6 border-t border-line-subtle space-y-4">
                 <div
                   onClick={handleToggleBodyAnalysis}
                   className={`rounded-xl border-2 cursor-pointer transition-all flex items-center gap-3 p-3 ${
                     formData.memberBodyAnalysis
-                      ? 'border-emerald-500 bg-emerald-50'
-                      : 'border-gray-200 hover:border-gray-300'
+                      ? 'border-emerald-500 bg-primary-500/10'
+                      : 'border-line-default hover:border-line-default'
                   }`}
                 >
-                  <ScanLine className={`w-5 h-5 ${formData.memberBodyAnalysis ? 'text-emerald-700' : 'text-gray-400'}`} />
+                  <ScanLine className={`w-5 h-5 ${formData.memberBodyAnalysis ? 'text-primary-300' : 'text-ink-muted'}`} />
                   <div>
-                    <h4 className="font-bold text-sm text-gray-900">{t('profile_body_analysis_title')}</h4>
-                    <p className="text-xs text-gray-500">{t('profile_body_analysis_desc')}</p>
+                    <h4 className="font-bold text-sm text-ink-high">{t('profile_body_analysis_title')}</h4>
+                    <p className="text-xs text-ink-medium">{t('profile_body_analysis_desc')}</p>
                   </div>
                   {formData.memberBodyAnalysis && (
-                    <span className="ml-auto text-xs font-bold text-emerald-700">ON</span>
+                    <span className="ml-auto text-xs font-bold text-primary-300">ON</span>
                   )}
                 </div>
 
                 {formData.memberBodyAnalysis && (
                   <div className="space-y-3">
-                    <div className="rounded-lg border border-emerald-100 bg-emerald-50/60 p-3 space-y-2">
-                      <p className="text-xs font-bold text-emerald-800">정면/측면 사진 자동 분석</p>
+                    <div className="rounded-lg border border-emerald-100 bg-primary-500/10/60 p-3 space-y-2">
+                      <p className="text-xs font-bold text-primary-200">정면/측면 사진 자동 분석</p>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        <label className="text-xs text-gray-700 space-y-1 block">
+                        <label className="text-xs text-ink-high space-y-1 block">
                           <span className="font-semibold">정면 전신</span>
                           <input
                             type="file"
@@ -555,7 +555,7 @@ export const ClientProfileSettings: React.FC<ClientProfileSettingsProps> = ({ pr
                             className="block w-full text-xs"
                           />
                         </label>
-                        <label className="text-xs text-gray-700 space-y-1 block">
+                        <label className="text-xs text-ink-high space-y-1 block">
                           <span className="font-semibold">측면 전신</span>
                           <input
                             type="file"
@@ -576,16 +576,16 @@ export const ClientProfileSettings: React.FC<ClientProfileSettingsProps> = ({ pr
                         {isAnalyzingBodyPhoto ? '자동 분석 중...' : '사진으로 자동 분석'}
                       </Button>
                       {bodyPhotoAnalysisError && (
-                        <p className="text-xs text-red-600">{bodyPhotoAnalysisError}</p>
+                        <p className="text-xs text-red-400">{bodyPhotoAnalysisError}</p>
                       )}
                     </div>
 
                     <div>
-                      <label className="block text-xs font-bold text-gray-600 mb-1">{t('profile_body_type_label')}</label>
+                      <label className="block text-xs font-bold text-ink-medium mb-1">{t('profile_body_type_label')}</label>
                       <select
                         value={formData.memberBodyAnalysis.bodyType}
                         onChange={(e) => handleBodyTypeChange(e.target.value as LessonBodyType)}
-                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-700 outline-none"
+                        className="w-full px-3 py-2 text-sm border border-line-default rounded-lg focus:ring-2 focus:ring-emerald-700 outline-none"
                       >
                         {BODY_TYPES.map((type) => (
                           <option key={type} value={type}>
@@ -593,8 +593,8 @@ export const ClientProfileSettings: React.FC<ClientProfileSettingsProps> = ({ pr
                           </option>
                         ))}
                       </select>
-                      <p className="text-xs text-gray-500 mt-1">
-                        {t('profile_recommended_swing_type')} <span className="font-bold text-emerald-700">{formData.memberBodyAnalysis.swingType}</span>
+                      <p className="text-xs text-ink-medium mt-1">
+                        {t('profile_recommended_swing_type')} <span className="font-bold text-primary-300">{formData.memberBodyAnalysis.swingType}</span>
                       </p>
                     </div>
 
@@ -605,7 +605,7 @@ export const ClientProfileSettings: React.FC<ClientProfileSettingsProps> = ({ pr
                         type="number"
                         step="0.1"
                         placeholder={t('profile_body_front_axis_placeholder')}
-                        className="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-700 outline-none"
+                        className="px-3 py-2 text-sm border border-line-default rounded-lg focus:ring-2 focus:ring-emerald-700 outline-none"
                       />
                       <input
                         value={formData.memberBodyAnalysis.structuralInput.headTiltDeg ?? ''}
@@ -613,7 +613,7 @@ export const ClientProfileSettings: React.FC<ClientProfileSettingsProps> = ({ pr
                         type="number"
                         step="0.1"
                         placeholder={t('profile_body_head_placeholder')}
-                        className="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-700 outline-none"
+                        className="px-3 py-2 text-sm border border-line-default rounded-lg focus:ring-2 focus:ring-emerald-700 outline-none"
                       />
                       <input
                         value={formData.memberBodyAnalysis.structuralInput.shoulderTiltDeg ?? ''}
@@ -621,7 +621,7 @@ export const ClientProfileSettings: React.FC<ClientProfileSettingsProps> = ({ pr
                         type="number"
                         step="0.1"
                         placeholder={t('profile_body_shoulder_placeholder')}
-                        className="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-700 outline-none"
+                        className="px-3 py-2 text-sm border border-line-default rounded-lg focus:ring-2 focus:ring-emerald-700 outline-none"
                       />
                       <input
                         value={formData.memberBodyAnalysis.structuralInput.pelvisTiltDeg ?? ''}
@@ -629,7 +629,7 @@ export const ClientProfileSettings: React.FC<ClientProfileSettingsProps> = ({ pr
                         type="number"
                         step="0.1"
                         placeholder={t('profile_body_pelvis_placeholder')}
-                        className="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-700 outline-none"
+                        className="px-3 py-2 text-sm border border-line-default rounded-lg focus:ring-2 focus:ring-emerald-700 outline-none"
                       />
                       <input
                         value={formData.memberBodyAnalysis.structuralInput.kneeTiltDeg ?? ''}
@@ -637,7 +637,7 @@ export const ClientProfileSettings: React.FC<ClientProfileSettingsProps> = ({ pr
                         type="number"
                         step="0.1"
                         placeholder={t('profile_body_knee_placeholder')}
-                        className="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-700 outline-none sm:col-span-2"
+                        className="px-3 py-2 text-sm border border-line-default rounded-lg focus:ring-2 focus:ring-emerald-700 outline-none sm:col-span-2"
                       />
                     </div>
 
@@ -646,15 +646,15 @@ export const ClientProfileSettings: React.FC<ClientProfileSettingsProps> = ({ pr
                       onChange={(e) => handleBodyCommentChange(e.target.value)}
                       rows={2}
                       placeholder={t('profile_body_comment_placeholder')}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-700 outline-none resize-none"
+                      className="w-full px-3 py-2 border border-line-default rounded-lg text-sm focus:ring-2 focus:ring-emerald-700 outline-none resize-none"
                     />
                   </div>
                 )}
             </div>
 
             {/* Club Composition Section */}
-            <div ref={clubBagRef} className="mt-8 pt-6 border-t border-gray-100">
-                <label className="block text-sm font-bold text-gray-900 mb-4 flex items-center gap-2">
+            <div ref={clubBagRef} className="mt-8 pt-6 border-t border-line-subtle">
+                <label className="block text-sm font-bold text-ink-high mb-4 flex items-center gap-2">
                     <Briefcase className="w-5 h-5 text-emerald-600" /> {t('club_bag_section')}
                 </label>
 
@@ -665,15 +665,15 @@ export const ClientProfileSettings: React.FC<ClientProfileSettingsProps> = ({ pr
                         const labels = getSpecLabels(category.id);
 
                         return (
-                            <div key={category.id} className="bg-gray-50 rounded-xl border border-gray-200 overflow-hidden">
-                                <div className="bg-gray-100 px-4 py-3 flex justify-between items-center">
-                                    <h4 className="font-bold text-gray-700 text-sm flex items-center gap-2">
+                            <div key={category.id} className="bg-bg-base rounded-xl border border-line-default overflow-hidden">
+                                <div className="bg-bg-overlay px-4 py-3 flex justify-between items-center">
+                                    <h4 className="font-bold text-ink-high text-sm flex items-center gap-2">
                                         <span>{category.icon}</span> {category.label}
                                     </h4>
                                     <button 
                                         type="button" 
                                         onClick={() => startAddClub(category.id)}
-                                        className="text-emerald-600 hover:text-emerald-800 p-1 bg-white rounded-full shadow-sm hover:shadow transition-all"
+                                        className="text-emerald-600 hover:text-primary-200 p-1 bg-bg-raised rounded-full shadow-sm hover:shadow transition-all"
                                     >
                                         <Plus className="w-4 h-4" />
                                     </button>
@@ -681,22 +681,22 @@ export const ClientProfileSettings: React.FC<ClientProfileSettingsProps> = ({ pr
                                 
                                 <div className="p-4 space-y-3">
                                     {clubs.length === 0 && !isAdding && (
-                                        <p className="text-xs text-gray-400 text-center italic py-2">{t('no_clubs_registered')}</p>
+                                        <p className="text-xs text-ink-muted text-center italic py-2">{t('no_clubs_registered')}</p>
                                     )}
 
                                     {/* Existing Clubs List */}
                                     {clubs.map(club => (
-                                        <div key={club.id} className="bg-white p-3 rounded-lg border border-gray-200 shadow-sm flex justify-between items-start">
+                                        <div key={club.id} className="bg-bg-raised p-3 rounded-lg border border-line-default shadow-sm flex justify-between items-start">
                                             <div className="flex-1">
                                                 <div className="flex items-center gap-2 mb-1">
-                                                    <span className="font-bold text-gray-900 text-sm">{club.brand}</span>
-                                                    <span className="text-gray-600 text-sm">{club.model}</span>
+                                                    <span className="font-bold text-ink-high text-sm">{club.brand}</span>
+                                                    <span className="text-ink-medium text-sm">{club.model}</span>
                                                 </div>
-                                                <div className="flex gap-3 text-xs text-gray-500">
+                                                <div className="flex gap-3 text-xs text-ink-medium">
                                                     {(club.spec1 || club.spec2) ? (
                                                         <>
-                                                            {club.spec1 && <span className="bg-gray-100 px-1.5 py-0.5 rounded">{club.spec1}</span>}
-                                                            {club.spec2 && <span className="bg-gray-100 px-1.5 py-0.5 rounded">{club.spec2}</span>}
+                                                            {club.spec1 && <span className="bg-bg-overlay px-1.5 py-0.5 rounded">{club.spec1}</span>}
+                                                            {club.spec2 && <span className="bg-bg-overlay px-1.5 py-0.5 rounded">{club.spec2}</span>}
                                                         </>
                                                     ) : (
                                                         <span className="opacity-50">상세 스펙 없음</span>
@@ -706,7 +706,7 @@ export const ClientProfileSettings: React.FC<ClientProfileSettingsProps> = ({ pr
                                             <button 
                                                 type="button" 
                                                 onClick={() => removeClub(club.id)}
-                                                className="text-gray-300 hover:text-red-500 p-1"
+                                                className="text-ink-muted hover:text-red-500 p-1"
                                             >
                                                 <Trash2 className="w-4 h-4" />
                                             </button>
@@ -715,14 +715,14 @@ export const ClientProfileSettings: React.FC<ClientProfileSettingsProps> = ({ pr
 
                                     {/* Add New Club Form */}
                                     {isAdding && (
-                                        <div className="bg-white p-4 rounded-lg border-2 border-emerald-100 shadow-sm animate-fade-in space-y-3">
+                                        <div className="bg-bg-raised p-4 rounded-lg border-2 border-emerald-100 shadow-sm animate-fade-in space-y-3">
                                             <div className="grid grid-cols-2 gap-2">
                                                 <input 
                                                     type="text" 
                                                     placeholder={t('club_brand_placeholder')} 
                                                     value={newClubBrand} 
                                                     onChange={(e) => setNewClubBrand(e.target.value)}
-                                                    className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-emerald-700 outline-none"
+                                                    className="w-full px-3 py-2 border border-line-default rounded text-sm focus:ring-1 focus:ring-emerald-700 outline-none"
                                                     autoFocus
                                                 />
                                                 <input 
@@ -730,7 +730,7 @@ export const ClientProfileSettings: React.FC<ClientProfileSettingsProps> = ({ pr
                                                     placeholder={t('club_model_placeholder')} 
                                                     value={newClubModel} 
                                                     onChange={(e) => setNewClubModel(e.target.value)}
-                                                    className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-emerald-700 outline-none"
+                                                    className="w-full px-3 py-2 border border-line-default rounded text-sm focus:ring-1 focus:ring-emerald-700 outline-none"
                                                 />
                                             </div>
                                             <div className="grid grid-cols-2 gap-2">
@@ -739,21 +739,21 @@ export const ClientProfileSettings: React.FC<ClientProfileSettingsProps> = ({ pr
                                                     placeholder={labels.s1} 
                                                     value={newClubSpec1} 
                                                     onChange={(e) => setNewClubSpec1(e.target.value)}
-                                                    className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-emerald-700 outline-none"
+                                                    className="w-full px-3 py-2 border border-line-default rounded text-sm focus:ring-1 focus:ring-emerald-700 outline-none"
                                                 />
                                                 <input 
                                                     type="text" 
                                                     placeholder={labels.s2} 
                                                     value={newClubSpec2} 
                                                     onChange={(e) => setNewClubSpec2(e.target.value)}
-                                                    className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-emerald-700 outline-none"
+                                                    className="w-full px-3 py-2 border border-line-default rounded text-sm focus:ring-1 focus:ring-emerald-700 outline-none"
                                                 />
                                             </div>
                                             <div className="flex gap-2 justify-end pt-1">
                                                 <button 
                                                     type="button" 
                                                     onClick={cancelAddClub}
-                                                    className="px-3 py-1.5 text-xs font-medium text-gray-500 hover:bg-gray-100 rounded"
+                                                    className="px-3 py-1.5 text-xs font-medium text-ink-medium hover:bg-bg-overlay rounded"
                                                 >
                                                     {t('cancel')}
                                                 </button>
@@ -775,33 +775,33 @@ export const ClientProfileSettings: React.FC<ClientProfileSettingsProps> = ({ pr
             </div>
 
              <div className="mt-4">
-                <label className="block text-xs font-bold text-gray-500 mb-1">{t('bio_label')}</label>
+                <label className="block text-xs font-bold text-ink-medium mb-1">{t('bio_label')}</label>
                 <textarea
                     name="memo"
                     value={formData.memo || ''}
                     onChange={handleChange}
                     placeholder="올해 목표: 깨백하기, 드라이버 비거리 200m 만들기 등"
                     rows={2}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-700 focus:border-emerald-700 outline-none transition-all"
+                    className="w-full px-4 py-2 border border-line-default rounded-lg focus:ring-2 focus:ring-emerald-700 focus:border-emerald-700 outline-none transition-all"
                 />
             </div>
         </div>
 
         {/* Account Settings */}
-        <div className="pt-6 border-t border-gray-100">
-            <label className="block text-sm font-bold text-gray-900 mb-4 flex items-center gap-2">
+        <div className="pt-6 border-t border-line-subtle">
+            <label className="block text-sm font-bold text-ink-high mb-4 flex items-center gap-2">
                 <Smartphone className="w-5 h-5 text-emerald-600" /> {t('phone')}
             </label>
-            <div className="bg-gray-50 p-4 rounded-xl border border-gray-200">
-                 <label className="block text-xs font-bold text-gray-500 mb-1">{t('phone')}</label>
+            <div className="bg-bg-base p-4 rounded-xl border border-line-default">
+                 <label className="block text-xs font-bold text-ink-medium mb-1">{t('phone')}</label>
                  <input
                     type="tel"
                     name="phone"
                     value={formData.phone}
                     onChange={handleChange}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-700 focus:border-emerald-700 outline-none"
+                    className="w-full px-4 py-2 border border-line-default rounded-lg focus:ring-2 focus:ring-emerald-700 focus:border-emerald-700 outline-none"
                  />
-                 <p className="text-[10px] text-gray-500 mt-2 flex items-start gap-1">
+                 <p className="text-[10px] text-ink-medium mt-2 flex items-start gap-1">
                     <AlertCircle className="w-3 h-3 text-emerald-600 flex-shrink-0 mt-0.5" /> 
                     <span>전화번호는 로그인 아이디로 사용되므로, 변경 시 로그인 정보가 바뀝니다.</span>
                  </p>
