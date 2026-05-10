@@ -130,12 +130,12 @@ export const VideoEditor: React.FC<VideoEditorProps> = ({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-6xl w-full max-h-[90vh] overflow-y-auto">
-        <div className="sticky top-0 bg-white border-b px-6 py-4 flex justify-between items-center">
+      <div className="bg-bg-raised rounded-lg shadow-xl max-w-6xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="sticky top-0 bg-bg-raised border-b px-6 py-4 flex justify-between items-center">
           <h2 className="text-2xl font-bold">영상 편집</h2>
           <button
             onClick={onCancel}
-            className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+            className="p-2 hover:bg-bg-overlay rounded-full transition-colors"
           >
             <X className="w-6 h-6" />
           </button>
@@ -143,13 +143,13 @@ export const VideoEditor: React.FC<VideoEditorProps> = ({
 
         <div className="p-6">
           {isProcessing && (
-            <div className="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <div className="mb-6 bg-interactive-500/10 border border-blue-200 rounded-lg p-4">
               <div className="flex items-center gap-3 mb-2">
                 <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
                 <span className="font-medium">{processingStatus}</span>
               </div>
               {processingProgress > 0 && (
-                <div className="w-full bg-gray-200 rounded-full h-2">
+                <div className="w-full bg-bg-inset rounded-full h-2">
                   <div
                     className="bg-blue-600 h-2 rounded-full transition-all"
                     style={{ width: `${processingProgress}%` }}
@@ -161,7 +161,7 @@ export const VideoEditor: React.FC<VideoEditorProps> = ({
 
           {editMode === 'SELECT' && (
             <div className="space-y-6">
-              <div className="bg-gray-50 p-4 rounded-lg">
+              <div className="bg-bg-base p-4 rounded-lg">
                 <video
                   src={currentVideoUrl}
                   controls
@@ -175,11 +175,11 @@ export const VideoEditor: React.FC<VideoEditorProps> = ({
                   <button
                     onClick={() => setEditMode('TRIM')}
                     disabled={isProcessing}
-                    className="p-6 border-2 border-gray-200 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="p-6 border-2 border-line-default rounded-lg hover:border-blue-500 hover:bg-interactive-500/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <Scissors className="w-12 h-12 mx-auto mb-3 text-blue-600" />
                     <h4 className="font-semibold mb-1">영상 자르기</h4>
-                    <p className="text-sm text-gray-600">시작/종료 지점 선택</p>
+                    <p className="text-sm text-ink-medium">시작/종료 지점 선택</p>
                     {trimStart !== undefined && (
                       <p className="text-xs text-green-600 mt-2">✓ 적용됨</p>
                     )}
@@ -188,11 +188,11 @@ export const VideoEditor: React.FC<VideoEditorProps> = ({
                   <button
                     onClick={() => setEditMode('AUDIO')}
                     disabled={isProcessing}
-                    className="p-6 border-2 border-gray-200 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="p-6 border-2 border-line-default rounded-lg hover:border-blue-500 hover:bg-interactive-500/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <Mic className="w-12 h-12 mx-auto mb-3 text-blue-600" />
                     <h4 className="font-semibold mb-1">음성 녹음</h4>
-                    <p className="text-sm text-gray-600">해설 음성 추가</p>
+                    <p className="text-sm text-ink-medium">해설 음성 추가</p>
                     {audioBlob && (
                       <p className="text-xs text-green-600 mt-2">✓ 녹음됨</p>
                     )}
@@ -201,11 +201,11 @@ export const VideoEditor: React.FC<VideoEditorProps> = ({
                   <button
                     onClick={() => setEditMode('DRAW')}
                     disabled={isProcessing}
-                    className="p-6 border-2 border-gray-200 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="p-6 border-2 border-line-default rounded-lg hover:border-blue-500 hover:bg-interactive-500/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <PenTool className="w-12 h-12 mx-auto mb-3 text-blue-600" />
                     <h4 className="font-semibold mb-1">선 긋기</h4>
-                    <p className="text-sm text-gray-600">영상에 그림 추가</p>
+                    <p className="text-sm text-ink-medium">영상에 그림 추가</p>
                     {hasDrawings && (
                       <p className="text-xs text-green-600 mt-2">✓ 그려짐</p>
                     )}

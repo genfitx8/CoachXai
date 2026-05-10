@@ -65,10 +65,10 @@ export const GolfDataVisualizer: React.FC<GolfDataVisualizerProps> = ({
   ];
 
   const renderMetricCard = (label: string, value: number | undefined, unit: string, color: string) => (
-    <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 flex flex-col items-center justify-center">
-      <span className="text-gray-500 text-xs font-medium uppercase mb-1">{label}</span>
+    <div className="bg-bg-base p-4 rounded-xl border border-line-subtle flex flex-col items-center justify-center">
+      <span className="text-ink-medium text-xs font-medium uppercase mb-1">{label}</span>
       <div className={`text-2xl font-bold ${color}`}>
-        {value !== undefined ? value : '-'} <span className="text-sm font-normal text-gray-400">{unit}</span>
+        {value !== undefined ? value : '-'} <span className="text-sm font-normal text-ink-muted">{unit}</span>
       </div>
     </div>
   );
@@ -76,39 +76,39 @@ export const GolfDataVisualizer: React.FC<GolfDataVisualizerProps> = ({
   return (
     <div className="space-y-8 animate-fade-in">
       {/* Current Data Table */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        <div className="bg-gray-900 px-6 py-4 flex justify-between items-center">
-             <h3 className="text-white font-bold flex items-center gap-2">
-                <TrendingUp className="w-5 h-5 text-emerald-400" /> 
+      <div className="bg-bg-raised rounded-xl shadow-sm border border-line-subtle overflow-hidden">
+        <div className="bg-bg-overlay border-b border-line-subtle px-6 py-4 flex justify-between items-center">
+             <h3 className="text-ink-high font-semibold flex items-center gap-2 tracking-tight">
+                <TrendingUp className="w-5 h-5 text-primary-400" />
                 {currentClub ? `${currentClub} 분석 데이터` : '샷 데이터 분석'}
              </h3>
-             <span className="text-gray-400 text-xs">{currentDate}</span>
+             <span className="text-ink-muted text-xs">{currentDate}</span>
         </div>
         
         <div className="p-6">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                {renderMetricCard("비거리 (Total)", currentData.totalDistance, "m", "text-gray-900")}
+                {renderMetricCard("비거리 (Total)", currentData.totalDistance, "m", "text-ink-high")}
                 {renderMetricCard("캐리 (Carry)", currentData.carryDistance, "m", "text-blue-600")}
                 {renderMetricCard("볼 스피드", currentData.ballSpeed, "m/s", "text-emerald-600")}
                 {renderMetricCard("헤드 스피드", currentData.clubHeadSpeed, "m/s", "text-indigo-600")}
             </div>
 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                 <div className="flex justify-between items-center p-3 border-b border-gray-100">
-                    <span className="text-gray-500 text-sm">발사각</span>
-                    <span className="font-bold text-gray-800">{currentData.launchAngle || '-'}°</span>
+                 <div className="flex justify-between items-center p-3 border-b border-line-subtle">
+                    <span className="text-ink-medium text-sm">발사각</span>
+                    <span className="font-bold text-ink-high">{currentData.launchAngle || '-'}°</span>
                  </div>
-                 <div className="flex justify-between items-center p-3 border-b border-gray-100">
-                    <span className="text-gray-500 text-sm">백스핀</span>
-                    <span className="font-bold text-gray-800">{currentData.backSpin || '-'} rpm</span>
+                 <div className="flex justify-between items-center p-3 border-b border-line-subtle">
+                    <span className="text-ink-medium text-sm">백스핀</span>
+                    <span className="font-bold text-ink-high">{currentData.backSpin || '-'} rpm</span>
                  </div>
-                 <div className="flex justify-between items-center p-3 border-b border-gray-100">
-                    <span className="text-gray-500 text-sm">사이드스핀</span>
-                    <span className="font-bold text-gray-800">{currentData.sideSpin || '-'} rpm</span>
+                 <div className="flex justify-between items-center p-3 border-b border-line-subtle">
+                    <span className="text-ink-medium text-sm">사이드스핀</span>
+                    <span className="font-bold text-ink-high">{currentData.sideSpin || '-'} rpm</span>
                  </div>
-                 <div className="flex justify-between items-center p-3 border-b border-gray-100">
-                    <span className="text-gray-500 text-sm">정타율</span>
-                    <span className="font-bold text-gray-800">{currentData.smashFactor || '-'}</span>
+                 <div className="flex justify-between items-center p-3 border-b border-line-subtle">
+                    <span className="text-ink-medium text-sm">정타율</span>
+                    <span className="font-bold text-ink-high">{currentData.smashFactor || '-'}</span>
                  </div>
             </div>
         </div>
@@ -118,8 +118,8 @@ export const GolfDataVisualizer: React.FC<GolfDataVisualizerProps> = ({
       {historyData.length > 1 && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
              {/* Distance Chart */}
-             <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-                 <h4 className="font-bold text-gray-800 mb-6 border-l-4 border-blue-500 pl-3">비거리 변화 추이</h4>
+             <div className="bg-bg-raised p-6 rounded-xl shadow-sm border border-line-subtle">
+                 <h4 className="font-bold text-ink-high mb-6 border-l-4 border-blue-500 pl-3">비거리 변화 추이</h4>
                  <div className="h-64 w-full">
                      <ResponsiveContainer width="100%" height="100%">
                         <LineChart data={chartData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
@@ -138,8 +138,8 @@ export const GolfDataVisualizer: React.FC<GolfDataVisualizerProps> = ({
              </div>
 
              {/* Speed Chart */}
-             <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-                 <h4 className="font-bold text-gray-800 mb-6 border-l-4 border-emerald-700 pl-3">스피드 & 정타율</h4>
+             <div className="bg-bg-raised p-6 rounded-xl shadow-sm border border-line-subtle">
+                 <h4 className="font-bold text-ink-high mb-6 border-l-4 border-emerald-700 pl-3">스피드 & 정타율</h4>
                  <div className="h-64 w-full">
                      <ResponsiveContainer width="100%" height="100%">
                         <LineChart data={chartData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
