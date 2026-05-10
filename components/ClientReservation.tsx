@@ -215,26 +215,26 @@ export const ClientReservation: React.FC<ClientReservationProps> = ({ clientProf
   const getStatusColor = (status: ReservationStatus) => {
     switch (status) {
       case 'AVAILABLE':
-        return 'bg-gray-100 text-gray-700 border-gray-300';
+        return 'bg-bg-overlay text-ink-high border-line-default';
       case 'BLOCKED':
-        return 'bg-red-100 text-red-700 border-red-300';
+        return 'bg-red-500/15 text-red-300 border-red-500/30';
       case 'PENDING':
-        return 'bg-yellow-100 text-yellow-700 border-yellow-300';
+        return 'bg-amber-500/15 text-amber-300 border-amber-500/30';
       case 'CONFIRMED':
-        return 'bg-green-100 text-green-700 border-green-300';
+        return 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30';
       case 'CANCELLED':
-        return 'bg-red-100 text-red-700 border-red-300';
+        return 'bg-red-500/15 text-red-300 border-red-500/30';
       case 'COMPLETED':
-        return 'bg-blue-100 text-blue-700 border-blue-300';
+        return 'bg-interactive-500/15 text-interactive-300 border-interactive-500/30';
       default:
-        return 'bg-gray-100 text-gray-700 border-gray-300';
+        return 'bg-bg-overlay text-ink-high border-line-default';
     }
   };
 
   const getBorderColor = (status: ReservationStatus) => {
     switch (status) {
       case 'AVAILABLE':
-        return 'border-gray-100';
+        return 'border-line-subtle';
       case 'BLOCKED':
         return 'border-red-200';
       case 'PENDING':
@@ -246,7 +246,7 @@ export const ClientReservation: React.FC<ClientReservationProps> = ({ clientProf
       case 'COMPLETED':
         return 'border-blue-100';
       default:
-        return 'border-gray-100';
+        return 'border-line-subtle';
     }
   };
 
@@ -285,44 +285,48 @@ export const ClientReservation: React.FC<ClientReservationProps> = ({ clientProf
     : myReservations.filter(r => r.status === filterStatus);
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4">
-      <div className="max-w-4xl mx-auto">
+    <div className="min-h-screen bg-bg-base safe-top safe-bottom">
+      <div className="max-w-4xl mx-auto px-4 py-6">
         {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={onBack}
-              className="p-2 hover:bg-gray-200 rounded-lg transition"
-            >
-              <ArrowLeft className="w-5 h-5" />
-            </button>
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">레슨 예약</h1>
-              <p className="text-sm text-gray-600">
-                {clientProfile.designatedCoach ? `${clientProfile.designatedCoach} 코치` : '담당 코치를 지정해주세요'}
-              </p>
-            </div>
+        <div className="mb-6 flex items-center gap-3">
+          <button
+            onClick={onBack}
+            aria-label="뒤로 가기"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-line-default bg-bg-overlay/60 text-ink-high transition-colors hover:border-line-strong hover:bg-bg-overlay"
+          >
+            <ArrowLeft className="h-4 w-4" />
+          </button>
+          <div className="min-w-0">
+            <p className="text-2xs uppercase tracking-[0.18em] text-primary-300/80 font-semibold">
+              Reservation
+            </p>
+            <h1 className="text-display-sm font-semibold text-ink-high tracking-tight">레슨 예약</h1>
+            <p className="mt-0.5 text-sm text-ink-muted">
+              {clientProfile.designatedCoach ? `${clientProfile.designatedCoach} 코치` : '담당 코치를 지정해주세요'}
+            </p>
           </div>
         </div>
 
-        {/* View Toggle */}
-        <div className="flex gap-2 mb-6 bg-white rounded-lg p-1 shadow-sm">
+        {/* View Toggle — segmented control */}
+        <div className="mb-6 grid grid-cols-2 gap-1 rounded-xl bg-bg-inset p-1">
           <button
             onClick={() => setView('AVAILABLE')}
-            className={`flex-1 py-2 rounded-lg font-medium transition ${
+            aria-pressed={view === 'AVAILABLE'}
+            className={`h-10 rounded-lg text-sm font-medium transition-all ${
               view === 'AVAILABLE'
-                ? 'bg-blue-500 text-white'
-                : 'text-gray-600 hover:bg-gray-100'
+                ? 'bg-bg-overlay text-ink-high shadow-elev-1'
+                : 'text-ink-muted hover:text-ink-high'
             }`}
           >
             레슨 예약하기
           </button>
           <button
             onClick={() => setView('MY_RESERVATIONS')}
-            className={`flex-1 py-2 rounded-lg font-medium transition ${
+            aria-pressed={view === 'MY_RESERVATIONS'}
+            className={`h-10 rounded-lg text-sm font-medium transition-all ${
               view === 'MY_RESERVATIONS'
-                ? 'bg-blue-500 text-white'
-                : 'text-gray-600 hover:bg-gray-100'
+                ? 'bg-bg-overlay text-ink-high shadow-elev-1'
+                : 'text-ink-muted hover:text-ink-high'
             }`}
           >
             내 예약
@@ -333,19 +337,19 @@ export const ClientReservation: React.FC<ClientReservationProps> = ({ clientProf
         {view === 'AVAILABLE' ? (
           <div className="space-y-4">
             {!coachId ? (
-              <div className="bg-white rounded-lg shadow-sm p-12 text-center">
-                <User className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                <p className="text-gray-500 mb-2">담당 코치가 지정되지 않았습니다.</p>
-                <p className="text-sm text-gray-400">프로필에서 담당 코치를 지정해주세요.</p>
+              <div className="bg-bg-raised rounded-lg shadow-sm p-12 text-center">
+                <User className="w-16 h-16 text-ink-muted mx-auto mb-4" />
+                <p className="text-ink-medium mb-2">담당 코치가 지정되지 않았습니다.</p>
+                <p className="text-sm text-ink-muted">프로필에서 담당 코치를 지정해주세요.</p>
               </div>
             ) : (
               <>
                 {/* New Request Form */}
                 {!showRequestForm ? (
-                  <div className="bg-white rounded-lg shadow-sm p-8 text-center">
-                    <Calendar className="w-16 h-16 text-blue-500 mx-auto mb-4" />
-                    <h3 className="text-xl font-semibold text-gray-900 mb-2">레슨 예약하기</h3>
-                    <p className="text-gray-600 mb-6">
+                  <div className="bg-bg-raised rounded-lg shadow-sm p-8 text-center">
+                    <Calendar className="w-16 h-16 text-interactive-400 mx-auto mb-4" />
+                    <h3 className="text-xl font-semibold text-ink-high mb-2">레슨 예약하기</h3>
+                    <p className="text-ink-medium mb-6">
                       원하시는 날짜와 시간을 선택해주세요.<br />
                       블럭된 시간을 제외한 모든 시간에 예약을 요청할 수 있습니다.
                     </p>
@@ -354,11 +358,11 @@ export const ClientReservation: React.FC<ClientReservationProps> = ({ clientProf
                     </Button>
                   </div>
                 ) : (
-                  <div className="bg-white rounded-lg shadow-md p-6">
+                  <div className="bg-bg-raised rounded-lg shadow-md p-6">
                     <h2 className="text-lg font-semibold mb-4">레슨 예약 신청</h2>
                     <form onSubmit={handleRequestWithTime} className="space-y-4">
                       <div>
-                        <label htmlFor="request-date" className="block text-sm font-medium text-gray-700 mb-1">
+                        <label htmlFor="request-date" className="block text-sm font-medium text-ink-high mb-1">
                           날짜
                         </label>
                         <input
@@ -366,7 +370,7 @@ export const ClientReservation: React.FC<ClientReservationProps> = ({ clientProf
                           type="date"
                           value={requestDate}
                           onChange={(e) => handleDateChange(e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                          className="w-full px-3 py-2 border border-line-default rounded-lg focus:ring-2 focus:ring-blue-500"
                           required
                         />
                       </div>
@@ -374,7 +378,7 @@ export const ClientReservation: React.FC<ClientReservationProps> = ({ clientProf
                       {/* Time slot boxes shown after date is selected */}
                       {requestDate && (
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                          <label className="block text-sm font-medium text-ink-high mb-2">
                             예약 가능한 시간대
                           </label>
                           {loadingDateSlots ? (
@@ -401,11 +405,12 @@ export const ClientReservation: React.FC<ClientReservationProps> = ({ clientProf
                                     key={slot.id}
                                     type="button"
                                     data-testid={`time-slot-${slot.id}`}
+                                    aria-pressed={isSelected}
                                     onClick={() => handleTimeSlotSelect(slot)}
-                                    className={`p-3 rounded-lg border-2 text-center transition ${
+                                    className={`rounded-lg border p-3 text-center transition-all ${
                                       isSelected
-                                        ? 'bg-blue-500 text-white border-blue-500'
-                                        : 'bg-white text-gray-700 border-gray-300 hover:border-blue-400 hover:bg-blue-50'
+                                        ? 'border-primary-500/40 bg-primary-500/15 text-primary-200 shadow-elev-1'
+                                        : 'border-line-default bg-bg-raised text-ink-high hover:border-line-strong hover:bg-bg-overlay'
                                     }`}
                                   >
                                     <div className="font-medium text-sm">{startLabel}</div>
@@ -415,7 +420,7 @@ export const ClientReservation: React.FC<ClientReservationProps> = ({ clientProf
                               })}
                             </div>
                           ) : (
-                            <p className="text-sm text-gray-500 bg-gray-50 rounded-lg p-3">
+                            <p className="text-sm text-ink-medium bg-bg-base rounded-lg p-3">
                               선택한 날짜에 예약 가능한 시간대가 없습니다.<br />
                               아래에서 원하는 시간을 직접 입력하세요.
                             </p>
@@ -425,7 +430,7 @@ export const ClientReservation: React.FC<ClientReservationProps> = ({ clientProf
 
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                          <label htmlFor="request-start-time" className="block text-sm font-medium text-gray-700 mb-1">
+                          <label htmlFor="request-start-time" className="block text-sm font-medium text-ink-high mb-1">
                             시작 시간
                           </label>
                           <input
@@ -436,12 +441,12 @@ export const ClientReservation: React.FC<ClientReservationProps> = ({ clientProf
                               setRequestStartTime(e.target.value);
                               setSelectedDateSlot(null);
                             }}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                            className="w-full px-3 py-2 border border-line-default rounded-lg focus:ring-2 focus:ring-blue-500"
                             required
                           />
                         </div>
                         <div>
-                          <label htmlFor="request-end-time" className="block text-sm font-medium text-gray-700 mb-1">
+                          <label htmlFor="request-end-time" className="block text-sm font-medium text-ink-high mb-1">
                             종료 시간
                           </label>
                           <input
@@ -452,20 +457,20 @@ export const ClientReservation: React.FC<ClientReservationProps> = ({ clientProf
                               setRequestEndTime(e.target.value);
                               setSelectedDateSlot(null);
                             }}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                            className="w-full px-3 py-2 border border-line-default rounded-lg focus:ring-2 focus:ring-blue-500"
                             required
                           />
                         </div>
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                        <label className="block text-sm font-medium text-ink-high mb-1">
                           요청 메모 (선택사항)
                         </label>
                         <textarea
                           value={requestNotes}
                           onChange={(e) => setRequestNotes(e.target.value)}
                           placeholder="코치에게 전달할 메시지를 입력하세요"
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 resize-none"
+                          className="w-full px-3 py-2 border border-line-default rounded-lg focus:ring-2 focus:ring-blue-500 resize-none"
                           rows={3}
                         />
                       </div>
@@ -476,7 +481,7 @@ export const ClientReservation: React.FC<ClientReservationProps> = ({ clientProf
                         <button
                           type="button"
                           onClick={() => setShowRequestForm(false)}
-                          className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition"
+                          className="px-4 py-2 text-ink-high hover:bg-bg-overlay rounded-lg transition"
                         >
                           취소
                         </button>
@@ -490,13 +495,13 @@ export const ClientReservation: React.FC<ClientReservationProps> = ({ clientProf
         ) : (
           <div className="space-y-4">
             {/* Filter for My Reservations */}
-            <div className="bg-white rounded-lg shadow-sm p-4">
+            <div className="bg-bg-raised rounded-lg shadow-sm p-4">
               <div className="flex items-center gap-2 overflow-x-auto">
-                <Filter className="w-4 h-4 text-gray-500 flex-shrink-0" />
+                <Filter className="w-4 h-4 text-ink-medium flex-shrink-0" />
                 <button
                   onClick={() => setFilterStatus('ALL')}
                   className={`px-3 py-1 rounded-full text-sm font-medium transition whitespace-nowrap ${
-                    filterStatus === 'ALL' ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    filterStatus === 'ALL' ? 'bg-primary-500 text-white' : 'bg-bg-overlay text-ink-high hover:bg-bg-inset'
                   }`}
                 >
                   전체
@@ -504,7 +509,7 @@ export const ClientReservation: React.FC<ClientReservationProps> = ({ clientProf
                 <button
                   onClick={() => setFilterStatus('PENDING')}
                   className={`px-3 py-1 rounded-full text-sm font-medium transition whitespace-nowrap ${
-                    filterStatus === 'PENDING' ? 'bg-yellow-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    filterStatus === 'PENDING' ? 'bg-yellow-500 text-white' : 'bg-bg-overlay text-ink-high hover:bg-bg-inset'
                   }`}
                 >
                   대기중
@@ -512,7 +517,7 @@ export const ClientReservation: React.FC<ClientReservationProps> = ({ clientProf
                 <button
                   onClick={() => setFilterStatus('CONFIRMED')}
                   className={`px-3 py-1 rounded-full text-sm font-medium transition whitespace-nowrap ${
-                    filterStatus === 'CONFIRMED' ? 'bg-green-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    filterStatus === 'CONFIRMED' ? 'bg-green-500 text-white' : 'bg-bg-overlay text-ink-high hover:bg-bg-inset'
                   }`}
                 >
                   승인됨
@@ -523,12 +528,12 @@ export const ClientReservation: React.FC<ClientReservationProps> = ({ clientProf
             {loading ? (
               <div className="text-center py-12">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
-                <p className="text-gray-600 mt-4">로딩 중...</p>
+                <p className="text-ink-medium mt-4">로딩 중...</p>
               </div>
             ) : filteredReservations.length === 0 ? (
-              <div className="bg-white rounded-lg shadow-sm p-12 text-center">
-                <Calendar className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                <p className="text-gray-500">
+              <div className="bg-bg-raised rounded-lg shadow-sm p-12 text-center">
+                <Calendar className="w-16 h-16 text-ink-muted mx-auto mb-4" />
+                <p className="text-ink-medium">
                   {filterStatus === 'ALL' ? '예약 내역이 없습니다.' : `${getStatusText(filterStatus as ReservationStatus)} 예약이 없습니다.`}
                 </p>
               </div>
@@ -536,7 +541,7 @@ export const ClientReservation: React.FC<ClientReservationProps> = ({ clientProf
               filteredReservations.map((reservation) => (
                 <div
                   key={reservation.id}
-                  className={`bg-white rounded-lg shadow-sm p-4 border-l-4 ${getBorderColor(reservation.status)}`}
+                  className={`bg-bg-raised rounded-lg shadow-sm p-4 border-l-4 ${getBorderColor(reservation.status)}`}
                 >
                   <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                     <div className="flex-1">
@@ -545,29 +550,29 @@ export const ClientReservation: React.FC<ClientReservationProps> = ({ clientProf
                           {getStatusText(reservation.status)}
                         </span>
                         {reservation.lessonType && (
-                          <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs font-semibold">
+                          <span className="px-2 py-1 bg-interactive-500/15 text-interactive-300 rounded text-xs font-semibold">
                             {reservation.lessonType}
                           </span>
                         )}
                       </div>
-                      <div className="flex items-center gap-2 text-gray-700 mb-1">
-                        <Clock className="w-4 h-4 text-gray-500" />
+                      <div className="flex items-center gap-2 text-ink-high mb-1">
+                        <Clock className="w-4 h-4 text-ink-medium" />
                         <span className="font-medium">
                           {formatDateTime(reservation.startTime)} - {new Date(reservation.endTime).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}
                         </span>
                       </div>
-                      <div className="flex items-center gap-2 text-gray-600 text-sm">
-                        <User className="w-4 h-4 text-gray-400" />
+                      <div className="flex items-center gap-2 text-ink-medium text-sm">
+                        <User className="w-4 h-4 text-ink-muted" />
                         <span>{reservation.coachName} 코치</span>
                       </div>
                       {reservation.notes && (
-                        <p className="text-sm text-gray-600 mt-2 italic">{reservation.notes}</p>
+                        <p className="text-sm text-ink-medium mt-2 italic">{reservation.notes}</p>
                       )}
                     </div>
                     {(reservation.status === 'PENDING' || reservation.status === 'CONFIRMED') && (
                       <button
                         onClick={() => handleCancelReservation(reservation.id)}
-                        className="flex items-center gap-1 px-3 py-2 text-red-600 hover:bg-red-50 rounded-lg transition text-sm"
+                        className="flex items-center gap-1 px-3 py-2 text-red-400 hover:bg-red-500/10 rounded-lg transition text-sm"
                       >
                         <XCircle className="w-4 h-4" />
                         취소
@@ -584,37 +589,37 @@ export const ClientReservation: React.FC<ClientReservationProps> = ({ clientProf
       {/* Reservation Modal */}
       {selectedSlot && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+          <div className="bg-bg-raised rounded-lg shadow-xl max-w-md w-full p-6">
             <h2 className="text-xl font-bold mb-4">레슨 예약</h2>
             
             <div className="space-y-3 mb-6">
-              <div className="flex items-center gap-2 text-gray-700">
-                <Clock className="w-4 h-4 text-gray-500" />
+              <div className="flex items-center gap-2 text-ink-high">
+                <Clock className="w-4 h-4 text-ink-medium" />
                 <span className="text-sm">
                   {formatDateTime(selectedSlot.startTime)} - {new Date(selectedSlot.endTime).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}
                 </span>
               </div>
-              <div className="flex items-center gap-2 text-gray-700">
-                <User className="w-4 h-4 text-gray-500" />
+              <div className="flex items-center gap-2 text-ink-high">
+                <User className="w-4 h-4 text-ink-medium" />
                 <span className="text-sm">{selectedSlot.coachName} 코치</span>
               </div>
               {selectedSlot.lessonType && (
                 <div className="text-sm">
-                  <span className="text-gray-500">레슨 종류:</span>{' '}
+                  <span className="text-ink-medium">레슨 종류:</span>{' '}
                   <span className="font-medium">{selectedSlot.lessonType}</span>
                 </div>
               )}
             </div>
 
             <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-ink-high mb-2">
                 요청 메모 (선택사항)
               </label>
               <textarea
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 placeholder="코치에게 전달할 메시지를 입력하세요"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 resize-none"
+                className="w-full px-3 py-2 border border-line-default rounded-lg focus:ring-2 focus:ring-blue-500 resize-none"
                 rows={3}
               />
             </div>
@@ -628,7 +633,7 @@ export const ClientReservation: React.FC<ClientReservationProps> = ({ clientProf
                   setSelectedSlot(null);
                   setNotes('');
                 }}
-                className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition"
+                className="px-4 py-2 text-ink-high hover:bg-bg-overlay rounded-lg transition"
               >
                 취소
               </button>

@@ -121,7 +121,7 @@ describe('ClientReservation – date-based time slot selection', () => {
     const slotButton = await screen.findByTestId('time-slot-slot-a');
     fireEvent.click(slotButton);
 
-    expect(slotButton.className).toContain('bg-blue-500');
+    expect(slotButton.getAttribute('aria-pressed')).toBe('true');
   });
 
   it('deselects a slot when clicked a second time', async () => {
@@ -136,7 +136,7 @@ describe('ClientReservation – date-based time slot selection', () => {
     fireEvent.click(slotButton); // select
     fireEvent.click(slotButton); // deselect
 
-    expect(slotButton.className).not.toContain('bg-blue-500');
+    expect(slotButton.getAttribute('aria-pressed')).toBe('false');
   });
 
   it('pre-fills start and end time inputs when a slot is selected', async () => {
