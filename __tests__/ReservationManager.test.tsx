@@ -363,7 +363,7 @@ describe('ReservationManager – slot click interactions', () => {
     render(<ReservationManager coachProfile={COACH} onBack={vi.fn()} initialDate={TEST_DATE} />);
 
     const slotButton = await screen.findByTestId('slot-9');
-    expect(slotButton.className).toContain('bg-yellow');
+    expect(slotButton.className).toContain('bg-amber-500');
   });
 
   // ── CONFIRMED slot visual ───────────────────────────────────────────────────
@@ -376,7 +376,7 @@ describe('ReservationManager – slot click interactions', () => {
     render(<ReservationManager coachProfile={COACH} onBack={vi.fn()} initialDate={TEST_DATE} />);
 
     const slotButton = await screen.findByTestId('slot-9');
-    expect(slotButton.className).toContain('bg-green');
+    expect(slotButton.className).toContain('bg-emerald-500');
   });
 });
 
