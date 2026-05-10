@@ -1,7 +1,8 @@
 import React from 'react';
-import { Bell, X, Calendar, ChevronRight } from 'lucide-react';
+import { Bell, Calendar, ChevronRight } from 'lucide-react';
 import { NotificationMessage } from '../types';
 import { Button } from './Button';
+import { Modal } from './ui/Modal';
 
 interface CoachReservationNotificationModalProps {
   notifications: NotificationMessage[];
@@ -11,7 +12,8 @@ interface CoachReservationNotificationModalProps {
 
 /**
  * Modal popup shown to a coach on login when there are unread lesson
- * reservation request notifications.
+ * reservation request notifications. Built on the shared Modal primitive
+ * (focus trap, ESC, body-scroll lock, mobile bottom-sheet).
  */
 export const CoachReservationNotificationModal: React.FC<
   CoachReservationNotificationModalProps
@@ -23,64 +25,53 @@ export const CoachReservationNotificationModal: React.FC<
     onGoToReservations?.();
   };
 
+  const title = (
+    <span className="flex items-center gap-2">
+      <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary-500/15 text-primary-300">
+        <Bell className="h-5 w-5" />
+      </span>
+      새 레슨 예약 요청
+    </span>
+  );
+
+  const description = `${notifications.length}건의 미확인 요청이 있습니다.`;
+
+  const footer = (
+    <>
+      <Button variant="ghost" onClick={onClose}>
+        나중에 보기
+      </Button>
+      {onGoToReservations && (
+        <Button
+          onClick={handleGoToReservations}
+          icon={<ChevronRight className="h-4 w-4" />}
+        >
+          예약 요청 확인하기
+        </Button>
+      )}
+    </>
+  );
+
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
-      <div className="bg-bg-raised rounded-2xl w-full max-w-sm overflow-hidden shadow-2xl">
-        {/* Header */}
-        <div className="bg-gradient-to-br from-slate-700 to-slate-900 p-5 text-white relative">
-          <button
-            onClick={onClose}
-            className="absolute top-4 right-4 text-white/80 hover:text-white"
-            aria-label="닫기"
+    <Modal
+      open
+      onClose={onClose}
+      title={title}
+      description={description}
+      size="sm"
+      footer={footer}
+    >
+      <ul className="space-y-2 max-h-64 overflow-y-auto">
+        {notifications.map((n) => (
+          <li
+            key={n.id}
+            className="flex items-start gap-3 rounded-xl border border-line-subtle bg-bg-base p-3"
           >
-            <X className="w-5 h-5" />
-          </button>
-          <div className="flex items-center gap-3">
-            <div className="bg-white/20 rounded-xl p-2">
-              <Bell className="w-6 h-6 fill-current" />
-            </div>
-            <div>
-              <h2 className="text-lg font-bold">새 레슨 예약 요청</h2>
-              <p className="text-indigo-200 text-sm">
-                {notifications.length}건의 미확인 요청이 있습니다.
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Notification list */}
-        <div className="p-4 space-y-2 max-h-64 overflow-y-auto">
-          {notifications.map((n) => (
-            <div
-              key={n.id}
-              className="flex items-start gap-3 bg-bg-base rounded-xl p-3"
-            >
-              <Calendar className="w-4 h-4 text-indigo-500 mt-0.5 flex-shrink-0" />
-              <p className="text-sm text-ink-high leading-snug">{n.body}</p>
-            </div>
-          ))}
-        </div>
-
-        {/* Actions */}
-        <div className="p-4 flex flex-col gap-2 border-t border-line-subtle">
-          {onGoToReservations && (
-            <Button
-              onClick={handleGoToReservations}
-              className="w-full bg-slate-700 hover:bg-slate-800 text-white"
-              icon={<ChevronRight className="w-4 h-4" />}
-            >
-              예약 요청 확인하기
-            </Button>
-          )}
-          <Button
-            onClick={onClose}
-            variant="secondary"
-            className="w-full text-ink-medium border-line-default hover:bg-bg-base"
-          >
-            나중에 보기
-          </Button>
-        </div>
-      </div>
-    </div>
+            <Calendar className="mt-0.5 h-4 w-4 shrink-0 text-primary-400" />
+            <p className="text-sm leading-snug text-ink-high">{n.body}</p>
+          </li>
+        ))}
+      </ul>
+    </Modal>
   );
 };
