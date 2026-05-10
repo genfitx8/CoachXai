@@ -1340,39 +1340,41 @@ const AppContent: React.FC = () => {
   // --- COACH VIEW ---
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#05070A] via-[#070b12] to-[#0B1220] text-slate-100 flex flex-col font-sans">
+    <div className="min-h-screen bg-bg-base text-ink-high flex flex-col font-sans">
       {/* Header */}
-      <header className="bg-[#0A0F1A]/95 border-b border-slate-800 shadow-lg shadow-black/30 sticky top-0 z-40 backdrop-blur-xl">
+      <header className="bg-bg-base/80 border-b border-line-subtle sticky top-0 z-40 backdrop-blur-xl top-header-safe">
         <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
           {currentUser && 'id' in currentUser && (
-            <div
-              className="flex items-center gap-2 text-sm text-slate-200 hover:bg-slate-800 px-3 py-1.5 rounded-full cursor-pointer transition-colors"
+            <button
+              type="button"
               onClick={() => setShowProfileModal(true)}
+              className="flex items-center gap-2 text-sm text-ink-high hover:bg-line-subtle px-3 py-1.5 rounded-full transition-colors"
             >
-              <div className="bg-indigo-500/20 p-1 rounded-full text-indigo-300">
-                <User className="w-4 h-4" />
-              </div>
-              {/* Always visible Coach Name */}
-              <span className="font-bold">
+              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary-500/15 text-primary-300">
+                <User className="h-4 w-4" />
+              </span>
+              <span className="font-semibold">
                 {currentUser.name} {t('coach')}
               </span>
-            </div>
+            </button>
           )}
 
-          <div className="flex items-center gap-4 ml-auto">
+          <div className="flex items-center gap-2 ml-auto">
             <button
               onClick={toggleLanguage}
-              className="flex items-center gap-1 text-sm font-bold text-slate-300 hover:text-cyan-200 transition-colors bg-slate-900 px-2 py-1.5 rounded-lg border border-slate-700"
+              className="inline-flex items-center gap-1.5 rounded-full border border-line-default bg-bg-overlay/80 px-3 py-1.5 text-xs font-medium text-ink-medium backdrop-blur-md transition-colors hover:border-line-strong hover:text-ink-high"
             >
-              <Globe className="w-4 h-4" />
+              <Globe className="h-3.5 w-3.5" />
               {language.toUpperCase()}
             </button>
             <Button
               variant="ghost"
+              size="sm"
               onClick={handleLogout}
-              className="text-slate-400 hover:text-red-400"
+              aria-label="logout"
+              className="text-ink-muted hover:text-red-400"
             >
-              <LogOut className="w-5 h-5" />
+              <LogOut className="h-5 w-5" />
             </Button>
           </div>
         </div>
@@ -1382,51 +1384,90 @@ const AppContent: React.FC = () => {
       <main className="flex-1 max-w-7xl mx-auto w-full px-4 py-6 md:py-8">
         {coachView === 'LIST' && (
           <div className="space-y-6 animate-fade-in">
-            <section className="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-4 md:p-5 shadow-xl shadow-black/20">
-              <div className="mb-4">
-                <p className="text-[11px] uppercase tracking-[0.16em] text-indigo-300/80 font-semibold">Coach workspace</p>
-                <h2 className="text-xl font-bold text-slate-50">빠른 실행</h2>
+            {/* Welcome strip */}
+            <div className="px-1">
+              <p className="text-2xs uppercase tracking-[0.2em] text-primary-300/80 font-semibold">
+                Coach workspace
+              </p>
+              <h1 className="mt-1 text-display-sm font-semibold text-ink-high">
+                {currentUser && 'id' in currentUser
+                  ? `${currentUser.name} ${t('coach')}님, 환영합니다`
+                  : '환영합니다'}
+              </h1>
+              <p className="mt-1 text-sm text-ink-muted">
+                오늘의 레슨을 시작하거나, 학생을 관리하고, AI 코치와 인사이트를 나눠보세요.
+              </p>
+            </div>
+
+            {/* Hero CTA */}
+            <button
+              type="button"
+              onClick={() => setCoachView('NEW')}
+              data-testid="start-lesson-btn"
+              aria-label="Lesson start"
+              className="group relative w-full overflow-hidden rounded-2xl border border-primary-400/30 bg-gradient-to-br from-primary-500 to-primary-700 p-6 text-left shadow-elev-3 transition-all hover:shadow-elev-4 hover:-translate-y-0.5 active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-400 focus-visible:ring-offset-2 focus-visible:ring-offset-bg-base"
+            >
+              <div className="absolute -right-6 -top-6 h-32 w-32 rounded-full bg-white/10 blur-2xl" aria-hidden="true" />
+              <div className="relative flex items-center gap-4">
+                <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white/15 backdrop-blur-sm shadow-glow">
+                  <Play className="h-7 w-7 fill-white text-white" />
+                </span>
+                <div className="flex-1">
+                  <p className="text-2xs uppercase tracking-[0.18em] text-primary-100/90 font-semibold">
+                    Quick start
+                  </p>
+                  <p className="mt-0.5 text-xl font-semibold text-white">Lesson start</p>
+                  <p className="mt-1 text-sm text-primary-50/85">
+                    학생을 선택하고 즉시 레슨 기록을 시작합니다.
+                  </p>
+                </div>
+                <ChevronRight className="h-5 w-5 shrink-0 text-white/80 transition-transform group-hover:translate-x-1" aria-hidden="true" />
               </div>
+            </button>
 
-              {/* ── Home actions ─────────────────────────────────────────────── */}
-              <div className="space-y-3">
-                <Button
-                  onClick={() => setCoachView('NEW')}
-                  data-testid="start-lesson-btn"
-                  className="w-full py-4 text-base rounded-2xl border border-indigo-500/40 shadow-lg shadow-indigo-900/30 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 justify-center"
-                  icon={<Play className="w-5 h-5 fill-current" />}
+            {/* Secondary actions */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {[
+                {
+                  testId: 'students-entry-btn',
+                  onClick: () => setCoachView('CLIENTS'),
+                  label: 'Student',
+                  desc: '학생 명단·기록 관리',
+                  icon: <User className="h-5 w-5" />,
+                },
+                {
+                  testId: 'lesson-upload-entry-btn',
+                  onClick: () => setCoachView('LESSON_UPLOAD'),
+                  label: 'Upload Swing Video',
+                  desc: '스윙 영상을 업로드해 분석',
+                  icon: <Play className="h-5 w-5" />,
+                },
+                {
+                  testId: 'coachx-entry-btn',
+                  onClick: () => setCoachView('COACHX'),
+                  label: 'coachx ai',
+                  desc: 'AI 코칭 인사이트',
+                  icon: <Sparkles className="h-5 w-5" />,
+                },
+              ].map((action) => (
+                <button
+                  key={action.testId}
+                  type="button"
+                  onClick={action.onClick}
+                  data-testid={action.testId}
+                  aria-label={action.label}
+                  className="group flex h-full flex-col rounded-2xl border border-line-default bg-bg-raised p-5 text-left shadow-elev-1 transition-all hover:-translate-y-0.5 hover:border-line-strong hover:shadow-elev-3 active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-400 focus-visible:ring-offset-2 focus-visible:ring-offset-bg-base"
                 >
-                  Lesson start
-                </Button>
-
-                <Button
-                  onClick={() => setCoachView('CLIENTS')}
-                  data-testid="students-entry-btn"
-                  className="w-full py-4 text-base rounded-2xl border border-cyan-500/30 shadow-lg shadow-slate-900/40 bg-gradient-to-r from-slate-900 to-slate-800 hover:from-slate-800 hover:to-slate-700 justify-center"
-                  icon={<User className="w-5 h-5" />}
-                >
-                  Student
-                </Button>
-
-                <Button
-                  onClick={() => setCoachView('LESSON_UPLOAD')}
-                  data-testid="lesson-upload-entry-btn"
-                  className="w-full py-4 text-base rounded-2xl border border-violet-500/30 shadow-lg shadow-slate-900/40 bg-gradient-to-r from-slate-900 to-slate-800 hover:from-slate-800 hover:to-slate-700 justify-center"
-                  icon={<Play className="w-5 h-5" />}
-                >
-                  Upload Swing Video
-                </Button>
-
-                <Button
-                  onClick={() => setCoachView('COACHX')}
-                  data-testid="coachx-entry-btn"
-                  className="w-full py-4 text-base rounded-2xl border border-slate-600/70 shadow-lg shadow-slate-900/40 bg-gradient-to-r from-slate-800 to-slate-700 hover:from-slate-700 hover:to-slate-600 justify-center"
-                  icon={<Sparkles className="w-5 h-5" />}
-                >
-                  coachx ai
-                </Button>
-              </div>
-            </section>
+                  <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary-500/10 text-primary-300 transition-colors group-hover:bg-primary-500/15">
+                    {action.icon}
+                  </span>
+                  <p className="mt-4 text-base font-semibold text-ink-high">
+                    {action.label}
+                  </p>
+                  <p className="mt-1 text-xs text-ink-muted">{action.desc}</p>
+                </button>
+              ))}
+            </div>
           </div>
         )}
 
