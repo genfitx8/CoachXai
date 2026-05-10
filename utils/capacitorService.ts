@@ -8,6 +8,9 @@
  */
 
 import { isNative, isAndroid, isIOS } from './platformUtils';
+import { createLogger } from './logger';
+
+const log = createLogger('capacitor');
 
 // ─── App theme constants ──────────────────────────────────────────────────────
 // Keep in sync with the `theme_color` in public/manifest.json and index.html.
@@ -30,7 +33,7 @@ export async function initStatusBar(): Promise<void> {
       await StatusBar.setBackgroundColor({ color: APP_THEME_COLOR });
     }
   } catch (e) {
-    console.warn('[CapacitorService] StatusBar init failed:', e);
+    log.warn('StatusBar init failed:', e);
   }
 }
 
@@ -45,7 +48,7 @@ export async function hideSplashScreen(): Promise<void> {
     const { SplashScreen } = await import('@capacitor/splash-screen');
     await SplashScreen.hide({ fadeOutDuration: 300 });
   } catch (e) {
-    console.warn('[CapacitorService] SplashScreen hide failed:', e);
+    log.warn('SplashScreen hide failed:', e);
   }
 }
 
@@ -85,7 +88,7 @@ export async function registerBackButtonHandler(
     });
     _backButtonListenerRegistered = true;
   } catch (e) {
-    console.warn('[CapacitorService] App back button listener failed:', e);
+    log.warn('App back button listener failed:', e);
   }
 }
 
@@ -116,7 +119,7 @@ export async function registerPushNotifications(
     // Request permission
     const permission = await PushNotifications.requestPermissions();
     if (permission.receive !== 'granted') {
-      console.warn('[CapacitorService] Push notification permission denied.');
+      log.warn('Push notification permission denied.');
       return;
     }
 
@@ -130,7 +133,7 @@ export async function registerPushNotifications(
 
     // Handle registration errors
     await PushNotifications.addListener('registrationError', (error) => {
-      console.error('[CapacitorService] Push registration error:', error.error);
+      log.error('Push registration error:', error.error);
     });
 
     // Handle foreground notifications
@@ -147,7 +150,7 @@ export async function registerPushNotifications(
       );
     }
   } catch (e) {
-    console.warn('[CapacitorService] Push notification setup failed:', e);
+    log.warn('Push notification setup failed:', e);
   }
 }
 

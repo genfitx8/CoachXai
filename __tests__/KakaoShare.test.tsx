@@ -11,6 +11,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import React from 'react';
+import { LanguageProvider } from '../components/LanguageContext';
+
+const renderWithLanguage = (ui: React.ReactElement) =>
+  render(<LanguageProvider>{ui}</LanguageProvider>);
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
 
@@ -131,7 +135,7 @@ describe('LessonDetail – KakaoTalk share button', () => {
   it('renders the KakaoTalk share button for COACH role', async () => {
     const { LessonDetail } = await import('../components/LessonDetail');
 
-    render(
+    renderWithLanguage(
       <LessonDetail
         lesson={mockLesson as Parameters<typeof LessonDetail>[0]['lesson']}
         role="COACH"
@@ -147,7 +151,7 @@ describe('LessonDetail – KakaoTalk share button', () => {
   it('does NOT render the KakaoTalk share button for CLIENT role', async () => {
     const { LessonDetail } = await import('../components/LessonDetail');
 
-    render(
+    renderWithLanguage(
       <LessonDetail
         lesson={{ ...mockLesson, createdBy: 'CLIENT' } as Parameters<typeof LessonDetail>[0]['lesson']}
         role="CLIENT"
@@ -164,7 +168,7 @@ describe('LessonDetail – KakaoTalk share button', () => {
 
     const { LessonDetail } = await import('../components/LessonDetail');
 
-    render(
+    renderWithLanguage(
       <LessonDetail
         lesson={mockLesson as Parameters<typeof LessonDetail>[0]['lesson']}
         role="COACH"
@@ -196,7 +200,7 @@ describe('LessonDetail – KakaoTalk share button', () => {
 
     const { LessonDetail } = await import('../components/LessonDetail');
 
-    render(
+    renderWithLanguage(
       <LessonDetail
         lesson={mockLesson as Parameters<typeof LessonDetail>[0]['lesson']}
         role="COACH"

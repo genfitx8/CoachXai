@@ -1,4 +1,7 @@
 import { DrawingFrame } from '../types';
+import { createLogger } from '../utils/logger';
+
+const log = createLogger('drawing');
 
 class DrawingService {
   private drawingFrames: Map<number, string> = new Map();
@@ -55,8 +58,8 @@ class DrawingService {
     // This method should store drawing data in a subcollection under the lesson document
     // Example structure: lessons/{lessonId}/drawings/{drawingId}
     // For now, we log the data that would be saved
-    console.log('Drawing data to save for lesson:', lessonId);
-    console.log('Number of frames:', drawings.length);
+    log.info('Drawing data to save for lesson:', lessonId);
+    log.info('Number of frames:', drawings.length);
     
     // When implementing, use firebaseService to save to Firestore
     // Example:

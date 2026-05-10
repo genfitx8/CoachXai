@@ -14,6 +14,9 @@
 import { PromptTarget, PromptTemplate, PromptAttachment } from '../types';
 import { storageService } from './storage';
 import { firebaseService } from './firebase';
+import { createLogger } from '../utils/logger';
+
+const log = createLogger('prompt');
 
 // ---------------------------------------------------------------------------
 // Built-in fallback prompts
@@ -91,7 +94,7 @@ export const promptService = {
         return template.systemPrompt.trim();
       }
     } catch (e) {
-      console.warn(`[promptService] Could not load managed prompt for "${target}":`, e);
+      log.warn(`[promptService] Could not load managed prompt for "${target}":`, e);
     }
     return BUILTIN_SYSTEM_PROMPTS[target];
   },

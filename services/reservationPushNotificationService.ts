@@ -1,6 +1,9 @@
 import { LessonReservation, BayReservation, BranchAdminAccount, CoachProfile } from '../types';
 import { firebaseService } from './firebase';
 import { storageService } from './storage';
+import { createLogger } from '../utils/logger';
+
+const log = createLogger('pushNotification');
 
 // ─── Duplicate-notification guard ─────────────────────────────────────────────
 // Tracks notification keys sent within the current app session so the same
@@ -63,7 +66,7 @@ async function notifyToken(
   try {
     await sendExpoPush(token, title, body);
   } catch (e) {
-    console.error('[PushNotification] Delivery failed:', e);
+    log.error('[PushNotification] Delivery failed:', e);
   }
 }
 
@@ -101,7 +104,7 @@ export async function sendLessonReservationNotifications(
       );
     }
   } catch (e) {
-    console.error('[PushNotification] Failed to notify coach:', e);
+    log.error('[PushNotification] Failed to notify coach:', e);
   }
 
   // Notify branch admins (only when branchId is available on the reservation)
@@ -121,7 +124,7 @@ export async function sendLessonReservationNotifications(
       );
     }
   } catch (e) {
-    console.error('[PushNotification] Failed to notify branch admins:', e);
+    log.error('[PushNotification] Failed to notify branch admins:', e);
   }
 }
 
@@ -160,7 +163,7 @@ export async function sendBayReservationNotifications(
         )
     );
   } catch (e) {
-    console.error('[PushNotification] Failed to notify branch admins:', e);
+    log.error('[PushNotification] Failed to notify branch admins:', e);
   }
 }
 
