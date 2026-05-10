@@ -1,5 +1,8 @@
 import React, { useState } from 'react';
 import { Button } from './Button';
+import { Card, CardTitle } from './ui/Card';
+import { Input } from './ui/Input';
+import { Modal } from './ui/Modal';
 import { authService } from '../services/authService';
 import {
   Activity,
@@ -7,7 +10,6 @@ import {
   Lock,
   User,
   Smartphone,
-  ArrowRight,
   CheckCircle,
   CheckSquare,
   Square,
@@ -17,7 +19,6 @@ import {
   Globe,
   ChevronDown,
   HelpCircle,
-  X,
   AlertCircle,
 } from 'lucide-react';
 import { useLanguage } from './LanguageContext';
@@ -32,6 +33,37 @@ interface AuthScreenProps {
   initialMode?: 'LOGIN' | 'SIGNUP';
 }
 
+// ─── Local helpers ────────────────────────────────────────────────────────────
+
+const LANGUAGES = [
+  { code: 'ko' as const, label: '한국어',   flag: '🇰🇷' },
+  { code: 'en' as const, label: 'English',  flag: '🇺🇸' },
+  { code: 'ja' as const, label: '日本語',   flag: '🇯🇵' },
+  { code: 'th' as const, label: 'ภาษาไทย', flag: '🇹🇭' },
+];
+
+const ErrorAlert: React.FC<{ message: string }> = ({ message }) => (
+  <div
+    role="alert"
+    className="mb-4 flex items-center gap-2 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2.5 text-sm text-red-300"
+  >
+    <AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
+    <span>{message}</span>
+  </div>
+);
+
+const SuccessAlert: React.FC<{ message: string }> = ({ message }) => (
+  <div
+    role="status"
+    className="mb-4 flex items-center gap-2 rounded-lg border border-primary-500/30 bg-primary-500/10 px-3 py-2.5 text-sm text-primary-300"
+  >
+    <CheckCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
+    <span>{message}</span>
+  </div>
+);
+
+// ─── Component ────────────────────────────────────────────────────────────────
+
 export const AuthScreen: React.FC<AuthScreenProps> = ({
   onLoginSuccess,
   initialMode = 'LOGIN',
@@ -40,9 +72,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
   const [activeTab, setActiveTab] = useState<'COACH' | 'CLIENT'>(() => {
     try {
       const savedTab = localStorage.getItem(AUTH_USER_TYPE_STORAGE_KEY);
-      return savedTab === 'CLIENT' || savedTab === 'COACH'
-        ? savedTab
-        : 'COACH';
+      return savedTab === 'CLIENT' || savedTab === 'COACH' ? savedTab : 'COACH';
     } catch {
       return 'COACH';
     }
@@ -52,10 +82,8 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
   const [isBranchAdminMode, setIsBranchAdminMode] = useState(false);
   const [showLangMenu, setShowLangMenu] = useState(false);
 
-  // Unified State for Login/Signup
   const [isSignup, setIsSignup] = useState(initialMode === 'SIGNUP');
 
-  // Find Account State
   const [showFindAccount, setShowFindAccount] = useState(false);
   const [findTab, setFindTab] = useState<'EMAIL' | 'PASSWORD'>('EMAIL');
   const [findResult, setFindResult] = useState<{
@@ -63,13 +91,11 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
     message: string;
   } | null>(null);
 
-  // Form Fields
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
 
-  // Branch Admin Form Fields
   const [branchAdminLoginId, setBranchAdminLoginId] = useState('');
   const [branchAdminPassword, setBranchAdminPassword] = useState('');
 
@@ -96,7 +122,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
     try {
       localStorage.setItem(AUTH_USER_TYPE_STORAGE_KEY, tab);
     } catch {
-      // localStorage가 차단된 환경(예: private mode)에서도 로그인 동작은 계속 가능해야 함
+      // localStorage가 차단된 환경(예: private mode)에서도 로그인은 계속 가능해야 함
     }
     setIsSignup(false);
     resetForm();
@@ -134,7 +160,6 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
     e.preventDefault();
     setError(null);
     setIsLoading(true);
-
     try {
       const profile = await authService.signup(
         signupRole,
@@ -143,7 +168,6 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
         password,
         phone
       );
-
       if (signupRole === 'COACH') {
         setSuccessMsg(t('signup_success_coach'));
         setTimeout(() => onLoginSuccess('COACH', profile, isAutoLogin), 1000);
@@ -162,7 +186,6 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
     e.preventDefault();
     setError(null);
     setIsLoading(true);
-
     try {
       const profile = await authService.loginClient(email, password);
       onLoginSuccess('CLIENT', profile, isAutoLogin);
@@ -179,7 +202,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
     setIsLoading(true);
     try {
       await authService.loginAdmin(email, password);
-      onLoginSuccess('ADMIN', {}, false); // Admin doesn't use auto login for security
+      onLoginSuccess('ADMIN', {}, false);
     } catch (err: any) {
       setError(err as string);
     } finally {
@@ -208,124 +231,87 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
     e.preventDefault();
     setIsLoading(true);
     setFindResult(null);
-
     try {
       if (findTab === 'EMAIL') {
         if (!name || !phone) {
-          setFindResult({
-            type: 'error',
-            message: '이름과 전화번호를 입력해주세요.',
-          });
+          setFindResult({ type: 'error', message: '이름과 전화번호를 입력해주세요.' });
           return;
         }
         const result = await authService.findEmail(name, phone, activeTab);
         if (result) {
-          setFindResult({
-            type: 'success',
-            message: `${t('result_email')} ${result}`,
-          });
+          setFindResult({ type: 'success', message: `${t('result_email')} ${result}` });
         } else {
           setFindResult({ type: 'error', message: t('not_found') });
         }
       } else {
         if (!email || !phone) {
-          setFindResult({
-            type: 'error',
-            message: '이메일과 전화번호를 입력해주세요.',
-          });
+          setFindResult({ type: 'error', message: '이메일과 전화번호를 입력해주세요.' });
           return;
         }
         const result = await authService.findPassword(email, phone, activeTab);
         if (result) {
-          setFindResult({
-            type: 'success',
-            message: `${t('result_pw')} ${result}`,
-          });
+          setFindResult({ type: 'success', message: `${t('result_pw')} ${result}` });
         } else {
           setFindResult({ type: 'error', message: t('not_found') });
         }
       }
-    } catch (e) {
+    } catch {
       setFindResult({ type: 'error', message: '오류가 발생했습니다.' });
     } finally {
       setIsLoading(false);
     }
   };
 
+  const currentLanguage = LANGUAGES.find((l) => l.code === language) ?? LANGUAGES[0];
+
+  // ─── Branch admin view ─────────────────────────────────────────────────────
   if (isBranchAdminMode) {
     return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
-        <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden animate-fade-in">
-          <div className="bg-emerald-700 p-8 text-center border-b border-emerald-800">
-            <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto mb-4 shadow-md">
-              <PenTool className="w-8 h-8 text-emerald-700" />
+      <div className="min-h-screen bg-bg-base flex items-center justify-center p-4 safe-top safe-bottom">
+        <Card variant="elevated" padding="none" className="w-full max-w-md overflow-hidden">
+          <div className="bg-gradient-to-br from-primary-700 to-primary-900 px-8 py-10 text-center">
+            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-white/10 backdrop-blur-sm">
+              <PenTool className="h-7 w-7 text-white" />
             </div>
-            <h1 className="text-2xl font-bold text-white">지점 관리자 로그인</h1>
-            <p className="text-emerald-100 text-sm mt-1">Branch Admin Login</p>
+            <h1 className="text-display-sm font-semibold text-white">지점 관리자 로그인</h1>
+            <p className="mt-1 text-sm text-primary-100">Branch Admin Login</p>
           </div>
 
-          <div className="p-8">
-            {error && (
-              <div className="mb-6 bg-red-50 text-red-600 text-sm p-3 rounded-lg flex items-center gap-2">
-                <span className="font-bold flex-shrink-0 w-5 h-5 bg-red-100 rounded-full flex items-center justify-center">
-                  !
-                </span>
-                {error}
-              </div>
-            )}
+          <div className="p-7">
+            {error && <ErrorAlert message={error} />}
 
             <form onSubmit={handleBranchAdminSubmit} className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-gray-500 mb-1 ml-1 uppercase">
-                  로그인 아이디
-                </label>
-                <div className="relative">
-                  <User className="absolute left-3 top-2.5 w-5 h-5 text-gray-400" />
-                  <input
-                    type="text"
-                    value={branchAdminLoginId}
-                    onChange={(e) => setBranchAdminLoginId(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 bg-white text-gray-900 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-700 focus:border-emerald-700 outline-none transition-all"
-                    placeholder="예: 강남점:mina"
-                  />
-                </div>
-                <p className="text-[10px] text-gray-400 mt-1 ml-1">
-                  형식: 지점이름:유저이름 (예: 강남점:mina)
-                </p>
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-gray-500 mb-1 ml-1 uppercase">
-                  {t('password')}
-                </label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-2.5 w-5 h-5 text-gray-400" />
-                  <input
-                    type="password"
-                    value={branchAdminPassword}
-                    onChange={(e) => setBranchAdminPassword(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 bg-white text-gray-900 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-700 focus:border-emerald-700 outline-none transition-all"
-                    placeholder="••••••••"
-                  />
-                </div>
-              </div>
+              <Input
+                label="로그인 아이디"
+                value={branchAdminLoginId}
+                onChange={(e) => setBranchAdminLoginId(e.target.value)}
+                placeholder="예: 강남점:mina"
+                helper="형식: 지점이름:유저이름 (예: 강남점:mina)"
+                leading={<User className="h-4 w-4" />}
+              />
+              <Input
+                label={t('password')}
+                type="password"
+                value={branchAdminPassword}
+                onChange={(e) => setBranchAdminPassword(e.target.value)}
+                placeholder="••••••••"
+                leading={<Lock className="h-4 w-4" />}
+              />
 
-              <div
-                className="flex items-center gap-2 cursor-pointer select-none"
+              <button
+                type="button"
                 onClick={() => setIsAutoLogin(!isAutoLogin)}
+                className="flex items-center gap-2 text-sm text-ink-medium hover:text-ink-high transition-colors"
               >
                 {isAutoLogin ? (
-                  <CheckSquare className="w-5 h-5 text-emerald-600" />
+                  <CheckSquare className="h-5 w-5 text-primary-400" />
                 ) : (
-                  <Square className="w-5 h-5 text-gray-300" />
+                  <Square className="h-5 w-5 text-ink-faint" />
                 )}
-                <span className="text-sm text-gray-600">{t('auto_login')}</span>
-              </div>
+                {t('auto_login')}
+              </button>
 
-              <Button
-                type="submit"
-                className="w-full py-3 mt-4 bg-emerald-700 hover:bg-emerald-800"
-                isLoading={isLoading}
-              >
+              <Button type="submit" fullWidth size="lg" isLoading={isLoading}>
                 지점 관리자 로그인
               </Button>
             </form>
@@ -336,76 +322,56 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
                   setIsBranchAdminMode(false);
                   resetForm();
                 }}
-                className="text-gray-400 text-sm hover:text-gray-600 flex items-center justify-center gap-1 mx-auto"
+                className="inline-flex items-center gap-1 text-sm text-ink-muted hover:text-ink-high transition-colors"
               >
-                <ArrowLeft className="w-3 h-3" /> {t('back')}
+                <ArrowLeft className="h-3.5 w-3.5" /> {t('back')}
               </button>
             </div>
           </div>
-        </div>
+        </Card>
       </div>
     );
   }
 
+  // ─── Admin view ───────────────────────────────────────────────────────────
   if (isAdminMode) {
     return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
-        <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden animate-fade-in">
-          <div className="bg-red-600 p-8 text-center border-b border-red-700">
-            <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto mb-4 shadow-md">
-              <ShieldCheck className="w-8 h-8 text-red-600" />
+      <div className="min-h-screen bg-bg-base flex items-center justify-center p-4 safe-top safe-bottom">
+        <Card variant="elevated" padding="none" className="w-full max-w-md overflow-hidden">
+          <div className="bg-gradient-to-br from-red-700 to-red-900 px-8 py-10 text-center">
+            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-white/10 backdrop-blur-sm">
+              <ShieldCheck className="h-7 w-7 text-white" />
             </div>
-            <h1 className="text-2xl font-bold text-white">
-              {t('admin_login')}
-            </h1>
-            <p className="text-red-100 text-sm mt-1">{t('admin_only')}</p>
+            <h1 className="text-display-sm font-semibold text-white">{t('admin_login')}</h1>
+            <p className="mt-1 text-sm text-red-100">{t('admin_only')}</p>
           </div>
 
-          <div className="p-8">
-            {error && (
-              <div className="mb-6 bg-red-50 text-red-600 text-sm p-3 rounded-lg flex items-center gap-2">
-                <span className="font-bold flex-shrink-0 w-5 h-5 bg-red-100 rounded-full flex items-center justify-center">
-                  !
-                </span>
-                {error}
-              </div>
-            )}
+          <div className="p-7">
+            {error && <ErrorAlert message={error} />}
 
             <form onSubmit={handleAdminSubmit} className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-gray-500 mb-1 ml-1 uppercase">
-                  {t('email')}
-                </label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-2.5 w-5 h-5 text-gray-400" />
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 bg-white text-gray-900 border border-gray-300 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none transition-all"
-                    placeholder="admin@swingnote.com"
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-gray-500 mb-1 ml-1 uppercase">
-                  {t('password')}
-                </label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-2.5 w-5 h-5 text-gray-400" />
-                  <input
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 bg-white text-gray-900 border border-gray-300 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none transition-all"
-                    placeholder="••••••••"
-                  />
-                </div>
-              </div>
+              <Input
+                label={t('email')}
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="admin@swingnote.com"
+                leading={<Mail className="h-4 w-4" />}
+              />
+              <Input
+                label={t('password')}
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                leading={<Lock className="h-4 w-4" />}
+              />
 
               <Button
                 type="submit"
-                className="w-full py-3 mt-4 bg-gray-900 hover:bg-black"
+                variant="danger"
+                fullWidth
+                size="lg"
                 isLoading={isLoading}
               >
                 {t('admin_login')}
@@ -418,482 +384,393 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
                   setIsAdminMode(false);
                   resetForm();
                 }}
-                className="text-gray-400 text-sm hover:text-gray-600 flex items-center justify-center gap-1 mx-auto"
+                className="inline-flex items-center gap-1 text-sm text-ink-muted hover:text-ink-high transition-colors"
               >
-                <ArrowLeft className="w-3 h-3" /> {t('back')}
+                <ArrowLeft className="h-3.5 w-3.5" /> {t('back')}
               </button>
             </div>
           </div>
-        </div>
+        </Card>
       </div>
     );
   }
 
+  // ─── Main login / signup view ─────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#05070A] via-[#080C14] to-[#0D1321] flex items-center justify-center p-4 relative">
-      {/* Language Switcher Dropdown */}
-      <div className="absolute top-4 right-4 z-50">
+    <div className="relative min-h-screen overflow-hidden bg-bg-base safe-top safe-bottom">
+      {/* Ambient brand glow — quiet, off-centre, behind the card */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0"
+      >
+        <div className="absolute -top-32 left-1/2 h-[420px] w-[420px] -translate-x-1/2 rounded-full bg-primary-600/15 blur-3xl" />
+        <div className="absolute bottom-0 right-0 h-[360px] w-[360px] translate-x-1/3 translate-y-1/3 rounded-full bg-primary-800/20 blur-3xl" />
+      </div>
+
+      {/* Language switcher — top right */}
+      <div className="absolute right-4 top-4 z-30">
         <button
-          onClick={() => setShowLangMenu(!showLangMenu)}
-          className="bg-slate-900/70 backdrop-blur-md text-slate-100 px-3 py-2 rounded-full text-xs font-bold flex items-center gap-2 hover:bg-slate-800 transition-all shadow-sm border border-slate-700"
+          type="button"
+          onClick={() => setShowLangMenu((v) => !v)}
+          className="inline-flex items-center gap-1.5 rounded-full border border-line-default bg-bg-overlay/80 px-3 py-1.5 text-xs font-medium text-ink-medium backdrop-blur-md transition-colors hover:border-line-strong hover:text-ink-high"
         >
-          <Globe className="w-3.5 h-3.5" />
-          <span>
-            {language === 'ko'
-              ? '한국어'
-              : language === 'en'
-              ? 'English'
-              : language === 'ja'
-              ? '日本語'
-              : 'ภาษาไทย'}
-          </span>
+          <Globe className="h-3.5 w-3.5" aria-hidden="true" />
+          <span>{currentLanguage.label}</span>
           <ChevronDown
-            className={`w-3 h-3 transition-transform ${
-              showLangMenu ? 'rotate-180' : ''
-            }`}
+            className={`h-3 w-3 transition-transform ${showLangMenu ? 'rotate-180' : ''}`}
+            aria-hidden="true"
           />
         </button>
 
         {showLangMenu && (
-          <div className="absolute right-0 mt-2 w-32 bg-slate-900/95 backdrop-blur-xl rounded-xl shadow-xl border border-slate-700 overflow-hidden animate-fade-in py-1">
-            {[
-              { code: 'ko', label: '한국어', flag: '🇰🇷' },
-              { code: 'en', label: 'English', flag: '🇺🇸' },
-              { code: 'ja', label: '日本語', flag: '🇯🇵' },
-              { code: 'th', label: 'ภาษาไทย', flag: '🇹🇭' },
-            ].map((lang) => (
-              <button
-                key={lang.code}
-                onClick={() => {
-                  setLanguage(lang.code as any);
-                  setShowLangMenu(false);
-                }}
-                  className={`w-full text-left px-4 py-3 text-xs font-bold flex items-center gap-2 hover:bg-slate-800 transition-colors ${
-                    language === lang.code
-                      ? 'text-indigo-200 bg-indigo-500/20'
-                      : 'text-slate-200'
+          <div className="absolute right-0 mt-2 w-36 overflow-hidden rounded-xl border border-line-default bg-bg-overlay py-1 shadow-elev-3 backdrop-blur-xl animate-scale-in">
+            {LANGUAGES.map((lang) => {
+              const active = language === lang.code;
+              return (
+                <button
+                  key={lang.code}
+                  type="button"
+                  onClick={() => {
+                    setLanguage(lang.code as any);
+                    setShowLangMenu(false);
+                  }}
+                  className={`flex w-full items-center gap-2 px-3 py-2.5 text-left text-xs font-medium transition-colors ${
+                    active
+                      ? 'bg-primary-500/15 text-primary-200'
+                      : 'text-ink-medium hover:bg-line-subtle hover:text-ink-high'
                   }`}
-              >
-                <span className="text-sm">{lang.flag}</span>
-                {lang.label}
-              </button>
-            ))}
+                >
+                  <span className="text-sm" aria-hidden="true">{lang.flag}</span>
+                  {lang.label}
+                </button>
+              );
+            })}
           </div>
         )}
       </div>
 
-      <div className="bg-slate-900/85 w-full max-w-md rounded-2xl shadow-2xl overflow-hidden animate-fade-in-up border border-slate-700">
-        <div className="bg-gradient-to-br from-slate-900 to-indigo-950 p-8 text-center border-b border-slate-700">
-          <div className="w-16 h-16 bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm">
-            <Activity className="w-8 h-8 text-indigo-300" />
-          </div>
-          <h1 className="text-2xl font-bold text-white">CoachX AI</h1>
-          <p className="text-slate-300 text-sm mt-1">{t('app_desc')}</p>
-        </div>
-
-        {!isSignup && (
-          <div className="flex border-b border-slate-700">
-            <button
-              type="button"
-              aria-pressed={activeTab === 'COACH'}
-              className={`flex-1 py-4 text-sm font-bold transition-colors duration-200 ${
-                activeTab === 'COACH'
-                  ? 'text-indigo-200 border-b-2 border-indigo-400 bg-slate-900'
-                  : 'text-slate-400 bg-slate-900/60 hover:bg-slate-800'
-              }`}
-              onClick={() => handleTabChange('COACH')}
-            >
-              {t('coach_login')}
-            </button>
-            <button
-              type="button"
-              aria-pressed={activeTab === 'CLIENT'}
-              className={`flex-1 py-4 text-sm font-bold transition-colors duration-200 ${
-                activeTab === 'CLIENT'
-                  ? 'text-indigo-200 border-b-2 border-indigo-400 bg-slate-900'
-                  : 'text-slate-400 bg-slate-900/60 hover:bg-slate-800'
-              }`}
-              onClick={() => handleTabChange('CLIENT')}
-            >
-              {t('client_login')}
-            </button>
-          </div>
-        )}
-
-        <div className="p-8">
-          {error && (
-            <div className="mb-6 bg-red-50 text-red-600 text-sm p-3 rounded-lg flex items-center gap-2 animate-fade-in">
-              <span className="font-bold flex-shrink-0 w-5 h-5 bg-red-100 rounded-full flex items-center justify-center">
-                !
-              </span>
-              {error}
+      {/* Card */}
+      <div className="relative z-10 flex min-h-screen items-center justify-center p-4 pb-20">
+        <Card variant="elevated" padding="none" className="w-full max-w-md overflow-hidden">
+          {/* Brand header */}
+          <div className="px-8 pt-10 pb-6 text-center">
+            <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-primary-500 to-primary-700 shadow-glow">
+              <Activity className="h-8 w-8 text-white" />
             </div>
-          )}
-          {successMsg && (
-            <div className="mb-6 bg-indigo-500/15 text-indigo-200 text-sm p-3 rounded-lg flex items-center gap-2 animate-fade-in border border-indigo-400/20">
-              <CheckCircle className="w-4 h-4" /> {successMsg}
+            <CardTitle className="text-display-sm">CoachX AI</CardTitle>
+            <p className="mt-2 text-sm leading-relaxed text-ink-muted">{t('app_desc')}</p>
+          </div>
+
+          {/* Login type tabs (hidden during signup) */}
+          {!isSignup && (
+            <div
+              className="mx-8 mb-6 grid grid-cols-2 gap-1 rounded-xl bg-bg-inset p-1"
+            >
+              {(['COACH', 'CLIENT'] as const).map((tab) => {
+                const active = activeTab === tab;
+                return (
+                  <button
+                    key={tab}
+                    type="button"
+                    aria-pressed={active}
+                    onClick={() => handleTabChange(tab)}
+                    className={`h-10 rounded-lg text-sm font-medium transition-all ${
+                      active
+                        ? 'bg-bg-overlay text-ink-high shadow-elev-1'
+                        : 'text-ink-muted hover:text-ink-high'
+                    }`}
+                  >
+                    {tab === 'COACH' ? t('coach_login') : t('client_login')}
+                  </button>
+                );
+              })}
             </div>
           )}
 
-          <form
-            onSubmit={
-              isSignup
-                ? handleSignupSubmit
-                : activeTab === 'COACH'
-                ? handleCoachSubmit
-                : handleClientSubmit
-            }
-            className="space-y-4 animate-fade-in"
-          >
-            {isSignup && (
-              <div>
-                <label className="block text-xs font-bold text-slate-400 mb-1 ml-1 uppercase">
-                  {t('signup_role')}
-                </label>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setSignupRole('COACH')}
-                    className={`py-2 rounded-xl border text-sm font-bold transition-colors ${
-                      signupRole === 'COACH'
-                        ? 'bg-indigo-500/20 border-indigo-400 text-indigo-200'
-                        : 'bg-slate-900 border-slate-700 text-slate-300 hover:bg-slate-800'
-                    }`}
-                  >
-                    {t('signup_coach')}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setSignupRole('CLIENT')}
-                    className={`py-2 rounded-xl border text-sm font-bold transition-colors ${
-                      signupRole === 'CLIENT'
-                        ? 'bg-indigo-500/20 border-indigo-400 text-indigo-200'
-                        : 'bg-slate-900 border-slate-700 text-slate-300 hover:bg-slate-800'
-                    }`}
-                  >
-                    {t('client')}
-                  </button>
-                </div>
-              </div>
-            )}
+          <div className="px-8 pb-8">
+            {error && <ErrorAlert message={error} />}
+            {successMsg && <SuccessAlert message={successMsg} />}
 
-            {isSignup && (
-              <div>
-                <label className="block text-xs font-bold text-slate-400 mb-1 ml-1 uppercase">
-                  {t('name')}
-                </label>
-                <div className="relative">
-                  <User className="absolute left-3 top-2.5 w-5 h-5 text-slate-500" />
-                  <input
-                    type="text"
-                    name="name"
-                    autoComplete="name"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 bg-slate-900 text-slate-100 border border-slate-700 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
-                    placeholder="Name"
-                  />
+            <form
+              onSubmit={
+                isSignup
+                  ? handleSignupSubmit
+                  : activeTab === 'COACH'
+                  ? handleCoachSubmit
+                  : handleClientSubmit
+              }
+              className="space-y-4"
+            >
+              {isSignup && (
+                <div>
+                  <label className="mb-1.5 block text-sm font-medium text-ink-medium">
+                    {t('signup_role')}
+                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {(['COACH', 'CLIENT'] as const).map((role) => {
+                      const active = signupRole === role;
+                      return (
+                        <button
+                          key={role}
+                          type="button"
+                          aria-pressed={active}
+                          onClick={() => setSignupRole(role)}
+                          className={`h-11 rounded-lg border text-sm font-medium transition-all ${
+                            active
+                              ? 'border-primary-500 bg-primary-500/15 text-primary-200'
+                              : 'border-line-default bg-bg-overlay text-ink-medium hover:border-line-strong hover:text-ink-high'
+                          }`}
+                        >
+                          {role === 'COACH' ? t('signup_coach') : t('client')}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
 
-            {/* Email & Password are common for both Coach and Client now */}
-            <div>
-              <label className="block text-xs font-bold text-slate-400 mb-1 ml-1 uppercase">
-                {t('email')}
-              </label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-2.5 w-5 h-5 text-slate-500" />
-                <input
-                  type="email"
-                  name="email"
-                  autoComplete="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 bg-slate-900 text-slate-100 border border-slate-700 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
-                  placeholder="email@example.com"
+              {isSignup && (
+                <Input
+                  label={t('name')}
+                  name="name"
+                  autoComplete="name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Name"
+                  leading={<User className="h-4 w-4" />}
                 />
-              </div>
-            </div>
+              )}
 
-            {/* Phone is required for signup to link records */}
-            {isSignup && (
-              <div>
-                <label className="block text-xs font-bold text-slate-400 mb-1 ml-1 uppercase">
-                  {t('phone')} {signupRole === 'CLIENT' && '(Essential)'}
-                </label>
-                <div className="relative">
-                  <Smartphone className="absolute left-3 top-2.5 w-5 h-5 text-slate-500" />
-                  <input
-                    type="tel"
-                    name="phone"
-                    autoComplete="tel"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 bg-slate-900 text-slate-100 border border-slate-700 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
-                    placeholder="010-0000-0000"
-                  />
-                </div>
-                {signupRole === 'CLIENT' && (
-                  <p className="text-[10px] text-slate-500 mt-1 ml-1">
-                    {t('phone_desc')}
-                  </p>
+              <Input
+                label={t('email')}
+                type="email"
+                name="email"
+                autoComplete="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="email@example.com"
+                leading={<Mail className="h-4 w-4" />}
+              />
+
+              {isSignup && (
+                <Input
+                  label={`${t('phone')}${signupRole === 'CLIENT' ? ' (Essential)' : ''}`}
+                  type="tel"
+                  name="phone"
+                  autoComplete="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="010-0000-0000"
+                  leading={<Smartphone className="h-4 w-4" />}
+                  helper={signupRole === 'CLIENT' ? t('phone_desc') : undefined}
+                />
+              )}
+
+              <Input
+                label={t('password')}
+                type="password"
+                name="password"
+                autoComplete={isSignup ? 'new-password' : 'current-password'}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                leading={<Lock className="h-4 w-4" />}
+              />
+
+              <div className="flex items-center justify-between pt-1">
+                <button
+                  type="button"
+                  onClick={() => setIsAutoLogin(!isAutoLogin)}
+                  className="flex items-center gap-2 text-sm text-ink-medium hover:text-ink-high transition-colors"
+                >
+                  {isAutoLogin ? (
+                    <CheckSquare className="h-5 w-5 text-primary-400" />
+                  ) : (
+                    <Square className="h-5 w-5 text-ink-faint" />
+                  )}
+                  {t('auto_login')}
+                </button>
+                {!isSignup && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowFindAccount(true);
+                      resetForm();
+                    }}
+                    className="inline-flex items-center gap-1 text-xs text-ink-muted hover:text-primary-300 hover:underline transition-colors"
+                  >
+                    <HelpCircle className="h-3 w-3" /> {t('find_account')}
+                  </button>
                 )}
               </div>
-            )}
 
-            <div>
-              <label className="block text-xs font-bold text-slate-400 mb-1 ml-1 uppercase">
-                {t('password')}
-              </label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-2.5 w-5 h-5 text-slate-500" />
-                <input
-                  type="password"
-                  name="password"
-                  autoComplete={isSignup ? 'new-password' : 'current-password'}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 bg-slate-900 text-slate-100 border border-slate-700 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
-                  placeholder="••••••••"
-                />
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between select-none">
-              <div
-                className="flex items-center gap-2 cursor-pointer"
-                onClick={() => setIsAutoLogin(!isAutoLogin)}
+              <Button
+                type="submit"
+                fullWidth
+                size="lg"
+                isLoading={isLoading}
+                className="mt-2"
               >
-                {isAutoLogin ? (
-                  <CheckSquare className="w-5 h-5 text-indigo-300" />
-                ) : (
-                  <Square className="w-5 h-5 text-slate-500" />
-                )}
-                <span className="text-sm text-slate-300">{t('auto_login')}</span>
-              </div>
-              {!isSignup && (
+                {isSignup ? t('signup_btn') : t('login_btn')}
+              </Button>
+
+              <div className="text-center">
                 <button
                   type="button"
                   onClick={() => {
-                    setShowFindAccount(true);
-                    resetForm();
+                    const next = !isSignup;
+                    setIsSignup(next);
+                    if (next) setSignupRole(activeTab);
+                    setError(null);
                   }}
-                  className="text-xs text-slate-400 hover:text-indigo-300 hover:underline flex items-center gap-1"
+                  className="text-sm text-ink-muted underline-offset-2 hover:text-primary-300 hover:underline transition-colors"
                 >
-                  <HelpCircle className="w-3 h-3" /> {t('find_account')}
+                  {isSignup ? t('login_msg') : t('signup_msg')}
                 </button>
-              )}
-            </div>
-
-            <Button
-              type="submit"
-              className="w-full py-3 mt-4"
-              isLoading={isLoading}
-            >
-              {isSignup ? t('signup_btn') : t('login_btn')}
-            </Button>
-
-            <div className="text-center mt-4">
-              <button
-                type="button"
-                onClick={() => {
-                  const nextSignupState = !isSignup;
-                  setIsSignup(nextSignupState);
-                  if (nextSignupState) {
-                    setSignupRole(activeTab);
-                  }
-                  setError(null);
-                }}
-                className="text-sm text-slate-400 hover:text-indigo-300 underline"
-              >
-                {isSignup ? t('login_msg') : t('signup_msg')}
-              </button>
-            </div>
-
-            <div className="mt-5">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="flex-1 h-px bg-slate-700" />
-                <span className="text-xs text-slate-500">OR</span>
-                <div className="flex-1 h-px bg-slate-700" />
               </div>
-              <button
-                type="button"
-                onClick={handleGoogleAuth}
-                disabled={isLoading}
-                className="w-full flex items-center justify-center gap-3 py-2.5 px-4 bg-white hover:bg-gray-50 text-gray-800 font-semibold text-sm rounded-xl transition-all shadow-sm border border-gray-200 disabled:opacity-60 disabled:cursor-not-allowed"
-              >
-                <svg
-                  className="w-5 h-5 flex-shrink-0"
-                  viewBox="0 0 48 48"
-                  xmlns="http://www.w3.org/2000/svg"
+
+              <div className="pt-2">
+                <div className="mb-4 flex items-center gap-3">
+                  <div className="h-px flex-1 bg-line-subtle" />
+                  <span className="text-xs font-medium text-ink-faint">OR</span>
+                  <div className="h-px flex-1 bg-line-subtle" />
+                </div>
+                <button
+                  type="button"
+                  onClick={handleGoogleAuth}
+                  disabled={isLoading}
+                  className="flex h-11 w-full items-center justify-center gap-3 rounded-lg border border-line-default bg-bg-overlay px-4 text-sm font-medium text-ink-high transition-all hover:border-line-strong hover:bg-surface-700 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  <path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9 3.2l6.7-6.7C35.7 2.5 30.2 0 24 0 14.6 0 6.5 5.4 2.5 13.3l7.8 6c1.8-5.4 6.9-9.8 13.7-9.8z" />
-                  <path fill="#4A90D9" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v8.5h12.7c-.6 3-2.3 5.5-4.8 7.2l7.5 5.8c4.4-4.1 7.1-10.1 7.1-17z" />
-                  <path fill="#34A853" d="M10.3 28.7A14.6 14.6 0 0 1 9.5 24c0-1.6.3-3.2.8-4.7l-7.8-6A23.9 23.9 0 0 0 0 24c0 3.9.9 7.5 2.5 10.7l7.8-6z" />
-                  <path fill="#FBBC05" d="M24 48c6.2 0 11.4-2 15.2-5.5l-7.5-5.8c-2.1 1.4-4.7 2.2-7.7 2.2-6.7 0-12.4-4.5-14.4-10.6l-7.8 6C6.4 42.5 14.6 48 24 48z" />
-                </svg>
-                {isSignup ? t('google_signup') : t('google_login')}
-              </button>
-            </div>
-          </form>
-        </div>
+                  <svg className="h-5 w-5 shrink-0" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                    <path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9 3.2l6.7-6.7C35.7 2.5 30.2 0 24 0 14.6 0 6.5 5.4 2.5 13.3l7.8 6c1.8-5.4 6.9-9.8 13.7-9.8z" />
+                    <path fill="#4A90D9" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v8.5h12.7c-.6 3-2.3 5.5-4.8 7.2l7.5 5.8c4.4-4.1 7.1-10.1 7.1-17z" />
+                    <path fill="#34A853" d="M10.3 28.7A14.6 14.6 0 0 1 9.5 24c0-1.6.3-3.2.8-4.7l-7.8-6A23.9 23.9 0 0 0 0 24c0 3.9.9 7.5 2.5 10.7l7.8-6z" />
+                    <path fill="#FBBC05" d="M24 48c6.2 0 11.4-2 15.2-5.5l-7.5-5.8c-2.1 1.4-4.7 2.2-7.7 2.2-6.7 0-12.4-4.5-14.4-10.6l-7.8 6C6.4 42.5 14.6 48 24 48z" />
+                  </svg>
+                  {isSignup ? t('google_signup') : t('google_login')}
+                </button>
+              </div>
+            </form>
+          </div>
+        </Card>
       </div>
 
-      {/* Admin / Branch Admin Login Links */}
-      <div className="absolute bottom-4 left-0 right-0 flex items-center justify-center gap-4">
+      {/* Footer admin links */}
+      <div className="absolute inset-x-0 bottom-4 z-20 flex items-center justify-center gap-3 px-4">
         <button
+          type="button"
           onClick={() => {
             setIsBranchAdminMode(true);
             resetForm();
           }}
-          className="text-xs text-slate-400 hover:text-slate-100 transition-colors"
+          className="text-xs text-ink-faint transition-colors hover:text-ink-medium"
         >
           지점 관리자 로그인
         </button>
-        <span className="text-slate-700 text-xs">|</span>
+        <span className="text-ink-faint/50" aria-hidden="true">·</span>
         <button
+          type="button"
           onClick={() => {
             setIsAdminMode(true);
             resetForm();
           }}
-          className="text-xs text-slate-400 hover:text-slate-100 transition-colors"
+          className="text-xs text-ink-faint transition-colors hover:text-ink-medium"
         >
           {t('admin_login')}
         </button>
       </div>
 
-      {/* Find Account Modal */}
-      {showFindAccount && (
-        <div className="absolute inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-fade-in">
-          <div className="bg-slate-900 w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden border border-slate-700">
-            <div className="bg-slate-800 px-6 py-4 flex justify-between items-center border-b border-slate-700">
-              <h3 className="font-bold text-slate-100">{t('find_account')}</h3>
+      {/* Find account modal */}
+      <Modal
+        open={showFindAccount}
+        onClose={() => {
+          setShowFindAccount(false);
+          resetForm();
+        }}
+        title={t('find_account')}
+        size="sm"
+      >
+        <div className="-mx-6 mb-4 grid grid-cols-2 gap-1 border-b border-line-subtle px-6 pb-0">
+          {(['EMAIL', 'PASSWORD'] as const).map((tab) => {
+            const active = findTab === tab;
+            return (
               <button
+                key={tab}
+                type="button"
                 onClick={() => {
-                  setShowFindAccount(false);
+                  setFindTab(tab);
                   resetForm();
                 }}
-                className="text-slate-400 hover:text-slate-100"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="flex border-b border-slate-700">
-              <button
-                onClick={() => {
-                  setFindTab('EMAIL');
-                  resetForm();
-                }}
-                className={`flex-1 py-3 text-sm font-bold transition-colors ${
-                  findTab === 'EMAIL'
-                    ? 'text-indigo-200 border-b-2 border-indigo-400 bg-slate-900'
-                    : 'text-slate-400 bg-slate-900/60 hover:bg-slate-800'
+                className={`-mb-px h-10 border-b-2 text-sm font-medium transition-colors ${
+                  active
+                    ? 'border-primary-400 text-primary-300'
+                    : 'border-transparent text-ink-muted hover:text-ink-high'
                 }`}
               >
-                {t('find_email_title')}
+                {tab === 'EMAIL' ? t('find_email_title') : t('find_pw_title')}
               </button>
-              <button
-                onClick={() => {
-                  setFindTab('PASSWORD');
-                  resetForm();
-                }}
-                className={`flex-1 py-3 text-sm font-bold transition-colors ${
-                  findTab === 'PASSWORD'
-                    ? 'text-indigo-200 border-b-2 border-indigo-400 bg-slate-900'
-                    : 'text-slate-400 bg-slate-900/60 hover:bg-slate-800'
-                }`}
-              >
-                {t('find_pw_title')}
-              </button>
-            </div>
-
-            <form onSubmit={handleFindAccount} className="p-6 space-y-4">
-              {findResult && (
-                <div
-                  className={`p-3 rounded-lg text-sm mb-4 flex items-start gap-2 ${
-                    findResult.type === 'success'
-                      ? 'bg-indigo-500/15 text-indigo-200 border border-indigo-400/20'
-                      : 'bg-red-50 text-red-600'
-                  }`}
-                >
-                  {findResult.type === 'success' ? (
-                    <CheckCircle className="w-5 h-5 flex-shrink-0" />
-                  ) : (
-                    <AlertCircle className="w-5 h-5 flex-shrink-0" />
-                  )}
-                  <span className="break-all">{findResult.message}</span>
-                </div>
-              )}
-
-              {findTab === 'EMAIL' ? (
-                <>
-                  <div>
-                      <label className="block text-xs font-bold text-slate-400 mb-1 ml-1">
-                      {t('name')}
-                    </label>
-                    <input
-                      type="text"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                        className="w-full px-4 py-2 bg-slate-900 text-slate-100 border border-slate-700 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
-                      placeholder="가입시 등록한 이름"
-                    />
-                  </div>
-                  <div>
-                      <label className="block text-xs font-bold text-slate-400 mb-1 ml-1">
-                      {t('phone')}
-                    </label>
-                    <input
-                      type="tel"
-                      value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
-                        className="w-full px-4 py-2 bg-slate-900 text-slate-100 border border-slate-700 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
-                      placeholder="010-0000-0000"
-                    />
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div>
-                      <label className="block text-xs font-bold text-slate-400 mb-1 ml-1">
-                      {t('email')}
-                    </label>
-                    <input
-                      type="email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                        className="w-full px-4 py-2 bg-slate-900 text-slate-100 border border-slate-700 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
-                      placeholder="이메일 주소"
-                    />
-                  </div>
-                  <div>
-                      <label className="block text-xs font-bold text-slate-400 mb-1 ml-1">
-                      {t('phone')}
-                    </label>
-                    <input
-                      type="tel"
-                      value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
-                        className="w-full px-4 py-2 bg-slate-900 text-slate-100 border border-slate-700 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
-                      placeholder="010-0000-0000"
-                    />
-                  </div>
-                </>
-              )}
-
-              <Button
-                type="submit"
-                className="w-full py-3"
-                isLoading={isLoading}
-              >
-                {t('find_btn')}
-              </Button>
-            </form>
-          </div>
+            );
+          })}
         </div>
-      )}
+
+        <form onSubmit={handleFindAccount} className="space-y-4">
+          {findResult && (
+            <div
+              className={`flex items-start gap-2 rounded-lg border px-3 py-2.5 text-sm ${
+                findResult.type === 'success'
+                  ? 'border-primary-500/30 bg-primary-500/10 text-primary-300'
+                  : 'border-red-500/30 bg-red-500/10 text-red-300'
+              }`}
+            >
+              {findResult.type === 'success' ? (
+                <CheckCircle className="h-4 w-4 shrink-0" />
+              ) : (
+                <AlertCircle className="h-4 w-4 shrink-0" />
+              )}
+              <span className="break-all">{findResult.message}</span>
+            </div>
+          )}
+
+          {findTab === 'EMAIL' ? (
+            <>
+              <Input
+                label={t('name')}
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="가입시 등록한 이름"
+              />
+              <Input
+                label={t('phone')}
+                type="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="010-0000-0000"
+              />
+            </>
+          ) : (
+            <>
+              <Input
+                label={t('email')}
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="이메일 주소"
+              />
+              <Input
+                label={t('phone')}
+                type="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="010-0000-0000"
+              />
+            </>
+          )}
+
+          <Button type="submit" fullWidth size="lg" isLoading={isLoading}>
+            {t('find_btn')}
+          </Button>
+        </form>
+      </Modal>
     </div>
   );
 };

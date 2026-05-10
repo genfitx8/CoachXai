@@ -21,12 +21,15 @@ import {
 } from './coachXService';
 import { promptService } from './promptService';
 import { firebaseService } from './firebase';
+import { createLogger } from '../utils/logger';
+
+const log = createLogger('gemini');
 
 // Initialize the Gemini client
 // Note: process.env.API_KEY or process.env.GEMINI_API_KEY is injected by the environment.
 const apiKey = process.env.API_KEY || process.env.GEMINI_API_KEY;
 if (!apiKey) {
-  console.warn('Gemini API key is not set. AI features will not work.');
+  log.warn('Gemini API key is not set. AI features will not work.');
 }
 
 const ai = apiKey ? new GoogleGenAI({ apiKey }) : null;
@@ -290,7 +293,7 @@ export const analyzeSwingVideo = async (
       throw new Error('레슨 요약을 생성하지 못했습니다.');
     }
   } catch (error) {
-    console.error('Gemini Lesson Summary Error:', error);
+    log.error('Gemini Lesson Summary Error:', error);
     throw error;
   } finally {
     await Promise.allSettled(
@@ -394,7 +397,7 @@ export const extractGolfData = async (
       score: result.score,
     };
   } catch (error) {
-    console.error('Golf Data Extraction Error:', error);
+    log.error('Golf Data Extraction Error:', error);
     return {
       textAnalysis: '데이터 분석 중 오류가 발생했습니다.',
       golfData: null,
@@ -470,7 +473,7 @@ export const summarizeHoleVoice = async (
 
     return JSON.parse(text);
   } catch (error) {
-    console.error('Hole Summary Error:', error);
+    log.error('Hole Summary Error:', error);
     return { summary: '분석 실패', metrics: {} };
   }
 };
@@ -557,7 +560,7 @@ export const compareSwings = async (
 
     return JSON.parse(text) as ComparisonResult;
   } catch (error) {
-    console.error('Compare Analysis Error:', error);
+    log.error('Compare Analysis Error:', error);
     throw error;
   }
 };
@@ -643,7 +646,7 @@ export const analyzeBodyPhotos = async (params: {
 
     return parseBodyPhotoAnalysisResponse(response.text);
   } catch (error) {
-    console.error('Body photo analysis failed:', error);
+    log.error('Body photo analysis failed:', error);
     throw error;
   }
 };
@@ -727,7 +730,7 @@ export const getSwingPhaseTimestamps = async (
 
     return timestamps;
   } catch (error) {
-    console.error('Swing Sequence Timestamp Error:', error);
+    log.error('Swing Sequence Timestamp Error:', error);
     throw error;
   }
 };
@@ -806,7 +809,7 @@ export const generateGolfMissions = async (
 
     return JSON.parse(text) as string[];
   } catch (error) {
-    console.error('Generate Missions Error:', error);
+    log.error('Generate Missions Error:', error);
     // Fallback missions
     return [
       '빈 스윙 50회 하며 리듬 익히기',
@@ -935,7 +938,7 @@ ${lessonContext}
     if (!text) throw new Error('Training program generation failed');
     return text;
   } catch (error) {
-    console.error('Generate Training Program Error:', error);
+    log.error('Generate Training Program Error:', error);
     return fallbackPlan(config.performanceGoal);
   }
 };
@@ -1044,7 +1047,7 @@ ${logSummaries}${lessonContext}
       recommendedFocus: parsed.recommendedFocus,
     };
   } catch (error) {
-    console.error('Generate Weekly Insight Error:', error);
+    log.error('Generate Weekly Insight Error:', error);
     return fallback();
   }
 };
@@ -1151,7 +1154,7 @@ Language instruction: ${LANG_INSTRUCTION[language]}`;
     if (!text.trim()) throw new Error('Empty response from Gemini');
     return text;
   } catch (error) {
-    console.error('CoachX Gemini chat error:', error);
+    log.error('CoachX Gemini chat error:', error);
     return fallback();
   }
 };
@@ -1254,7 +1257,7 @@ Example format:
       .filter(i => i.title && i.body && COACHX_VALID_INSIGHT_TYPES.has(i.type))
       .map(i => ({ ...i, icon: COACHX_INSIGHT_ICON_MAP[i.type] ?? '💡' }));
   } catch (error) {
-    console.error('CoachX Gemini insights error:', error);
+    log.error('CoachX Gemini insights error:', error);
     return fallback();
   }
 };
@@ -1366,7 +1369,7 @@ Example format:
       geminiSummary: summary,
     };
   } catch (error) {
-    console.error('CoachX Gemini growth profile error:', error);
+    log.error('CoachX Gemini growth profile error:', error);
     return fallback();
   }
 };

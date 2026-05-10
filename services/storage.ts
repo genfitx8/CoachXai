@@ -1,5 +1,7 @@
-
 import { Lesson, ClientProfile, Homework, HomeworkTemplate, NotificationMessage, GolfCourse, CoachProfile, LessonReservation, Branch, BranchAdminAccount, Bay, BayPriceRule, BayReservation, LessonPackage, TrainingProgram, QuickLogEntry, WeeklyInsight, PromptTemplate, PromptTarget, PromptAttachment } from '../types';
+import { createLogger } from '../utils/logger';
+
+const log = createLogger('storage');
 
 const STORAGE_KEYS = {
   LESSONS: 'swingnote_lessons',
@@ -27,7 +29,7 @@ export const storageService = {
     try {
       localStorage.setItem(STORAGE_KEYS.LESSONS, JSON.stringify(lessons));
     } catch (e) {
-      console.error('Failed to save lessons', e);
+      log.error('Failed to save lessons', e);
     }
   },
 
@@ -36,7 +38,7 @@ export const storageService = {
       const data = localStorage.getItem(STORAGE_KEYS.LESSONS);
       return data ? JSON.parse(data) : [];
     } catch (e) {
-      console.error('Failed to load lessons', e);
+      log.error('Failed to load lessons', e);
       return [];
     }
   },
@@ -45,7 +47,7 @@ export const storageService = {
     try {
       localStorage.setItem(STORAGE_KEYS.CLIENTS, JSON.stringify(clients));
     } catch (e) {
-      console.error('Failed to save clients', e);
+      log.error('Failed to save clients', e);
     }
   },
 
@@ -60,7 +62,7 @@ export const storageService = {
       }
       return parsed;
     } catch (e) {
-      console.error('Failed to load clients', e);
+      log.error('Failed to load clients', e);
       return [];
     }
   },
@@ -103,7 +105,7 @@ export const storageService = {
     try {
       localStorage.setItem(STORAGE_KEYS.COACH_PROFILE, JSON.stringify(coach));
     } catch (e) {
-      console.error('Failed to save coach', e);
+      log.error('Failed to save coach', e);
     }
   },
 
@@ -118,7 +120,7 @@ export const storageService = {
   saveHomework: (homeworkList: Homework[]) => {
     try {
       localStorage.setItem(STORAGE_KEYS.HOMEWORK, JSON.stringify(homeworkList));
-    } catch (e) { console.error(e); }
+    } catch (e) { log.error('storage operation failed', e); }
   },
 
   // Added: Batch save for homework
@@ -128,7 +130,7 @@ export const storageService = {
       // Filter out potential duplicates if IDs clash, though unlikely with UUIDs
       const updated = [...existing, ...newHomeworkList];
       localStorage.setItem(STORAGE_KEYS.HOMEWORK, JSON.stringify(updated));
-    } catch (e) { console.error(e); }
+    } catch (e) { log.error('storage operation failed', e); }
   },
 
   // Added: Update status
@@ -137,7 +139,7 @@ export const storageService = {
       const all = storageService.getHomework();
       const updated = all.map(h => h.id === id ? { ...h, isCompleted } : h);
       localStorage.setItem(STORAGE_KEYS.HOMEWORK, JSON.stringify(updated));
-    } catch (e) { console.error(e); }
+    } catch (e) { log.error('storage operation failed', e); }
   },
 
   // Added: Delete
@@ -146,7 +148,7 @@ export const storageService = {
       const all = storageService.getHomework();
       const updated = all.filter(h => h.id !== id);
       localStorage.setItem(STORAGE_KEYS.HOMEWORK, JSON.stringify(updated));
-    } catch (e) { console.error(e); }
+    } catch (e) { log.error('storage operation failed', e); }
   },
 
   getHomeworkTemplates: (): HomeworkTemplate[] => {
@@ -159,7 +161,7 @@ export const storageService = {
   saveHomeworkTemplates: (templates: HomeworkTemplate[]) => {
     try {
       localStorage.setItem(STORAGE_KEYS.HOMEWORK_TEMPLATES, JSON.stringify(templates));
-    } catch (e) { console.error(e); }
+    } catch (e) { log.error('storage operation failed', e); }
   },
 
   // Notification Methods
@@ -175,7 +177,7 @@ export const storageService = {
       const all = storageService.getNotifications();
       const updated = [notification, ...all];
       localStorage.setItem(STORAGE_KEYS.NOTIFICATIONS, JSON.stringify(updated));
-    } catch (e) { console.error(e); }
+    } catch (e) { log.error('storage operation failed', e); }
   },
 
   updateNotification: (id: string, changes: Partial<NotificationMessage>) => {
@@ -183,7 +185,7 @@ export const storageService = {
       const all = storageService.getNotifications();
       const updated = all.map((n) => (n.id === id ? { ...n, ...changes } : n));
       localStorage.setItem(STORAGE_KEYS.NOTIFICATIONS, JSON.stringify(updated));
-    } catch (e) { console.error(e); }
+    } catch (e) { log.error('storage operation failed', e); }
   },
 
   // Golf Course Methods
@@ -207,7 +209,7 @@ export const storageService = {
         updated = [...courses, course];
       }
       localStorage.setItem(STORAGE_KEYS.GOLF_COURSES, JSON.stringify(updated));
-    } catch (e) { console.error(e); }
+    } catch (e) { log.error('storage operation failed', e); }
   },
 
   deleteGolfCourse: (id: string) => {
@@ -215,7 +217,7 @@ export const storageService = {
       const courses = storageService.getGolfCourses();
       const updated = courses.filter(c => c.id !== id);
       localStorage.setItem(STORAGE_KEYS.GOLF_COURSES, JSON.stringify(updated));
-    } catch (e) { console.error(e); }
+    } catch (e) { log.error('storage operation failed', e); }
   },
 
   // --- Reservation Methods ---
@@ -225,7 +227,7 @@ export const storageService = {
       const data = localStorage.getItem(STORAGE_KEYS.RESERVATIONS);
       return data ? JSON.parse(data) : [];
     } catch (e) {
-      console.error('Failed to load reservations', e);
+      log.error('Failed to load reservations', e);
       return [];
     }
   },
@@ -236,7 +238,7 @@ export const storageService = {
       const updated = [...reservations, reservation];
       localStorage.setItem(STORAGE_KEYS.RESERVATIONS, JSON.stringify(updated));
     } catch (e) {
-      console.error('Failed to save reservation', e);
+      log.error('Failed to save reservation', e);
     }
   },
 
@@ -246,7 +248,7 @@ export const storageService = {
       const updated = reservations.map(r => r.id === reservation.id ? reservation : r);
       localStorage.setItem(STORAGE_KEYS.RESERVATIONS, JSON.stringify(updated));
     } catch (e) {
-      console.error('Failed to update reservation', e);
+      log.error('Failed to update reservation', e);
     }
   },
 
@@ -256,7 +258,7 @@ export const storageService = {
       const updated = reservations.filter(r => r.id !== reservationId);
       localStorage.setItem(STORAGE_KEYS.RESERVATIONS, JSON.stringify(updated));
     } catch (e) {
-      console.error('Failed to delete reservation', e);
+      log.error('Failed to delete reservation', e);
     }
   },
 
@@ -265,7 +267,7 @@ export const storageService = {
       localStorage.clear();
       sessionStorage.clear();
     } catch (e) {
-      console.error('Failed to clear data', e);
+      log.error('Failed to clear data', e);
     }
   },
 
@@ -275,7 +277,7 @@ export const storageService = {
       const data = localStorage.getItem(STORAGE_KEYS.BRANCHES);
       return data ? JSON.parse(data) : [];
     } catch (e) {
-      console.error('Failed to load branches', e);
+      log.error('Failed to load branches', e);
       return [];
     }
   },
@@ -293,7 +295,7 @@ export const storageService = {
       }
       localStorage.setItem(STORAGE_KEYS.BRANCHES, JSON.stringify(updated));
     } catch (e) {
-      console.error('Failed to save branch', e);
+      log.error('Failed to save branch', e);
     }
   },
 
@@ -305,7 +307,7 @@ export const storageService = {
       );
       localStorage.setItem(STORAGE_KEYS.BRANCHES, JSON.stringify(updated));
     } catch (e) {
-      console.error('Failed to update branch', e);
+      log.error('Failed to update branch', e);
     }
   },
 
@@ -318,7 +320,7 @@ export const storageService = {
       );
       localStorage.setItem(STORAGE_KEYS.BRANCHES, JSON.stringify(updated));
     } catch (e) {
-      console.error('Failed to delete branch', e);
+      log.error('Failed to delete branch', e);
     }
   },
 
@@ -329,7 +331,7 @@ export const storageService = {
       const all: BranchAdminAccount[] = data ? JSON.parse(data) : [];
       return branchId ? all.filter((a) => a.branchId === branchId) : all;
     } catch (e) {
-      console.error('Failed to load branch admin accounts', e);
+      log.error('Failed to load branch admin accounts', e);
       return [];
     }
   },
@@ -350,7 +352,7 @@ export const storageService = {
         JSON.stringify(updated)
       );
     } catch (e) {
-      console.error('Failed to save branch admin account', e);
+      log.error('Failed to save branch admin account', e);
     }
   },
 
@@ -368,7 +370,7 @@ export const storageService = {
         JSON.stringify(updated)
       );
     } catch (e) {
-      console.error('Failed to delete branch admin account', e);
+      log.error('Failed to delete branch admin account', e);
     }
   },
 
@@ -379,7 +381,7 @@ export const storageService = {
       const all: Bay[] = data ? JSON.parse(data) : [];
       return branchId ? all.filter((b) => b.branchId === branchId) : all;
     } catch (e) {
-      console.error('Failed to load bays', e);
+      log.error('Failed to load bays', e);
       return [];
     }
   },
@@ -397,7 +399,7 @@ export const storageService = {
       }
       localStorage.setItem(STORAGE_KEYS.BAYS, JSON.stringify(updated));
     } catch (e) {
-      console.error('Failed to save bay', e);
+      log.error('Failed to save bay', e);
     }
   },
 
@@ -409,7 +411,7 @@ export const storageService = {
       );
       localStorage.setItem(STORAGE_KEYS.BAYS, JSON.stringify(updated));
     } catch (e) {
-      console.error('Failed to update bay', e);
+      log.error('Failed to update bay', e);
     }
   },
 
@@ -422,7 +424,7 @@ export const storageService = {
       );
       localStorage.setItem(STORAGE_KEYS.BAYS, JSON.stringify(updated));
     } catch (e) {
-      console.error('Failed to delete bay', e);
+      log.error('Failed to delete bay', e);
     }
   },
 
@@ -433,7 +435,7 @@ export const storageService = {
       const all: BayPriceRule[] = data ? JSON.parse(data) : [];
       return branchId ? all.filter((r) => r.branchId === branchId) : all;
     } catch (e) {
-      console.error('Failed to load bay price rules', e);
+      log.error('Failed to load bay price rules', e);
       return [];
     }
   },
@@ -451,7 +453,7 @@ export const storageService = {
       }
       localStorage.setItem(STORAGE_KEYS.BAY_PRICE_RULES, JSON.stringify(updated));
     } catch (e) {
-      console.error('Failed to save bay price rule', e);
+      log.error('Failed to save bay price rule', e);
     }
   },
 
@@ -464,7 +466,7 @@ export const storageService = {
       );
       localStorage.setItem(STORAGE_KEYS.BAY_PRICE_RULES, JSON.stringify(updated));
     } catch (e) {
-      console.error('Failed to delete bay price rule', e);
+      log.error('Failed to delete bay price rule', e);
     }
   },
 
@@ -482,7 +484,7 @@ export const storageService = {
       }
       return results;
     } catch (e) {
-      console.error('Failed to load bay reservations by branch', e);
+      log.error('Failed to load bay reservations by branch', e);
       return [];
     }
   },
@@ -493,7 +495,7 @@ export const storageService = {
       const all: BayReservation[] = data ? JSON.parse(data) : [];
       return all.filter((r) => r.clientId === clientId);
     } catch (e) {
-      console.error('Failed to load bay reservations by client', e);
+      log.error('Failed to load bay reservations by client', e);
       return [];
     }
   },
@@ -512,7 +514,7 @@ export const storageService = {
       }
       localStorage.setItem(STORAGE_KEYS.BAY_RESERVATIONS, JSON.stringify(updated));
     } catch (e) {
-      console.error('Failed to save bay reservation', e);
+      log.error('Failed to save bay reservation', e);
     }
   },
 
@@ -525,7 +527,7 @@ export const storageService = {
       );
       localStorage.setItem(STORAGE_KEYS.BAY_RESERVATIONS, JSON.stringify(updated));
     } catch (e) {
-      console.error('Failed to update bay reservation', e);
+      log.error('Failed to update bay reservation', e);
     }
   },
 
@@ -536,7 +538,7 @@ export const storageService = {
       const data = localStorage.getItem(STORAGE_KEYS.LESSON_PACKAGES);
       return data ? JSON.parse(data) : [];
     } catch (e) {
-      console.error('Failed to load lesson packages', e);
+      log.error('Failed to load lesson packages', e);
       return [];
     }
   },
@@ -548,7 +550,7 @@ export const storageService = {
       const updated = idx >= 0 ? [...all.slice(0, idx), pkg, ...all.slice(idx + 1)] : [...all, pkg];
       localStorage.setItem(STORAGE_KEYS.LESSON_PACKAGES, JSON.stringify(updated));
     } catch (e) {
-      console.error('Failed to save lesson package', e);
+      log.error('Failed to save lesson package', e);
     }
   },
 
@@ -557,7 +559,7 @@ export const storageService = {
       const all = storageService.getLessonPackages();
       localStorage.setItem(STORAGE_KEYS.LESSON_PACKAGES, JSON.stringify(all.filter((p) => p.id !== packageId)));
     } catch (e) {
-      console.error('Failed to delete lesson package', e);
+      log.error('Failed to delete lesson package', e);
     }
   },
 
@@ -568,7 +570,7 @@ export const storageService = {
       const data = localStorage.getItem(STORAGE_KEYS.TRAINING_PROGRAMS);
       return data ? JSON.parse(data) : [];
     } catch (e) {
-      console.error('Failed to load training programs', e);
+      log.error('Failed to load training programs', e);
       return [];
     }
   },
@@ -582,7 +584,7 @@ export const storageService = {
         : [...all, program];
       localStorage.setItem(STORAGE_KEYS.TRAINING_PROGRAMS, JSON.stringify(updated));
     } catch (e) {
-      console.error('Failed to save training program', e);
+      log.error('Failed to save training program', e);
     }
   },
 
@@ -594,7 +596,7 @@ export const storageService = {
         JSON.stringify(all.filter((p) => p.id !== programId))
       );
     } catch (e) {
-      console.error('Failed to delete training program', e);
+      log.error('Failed to delete training program', e);
     }
   },
 
@@ -605,7 +607,7 @@ export const storageService = {
       const data = localStorage.getItem(STORAGE_KEYS.QUICK_LOGS);
       return data ? JSON.parse(data) : [];
     } catch (e) {
-      console.error('Failed to load quick logs', e);
+      log.error('Failed to load quick logs', e);
       return [];
     }
   },
@@ -619,7 +621,7 @@ export const storageService = {
         : [...all, entry];
       localStorage.setItem(STORAGE_KEYS.QUICK_LOGS, JSON.stringify(updated));
     } catch (e) {
-      console.error('Failed to save quick log', e);
+      log.error('Failed to save quick log', e);
     }
   },
 
@@ -632,7 +634,7 @@ export const storageService = {
       const all = storageService.getQuickLogs();
       localStorage.setItem(STORAGE_KEYS.QUICK_LOGS, JSON.stringify(all.filter((q) => q.id !== logId)));
     } catch (e) {
-      console.error('Failed to delete quick log', e);
+      log.error('Failed to delete quick log', e);
     }
   },
 
@@ -643,7 +645,7 @@ export const storageService = {
       const data = localStorage.getItem(STORAGE_KEYS.WEEKLY_INSIGHTS);
       return data ? JSON.parse(data) : [];
     } catch (e) {
-      console.error('Failed to load weekly insights', e);
+      log.error('Failed to load weekly insights', e);
       return [];
     }
   },
@@ -657,7 +659,7 @@ export const storageService = {
         : [...all, insight];
       localStorage.setItem(STORAGE_KEYS.WEEKLY_INSIGHTS, JSON.stringify(updated));
     } catch (e) {
-      console.error('Failed to save weekly insight', e);
+      log.error('Failed to save weekly insight', e);
     }
   },
 
@@ -674,7 +676,7 @@ export const storageService = {
       const data = localStorage.getItem(STORAGE_KEYS.PROMPT_TEMPLATES);
       return data ? JSON.parse(data) : [];
     } catch (e) {
-      console.error('Failed to load prompt templates', e);
+      log.error('Failed to load prompt templates', e);
       return [];
     }
   },
@@ -696,7 +698,7 @@ export const storageService = {
       }
       localStorage.setItem(STORAGE_KEYS.PROMPT_TEMPLATES, JSON.stringify(updated));
     } catch (e) {
-      console.error('Failed to save prompt template', e);
+      log.error('Failed to save prompt template', e);
     }
   },
 
@@ -708,7 +710,7 @@ export const storageService = {
         JSON.stringify(all.filter((t) => t.id !== templateId))
       );
     } catch (e) {
-      console.error('Failed to delete prompt template', e);
+      log.error('Failed to delete prompt template', e);
     }
   },
 
@@ -736,7 +738,7 @@ export const storageService = {
       });
       localStorage.setItem(STORAGE_KEYS.PROMPT_TEMPLATES, JSON.stringify(updated));
     } catch (e) {
-      console.error('Failed to save prompt attachment', e);
+      log.error('Failed to save prompt attachment', e);
     }
   },
 
@@ -753,7 +755,7 @@ export const storageService = {
       });
       localStorage.setItem(STORAGE_KEYS.PROMPT_TEMPLATES, JSON.stringify(updated));
     } catch (e) {
-      console.error('Failed to delete prompt attachment', e);
+      log.error('Failed to delete prompt attachment', e);
     }
   },
 };

@@ -13,6 +13,9 @@ import { firebaseService } from './firebase';
 import { storageService } from './storage';
 import { pointService } from './pointService';
 import { sendBayReservationNotifications } from './reservationPushNotificationService';
+import { createLogger } from '../utils/logger';
+
+const log = createLogger('bayReservation');
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -316,7 +319,7 @@ export const bayReservationService = {
     // Fire-and-forget: send push notifications after successful reservation + payment.
     // Errors are logged but must not fail the reservation itself.
     sendBayReservationNotifications(reservation, branch.name).catch((e) =>
-      console.error('[BayReservationService] Unexpected notification error:', e)
+      log.error('[BayReservationService] Unexpected notification error:', e)
     );
 
     return { reservation, updatedClient };
@@ -507,7 +510,7 @@ export const bayReservationService = {
 
     // Fire-and-forget: send push notifications after successful reservation + payment.
     sendBayReservationNotifications(reservation, branch.name).catch((e) =>
-      console.error('[BayReservationService] Unexpected notification error:', e)
+      log.error('[BayReservationService] Unexpected notification error:', e)
     );
 
     return { reservation, updatedCoach };

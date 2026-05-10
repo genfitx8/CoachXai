@@ -3,6 +3,9 @@ import { firebaseService } from './firebase';
 import { storageService } from './storage';
 import { sendLessonReservationNotifications } from './reservationPushNotificationService';
 import { createReservationRequestNotification } from './coachNotificationService';
+import { createLogger } from '../utils/logger';
+
+const log = createLogger('reservation');
 
 // Constants
 const MAX_DATE = '2099-12-31'; // Maximum date for filtering reservations
@@ -159,12 +162,12 @@ class ReservationService {
     // Fire-and-forget: send push notifications after successful persistence.
     // Errors are caught inside the service and must not fail the reservation.
     sendLessonReservationNotifications(updatedReservation).catch((e) =>
-      console.error('[ReservationService] Unexpected notification error:', e)
+      log.error('[ReservationService] Unexpected notification error:', e)
     );
 
     // Create in-app notification for the coach (fire-and-forget).
     createReservationRequestNotification(updatedReservation).catch((e) =>
-      console.error('[ReservationService] Unexpected in-app notification error:', e)
+      log.error('[ReservationService] Unexpected in-app notification error:', e)
     );
 
     return updatedReservation;
@@ -249,12 +252,12 @@ class ReservationService {
 
     // Fire-and-forget: send push notifications after successful persistence.
     sendLessonReservationNotifications(reservation).catch((e) =>
-      console.error('[ReservationService] Unexpected notification error:', e)
+      log.error('[ReservationService] Unexpected notification error:', e)
     );
 
     // Create in-app notification for the coach (fire-and-forget).
     createReservationRequestNotification(reservation).catch((e) =>
-      console.error('[ReservationService] Unexpected in-app notification error:', e)
+      log.error('[ReservationService] Unexpected in-app notification error:', e)
     );
 
     return reservation;
@@ -393,7 +396,7 @@ class ReservationService {
       try {
         reservations = await firebaseService.getReservations();
       } catch (error) {
-        console.warn('Firebase fetch failed, falling back to localStorage:', error);
+        log.warn('Firebase fetch failed, falling back to localStorage:', error);
         reservations = storageService.getReservations();
       }
     } else {

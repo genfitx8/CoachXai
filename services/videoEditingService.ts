@@ -1,6 +1,9 @@
 import { FFmpeg } from '@ffmpeg/ffmpeg';
 import { fetchFile, toBlobURL } from '@ffmpeg/util';
 import { CompareVideoMetadata, DrawingFrame, VideoMetadata } from '../types';
+import { createLogger } from '../utils/logger';
+
+const log = createLogger('videoEditing');
 
 export interface SideBySideOptions {
   outputWidth?: number;   // default 1080
@@ -34,9 +37,9 @@ class VideoEditingService {
         });
 
         this.isInitialized = true;
-        console.log('FFmpeg initialized successfully');
+        log.info('FFmpeg initialized successfully');
       } catch (error) {
-        console.error('Failed to initialize FFmpeg:', error);
+        log.error('Failed to initialize FFmpeg:', error);
         this.initPromise = null;
         throw error;
       }
@@ -90,7 +93,7 @@ class VideoEditingService {
 
       return blob;
     } catch (error) {
-      console.error('Error trimming video:', error);
+      log.error('Error trimming video:', error);
       throw error;
     }
   }
@@ -147,7 +150,7 @@ class VideoEditingService {
 
       return blob;
     } catch (error) {
-      console.error('Error merging audio with video:', error);
+      log.error('Error merging audio with video:', error);
       throw error;
     }
   }
@@ -170,8 +173,8 @@ class VideoEditingService {
     // - Using a dedicated video compositing library
     //
     // TODO: Implement full drawing overlay functionality
-    console.warn('Drawing overlay not yet fully implemented - returning original video');
-    console.log('Drawing data will be saved in metadata for future implementation');
+    log.warn('Drawing overlay not yet fully implemented - returning original video');
+    log.info('Drawing data will be saved in metadata for future implementation');
     return videoBlob;
   }
 
@@ -247,7 +250,7 @@ class VideoEditingService {
 
       return blob;
     } catch (error) {
-      console.error('Error creating side-by-side compare video:', error);
+      log.error('Error creating side-by-side compare video:', error);
       throw error;
     }
   }

@@ -19,6 +19,9 @@
 import { NotificationMessage, LessonReservation } from '../types';
 import { firebaseService } from './firebase';
 import { storageService } from './storage';
+import { createLogger } from '../utils/logger';
+
+const log = createLogger('coachNotification');
 
 export const RESERVATION_REQUEST_TYPE = 'LESSON_RESERVATION_REQUEST';
 
@@ -93,7 +96,7 @@ export async function createReservationRequestNotification(
 
     await saveNotification(notification);
   } catch (e) {
-    console.error('[CoachNotification] Failed to create reservation notification:', e);
+    log.error('[CoachNotification] Failed to create reservation notification:', e);
   }
 }
 
@@ -114,7 +117,7 @@ export async function getUnreadReservationNotificationsForCoach(
         !n.isRead
     );
   } catch (e) {
-    console.error('[CoachNotification] Failed to fetch unread notifications:', e);
+    log.error('[CoachNotification] Failed to fetch unread notifications:', e);
     return [];
   }
 }
@@ -130,7 +133,7 @@ export async function markNotificationsAsRead(ids: string[]): Promise<void> {
       try {
         await markNotificationRead(id);
       } catch (e) {
-        console.error('[CoachNotification] Failed to mark notification read:', id, e);
+        log.error('[CoachNotification] Failed to mark notification read:', id, e);
       }
     })
   );
