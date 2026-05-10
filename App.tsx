@@ -52,13 +52,13 @@ import {
 import { Button } from './components/Button';
 import { CoachHeader } from './components/CoachHeader';
 import { CoachHomeView } from './components/CoachHomeView';
+import { CoachLessonListView } from './components/CoachLessonListView';
 import { CoachXHub } from './components/CoachXHub';
 import { CoachXChat } from './components/CoachXChat';
 import { buildMemberGrowthReports } from './services/coachXService';
 import {
   Plus,
   Search,
-  Filter,
   LogOut,
   User,
   ListChecks,
@@ -69,11 +69,7 @@ import {
   CreditCard,
   Play,
   Globe,
-  Eye,
-  EyeOff,
-  BarChart3,
   Target,
-  BookOpen,
   Users,
   CheckCircle,
   Clock,
@@ -1367,128 +1363,24 @@ const AppContent: React.FC = () => {
           />
         )}
 
-        {coachView === 'LESSON_LIST' && (
-          <div className="space-y-6 animate-fade-in">
-            {/* Back to Dashboard */}
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={() => setCoachView('LIST')}
-                  className="flex items-center gap-2 text-sm font-medium text-slate-300 hover:text-slate-100 transition-colors px-3 py-2 rounded-xl hover:bg-slate-800/80 border border-transparent hover:border-slate-700"
-                >
-                  <X className="w-4 h-4" />
-                  대시보드로 돌아가기
-                </button>
-                <h2 className="text-xl font-bold text-slate-100 flex items-center gap-2 tracking-tight">
-                  <BookOpen className="w-5 h-5 text-indigo-300" />
-                  레슨 기록
-                </h2>
-              </div>
-
-            {/* Client Filter Section */}
-            {userRole === 'COACH' && clients.length > 0 && (
-              <div className="bg-slate-900/70 rounded-2xl shadow-sm border border-slate-800/80 p-4">
-                <div className="flex items-center gap-3">
-                  <User className="w-5 h-5 text-indigo-300" />
-                  <div className="flex-1">
-                    <select
-                      value={selectedClientFilter}
-                      onChange={(e) => setSelectedClientFilter(e.target.value)}
-                      className="w-full px-4 py-2.5 border border-slate-700 bg-slate-900 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-medium text-slate-200"
-                    >
-                      <option value="">전체 회원 보기</option>
-                      {clients
-                        .filter(c => c.coachId === (currentUser as CoachProfile)?.id)
-                        .sort((a, b) => a.name.localeCompare(b.name))
-                        .map(client => (
-                          <option key={`${client.name}_${client.phone}`} value={client.name}>
-                            {client.name}
-                          </option>
-                        ))
-                      }
-                    </select>
-                  </div>
-                  
-                  {selectedClientFilter && (
-                    <button
-                      onClick={() => setCoachView('CLIENT_STATS')}
-                        className="px-4 py-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-500 transition-colors flex items-center gap-2 font-medium shadow-md shadow-indigo-900/40"
-                    >
-                      <BarChart3 className="w-4 h-4" />
-                      통계 보기
-                    </button>
-                  )}
-                  
-                  {selectedClientFilter && (
-                    <button
-                      onClick={() => setSelectedClientFilter('')}
-                      className="text-sm text-slate-400 hover:text-red-400 flex items-center gap-1 px-3 py-1.5 rounded-xl hover:bg-red-500/10 transition-colors"
-                    >
-                      <X className="w-4 h-4" />
-                      초기화
-                    </button>
-                  )}
-                </div>
-                {selectedClientFilter && (
-                  <div className="mt-2 text-sm text-slate-300">
-                    <span className="font-bold text-indigo-300">{selectedClientFilter}</span>님의 레슨 {filteredLessons.length}개
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Media Toggle Section */}
-            <div className="bg-slate-900/70 rounded-2xl shadow-sm border border-slate-800/80 p-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Filter className="w-5 h-5 text-indigo-300" />
-                  <span className="font-medium text-slate-200 text-sm">레슨 미디어 표시</span>
-                </div>
-                <button
-                  onClick={toggleShowMedia}
-                    className={`p-2.5 rounded-xl transition-colors ${
-                      showMedia
-                        ? 'bg-indigo-500/20 text-indigo-200'
-                        : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
-                    }`}
-                    title={showMedia ? '미디어 숨기기' : '미디어 표시'}
-                  >
-                  {showMedia ? <Eye className="w-5 h-5" /> : <EyeOff className="w-5 h-5" />}
-                </button>
-              </div>
-            </div>
-
-            {/* Lesson Grid */}
-            {filteredLessons.length === 0 ? (
-                <div className="text-center py-20 bg-slate-900/70 rounded-2xl border border-dashed border-slate-700/90">
-                <div className="w-16 h-16 bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Filter className="w-8 h-8 text-slate-500" />
-                </div>
-                <h3 className="text-lg font-bold text-slate-100">
-                  {t('no_lessons')}
-                </h3>
-                <p className="text-slate-400">{t('no_lessons_desc')}</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {filteredLessons.map((lesson) => (
-                  <LessonCard
-                    key={lesson.id}
-                    lesson={lesson}
-                    onClick={(l) => {
-                      setSelectedLesson(l);
-                      setCoachView('DETAIL');
-                    }}
-                    onShare={() => {}} // Removed manual sharing
-                    onDelete={(l, e) => {
-                      e.stopPropagation();
-                      handleDeleteLesson(l.id);
-                    }}
-                    showMedia={showMedia}
-                  />
-                ))}
-              </div>
-            )}
-          </div>
+        {coachView === 'LESSON_LIST' && currentUser && 'id' in currentUser && (
+          <CoachLessonListView
+            coach={currentUser}
+            clients={clients}
+            filteredLessons={filteredLessons}
+            selectedClientFilter={selectedClientFilter}
+            showMedia={showMedia}
+            onBack={() => setCoachView('LIST')}
+            onSelectLesson={(l) => {
+              setSelectedLesson(l);
+              setCoachView('DETAIL');
+            }}
+            onDeleteLesson={(id) => handleDeleteLesson(id)}
+            onSelectClientFilter={setSelectedClientFilter}
+            onResetClientFilter={() => setSelectedClientFilter('')}
+            onOpenClientStats={() => setCoachView('CLIENT_STATS')}
+            onToggleShowMedia={toggleShowMedia}
+          />
         )}
 
         {coachView === 'DETAIL' && selectedLesson && (
