@@ -1,0 +1,125 @@
+# Render Blueprint for CoachX AI
+#
+# Provisions:
+#   1. coachxai-api    — Node web service running the Express backend in server/
+#   2. coachxai-web    — Static site running the Vite-built React frontend
+#   3. coachxai-db     — Postgres instance (DATABASE_URL injected into the API)
+#
+# Apply via https://dashboard.render.com → New → Blueprint, point at this
+# repository, and Render reads this file. Fill the `sync: false` secrets in
+# the dashboard after the first deploy completes.
+
+databases:
+  - name: coachxai-db
+    plan: free
+    databaseName: coachxai
+    user: coachxai
+    # Render Free Postgres is wiped after 90 days of inactivity; upgrade to
+    # the Starter plan for production data.
+
+services:
+  # ─── Backend API ────────────────────────────────────────────────────────────
+  - type: web
+    name: coachxai-api
+    runtime: node
+    plan: free
+    region: singapore
+    rootDir: server
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # PORT is injected automatically by Render; the server reads it from
+      # process.env.PORT. Do not override.
+      - key: APP_BASE_URL
+        # Points at the static site below. Render replaces ${RENDER_EXTERNAL_URL}
+        # at runtime for the referenced service.
+        fromService:
+          type: web
+          name: coachxai-web
+          property: hostport
+      - key: APP_ALLOWED_ORIGINS
+        # Mirrors APP_BASE_URL by default. Override in the dashboard once you
+        # attach a custom domain.
+        fromService:
+          type: web
+          name: coachxai-web
+          property: hostport
+      - key: DATABASE_URL
+        fromDatabase:
+          name: coachxai-db
+          property: connectionString
+      # ─── Secrets to fill in the Render dashboard ─────────────────────────
+      - key: PAYAPP_SECRET_KEY
+        sync: false
+      - key: PAYAPP_API_BASE
+        sync: false
+      - key: PAYAPP_CHECKOUT_URL
+        sync: false
+      - key: TOSS_SECRET_KEY
+        sync: false
+      - key: FIREBASE_PROJECT_ID
+        sync: false
+      # Service-account key. Upload as a Render Secret File (Dashboard → the
+      # API service → Environment → Secret Files), then set this var to the
+      # mounted path, e.g. /etc/secrets/firebase-admin.json.
+      - key: GOOGLE_APPLICATION_CREDENTIALS
+        sync: false
+
+  # ─── Frontend (Vite static site) ────────────────────────────────────────────
+  - type: web
+    name: coachxai-web
+    runtime: static
+    plan: free
+    region: singapore
+    rootDir: .
+    buildCommand: npm install && npm run build
+    staticPublishPath: ./dist
+    autoDeploy: true
+    pullRequestPreviewsEnabled: true
+    # SPA fallback so client-side routes (/payment/success, etc.) render the
+    # built index.html instead of returning a 404.
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    headers:
+      - path: /*
+        name: X-Frame-Options
+        value: SAMEORIGIN
+      - path: /*
+        name: X-Content-Type-Options
+        value: nosniff
+      - path: /*
+        name: Referrer-Policy
+        value: strict-origin-when-cross-origin
+    envVars:
+      # Vite inlines variables prefixed with VITE_ at build time. Point the
+      # frontend at the backend service above.
+      - key: VITE_API_BASE_URL
+        fromService:
+          type: web
+          name: coachxai-api
+          property: hostport
+      # The rest of the VITE_* secrets (Firebase web SDK config, Kakao app
+      # key, Gemini API key for the in-browser AI calls) live in the Render
+      # dashboard — they're committed to nothing.
+      - key: VITE_FIREBASE_API_KEY
+        sync: false
+      - key: VITE_FIREBASE_AUTH_DOMAIN
+        sync: false
+      - key: VITE_FIREBASE_PROJECT_ID
+        sync: false
+      - key: VITE_FIREBASE_STORAGE_BUCKET
+        sync: false
+      - key: VITE_FIREBASE_MESSAGING_SENDER_ID
+        sync: false
+      - key: VITE_FIREBASE_APP_ID
+        sync: false
+      - key: VITE_KAKAO_APP_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false

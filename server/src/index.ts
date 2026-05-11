@@ -45,8 +45,8 @@ app.get('/api/health', (_req, res) => {
 app.use('/api/payments/payapp', payappPaymentsRouter);
 app.use('/api/payments/payapp-membership', payappMembershipsRouter);
 
-app.listen(PORT, () => {
-  console.log(`[swingnote-server] running on http://localhost:${PORT}`);
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`[swingnote-server] listening on 0.0.0.0:${PORT}`);
 });
 
 export default app;
