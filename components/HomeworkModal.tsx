@@ -1,8 +1,9 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { Homework, HomeworkTemplate } from '../types';
 import { Button } from './Button';
-import { X, ListChecks, Calendar as CalendarIcon, Repeat, Trash2, CheckSquare, Square, CheckCircle2, ArrowLeft } from 'lucide-react';
+import { Modal } from './ui/Modal';
+import { Input } from './ui/Input';
+import { ArrowLeft, Calendar as CalendarIcon, CheckCircle2, CheckSquare, ListChecks, Repeat, Square, Trash2 } from 'lucide-react';
 import { firebaseService } from '../services/firebase';
 import { storageService } from '../services/storage';
 import { useLanguage } from './LanguageContext';
@@ -233,198 +234,254 @@ export const HomeworkModal: React.FC<HomeworkModalProps> = ({ isOpen, onClose, c
       }
   };
 
-  if (!isOpen) return null;
+  const title = (
+    <span className="flex items-center gap-3">
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary-500/15 text-primary-300">
+        <ListChecks className="h-5 w-5" />
+      </span>
+      <span className="leading-tight">
+        <span className="block text-2xs font-semibold uppercase tracking-[0.16em] text-ink-muted">
+          Homework
+        </span>
+        <span className="block text-base font-semibold text-ink-high">
+          {t('homework_modal_title').replace('{name}', clientName)}
+        </span>
+      </span>
+    </span>
+  );
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
-      <div className="bg-bg-raised rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl max-h-[90vh] flex flex-col">
-        <div className="bg-slate-800 px-6 py-4 flex justify-between items-center text-white flex-shrink-0">
-          <h3 className="font-bold text-lg flex items-center gap-2">
-            <ListChecks className="w-5 h-5" /> {t('homework_modal_title').replace('{name}', clientName)}
-          </h3>
-          <button onClick={onClose}><X className="w-5 h-5" /></button>
-        </div>
-
-        {/* Tab Header */}
-        <div className="flex border-b border-line-subtle flex-shrink-0">
-            <button 
-                onClick={() => setActiveTab('LIST')}
-                className={`flex-1 py-3 text-sm font-bold transition-colors ${activeTab === 'LIST' ? 'text-indigo-600 border-b-2 border-indigo-600' : 'text-ink-muted hover:text-ink-medium'}`}
+    <Modal open={isOpen} onClose={onClose} title={title} size="lg">
+      {/* Tab Header */}
+      <div className="-mx-6 mb-4 grid grid-cols-2 gap-1 border-b border-line-subtle px-6">
+        {(['LIST', 'ASSIGN'] as const).map((tab) => {
+          const active = activeTab === tab;
+          return (
+            <button
+              key={tab}
+              type="button"
+              onClick={() => setActiveTab(tab)}
+              aria-pressed={active}
+              className={`-mb-px h-10 border-b-2 text-sm font-medium transition-colors ${
+                active
+                  ? 'border-primary-400 text-primary-300'
+                  : 'border-transparent text-ink-muted hover:text-ink-high'
+              }`}
             >
-                {t('homework_tab_list')}
+              {tab === 'LIST' ? t('homework_tab_list') : t('homework_tab_assign')}
             </button>
-            <button 
-                onClick={() => setActiveTab('ASSIGN')}
-                className={`flex-1 py-3 text-sm font-bold transition-colors ${activeTab === 'ASSIGN' ? 'text-indigo-600 border-b-2 border-indigo-600' : 'text-ink-muted hover:text-ink-medium'}`}
-            >
-                {t('homework_tab_assign')}
-            </button>
-        </div>
-
-        <div className="p-0 overflow-y-auto custom-scrollbar flex-1 bg-bg-base">
-            
-            {activeTab === 'LIST' && (
-                <div className="p-6 space-y-4">
-                    {/* Stats Dashboard */}
-                    <div className="bg-bg-raised p-4 rounded-xl border border-line-subtle shadow-sm flex items-center gap-4">
-                        <div className="relative w-16 h-16 flex items-center justify-center">
-                            <svg className="w-full h-full transform -rotate-90">
-                                <circle cx="32" cy="32" r="28" fill="none" stroke="#e5e7eb" strokeWidth="6" />
-                                <circle cx="32" cy="32" r="28" fill="none" stroke="#4f46e5" strokeWidth="6" strokeDasharray="176" strokeDashoffset={176 - (176 * stats.rate / 100)} className="transition-all duration-1000 ease-out" />
-                            </svg>
-                            <span className="absolute text-xs font-bold text-indigo-600">{stats.rate}%</span>
-                        </div>
-                        <div className="flex-1">
-                            <h4 className="font-bold text-ink-high">{t('homework_stats_title')}</h4>
-                            <p className="text-xs text-ink-medium mt-1">
-                                {t('homework_stats_count').replace('{total}', String(stats.total)).replace('{completed}', String(stats.completed))}
-                            </p>
-                            <p className="text-xs text-ink-muted mt-1">
-                                {stats.rate >= 80 ? t('hw_motivation_high') : stats.rate >= 50 ? t('hw_motivation_mid') : t('hw_motivation_low')}
-                            </p>
-                        </div>
-                    </div>
-
-                    {/* Task List */}
-                    <div>
-                        <h4 className="text-sm font-bold text-ink-high mb-3 flex items-center gap-2">
-                            <CheckCircle2 className="w-4 h-4" /> {t('homework_task_list_title')}
-                        </h4>
-                        {recentHomework.length === 0 ? (
-                            <div className="text-center py-10 text-ink-muted bg-bg-raised rounded-xl border border-line-default border-dashed">
-                                {t('homework_empty')}
-                            </div>
-                        ) : (
-                            <ul className="space-y-2">
-                                {recentHomework.map(hw => (
-                                    <li key={hw.id} className={`bg-bg-raised p-3 rounded-xl shadow-sm border flex items-center justify-between transition-colors ${hw.isCompleted ? 'border-indigo-100 bg-primary-500/10/30' : 'border-line-subtle'}`}>
-                                        <div className="flex items-center gap-3 flex-1">
-                                            <button 
-                                                onClick={() => handleToggleStatus(hw.id, hw.isCompleted)}
-                                                className={`transition-colors ${hw.isCompleted ? 'text-indigo-600' : 'text-ink-muted hover:text-ink-muted'}`}
-                                            >
-                                                {hw.isCompleted ? <CheckSquare className="w-6 h-6" /> : <Square className="w-6 h-6" />}
-                                            </button>
-                                            <div>
-                                                <p className={`font-bold text-sm ${hw.isCompleted ? 'text-ink-high' : 'text-ink-high'}`}>{hw.title}</p>
-                                                <p className="text-xs text-ink-medium flex items-center gap-1">
-                                                    <CalendarIcon className="w-3 h-3" /> {hw.date}
-                                                    {hw.isCompleted && <span className="ml-2 text-indigo-600 font-bold text-[10px]">{t('homework_done_confirmed')}</span>}
-                                                </p>
-                                            </div>
-                                        </div>
-                                        <button 
-                                            onClick={() => handleDelete(hw.id)}
-                                            className="p-2 text-ink-muted hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors"
-                                            title="삭제"
-                                        >
-                                            <Trash2 className="w-4 h-4" />
-                                        </button>
-                                    </li>
-                                ))}
-                            </ul>
-                        )}
-                    </div>
-                    
-                    {/* Bottom Back Button */}
-                    <div className="pt-2">
-                        <Button variant="secondary" onClick={onClose} className="w-full text-ink-medium border-line-default">
-                            <ArrowLeft className="w-4 h-4 mr-2" /> {t('close_label')}
-                        </Button>
-                    </div>
-                </div>
-            )}
-
-            {activeTab === 'ASSIGN' && (
-                <div className="p-6 space-y-4">
-                    <div className="bg-bg-raised p-5 rounded-xl border border-line-default space-y-4">
-                        {/* Content Input */}
-                        <div>
-                             <label className="block text-xs font-bold text-ink-medium mb-1">{t('homework_task_label')}</label>
-                             <div className="flex gap-2">
-                                <input 
-                                    type="text" 
-                                    value={taskTitle}
-                                    onChange={(e) => setTaskTitle(e.target.value)}
-                                    placeholder={t('homework_placeholder')}
-                                    className="flex-1 border border-line-default rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
-                                />
-                                <select 
-                                    className="w-1/3 border border-line-default rounded-lg px-2 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
-                                    onChange={(e) => setTaskTitle(e.target.value)}
-                                    value=""
-                                >
-                                    <option value="">{t('homework_template_placeholder')}</option>
-                                    {templates.map(tmpl => (
-                                        <option key={tmpl.id} value={tmpl.title}>{tmpl.title}</option>
-                                    ))}
-                                </select>
-                            </div>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-4">
-                            <div>
-                                <label className="block text-xs font-bold text-ink-medium mb-1">{t('homework_start_date')}</label>
-                                <input 
-                                    type="date" 
-                                    value={startDate} 
-                                    onChange={(e) => setStartDate(e.target.value)} 
-                                    className="w-full border border-line-default rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-xs font-bold text-ink-medium mb-1">{t('homework_duration')}</label>
-                                <select 
-                                    value={durationWeeks}
-                                    onChange={(e) => setDurationWeeks(Number(e.target.value))}
-                                    className="w-full border border-line-default rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
-                                >
-                                    {DURATION_OPTIONS.map(opt => (
-                                        <option key={opt.value} value={opt.value}>{opt.label}</option>
-                                    ))}
-                                </select>
-                            </div>
-                        </div>
-
-                        {/* Frequency / Days */}
-                        <div>
-                            <label className="block text-xs font-bold text-ink-medium mb-2 flex items-center justify-between">
-                                <span>{t('homework_days_select')}</span>
-                                <span className="text-indigo-600 font-normal">{t('homework_times_per_week').replace('{n}', String(selectedDays.length))}</span>
-                            </label>
-                            <div className="flex justify-between gap-1">
-                                {WEEK_DAYS.map(day => {
-                                    const isSelected = selectedDays.includes(day.value);
-                                    return (
-                                        <button
-                                            key={day.value}
-                                            onClick={() => toggleDay(day.value)}
-                                            className={`w-9 h-9 rounded-full text-xs font-bold transition-all ${
-                                                isSelected 
-                                                ? 'bg-slate-700 text-white shadow-md transform scale-105' 
-                                                : 'bg-bg-raised border border-line-default text-ink-medium hover:bg-bg-overlay'
-                                            }`}
-                                        >
-                                            {day.label}
-                                        </button>
-                                    );
-                                })}
-                            </div>
-                        </div>
-
-                        <div className="bg-primary-500/10 p-3 rounded-lg flex items-center justify-between">
-                            <span className="text-xs text-primary-300 font-medium">{t('homework_total_label')}</span>
-                            <span className="text-lg font-bold text-indigo-900">{t('homework_total_count_unit').replace('{n}', String(calculateTotalTasks()))}</span>
-                        </div>
-
-                        <Button onClick={handleAssign} isLoading={isLoading} className="w-full mt-2" icon={<Repeat className="w-4 h-4" />}>
-                            {t('homework_assign_btn')}
-                        </Button>
-                    </div>
-                </div>
-            )}
-        </div>
+          );
+        })}
       </div>
-    </div>
+
+      {activeTab === 'LIST' && (
+        <div className="space-y-4">
+          {/* Stats Dashboard */}
+          <div className="flex items-center gap-4 rounded-xl border border-line-subtle bg-bg-base p-4">
+            <div className="relative flex h-16 w-16 items-center justify-center">
+              <svg className="h-full w-full -rotate-90 transform">
+                <circle cx="32" cy="32" r="28" fill="none" stroke="rgba(255,255,255,0.10)" strokeWidth="6" />
+                <circle
+                  cx="32"
+                  cy="32"
+                  r="28"
+                  fill="none"
+                  stroke="#10b981"
+                  strokeWidth="6"
+                  strokeDasharray="176"
+                  strokeDashoffset={176 - (176 * stats.rate) / 100}
+                  className="transition-all duration-1000 ease-out"
+                />
+              </svg>
+              <span className="absolute text-xs font-semibold text-primary-300">{stats.rate}%</span>
+            </div>
+            <div className="flex-1">
+              <h4 className="font-semibold text-ink-high">{t('homework_stats_title')}</h4>
+              <p className="mt-1 text-xs text-ink-medium">
+                {t('homework_stats_count')
+                  .replace('{total}', String(stats.total))
+                  .replace('{completed}', String(stats.completed))}
+              </p>
+              <p className="mt-1 text-xs text-ink-muted">
+                {stats.rate >= 80
+                  ? t('hw_motivation_high')
+                  : stats.rate >= 50
+                  ? t('hw_motivation_mid')
+                  : t('hw_motivation_low')}
+              </p>
+            </div>
+          </div>
+
+          {/* Task List */}
+          <div>
+            <h4 className="mb-3 flex items-center gap-2 text-sm font-semibold text-ink-high">
+              <CheckCircle2 className="h-4 w-4" /> {t('homework_task_list_title')}
+            </h4>
+            {recentHomework.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-line-default bg-bg-base/60 py-10 text-center text-ink-muted">
+                {t('homework_empty')}
+              </div>
+            ) : (
+              <ul className="space-y-2">
+                {recentHomework.map((hw) => (
+                  <li
+                    key={hw.id}
+                    className={`flex items-center justify-between rounded-xl border bg-bg-base p-3 transition-colors ${
+                      hw.isCompleted ? 'border-primary-500/30' : 'border-line-subtle'
+                    }`}
+                  >
+                    <div className="flex flex-1 items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => handleToggleStatus(hw.id, hw.isCompleted)}
+                        aria-pressed={hw.isCompleted}
+                        className={`transition-colors ${
+                          hw.isCompleted ? 'text-primary-300' : 'text-ink-muted hover:text-ink-medium'
+                        }`}
+                      >
+                        {hw.isCompleted ? <CheckSquare className="h-6 w-6" /> : <Square className="h-6 w-6" />}
+                      </button>
+                      <div>
+                        <p className="text-sm font-semibold text-ink-high">{hw.title}</p>
+                        <p className="mt-0.5 flex items-center gap-1 text-xs text-ink-medium">
+                          <CalendarIcon className="h-3 w-3" /> {hw.date}
+                          {hw.isCompleted && (
+                            <span className="ml-2 text-2xs font-semibold text-primary-300">
+                              {t('homework_done_confirmed')}
+                            </span>
+                          )}
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(hw.id)}
+                      className="rounded-lg p-2 text-ink-muted transition-colors hover:bg-red-500/10 hover:text-red-400"
+                      title="삭제"
+                      aria-label="삭제"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          <Button
+            variant="secondary"
+            onClick={onClose}
+            fullWidth
+            icon={<ArrowLeft className="h-4 w-4" />}
+          >
+            {t('close_label')}
+          </Button>
+        </div>
+      )}
+
+      {activeTab === 'ASSIGN' && (
+        <div className="space-y-4">
+          {/* Content + template */}
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+            <Input
+              label={t('homework_task_label')}
+              value={taskTitle}
+              onChange={(e) => setTaskTitle(e.target.value)}
+              placeholder={t('homework_placeholder')}
+              containerClassName="flex-1"
+            />
+            <div className="flex flex-col gap-1.5 sm:w-40">
+              <label className="text-sm font-medium text-ink-medium">
+                {t('homework_template_placeholder')}
+              </label>
+              <select
+                className="h-11 rounded-lg border border-line-default bg-bg-overlay px-3 text-sm text-ink-high outline-none transition-colors focus:border-primary-500 focus:shadow-ring-primary"
+                onChange={(e) => setTaskTitle(e.target.value)}
+                value=""
+              >
+                <option value="">{t('homework_template_placeholder')}</option>
+                {templates.map((tmpl) => (
+                  <option key={tmpl.id} value={tmpl.title}>
+                    {tmpl.title}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <Input
+              label={t('homework_start_date')}
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+            />
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-medium text-ink-medium">
+                {t('homework_duration')}
+              </label>
+              <select
+                value={durationWeeks}
+                onChange={(e) => setDurationWeeks(Number(e.target.value))}
+                className="h-11 rounded-lg border border-line-default bg-bg-overlay px-3 text-sm text-ink-high outline-none transition-colors focus:border-primary-500 focus:shadow-ring-primary"
+              >
+                {DURATION_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Frequency / Days */}
+          <div>
+            <div className="mb-2 flex items-center justify-between">
+              <span className="text-sm font-medium text-ink-medium">{t('homework_days_select')}</span>
+              <span className="text-xs text-primary-300">
+                {t('homework_times_per_week').replace('{n}', String(selectedDays.length))}
+              </span>
+            </div>
+            <div className="flex justify-between gap-1">
+              {WEEK_DAYS.map((day) => {
+                const isSelected = selectedDays.includes(day.value);
+                return (
+                  <button
+                    key={day.value}
+                    type="button"
+                    onClick={() => toggleDay(day.value)}
+                    aria-pressed={isSelected}
+                    className={`h-10 w-10 rounded-full text-xs font-semibold transition-all ${
+                      isSelected
+                        ? 'bg-primary-500 text-white shadow-elev-2'
+                        : 'border border-line-default bg-bg-overlay text-ink-medium hover:border-line-strong hover:text-ink-high'
+                    }`}
+                  >
+                    {day.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between rounded-lg border border-primary-500/20 bg-primary-500/10 px-3 py-3">
+            <span className="text-xs font-medium text-primary-300">{t('homework_total_label')}</span>
+            <span className="text-lg font-semibold text-primary-200">
+              {t('homework_total_count_unit').replace('{n}', String(calculateTotalTasks()))}
+            </span>
+          </div>
+
+          <Button
+            onClick={handleAssign}
+            isLoading={isLoading}
+            fullWidth
+            size="lg"
+            icon={<Repeat className="h-4 w-4" />}
+          >
+            {t('homework_assign_btn')}
+          </Button>
+        </div>
+      )}
+    </Modal>
   );
 };
