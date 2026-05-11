@@ -4,8 +4,9 @@ import { reservationService } from '../services/reservationService';
 import { bayReservationService, AvailableBay, TimeSlot } from '../services/bayReservationService';
 import { firebaseService } from '../services/firebase';
 import { storageService } from '../services/storage';
-import { X, Search, User, Clock, MapPin, ChevronDown, ChevronUp } from 'lucide-react';
+import { CheckCircle, ChevronDown, ChevronUp, Clock, MapPin, Search, User, X } from 'lucide-react';
 import { Button } from './Button';
+import { Modal } from './ui/Modal';
 
 interface CoachLessonReservationModalProps {
   coachProfile: CoachProfile;
@@ -22,8 +23,8 @@ function formatHour(h: number) {
 }
 
 const formInputFieldClass =
-  'w-full px-3 py-2.5 border border-slate-700 rounded-xl text-sm bg-slate-900 text-slate-100 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none';
-const formSectionTitleClass = 'text-sm font-semibold text-slate-200 mb-2';
+  'w-full px-3 py-2.5 border border-line-default rounded-xl text-sm bg-bg-overlay text-ink-high outline-none transition-colors focus:border-primary-500 focus:shadow-ring-primary';
+const formSectionTitleClass = 'text-sm font-semibold text-ink-high mb-2';
 
 export const CoachLessonReservationModal: React.FC<CoachLessonReservationModalProps> = ({
   coachProfile,
@@ -242,66 +243,48 @@ export const CoachLessonReservationModal: React.FC<CoachLessonReservationModalPr
 
   if (successMsg) {
     return (
-      <>
-        <div
-          className="fixed inset-0 bg-black/70 z-40"
-          onClick={handleDone}
-        />
-        <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
-          <div className="bg-slate-900 text-slate-100 border border-slate-700/80 rounded-2xl shadow-2xl max-w-sm w-full p-6 text-center">
-            <div className="mb-4 text-emerald-400">
-              <svg className="w-12 h-12 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
-            </div>
-            <p className="text-slate-200 whitespace-pre-line mb-6">{successMsg}</p>
-            <Button onClick={handleDone} className="w-full bg-indigo-600 hover:bg-indigo-500">확인</Button>
-          </div>
-        </div>
-      </>
+      <Modal
+        open
+        onClose={handleDone}
+        title={
+          <span className="flex items-center gap-3">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary-500/15 text-primary-300">
+              <CheckCircle className="h-5 w-5" />
+            </span>
+            예약 등록 완료
+          </span>
+        }
+        size="sm"
+        footer={
+          <Button onClick={handleDone} fullWidth>
+            확인
+          </Button>
+        }
+      >
+        <p className="whitespace-pre-line text-sm text-ink-medium">{successMsg}</p>
+      </Modal>
     );
   }
 
   return (
-    <>
-      {/* Backdrop */}
-      <div
-        className="fixed inset-0 bg-black/70 z-40"
-        onClick={onClose}
-      />
-
-      {/* Modal */}
-      <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
-        <div className="bg-slate-900 text-slate-100 rounded-2xl shadow-2xl border border-slate-700/80 max-w-lg w-full max-h-[90vh] overflow-y-auto">
-          {/* Header */}
-          <div className="flex items-center justify-between px-6 py-4 border-b border-slate-700 sticky top-0 bg-slate-900/95 backdrop-blur z-10">
-            <h2 className="text-lg font-semibold text-slate-100">회원 레슨 예약 등록</h2>
-            <button
-              onClick={onClose}
-              className="text-slate-400 hover:text-slate-200 transition-colors"
-              aria-label="닫기"
-            >
-              <X size={22} />
-            </button>
-          </div>
-
-          <div className="px-6 py-5 space-y-6">
+    <Modal open onClose={onClose} title="회원 레슨 예약 등록" size="lg">
+      <div className="space-y-6">
             {/* ── Member search ── */}
             <section>
-              <label className="block text-sm font-medium text-slate-200 mb-1.5">
-                <User size={14} className="inline mr-1 text-slate-400" />
+              <label className="block text-sm font-medium text-ink-high mb-1.5">
+                <User size={14} className="inline mr-1 text-ink-muted" />
                 회원 검색 <span className="text-red-500">*</span>
               </label>
 
               {selectedMember ? (
-                <div className="flex items-center justify-between bg-indigo-500/10 border border-indigo-500/30 rounded-xl px-3 py-2">
+                <div className="flex items-center justify-between bg-primary-500/10 border border-primary-500/30 rounded-xl px-3 py-2">
                   <div>
-                    <p className="font-medium text-indigo-200">{selectedMember.name}</p>
-                    <p className="text-xs text-indigo-300">{selectedMember.phone}</p>
+                    <p className="font-medium text-primary-200">{selectedMember.name}</p>
+                    <p className="text-xs text-primary-300">{selectedMember.phone}</p>
                   </div>
                   <button
                     onClick={() => setSelectedMember(null)}
-                    className="text-indigo-300 hover:text-indigo-100 transition-colors ml-2"
+                    className="text-primary-300 hover:text-primary-100 transition-colors ml-2"
                     aria-label="회원 선택 취소"
                   >
                     <X size={16} />
@@ -310,7 +293,7 @@ export const CoachLessonReservationModal: React.FC<CoachLessonReservationModalPr
               ) : (
                 <div className="relative">
                   <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
-                    <Search size={16} className="text-slate-500" />
+                    <Search size={16} className="text-ink-muted" />
                   </div>
                   <input
                     ref={searchRef}
@@ -322,26 +305,26 @@ export const CoachLessonReservationModal: React.FC<CoachLessonReservationModalPr
                   />
                   {searchLoading && (
                     <div className="absolute inset-y-0 right-3 flex items-center">
-                      <div className="w-4 h-4 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin" />
+                      <div className="w-4 h-4 border-2 border-primary-400 border-t-transparent rounded-full animate-spin" />
                     </div>
                   )}
                   {memberResults.length > 0 && (
-                    <ul className="absolute z-20 mt-1 w-full bg-slate-900 border border-slate-700 rounded-xl shadow-lg max-h-48 overflow-y-auto">
+                    <ul className="absolute z-20 mt-1 w-full bg-bg-overlay border border-line-default rounded-xl shadow-lg max-h-48 overflow-y-auto">
                       {memberResults.map((m) => (
                         <li key={`${m.name}_${m.phone}`}>
                           <button
-                            className="w-full text-left px-4 py-2.5 hover:bg-slate-800 transition-colors flex items-center justify-between"
+                            className="w-full text-left px-4 py-2.5 hover:bg-bg-overlay transition-colors flex items-center justify-between"
                             onClick={() => handleSelectMember(m)}
                           >
-                            <span className="font-medium text-slate-100">{m.name}</span>
-                            <span className="text-xs text-slate-400 ml-2">{m.phone}</span>
+                            <span className="font-medium text-ink-high">{m.name}</span>
+                            <span className="text-xs text-ink-muted ml-2">{m.phone}</span>
                           </button>
                         </li>
                       ))}
                     </ul>
                   )}
                   {memberQuery.trim() && memberResults.length === 0 && !searchLoading && (
-                    <p className="mt-1 text-xs text-slate-400">검색 결과가 없습니다.</p>
+                    <p className="mt-1 text-xs text-ink-muted">검색 결과가 없습니다.</p>
                   )}
                 </div>
               )}
@@ -350,12 +333,12 @@ export const CoachLessonReservationModal: React.FC<CoachLessonReservationModalPr
             {/* ── Lesson details ── */}
             <section>
               <p className={formSectionTitleClass}>
-                <Clock size={14} className="inline mr-1 text-slate-400" />
+                <Clock size={14} className="inline mr-1 text-ink-muted" />
                 레슨 일시
               </p>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs text-slate-400 mb-1">날짜</label>
+                  <label className="block text-xs text-ink-muted mb-1">날짜</label>
                   <input
                     type="date"
                     value={date}
@@ -364,7 +347,7 @@ export const CoachLessonReservationModal: React.FC<CoachLessonReservationModalPr
                   />
                 </div>
                 <div>
-                  <label className="block text-xs text-slate-400 mb-1">시작 시간 (1시간)</label>
+                  <label className="block text-xs text-ink-muted mb-1">시작 시간 (1시간)</label>
                   <select
                     value={hour}
                     onChange={(e) => setHour(Number(e.target.value))}
@@ -395,7 +378,7 @@ export const CoachLessonReservationModal: React.FC<CoachLessonReservationModalPr
             </section>
 
             {/* ── Optional bay reservation ── */}
-            <section className="border border-slate-700 rounded-xl overflow-hidden">
+            <section className="border border-line-default rounded-xl overflow-hidden">
               <button
                 type="button"
                 onClick={() => {
@@ -403,20 +386,20 @@ export const CoachLessonReservationModal: React.FC<CoachLessonReservationModalPr
                   setBayError(null);
                   setSelectedBayEntry(null);
                 }}
-                className="w-full flex items-center justify-between px-4 py-3 bg-slate-800/80 hover:bg-slate-800 transition-colors text-sm font-medium text-slate-200"
+                className="w-full flex items-center justify-between px-4 py-3 bg-bg-overlay hover:bg-bg-inset transition-colors text-sm font-medium text-ink-high"
               >
                 <span className="flex items-center gap-2">
-                  <MapPin size={14} className="text-slate-400" />
+                  <MapPin size={14} className="text-ink-muted" />
                   타석도 함께 예약하기 (선택)
                 </span>
                 {includeBay ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
               </button>
 
               {includeBay && (
-                <div className="px-4 py-4 space-y-4 border-t border-slate-700">
+                <div className="px-4 py-4 space-y-4 border-t border-line-default">
                   {/* Branch */}
                   <div>
-                    <label className="block text-xs text-slate-400 mb-1">지점 선택</label>
+                    <label className="block text-xs text-ink-muted mb-1">지점 선택</label>
                     <select
                       value={selectedBranch?.id ?? ''}
                       onChange={(e) => {
@@ -437,7 +420,7 @@ export const CoachLessonReservationModal: React.FC<CoachLessonReservationModalPr
 
                   {/* Bay date */}
                   <div>
-                    <label className="block text-xs text-slate-400 mb-1">날짜</label>
+                    <label className="block text-xs text-ink-muted mb-1">날짜</label>
                     <input
                       type="date"
                       value={bayDate}
@@ -453,7 +436,7 @@ export const CoachLessonReservationModal: React.FC<CoachLessonReservationModalPr
                   {/* Time slots */}
                   {selectedBranch && timeSlots.length > 0 && (
                     <div>
-                      <label className="block text-xs text-slate-400 mb-1">시간대</label>
+                      <label className="block text-xs text-ink-muted mb-1">시간대</label>
                       <div className="grid grid-cols-3 gap-2">
                         {timeSlots.map((slot) => (
                           <button
@@ -463,15 +446,15 @@ export const CoachLessonReservationModal: React.FC<CoachLessonReservationModalPr
                             disabled={slot.pricePoints === null}
                             className={`px-2 py-1.5 rounded text-xs border transition-colors ${
                               bayHour === slot.startHour && availableBays.length > 0
-                                ? 'bg-indigo-600 text-white border-indigo-600'
+                                ? 'bg-primary-500 text-white border-primary-500'
                                 : slot.pricePoints === null
-                                ? 'bg-slate-800 text-slate-500 border-slate-700 cursor-not-allowed'
-                                : 'bg-slate-900 text-slate-200 border-slate-700 hover:border-indigo-500'
+                                ? 'bg-bg-overlay text-ink-muted border-line-default cursor-not-allowed'
+                                : 'bg-bg-overlay text-ink-high border-line-default hover:border-primary-500'
                             }`}
                           >
                             {formatHour(slot.startHour)}
                             {slot.pricePoints !== null && (
-                              <span className="block text-slate-400">{slot.pricePoints}pt</span>
+                              <span className="block text-ink-muted">{slot.pricePoints}pt</span>
                             )}
                           </button>
                         ))}
@@ -482,7 +465,7 @@ export const CoachLessonReservationModal: React.FC<CoachLessonReservationModalPr
                   {/* Available bays */}
                   {availableBays.length > 0 && (
                     <div>
-                      <label className="block text-xs text-slate-400 mb-1">타석 선택</label>
+                      <label className="block text-xs text-ink-muted mb-1">타석 선택</label>
                       <div className="grid grid-cols-2 gap-2">
                         {availableBays.map((entry) => (
                           <button
@@ -491,8 +474,8 @@ export const CoachLessonReservationModal: React.FC<CoachLessonReservationModalPr
                             onClick={() => setSelectedBayEntry(entry)}
                             className={`px-3 py-2 rounded border text-xs text-left transition-colors ${
                               selectedBayEntry?.bay.id === entry.bay.id
-                                ? 'bg-indigo-600 text-white border-indigo-600'
-                                : 'bg-slate-900 text-slate-200 border-slate-700 hover:border-indigo-500'
+                                ? 'bg-primary-500 text-white border-primary-500'
+                                : 'bg-bg-overlay text-ink-high border-line-default hover:border-primary-500'
                             }`}
                           >
                             <span className="font-medium">{entry.bay.floor}층 {entry.bay.roomNumber}번</span>
@@ -505,7 +488,7 @@ export const CoachLessonReservationModal: React.FC<CoachLessonReservationModalPr
 
                   {bayLoading && (
                     <div className="flex justify-center py-2">
-                      <div className="w-5 h-5 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin" />
+                      <div className="w-5 h-5 border-2 border-primary-400 border-t-transparent rounded-full animate-spin" />
                     </div>
                   )}
 
@@ -522,33 +505,28 @@ export const CoachLessonReservationModal: React.FC<CoachLessonReservationModalPr
               )}
             </section>
 
-            {/* ── Error ── */}
-            {error && (
-              <p className="text-sm text-red-300 bg-red-500/10 border border-red-500/30 rounded-xl px-4 py-2">{error}</p>
-            )}
+        {/* ── Error ── */}
+        {error && (
+          <p className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-2 text-sm text-red-300">
+            {error}
+          </p>
+        )}
 
-            {/* ── Actions ── */}
-            <div className="flex gap-3 pt-1">
-              <button
-                onClick={onClose}
-                className="flex-1 px-4 py-2.5 border border-slate-700 text-slate-300 rounded-xl text-sm hover:bg-slate-800 transition"
-              >
-                취소
-              </button>
-              <button
-                onClick={handleSave}
-                disabled={loading || !selectedMember}
-                className="flex-1 px-4 py-2.5 bg-indigo-600 text-white rounded-xl text-sm hover:bg-indigo-500 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-              >
-                {loading ? (
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                ) : null}
-                예약 등록
-              </button>
-            </div>
-          </div>
+        {/* ── Actions ── */}
+        <div className="flex gap-3 pt-1">
+          <Button variant="secondary" onClick={onClose} className="flex-1">
+            취소
+          </Button>
+          <Button
+            onClick={handleSave}
+            isLoading={loading}
+            disabled={!selectedMember}
+            className="flex-1"
+          >
+            예약 등록
+          </Button>
         </div>
       </div>
-    </>
+    </Modal>
   );
 };
