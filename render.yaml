@@ -30,4 +30,4 @@ databases:
   - name: coachxai-db
     databaseName: coachxai
     user: coachxai
-    plan: starter
+    plan: basic-256mb
