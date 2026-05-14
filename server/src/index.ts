@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
+import { initDb } from './services/db';
 import payappPaymentsRouter from './routes/payappPayments';
 import payappMembershipsRouter from './routes/payappMemberships';
 
@@ -45,8 +46,15 @@ app.get('/api/health', (_req, res) => {
 app.use('/api/payments/payapp', payappPaymentsRouter);
 app.use('/api/payments/payapp-membership', payappMembershipsRouter);
 
-app.listen(PORT, () => {
-  console.log(`[swingnote-server] running on http://localhost:${PORT}`);
-});
+initDb()
+  .then(() => {
+    app.listen(PORT, () => {
+      console.log(`[swingnote-server] running on http://localhost:${PORT}`);
+    });
+  })
+  .catch((err) => {
+    console.error('[swingnote-server] DB init failed:', err);
+    process.exit(1);
+  });
 
 export default app;

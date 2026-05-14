@@ -1,5 +1,4 @@
-import * as fs from 'fs';
-import * as path from 'path';
+import pool from './db';
 
 export interface PaymentOrder {
   orderId: string;
@@ -16,98 +15,79 @@ export interface PaymentOrder {
   updatedAt: number;
 }
 
-const DATA_DIR = path.join(__dirname, '../../data');
-const DATA_FILE = path.join(DATA_DIR, 'payment_orders.json');
-
-// Ensure data directory and file exist
-function ensureDataFile(): void {
-  if (!fs.existsSync(DATA_DIR)) {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
-  }
-  if (!fs.existsSync(DATA_FILE)) {
-    fs.writeFileSync(DATA_FILE, JSON.stringify([]), 'utf-8');
-  }
+function rowToOrder(row: Record<string, unknown>): PaymentOrder {
+  return {
+    orderId: row.order_id as string,
+    userId: row.user_id as string,
+    amount: row.amount as number,
+    points: row.points as number,
+    status: row.status as 'PENDING' | 'PAID' | 'FAILED',
+    paymentKey: (row.payment_key as string | null) ?? undefined,
+    orderType: (row.order_type as 'POINT_TOPUP' | 'MEMBERSHIP' | null) ?? undefined,
+    role: (row.role as 'CLIENT' | 'COACH' | null) ?? undefined,
+    planName: (row.plan_name as string | null) ?? undefined,
+    membershipMonths: (row.membership_months as number | null) ?? undefined,
+    createdAt: Number(row.created_at),
+    updatedAt: Number(row.updated_at),
+  };
 }
 
-function readOrders(): PaymentOrder[] {
-  ensureDataFile();
-  try {
-    const raw = fs.readFileSync(DATA_FILE, 'utf-8');
-    return JSON.parse(raw) as PaymentOrder[];
-  } catch (err) {
-    console.error('[orderStorage] Failed to parse payment_orders.json:', err);
-    return [];
-  }
-}
-
-function writeOrders(orders: PaymentOrder[]): void {
-  ensureDataFile();
-  fs.writeFileSync(DATA_FILE, JSON.stringify(orders, null, 2), 'utf-8');
-}
-
-// ── Firebase Admin (optional) ──────────────────────────────────────────────
-let adminDb: FirebaseFirestore.Firestore | null = null;
-
-async function getAdminDb(): Promise<FirebaseFirestore.Firestore | null> {
-  if (adminDb) return adminDb;
-  try {
-    const serviceAccountPath = process.env.GOOGLE_APPLICATION_CREDENTIALS;
-    const projectId = process.env.FIREBASE_PROJECT_ID;
-    if (!projectId) return null;
-
-    const admin = await import('firebase-admin');
-    if (!admin.default.apps.length) {
-      if (serviceAccountPath) {
-        admin.default.initializeApp({
-          credential: admin.default.credential.applicationDefault(),
-          projectId,
-        });
-      } else {
-        // Running without service account – skip Firebase
-        return null;
-      }
-    }
-    adminDb = admin.default.firestore();
-    return adminDb;
-  } catch {
-    return null;
-  }
-}
-
-// ── Public API ─────────────────────────────────────────────────────────────
 export const orderStorage = {
   async create(order: PaymentOrder): Promise<void> {
-    const db = await getAdminDb();
-    if (db) {
-      await db.collection('payment_orders').doc(order.orderId).set(order);
-    } else {
-      const orders = readOrders();
-      orders.push(order);
-      writeOrders(orders);
-    }
+    await pool.query(
+      `INSERT INTO payment_orders
+        (order_id, user_id, amount, points, status, payment_key, order_type,
+         role, plan_name, membership_months, created_at, updated_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
+      [
+        order.orderId,
+        order.userId,
+        order.amount,
+        order.points,
+        order.status,
+        order.paymentKey ?? null,
+        order.orderType ?? null,
+        order.role ?? null,
+        order.planName ?? null,
+        order.membershipMonths ?? null,
+        order.createdAt,
+        order.updatedAt,
+      ]
+    );
   },
 
   async findById(orderId: string): Promise<PaymentOrder | null> {
-    const db = await getAdminDb();
-    if (db) {
-      const doc = await db.collection('payment_orders').doc(orderId).get();
-      return doc.exists ? (doc.data() as PaymentOrder) : null;
-    }
-    const orders = readOrders();
-    return orders.find((o) => o.orderId === orderId) ?? null;
+    const result = await pool.query(
+      'SELECT * FROM payment_orders WHERE order_id = $1',
+      [orderId]
+    );
+    return result.rows.length === 0 ? null : rowToOrder(result.rows[0]);
   },
 
   async update(orderId: string, patch: Partial<PaymentOrder>): Promise<void> {
-    const db = await getAdminDb();
-    if (db) {
-      await db.collection('payment_orders').doc(orderId).update(patch);
-    } else {
-      const orders = readOrders();
-      const idx = orders.findIndex((o) => o.orderId === orderId);
-      if (idx !== -1) {
-        orders[idx] = { ...orders[idx], ...patch };
-        writeOrders(orders);
-      }
-    }
+    const fields: string[] = [];
+    const values: unknown[] = [];
+    let idx = 1;
+
+    const add = (col: string, val: unknown) => {
+      fields.push(`${col} = $${idx++}`);
+      values.push(val);
+    };
+
+    if (patch.status !== undefined) add('status', patch.status);
+    if (patch.paymentKey !== undefined) add('payment_key', patch.paymentKey);
+    if (patch.updatedAt !== undefined) add('updated_at', patch.updatedAt);
+    if (patch.orderType !== undefined) add('order_type', patch.orderType);
+    if (patch.role !== undefined) add('role', patch.role);
+    if (patch.planName !== undefined) add('plan_name', patch.planName);
+    if (patch.membershipMonths !== undefined) add('membership_months', patch.membershipMonths);
+
+    if (fields.length === 0) return;
+
+    values.push(orderId);
+    await pool.query(
+      `UPDATE payment_orders SET ${fields.join(', ')} WHERE order_id = $${idx}`,
+      values
+    );
   },
 };

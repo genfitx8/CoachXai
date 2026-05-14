@@ -1,0 +1,33 @@
+services:
+  - type: web
+    name: coachxai-server
+    env: node
+    rootDir: server
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: coachxai-db
+          property: connectionString
+      - key: APP_BASE_URL
+        sync: false
+      - key: APP_ALLOWED_ORIGINS
+        sync: false
+      - key: PAYAPP_SECRET_KEY
+        sync: false
+      - key: PAYAPP_API_BASE
+        sync: false
+      - key: PAYAPP_CHECKOUT_URL
+        sync: false
+      - key: TOSS_SECRET_KEY
+        sync: false
+
+databases:
+  - name: coachxai-db
+    databaseName: coachxai
+    user: coachxai
+    plan: starter
