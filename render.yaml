@@ -3,7 +3,7 @@ services:
     name: coachxai-server
     env: node
     rootDir: server
-    buildCommand: npm install --include=dev && npm run build
+    buildCommand: npm install --production=false && npm run build
     startCommand: npm start
     healthCheckPath: /api/health
     envVars:
