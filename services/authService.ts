@@ -1,6 +1,7 @@
 import { CoachProfile, ClientProfile } from '../types';
 import { storageService } from './storage';
 import { firebaseService } from './firebase';
+import { apiService } from './apiService';
 import { createLogger } from '../utils/logger';
 
 const log = createLogger('auth');
@@ -54,7 +55,6 @@ export const authService = {
   ): Promise<CoachProfile> => {
     return new Promise(async (resolve, reject) => {
       try {
-        // Simple validation
         if (!name || !email || !password || !phone) {
           reject('모든 필드를 입력해주세요.');
           return;
@@ -63,63 +63,34 @@ export const authService = {
           reject(PASSWORD_POLICY_ERROR_MESSAGE);
           return;
         }
-
         const normalizedPhone = normalizePhoneNumber(phone);
         if (!normalizedPhone) {
           reject('올바른 휴대폰 번호를 입력해주세요.');
           return;
         }
 
-        // Check if already exists - Firebase first, then local
-        const existingCoaches: CoachProfile[] = [];
-        if (firebaseService.isInitialized()) {
-          existingCoaches.push(...(await firebaseService.getCoaches()));
+        if (apiService.isAvailable()) {
+          const { coach } = await apiService.signupCoach(name, email, password, normalizedPhone);
+          localStorage.setItem(STORAGE_KEYS.COACH_PROFILE, JSON.stringify(coach));
+          resolve(coach);
+          return;
         }
 
-        // Check local storage
+        // localStorage fallback
         const existingData = localStorage.getItem(STORAGE_KEYS.COACH_PROFILE);
-        if (existingData) {
-          existingCoaches.push(JSON.parse(existingData));
-        }
-
-        if (existingCoaches.some((c) => c.email === email)) {
-          reject('이미 가입된 이메일입니다.');
-          return;
-        }
-
-        if (
-          existingCoaches.some(
-            (c) => isSamePhoneNumber(c.phone, normalizedPhone)
-          )
-        ) {
-          reject('이미 가입된 휴대폰 번호입니다.');
-          return;
-        }
+        const existingCoaches: CoachProfile[] = existingData ? [JSON.parse(existingData)] : [];
+        if (existingCoaches.some((c) => c.email === email)) { reject('이미 가입된 이메일입니다.'); return; }
+        if (existingCoaches.some((c) => isSamePhoneNumber(c.phone, normalizedPhone))) { reject('이미 가입된 휴대폰 번호입니다.'); return; }
 
         const newProfile: CoachProfile = {
-          id: crypto.randomUUID(),
-          name,
-          email,
-          phone,
-          password, // In a real app, never store plain text passwords!
-          isSubscribed: false, // Default to false for new signups
-          subscriptionPlan: 'FREE',
+          id: crypto.randomUUID(), name, email, phone: normalizedPhone, password,
+          isSubscribed: false, subscriptionPlan: 'FREE',
         };
-
-        // Save to Firebase if connected
-        if (firebaseService.isInitialized()) {
-          await firebaseService.saveCoach(newProfile);
-        }
-
-        // Also save to local storage
-        localStorage.setItem(
-          STORAGE_KEYS.COACH_PROFILE,
-          JSON.stringify(newProfile)
-        );
+        localStorage.setItem(STORAGE_KEYS.COACH_PROFILE, JSON.stringify(newProfile));
         resolve(newProfile);
-      } catch (error) {
+      } catch (error: any) {
         log.error('Signup error:', error);
-        reject('회원가입 중 오류가 발생했습니다.');
+        reject(typeof error === 'string' ? error : '회원가입 중 오류가 발생했습니다.');
       }
     });
   },
@@ -127,46 +98,26 @@ export const authService = {
   loginCoach: (email: string, password: string): Promise<CoachProfile> => {
     return new Promise(async (resolve, reject) => {
       try {
-        let profile: CoachProfile | null = null;
+        if (apiService.isAvailable()) {
+          const { coach } = await apiService.loginCoach(email, password);
+          localStorage.setItem(STORAGE_KEYS.COACH_PROFILE, JSON.stringify(coach));
+          resolve(coach);
+          return;
+        }
 
-        // Check Firebase first if connected
-        if (firebaseService.isInitialized()) {
-          const coaches = await firebaseService.getCoaches();
-          profile =
-            coaches.find((c) => c.email === email && c.password === password) ||
-            null;
-
-          // If found in Firebase, also save to localStorage for session restoration
-          if (profile) {
-            localStorage.setItem(
-              STORAGE_KEYS.COACH_PROFILE,
-              JSON.stringify(profile)
-            );
+        // localStorage fallback
+        const data = localStorage.getItem(STORAGE_KEYS.COACH_PROFILE);
+        if (data) {
+          const localProfile = JSON.parse(data);
+          if (localProfile.email === email && localProfile.password === password) {
+            resolve(localProfile);
+            return;
           }
         }
-
-        // Fallback to local storage
-        if (!profile) {
-          const data = localStorage.getItem(STORAGE_KEYS.COACH_PROFILE);
-          if (data) {
-            const localProfile = JSON.parse(data);
-            if (
-              localProfile.email === email &&
-              localProfile.password === password
-            ) {
-              profile = localProfile;
-            }
-          }
-        }
-
-        if (profile) {
-          resolve(profile);
-        } else {
-          reject('이메일 또는 비밀번호가 일치하지 않습니다.');
-        }
-      } catch (error) {
+        reject('이메일 또는 비밀번호가 일치하지 않습니다.');
+      } catch (error: any) {
         log.error('Login error:', error);
-        reject('로그인 중 오류가 발생했습니다.');
+        reject(typeof error === 'string' ? error : '로그인 중 오류가 발생했습니다.');
       }
     });
   },
@@ -258,28 +209,18 @@ export const authService = {
   loginClient: (email: string, password: string): Promise<ClientProfile> => {
     return new Promise(async (resolve, reject) => {
       try {
-        let clients: ClientProfile[] = [];
-
-        // Check Firebase first if connected
-        if (firebaseService.isInitialized()) {
-          clients = await firebaseService.getClients();
-        } else {
-          // Fallback to local storage
-          clients = storageService.getClients();
-        }
-
-        const client = clients.find(
-          (c) => c.email === email && c.password === password
-        );
-
-        if (client) {
+        if (apiService.isAvailable()) {
+          const { client } = await apiService.loginClient(email, password);
           resolve(client);
-        } else {
-          reject('이메일 또는 비밀번호가 일치하지 않습니다.');
+          return;
         }
-      } catch (error) {
+
+        const clients = storageService.getClients();
+        const client = clients.find((c) => c.email === email && c.password === password);
+        if (client) { resolve(client); } else { reject('이메일 또는 비밀번호가 일치하지 않습니다.'); }
+      } catch (error: any) {
         log.error('Login error:', error);
-        reject('로그인 중 오류가 발생했습니다.');
+        reject(typeof error === 'string' ? error : '로그인 중 오류가 발생했습니다.');
       }
     });
   },
