@@ -4,6 +4,12 @@ import cors from 'cors';
 import { initDb } from './services/db';
 import payappPaymentsRouter from './routes/payappPayments';
 import payappMembershipsRouter from './routes/payappMemberships';
+import authRouter from './routes/auth';
+import lessonsRouter from './routes/lessons';
+import clientsRouter from './routes/clients';
+import coachesRouter from './routes/coaches';
+import filesRouter from './routes/files';
+import lessonPackagesRouter from './routes/lessonPackages';
 
 const app = express();
 const PORT = parseInt(process.env.PORT ?? '4000', 10);
@@ -41,6 +47,16 @@ app.use(express.json());
 app.get('/api/health', (_req, res) => {
   res.json({ ok: true, ts: Date.now() });
 });
+
+// Auth routes
+app.use('/api/auth', authRouter);
+
+// Core resource routes
+app.use('/api/lessons', lessonsRouter);
+app.use('/api/clients', clientsRouter);
+app.use('/api/coaches', coachesRouter);
+app.use('/api/files', filesRouter);
+app.use('/api/lesson-packages', lessonPackagesRouter);
 
 // PayApp payments routes
 app.use('/api/payments/payapp', payappPaymentsRouter);
