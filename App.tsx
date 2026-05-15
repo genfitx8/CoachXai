@@ -37,6 +37,7 @@ import { LessonStartPromptModal } from './components/LessonStartPromptModal';
 import { storageService } from './services/storage';
 import { authService } from './services/authService';
 import { firebaseService } from './services/firebase';
+import { apiService } from './services/apiService';
 import {
   getUnreadReservationNotificationsForCoach,
   markNotificationsAsRead,
@@ -198,28 +199,8 @@ const AppContent: React.FC = () => {
   // Initial Load
   useEffect(() => {
     const initApp = async () => {
-      // 1. Try Initialize Firebase
-      // Priority: Environment variables (.env) > localStorage
-      const savedConfig = firebaseService.getSavedConfig();
-      let isFirebaseReady = false;
-      if (savedConfig) {
-        try {
-          isFirebaseReady = firebaseService.init(savedConfig);
-          if (!isFirebaseReady) {
-            console.warn(
-              'Firebase 초기화 실패. 로컬 스토리지 모드로 전환합니다.'
-            );
-          }
-        } catch (e) {
-          console.error('Firebase 초기화 중 오류 발생:', e);
-          console.warn('로컬 스토리지 모드로 전환합니다.');
-          isFirebaseReady = false;
-        }
-      } else {
-        console.log(
-          'Firebase 설정이 없습니다. 로컬 스토리지 모드를 사용합니다.'
-        );
-      }
+      // 1. Check API availability
+      const isFirebaseReady = apiService.isAvailable();
 
       // 2. Restore Session
       const session = authService.restoreSession();
@@ -232,7 +213,7 @@ const AppContent: React.FC = () => {
           // Fetch full profile
           let foundClient: ClientProfile | undefined;
           if (isFirebaseReady) {
-            const allClients = await firebaseService.getClients();
+            const allClients = await apiService.getClients();
             foundClient = allClients.find(
               (c) => c.name === name && c.phone === phone
             );
@@ -247,7 +228,7 @@ const AppContent: React.FC = () => {
           // Try to get coach profile from Firebase first, then localStorage
           let profile: CoachProfile | null = null;
           if (isFirebaseReady) {
-            const allCoaches = await firebaseService.getCoaches();
+            const allCoaches = await apiService.getCoaches();
             // Try to find coach by email from localStorage first
             const localProfile = authService.getCoachProfile();
             if (localProfile?.email) {
@@ -294,9 +275,9 @@ const AppContent: React.FC = () => {
 
     if (useFirebase) {
       const [fetchedLessons, clients, coachesData] = await Promise.all([
-        firebaseService.getLessons(),
-        firebaseService.getClients(),
-        firebaseService.getCoaches(),
+        apiService.getLessons(),
+        apiService.getClients(),
+        apiService.getCoaches(),
       ]);
       setLessons(fetchedLessons);
       fetchedClients = clients;
@@ -314,7 +295,7 @@ const AppContent: React.FC = () => {
     if (currentCoachId) {
       if (useFirebase) {
         try {
-          const pkgs = await firebaseService.getLessonPackages(currentCoachId);
+          const pkgs = await apiService.getLessonPackages(currentCoachId);
           setLessonPackages(pkgs);
         } catch {
           setLessonPackages(storageService.getLessonPackages());
@@ -326,7 +307,7 @@ const AppContent: React.FC = () => {
       // Load training programs
       if (useFirebase) {
         try {
-          const programs = await firebaseService.getTrainingPrograms(currentCoachId);
+          const programs = await apiService.getTrainingPrograms(currentCoachId);
           setTrainingPrograms(programs);
         } catch {
           setTrainingPrograms(storageService.getTrainingPrograms());
@@ -383,7 +364,7 @@ const AppContent: React.FC = () => {
     if (needsUpdate && useFirebase) {
       // Firebase에 수정된 데이터 저장
       try {
-        await firebaseService.saveClients(syncedClients);
+        await apiService.saveClients(syncedClients);
         console.log('✅ Client data consistency fixed and saved to Firebase');
       } catch (e) {
         console.error('Failed to save fixed client data:', e);
@@ -419,8 +400,8 @@ const AppContent: React.FC = () => {
     if (role === 'COACH') {
       setCoachProfile(data);
       // Save coach to DB if not exists (Simulation)
-      if (firebaseService.isInitialized()) {
-        await firebaseService.saveCoach(data);
+      if (apiService.isAvailable()) {
+        await apiService.saveCoach(data);
       }
       loadAndShowCoachNotifications(data.id);
       checkAndShowLessonSuggestion(data.id);
@@ -438,7 +419,7 @@ const AppContent: React.FC = () => {
     authService.saveSession(role, clientIdentity, isAutoLogin);
 
     // Reload data to ensure freshness
-    const isFb = firebaseService.isInitialized();
+    const isFb = apiService.isAvailable();
     await loadData(isFb);
   };
 
@@ -548,15 +529,15 @@ const AppContent: React.FC = () => {
     // Optimistic Update
     setLessons((prev) => [lessonToSave, ...prev]);
 
-    const isFb = firebaseService.isInitialized();
+    const isFb = apiService.isAvailable();
     try {
       // 1. Save Lesson
       if (isFb) {
         // Upload media first if needed (Blob -> Storage)
-        const processedLesson = await firebaseService.processLessonMedia(
+        const processedLesson = await apiService.processLessonMedia(
           lessonToSave
         );
-        await firebaseService.saveLesson(processedLesson);
+        await apiService.saveLesson(processedLesson);
         // Update local state with processed URLs
         setLessons((prev) =>
           prev.map((l) => (l.id === lessonToSave.id ? processedLesson : l))
@@ -589,7 +570,7 @@ const AppContent: React.FC = () => {
       // 2. Handle Assigned Homework (Saved to Homework collection)
       if (homeworkBatch && homeworkBatch.length > 0) {
         if (isFb) {
-          await firebaseService.saveHomeworkBatch(homeworkBatch);
+          await apiService.saveHomeworkBatch(homeworkBatch);
         } else {
           storageService.saveHomeworkBatch(homeworkBatch);
         }
@@ -608,12 +589,12 @@ const AppContent: React.FC = () => {
       setSelectedLesson(updatedLesson);
     }
 
-    const isFb = firebaseService.isInitialized();
+    const isFb = apiService.isAvailable();
     if (isFb) {
-      const processedLesson = await firebaseService.processLessonMedia(
+      const processedLesson = await apiService.processLessonMedia(
         updatedLesson
       );
-      await firebaseService.saveLesson(processedLesson);
+      await apiService.saveLesson(processedLesson);
     } else {
       const updatedList = lessons.map((l) =>
         l.id === updatedLesson.id ? updatedLesson : l
@@ -632,11 +613,11 @@ const AppContent: React.FC = () => {
     }
 
     // 2. Persistence
-    const isFb = firebaseService.isInitialized();
+    const isFb = apiService.isAvailable();
     if (isFb) {
       const lessonToDelete = lessons.find((l) => l.id === lessonId);
       try {
-        await firebaseService.deleteLesson(lessonId, lessonToDelete);
+        await apiService.deleteLesson(lessonId, lessonToDelete);
       } catch (e) {
         console.error('Failed to delete lesson from Firebase', e);
       }
@@ -677,9 +658,9 @@ const AppContent: React.FC = () => {
     };
 
     setClients((prev) => [...prev, clientWithCoach]);
-    const isFb = firebaseService.isInitialized();
+    const isFb = apiService.isAvailable();
     if (isFb) {
-      await firebaseService.saveClients([clientWithCoach]);
+      await apiService.saveClients([clientWithCoach]);
     } else {
       storageService.saveClients([...clients, clientWithCoach]);
     }
@@ -713,7 +694,7 @@ const AppContent: React.FC = () => {
         if (isFb) {
           try {
             await Promise.all(
-              updatedLessons.map((lesson) => firebaseService.saveLesson(lesson))
+              updatedLessons.map((lesson) => apiService.saveLesson(lesson))
             );
             console.log(
               `✅ Updated ${updatedLessons.length} existing lessons for client ${clientWithCoach.name} to coach ${clientWithCoach.coachId}`
@@ -742,9 +723,9 @@ const AppContent: React.FC = () => {
       prev.filter((c) => !(c.name === client.name && c.phone === client.phone))
     );
 
-    const isFb = firebaseService.isInitialized();
+    const isFb = apiService.isAvailable();
     if (isFb) {
-      await firebaseService.deleteClient(client);
+      await apiService.deleteClient(client);
     } else {
       const updated = clients.filter(
         (c) => !(c.name === client.name && c.phone === client.phone)
@@ -776,14 +757,14 @@ const AppContent: React.FC = () => {
     });
 
     // 3. Handle Firebase or LocalStorage deletion
-    const isFb = firebaseService.isInitialized();
+    const isFb = apiService.isAvailable();
     try {
       if (isFb) {
         // Firebase: delete coach document and update related data
-        await firebaseService.deleteCoach(coach);
+        await apiService.deleteCoach(coach);
         
         // Update clients in Firebase
-        await firebaseService.saveClients(updatedClients);
+        await apiService.saveClients(updatedClients);
         
         // Update lessons in Firebase that had this coach
         // Use a Set for O(1) lookup instead of O(n) find operation
@@ -792,7 +773,7 @@ const AppContent: React.FC = () => {
         );
         const lessonsToUpdate = updatedLessons.filter(l => originalLessonIds.has(l.id));
         for (const lesson of lessonsToUpdate) {
-          await firebaseService.saveLesson(lesson);
+          await apiService.saveLesson(lesson);
         }
         
         console.log(`✅ Coach ${coach.name} deleted from Firebase`);
@@ -895,12 +876,12 @@ const AppContent: React.FC = () => {
         );
 
         // Save updated lessons
-        const isFb = firebaseService.isInitialized();
+        const isFb = apiService.isAvailable();
         if (isFb) {
           try {
             // Save all updated lessons to Firebase
             await Promise.all(
-              updatedLessons.map((lesson) => firebaseService.saveLesson(lesson))
+              updatedLessons.map((lesson) => apiService.saveLesson(lesson))
             );
             console.log(
               `✅ Updated ${updatedLessons.length} lessons for client ${profileWithCoach.name} to coach ${profileWithCoach.coachId}`
@@ -944,11 +925,11 @@ const AppContent: React.FC = () => {
         );
 
         // Save updated lessons
-        const isFb = firebaseService.isInitialized();
+        const isFb = apiService.isAvailable();
         if (isFb) {
           try {
             await Promise.all(
-              updatedLessons.map((lesson) => firebaseService.saveLesson(lesson))
+              updatedLessons.map((lesson) => apiService.saveLesson(lesson))
             );
             console.log(
               `✅ Removed coach assignment from ${updatedLessons.length} lessons for client ${profileWithCoach.name}`
@@ -970,9 +951,9 @@ const AppContent: React.FC = () => {
       }
     }
 
-    const isFb = firebaseService.isInitialized();
+    const isFb = apiService.isAvailable();
     if (isFb) {
-      await firebaseService.saveClients([profileWithCoach]);
+      await apiService.saveClients([profileWithCoach]);
     } else {
       const updatedList = clients.map((c) =>
         c.name === profileWithCoach.name && c.phone === profileWithCoach.phone
@@ -988,8 +969,8 @@ const AppContent: React.FC = () => {
     setCurrentUser(updated);
     localStorage.setItem('swingnote_coach_profile', JSON.stringify(updated));
     // Also update in global list if using Firebase
-    if (firebaseService.isInitialized()) {
-      firebaseService.saveCoach(updated);
+    if (apiService.isAvailable()) {
+      apiService.saveCoach(updated);
     }
   };
 
@@ -998,9 +979,9 @@ const AppContent: React.FC = () => {
       const idx = prev.findIndex((p) => p.id === pkg.id);
       return idx >= 0 ? [...prev.slice(0, idx), pkg, ...prev.slice(idx + 1)] : [...prev, pkg];
     });
-    if (firebaseService.isInitialized()) {
+    if (apiService.isAvailable()) {
       try {
-        await firebaseService.saveLessonPackage(pkg);
+        await apiService.saveLessonPackage(pkg);
       } catch (e) {
         console.error('Failed to save lesson package to Firebase:', e);
         storageService.saveLessonPackage(pkg);
@@ -1012,9 +993,9 @@ const AppContent: React.FC = () => {
 
   const handleDeleteLessonPackage = async (packageId: string) => {
     setLessonPackages((prev) => prev.filter((p) => p.id !== packageId));
-    if (firebaseService.isInitialized()) {
+    if (apiService.isAvailable()) {
       try {
-        await firebaseService.deleteLessonPackage(packageId);
+        await apiService.deleteLessonPackage(packageId);
       } catch (e) {
         console.error('Failed to delete lesson package from Firebase:', e);
         storageService.deleteLessonPackage(packageId);
@@ -1029,9 +1010,9 @@ const AppContent: React.FC = () => {
       const idx = prev.findIndex((p) => p.id === program.id);
       return idx >= 0 ? [...prev.slice(0, idx), program, ...prev.slice(idx + 1)] : [...prev, program];
     });
-    if (firebaseService.isInitialized()) {
+    if (apiService.isAvailable()) {
       try {
-        await firebaseService.saveTrainingProgram(program);
+        await apiService.saveTrainingProgram(program);
       } catch (e) {
         console.error('Failed to save training program to Firebase:', e);
         storageService.saveTrainingProgram(program);
@@ -1043,9 +1024,9 @@ const AppContent: React.FC = () => {
 
   const handleDeleteTrainingProgram = async (programId: string) => {
     setTrainingPrograms((prev) => prev.filter((p) => p.id !== programId));
-    if (firebaseService.isInitialized()) {
+    if (apiService.isAvailable()) {
       try {
-        await firebaseService.deleteTrainingProgram(programId);
+        await apiService.deleteTrainingProgram(programId);
       } catch (e) {
         console.error('Failed to delete training program from Firebase:', e);
         storageService.deleteTrainingProgram(programId);
@@ -1061,8 +1042,8 @@ const AppContent: React.FC = () => {
   };
 
   const handleSearchCoach = async (name: string, phone: string) => {
-    if (firebaseService.isInitialized()) {
-      return await firebaseService.findCoach(name, phone);
+    if (apiService.isAvailable()) {
+      return await apiService.findCoach(name, phone);
     } else {
       // Mock local check
       const localCoach = authService.getCoachProfile();
@@ -1134,8 +1115,8 @@ const AppContent: React.FC = () => {
       if (currentUser && 'id' in currentUser && currentUser.id === coach.id)
         setCurrentUser(coach);
 
-      if (firebaseService.isInitialized()) {
-        await firebaseService.saveCoach(coach);
+      if (apiService.isAvailable()) {
+        await apiService.saveCoach(coach);
       } else {
         // Local storage coach update
         if (authService.getCoachProfile()?.id === coach.id) {
@@ -1154,8 +1135,8 @@ const AppContent: React.FC = () => {
         )
       );
 
-      if (firebaseService.isInitialized()) {
-        await firebaseService.saveClients([client]);
+      if (apiService.isAvailable()) {
+        await apiService.saveClients([client]);
       } else {
         const all = storageService.getClients();
         const updated = all.map((c) =>
@@ -1786,7 +1767,7 @@ const AppContent: React.FC = () => {
           onClose={() => setShowHomeworkModal(false)}
           clientId={homeworkTargetClient.id}
           clientName={homeworkTargetClient.name}
-          isFirebaseMode={firebaseService.isInitialized()}
+          isFirebaseMode={apiService.isAvailable()}
           onAssign={() => {}}
         />
       )}

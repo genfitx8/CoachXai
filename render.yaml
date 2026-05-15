@@ -3,7 +3,7 @@ services:
     name: coachxai-server
     env: node
     rootDir: server
-    buildCommand: npm install --include=dev && npm run build
+    buildCommand: npm install --production=false && npm run build
     startCommand: npm start
     healthCheckPath: /api/health
     envVars:
@@ -13,6 +13,16 @@ services:
         fromDatabase:
           name: coachxai-db
           property: connectionString
+      - key: JWT_SECRET
+        sync: false
+      - key: R2_ACCOUNT_ID
+        sync: false
+      - key: R2_ACCESS_KEY_ID
+        sync: false
+      - key: R2_SECRET_ACCESS_KEY
+        sync: false
+      - key: R2_BUCKET
+        sync: false
       - key: APP_BASE_URL
         sync: false
       - key: APP_ALLOWED_ORIGINS
