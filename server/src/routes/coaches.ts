@@ -35,7 +35,7 @@ router.get('/me', authMiddleware, async (req: Request, res: Response) => {
       return;
     }
 
-    res.json(mapCoach(result.rows[0]));
+    res.json({ coach: mapCoach(result.rows[0]) });
   } catch (err) {
     console.error('[coaches] GET /me error:', err);
     res.status(500).json({ error: 'Internal server error' });

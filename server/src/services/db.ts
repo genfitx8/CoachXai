@@ -83,6 +83,7 @@ export async function initDb(): Promise<void> {
       date                 VARCHAR(50),
       video_url            TEXT,
       video_key            TEXT,
+      media_type           VARCHAR(20),
       coach_notes          TEXT,
       ai_analysis          JSONB,
       scorecard            JSONB,
@@ -91,10 +92,54 @@ export async function initDb(): Promise<void> {
       media                JSONB,
       lesson_package_id    UUID,
       session_number       INTEGER,
+      created_by           VARCHAR(20),
+      record_type          VARCHAR(20),
+      club                 VARCHAR(100),
+      score                INTEGER,
+      scorecard_detail     JSONB,
+      swing_angle          VARCHAR(20),
+      additional_media     JSONB,
+      thumbnail_url        TEXT,
+      tags                 JSONB,
+      golf_data            JSONB,
+      swing_sequence       JSONB,
+      share_option         VARCHAR(20),
+      client_feedback      JSONB,
+      feedback_status      VARCHAR(20),
+      edited_video_url     TEXT,
+      video_edit_metadata  JSONB,
+      compare_video_url    TEXT,
+      compare_video_metadata JSONB,
       created_at           BIGINT NOT NULL,
       updated_at           BIGINT NOT NULL
     )
   `);
+
+  // Add columns to existing lessons tables that were created before these fields existed
+  const lessonAlters = [
+    "ALTER TABLE lessons ADD COLUMN IF NOT EXISTS media_type VARCHAR(20)",
+    "ALTER TABLE lessons ADD COLUMN IF NOT EXISTS created_by VARCHAR(20)",
+    "ALTER TABLE lessons ADD COLUMN IF NOT EXISTS record_type VARCHAR(20)",
+    "ALTER TABLE lessons ADD COLUMN IF NOT EXISTS club VARCHAR(100)",
+    "ALTER TABLE lessons ADD COLUMN IF NOT EXISTS score INTEGER",
+    "ALTER TABLE lessons ADD COLUMN IF NOT EXISTS scorecard_detail JSONB",
+    "ALTER TABLE lessons ADD COLUMN IF NOT EXISTS swing_angle VARCHAR(20)",
+    "ALTER TABLE lessons ADD COLUMN IF NOT EXISTS additional_media JSONB",
+    "ALTER TABLE lessons ADD COLUMN IF NOT EXISTS thumbnail_url TEXT",
+    "ALTER TABLE lessons ADD COLUMN IF NOT EXISTS tags JSONB",
+    "ALTER TABLE lessons ADD COLUMN IF NOT EXISTS golf_data JSONB",
+    "ALTER TABLE lessons ADD COLUMN IF NOT EXISTS swing_sequence JSONB",
+    "ALTER TABLE lessons ADD COLUMN IF NOT EXISTS share_option VARCHAR(20)",
+    "ALTER TABLE lessons ADD COLUMN IF NOT EXISTS client_feedback JSONB",
+    "ALTER TABLE lessons ADD COLUMN IF NOT EXISTS feedback_status VARCHAR(20)",
+    "ALTER TABLE lessons ADD COLUMN IF NOT EXISTS edited_video_url TEXT",
+    "ALTER TABLE lessons ADD COLUMN IF NOT EXISTS video_edit_metadata JSONB",
+    "ALTER TABLE lessons ADD COLUMN IF NOT EXISTS compare_video_url TEXT",
+    "ALTER TABLE lessons ADD COLUMN IF NOT EXISTS compare_video_metadata JSONB",
+  ];
+  for (const sql of lessonAlters) {
+    await pool.query(sql);
+  }
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS lesson_packages (

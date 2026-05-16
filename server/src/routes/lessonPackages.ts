@@ -32,7 +32,7 @@ router.get('/', async (req: Request, res: Response) => {
       'SELECT * FROM lesson_packages WHERE coach_id = $1 ORDER BY created_at DESC',
       [coachId]
     );
-    res.json(result.rows.map(mapPackage));
+    res.json({ packages: result.rows.map(mapPackage) });
   } catch (err) {
     console.error('[lesson-packages] GET / error:', err);
     res.status(500).json({ error: 'Internal server error' });

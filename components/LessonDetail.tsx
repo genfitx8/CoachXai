@@ -10,6 +10,7 @@ import { SwingGuideOverlay } from './SwingGuideOverlay';
 import { GolfDataVisualizer } from './GolfDataVisualizer';
 import { VideoEditor } from './VideoEditor';
 import { firebaseService } from '../services/firebase';
+import { apiService } from '../services/apiService';
 import { storageService } from '../services/storage';
 import { sendLessonNoteViaKakao, buildLessonShareUrl } from '../services/kakaoShareService';
 import { videoEditingService } from '../services/videoEditingService';
@@ -222,11 +223,12 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
       // Try to upload to Firebase if available
       let editedUrl: string;
       
-      if (firebaseService.isInitialized()) {
-        const userId = lesson.coachId || 'unknown';
+      const userId = lesson.coachId || 'unknown';
+      if (apiService.isAvailable()) {
+        editedUrl = await apiService.uploadEditedVideo(editedBlob, lesson.id, userId);
+      } else if (firebaseService.isInitialized()) {
         editedUrl = await firebaseService.uploadEditedVideo(editedBlob, lesson.id, userId);
       } else {
-        // Fallback to blob URL for local storage
         editedUrl = URL.createObjectURL(editedBlob);
       }
 
@@ -271,8 +273,10 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
       );
 
       let compareUrl: string;
-      if (firebaseService.isInitialized()) {
-        const userId = lesson.coachId || 'unknown';
+      const userId = lesson.coachId || 'unknown';
+      if (apiService.isAvailable()) {
+        compareUrl = await apiService.uploadCompareVideo(compareBlob, lesson.id, userId);
+      } else if (firebaseService.isInitialized()) {
         compareUrl = await firebaseService.uploadCompareVideo(compareBlob, lesson.id, userId);
       } else {
         compareUrl = URL.createObjectURL(compareBlob);
