@@ -464,7 +464,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
           {/* Login type tabs (hidden during signup) */}
           {!isSignup && (
             <div
-              className="mx-8 mb-6 grid grid-cols-2 gap-1 rounded-xl bg-bg-inset p-1"
+              className="mx-8 mb-6 grid grid-cols-2 gap-1.5 rounded-xl bg-bg-inset p-1.5"
             >
               {(['COACH', 'CLIENT'] as const).map((tab) => {
                 const active = activeTab === tab;
@@ -474,10 +474,10 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
                     type="button"
                     aria-pressed={active}
                     onClick={() => handleTabChange(tab)}
-                    className={`h-10 rounded-lg text-sm font-medium transition-all ${
+                    className={`h-10 rounded-lg text-sm font-semibold transition-all ${
                       active
-                        ? 'bg-bg-overlay text-ink-high shadow-elev-1'
-                        : 'text-ink-muted hover:text-ink-high'
+                        ? 'bg-primary-600/25 text-primary-300 shadow-elev-1 ring-1 ring-inset ring-primary-500/40'
+                        : 'text-ink-muted hover:text-ink-medium hover:bg-bg-overlay/50'
                     }`}
                   >
                     {tab === 'COACH' ? t('coach_login') : t('client_login')}
