@@ -123,7 +123,7 @@ const DURATION_OPTIONS = [
 ];
 
 const LESSON_FLOW_SHELL_CLASS =
-  'max-w-md mx-auto bg-white rounded-2xl border border-slate-200/80 shadow-xl shadow-slate-200/70 overflow-hidden animate-fade-in-up';
+  'max-w-md mx-auto bg-white text-gray-900 rounded-2xl border border-slate-200/80 shadow-xl shadow-slate-200/70 overflow-hidden animate-fade-in-up';
 const LESSON_FLOW_HEADER_CLASS =
   'bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 px-5 py-4 flex items-center justify-between text-white';
 const LESSON_FLOW_INPUT_CLASS =
@@ -1522,7 +1522,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
   // STEP: CLIENT TYPE SELECTION
   if (step === 'TYPE_SELECT') {
     return (
-      <div className="max-w-md mx-auto bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden animate-fade-in-up">
+      <div className="max-w-md mx-auto bg-white text-gray-900 rounded-xl shadow-lg border border-gray-100 overflow-hidden animate-fade-in-up">
         <div className="bg-emerald-800 px-6 py-4 flex justify-between items-center text-white">
           <h2 className="text-lg font-bold">기록 유형 선택</h2>
           <button
@@ -1594,7 +1594,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
 
   // STEP: FORM
   return (
-    <div className="max-w-2xl mx-auto bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden animate-fade-in">
+    <div className="max-w-2xl mx-auto bg-white text-gray-900 rounded-xl shadow-lg border border-gray-100 overflow-hidden animate-fade-in">
       {/* ... (Header and other parts remain same) ... */}
       <div
         className={`px-6 py-4 flex justify-between items-center ${

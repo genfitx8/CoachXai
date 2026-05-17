@@ -90,7 +90,7 @@ export const QuickGolfLog: React.FC<QuickGolfLogProps> = ({ clientId, coachId, o
   }
 
   return (
-    <div className="space-y-5 animate-fade-in pb-8">
+    <div className="space-y-5 animate-fade-in pb-8 text-gray-900">
       {/* Header */}
       <div className="flex items-center gap-3">
         <button

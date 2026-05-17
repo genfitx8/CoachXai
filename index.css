@@ -391,6 +391,15 @@ a:focus-visible {
   font-weight: 700;
 }
 
+/* Safety net: any explicitly white/light background must show dark text
+   because the body default is near-white (dark theme) */
+.bg-white,
+.bg-gray-50,
+.bg-slate-50,
+.bg-gray-100 {
+  color: #111827; /* gray-900 */
+}
+
 /* Modern Card Styles */
 .card {
   background-color: white;
