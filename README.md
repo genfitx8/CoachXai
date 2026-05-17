@@ -54,7 +54,7 @@ Build the most trusted AI assistant for coaches by turning each lesson into clea
 >
 > 1. **Rotate/revoke the exposed Google API key** (`API_KEY`) in [Google Cloud Console](https://console.cloud.google.com/apis/credentials).
 > 2. **Rotate/revoke the exposed Firebase API key** (`VITE_FIREBASE_API_KEY`) — regenerate it in the [Firebase Console](https://console.firebase.google.com/) and review your Firebase Security Rules.
-> 3. **Rotate/revoke the exposed Gemini API key** (`GEMINI_API_KEY`) in [Google AI Studio](https://aistudio.google.com/app/apikey).
+> 3. **Rotate/revoke the exposed Gemini API key** (`VITE_GEMINI_API_KEY` / `GEMINI_API_KEY`) in [Google AI Studio](https://aistudio.google.com/app/apikey).
 > 4. **Rotate any KakaoTalk app key** (`VITE_KAKAO_APP_KEY`) in the [Kakao Developers Console](https://developers.kakao.com/).
 > 5. **Do not reuse the old key values.** Push the newly generated values to your deployment platform's secret store (e.g., Vercel Project Environment Variables), never back to the repository.
 >
