@@ -33,6 +33,10 @@ const normalizePhoneNumber = (phone: string): string => {
 const isSamePhoneNumber = (left: string | undefined, right: string): boolean =>
   normalizePhoneNumber(left ?? '') === normalizePhoneNumber(right);
 
+const createTemporaryPassword = (): string => {
+  return `Cx!${Math.random().toString(36).slice(-4)}${Date.now().toString().slice(-4)}`;
+};
+
 export const authService = {
   signup: (
     role: 'COACH' | 'CLIENT',
@@ -466,9 +470,15 @@ export const authService = {
     email: string,
     phone: string,
     role: 'COACH' | 'CLIENT'
-  ): Promise<string | null> => {
+  ): Promise<void> => {
     return new Promise(async (resolve) => {
       try {
+        if (apiService.isAvailable()) {
+          await apiService.requestPasswordReset(role, email, phone);
+          resolve();
+          return;
+        }
+
         let profiles: any[] = [];
 
         if (role === 'COACH') {
@@ -491,12 +501,34 @@ export const authService = {
         const found = profiles.find(
           (p) => p.email === email && p.phone === phone
         );
-        // In a real application, we would trigger a password reset email here.
-        // For this simulation, we will return the password to the user.
-        resolve(found ? found.password : null);
+
+        if (found) {
+          const temporaryPassword = createTemporaryPassword();
+          found.password = temporaryPassword;
+
+          if (role === 'COACH') {
+            if (firebaseService.isInitialized()) {
+              await firebaseService.saveCoach(found as CoachProfile);
+            } else {
+              localStorage.setItem(STORAGE_KEYS.COACH_PROFILE, JSON.stringify(found));
+            }
+          } else if (firebaseService.isInitialized()) {
+            await firebaseService.saveClients(profiles as ClientProfile[]);
+          } else {
+            storageService.saveClients(profiles as ClientProfile[]);
+          }
+
+          log.info('비밀번호 재설정 메일 발송(개발 모드 시뮬레이션)', {
+            service: 'CoachXai',
+            to: found.email,
+            temporaryPassword,
+          });
+        }
+
+        resolve();
       } catch (error) {
         log.error('Find password error:', error);
-        resolve(null);
+        resolve();
       }
     });
   },

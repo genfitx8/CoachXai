@@ -73,6 +73,14 @@ export const apiService = {
     return data;
   },
 
+  async requestPasswordReset(role: 'COACH' | 'CLIENT', email: string, phone: string): Promise<void> {
+    await req('POST', '/api/auth/password/recover', {
+      role: role === 'COACH' ? 'coach' : 'client',
+      email,
+      phone,
+    });
+  },
+
   // ── Lessons ───────────────────────────────────────────────────────────────
 
   async getLessons(): Promise<Lesson[]> {
