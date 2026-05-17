@@ -26,8 +26,11 @@ import { createLogger } from '../utils/logger';
 const log = createLogger('gemini');
 
 // Initialize the Gemini client
-// Note: process.env.API_KEY or process.env.GEMINI_API_KEY is injected by the environment.
-const apiKey = process.env.API_KEY || process.env.GEMINI_API_KEY;
+// Note: key can come from Vite env directly or process.env replacements from vite.config.
+const apiKey =
+  import.meta.env.VITE_GEMINI_API_KEY ||
+  process.env.GEMINI_API_KEY ||
+  process.env.API_KEY;
 if (!apiKey) {
   log.warn('Gemini API key is not set. AI features will not work.');
 }
@@ -216,7 +219,7 @@ export const analyzeSwingVideo = async (
 ): Promise<string> => {
   if (!ai) {
     throw new Error(
-      'Gemini API key is not configured. Please set GEMINI_API_KEY in your .env file.'
+      'Gemini API key is not configured. Please set VITE_GEMINI_API_KEY (or GEMINI_API_KEY) in your .env file.'
     );
   }
 
@@ -316,7 +319,7 @@ export const extractGolfData = async (
 }> => {
   if (!ai) {
     throw new Error(
-      'Gemini API key is not configured. Please set GEMINI_API_KEY in your .env file.'
+      'Gemini API key is not configured. Please set VITE_GEMINI_API_KEY (or GEMINI_API_KEY) in your .env file.'
     );
   }
 
@@ -417,7 +420,7 @@ export const summarizeHoleVoice = async (
 ): Promise<{ summary: string; metrics: ShotMetrics }> => {
   if (!ai) {
     throw new Error(
-      'Gemini API key is not configured. Please set GEMINI_API_KEY in your .env file.'
+      'Gemini API key is not configured. Please set VITE_GEMINI_API_KEY (or GEMINI_API_KEY) in your .env file.'
     );
   }
 
@@ -489,7 +492,7 @@ export const compareSwings = async (
 ): Promise<ComparisonResult> => {
   if (!ai) {
     throw new Error(
-      'Gemini API key is not configured. Please set GEMINI_API_KEY in your .env file.'
+      'Gemini API key is not configured. Please set VITE_GEMINI_API_KEY (or GEMINI_API_KEY) in your .env file.'
     );
   }
 
@@ -574,7 +577,7 @@ export const analyzeBodyPhotos = async (params: {
 }): Promise<BodyPhotoAnalysisResult> => {
   if (!ai) {
     throw new Error(
-      'Gemini API key is not configured. Please set GEMINI_API_KEY in your .env file.'
+      'Gemini API key is not configured. Please set VITE_GEMINI_API_KEY (or GEMINI_API_KEY) in your .env file.'
     );
   }
 
@@ -659,7 +662,7 @@ export const getSwingPhaseTimestamps = async (
 ): Promise<{ label: string; time: number }[]> => {
   if (!ai) {
     throw new Error(
-      'Gemini API key is not configured. Please set GEMINI_API_KEY in your .env file.'
+      'Gemini API key is not configured. Please set VITE_GEMINI_API_KEY (or GEMINI_API_KEY) in your .env file.'
     );
   }
 
@@ -745,7 +748,7 @@ export const generateGolfMissions = async (
 ): Promise<string[]> => {
   if (!ai) {
     throw new Error(
-      'Gemini API key is not configured. Please set GEMINI_API_KEY in your .env file.'
+      'Gemini API key is not configured. Please set VITE_GEMINI_API_KEY (or GEMINI_API_KEY) in your .env file.'
     );
   }
 
