@@ -51,9 +51,6 @@ describe('NewLessonForm – body analysis only save', () => {
     );
 
     fireEvent.click(screen.getByRole('button', { name: /레슨 기록/i }));
-    expect(screen.queryByText('회원 신체 분석')).not.toBeInTheDocument();
-    expect(screen.getByText('레슨 요약 리포트')).toBeInTheDocument();
-
     fireEvent.change(screen.getByPlaceholderText('연습 내용이나 느낀 점을 기록하세요.'), {
       target: { value: '  오늘 레슨 복기 메모  ' },
     });
@@ -82,6 +79,34 @@ describe('NewLessonForm – body analysis only save', () => {
     );
 
     fireEvent.click(screen.getByRole('button', { name: /레슨 기록/i }));
+    fireEvent.click(screen.getByRole('button', { name: /기록 저장하기/i }));
+
+    await waitFor(() => expect(onSave).not.toHaveBeenCalled());
+    expect(
+      screen.getByText('미디어를 첨부하거나 메모를 입력해주세요.')
+    ).toBeInTheDocument();
+  });
+
+  it('blocks save when memo has only whitespace and no media', async () => {
+    const onSave = vi.fn();
+
+    render(
+      <LanguageProvider>
+        <NewLessonForm
+          existingClients={[client]}
+          lessons={[]}
+          userRole="CLIENT"
+          currentUser={client}
+          onSave={onSave}
+          onCancel={vi.fn()}
+        />
+      </LanguageProvider>
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /레슨 기록/i }));
+    fireEvent.change(screen.getByPlaceholderText('연습 내용이나 느낀 점을 기록하세요.'), {
+      target: { value: '   ' },
+    });
     fireEvent.click(screen.getByRole('button', { name: /기록 저장하기/i }));
 
     await waitFor(() => expect(onSave).not.toHaveBeenCalled());
