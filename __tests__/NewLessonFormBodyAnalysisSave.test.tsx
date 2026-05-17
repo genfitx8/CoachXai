@@ -34,6 +34,26 @@ describe('NewLessonForm – body analysis only save', () => {
     );
   });
 
+  it('does not show member body analysis in lesson record flow', async () => {
+    render(
+      <LanguageProvider>
+        <NewLessonForm
+          existingClients={[client]}
+          lessons={[]}
+          userRole="CLIENT"
+          currentUser={client}
+          onSave={vi.fn()}
+          onCancel={vi.fn()}
+        />
+      </LanguageProvider>
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /레슨 기록/i }));
+
+    expect(screen.queryByText('회원 신체 분석')).not.toBeInTheDocument();
+    expect(screen.getByText('레슨 요약 리포트')).toBeInTheDocument();
+  });
+
   it('saves when only memo is provided without media', async () => {
     const onSave = vi.fn();
 
