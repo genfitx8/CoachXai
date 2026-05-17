@@ -292,7 +292,7 @@ export const ClientReservation: React.FC<ClientReservationProps> = ({ clientProf
           <div className="flex items-center gap-3">
             <button
               onClick={onBack}
-              className="p-2 hover:bg-gray-200 rounded-lg transition"
+              className="p-3 hover:bg-gray-200 rounded-xl transition min-w-[44px] min-h-[44px] flex items-center justify-center"
             >
               <ArrowLeft className="w-5 h-5" />
             </button>

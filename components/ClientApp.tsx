@@ -544,7 +544,7 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
                 <div className="flex items-center gap-3 pb-2">
                     <button
                         onClick={handleBackToList}
-                        className="p-2 rounded-lg bg-slate-900 border border-slate-700 hover:bg-slate-800 text-slate-300 transition-colors"
+                        className="p-3 rounded-xl bg-slate-900 border border-slate-700 hover:bg-slate-800 text-slate-300 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
                         aria-label={t('back')}
                     >
                         <ChevronLeft className="w-5 h-5" />

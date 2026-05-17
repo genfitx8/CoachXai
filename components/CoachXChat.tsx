@@ -184,7 +184,7 @@ export const CoachXChat: React.FC<CoachXChatProps> = ({
       <div className="flex items-center gap-3 px-4 py-3 border-b border-white/10 bg-gray-900/90 backdrop-blur-sm sticky top-0 z-10">
         <button
           onClick={onBack}
-          className="p-2 rounded-full hover:bg-white/10 transition-colors"
+          className="p-3 rounded-full hover:bg-white/10 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
           aria-label={t('back')}
         >
           <ChevronLeft className="w-5 h-5 text-white" />
