@@ -29,8 +29,8 @@ const log = createLogger('gemini');
 // Note: key can come from Vite env directly or process.env replacements from vite.config.
 const apiKey =
   import.meta.env.VITE_GEMINI_API_KEY ||
-  process.env.API_KEY ||
-  process.env.GEMINI_API_KEY;
+  process.env.GEMINI_API_KEY ||
+  process.env.API_KEY;
 if (!apiKey) {
   log.warn('Gemini API key is not set. AI features will not work.');
 }
