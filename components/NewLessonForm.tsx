@@ -948,11 +948,13 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    const hasMeaningfulMemo = notes.trim().length > 0;
+
     // Validation for Media
-    // In Simple Mode, at least one media is required.
+    // In Simple Mode, media or memo is required.
     // In Detailed Scorecard Mode, media is optional (user might just input numbers).
     if (recordType !== 'SCORE' || scoreMode === 'SIMPLE') {
-      if (mediaItems.length === 0) {
+      if (mediaItems.length === 0 && !hasMeaningfulMemo) {
         setError(t('new_lesson_media_required'));
         return;
       }
