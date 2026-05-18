@@ -3,6 +3,7 @@ import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import React from 'react';
 import { BranchReservationStatus } from '../components/BranchReservationStatus';
 import { bayReservationService } from '../services/bayReservationService';
+import { reservationService } from '../services/reservationService';
 import { Bay, BayReservation } from '../types';
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
@@ -13,6 +14,13 @@ vi.mock('../services/bayReservationService', () => ({
     getBranchBays: vi.fn(),
     approveCancellation: vi.fn(),
     rejectCancellation: vi.fn(),
+  },
+}));
+
+vi.mock('../services/reservationService', () => ({
+  reservationService: {
+    getAdminPendingReservations: vi.fn(),
+    confirmReservationByAdmin: vi.fn(),
   },
 }));
 
@@ -75,6 +83,7 @@ describe('BranchReservationStatus', () => {
       MOCK_RESERVATIONS
     );
     vi.mocked(bayReservationService.getBranchBays).mockResolvedValue(MOCK_BAYS);
+    vi.mocked(reservationService.getAdminPendingReservations).mockResolvedValue([]);
   });
 
   it('renders the reservation status section heading', async () => {

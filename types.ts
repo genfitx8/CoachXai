@@ -318,6 +318,8 @@ export interface BayReservation {
   id: string;
   branchId: string;
   bayId: string;
+  /** Optional link to a lesson reservation that triggered this bay block. */
+  lessonReservationId?: string;
   startTime: string;   // ISO string
   endTime: string;     // ISO string
   clientId: string;    // `${name}_${phone}`
@@ -417,7 +419,19 @@ export interface FirebaseConfig {
 }
 
 // Reservation Types
-export type ReservationStatus = 'AVAILABLE' | 'BLOCKED' | 'PENDING' | 'CONFIRMED' | 'CANCELLED' | 'COMPLETED';
+export type ReservationStatus =
+  | 'AVAILABLE'
+  | 'BLOCKED'
+  | 'PENDING' // legacy pending status (backward compatibility)
+  | 'REQUESTED'
+  | 'COACH_APPROVED'
+  | 'ADMIN_BLOCK_PENDING'
+  | 'CONFIRMED'
+  | 'CHANGE_REQUESTED'
+  | 'CANCEL_REQUESTED'
+  | 'CANCELLED'
+  | 'REJECTED'
+  | 'COMPLETED';
 
 export interface LessonReservation {
   id: string;
@@ -433,6 +447,19 @@ export interface LessonReservation {
   blockReason?: string; // 블럭 사유 (BLOCKED status인 경우)
   notes?: string;
   branchId?: string; // Optional: branch the reservation belongs to (for branch admin notifications)
+  branchName?: string;
+  bayId?: string;
+  bayLabel?: string;
+  bayReservationId?: string;
+  requestedAt?: number;
+  coachApprovedAt?: number;
+  adminConfirmedAt?: number;
+  cancellationRequestedAt?: number;
+  changeRequestedAt?: number;
+  rejectedAt?: number;
+  rejectionReason?: string;
+  adminConfirmedBy?: string;
+  requestedChangeNote?: string;
   /** Set when a coach creates the reservation on behalf of a member. */
   createdByCoachId?: string;
   createdAt: number;

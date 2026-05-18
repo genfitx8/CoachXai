@@ -15,6 +15,8 @@ vi.mock('../services/reservationService', () => ({
     requestReservation: vi.fn(),
     requestReservationWithTime: vi.fn(),
     cancelReservation: vi.fn(),
+    requestCancellationByMember: vi.fn(),
+    requestChangeByMember: vi.fn(),
   },
   VIRTUAL_SLOT_ID_PREFIX: 'virtual_',
 }));

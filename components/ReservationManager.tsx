@@ -229,8 +229,14 @@ export const ReservationManager: React.FC<ReservationManagerProps> = ({
       case 'AVAILABLE':  return 'bg-gray-100 text-gray-700 border-gray-300';
       case 'BLOCKED':    return 'bg-red-100 text-red-700 border-red-300';
       case 'PENDING':    return 'bg-yellow-100 text-yellow-700 border-yellow-300';
+      case 'REQUESTED':  return 'bg-yellow-100 text-yellow-700 border-yellow-300';
+      case 'ADMIN_BLOCK_PENDING':
+      case 'COACH_APPROVED': return 'bg-indigo-100 text-indigo-700 border-indigo-300';
       case 'CONFIRMED':  return 'bg-green-100 text-green-700 border-green-300';
+      case 'CHANGE_REQUESTED': return 'bg-purple-100 text-purple-700 border-purple-300';
+      case 'CANCEL_REQUESTED': return 'bg-orange-100 text-orange-700 border-orange-300';
       case 'CANCELLED':  return 'bg-red-100 text-red-700 border-red-300';
+      case 'REJECTED':   return 'bg-red-100 text-red-700 border-red-300';
       case 'COMPLETED':  return 'bg-blue-100 text-blue-700 border-blue-300';
       default:           return 'bg-gray-100 text-gray-700 border-gray-300';
     }
@@ -241,8 +247,14 @@ export const ReservationManager: React.FC<ReservationManagerProps> = ({
       case 'AVAILABLE':  return 'border-l-gray-300';
       case 'BLOCKED':    return 'border-l-red-400';
       case 'PENDING':    return 'border-l-yellow-400';
+      case 'REQUESTED':  return 'border-l-yellow-400';
+      case 'ADMIN_BLOCK_PENDING':
+      case 'COACH_APPROVED': return 'border-l-indigo-400';
       case 'CONFIRMED':  return 'border-l-green-400';
+      case 'CHANGE_REQUESTED': return 'border-l-purple-400';
+      case 'CANCEL_REQUESTED': return 'border-l-orange-400';
       case 'CANCELLED':  return 'border-l-red-300';
+      case 'REJECTED':   return 'border-l-red-400';
       case 'COMPLETED':  return 'border-l-blue-400';
       default:           return 'border-l-gray-300';
     }
@@ -253,8 +265,14 @@ export const ReservationManager: React.FC<ReservationManagerProps> = ({
       case 'AVAILABLE':  return t('res_status_available');
       case 'BLOCKED':    return t('res_status_blocked');
       case 'PENDING':    return t('res_status_pending');
+      case 'REQUESTED':  return '요청됨';
+      case 'ADMIN_BLOCK_PENDING':
+      case 'COACH_APPROVED': return '관리자 확정 대기';
       case 'CONFIRMED':  return t('res_status_confirmed');
+      case 'CHANGE_REQUESTED': return '변경 요청';
+      case 'CANCEL_REQUESTED': return '취소 요청';
       case 'CANCELLED':  return t('res_status_cancelled');
+      case 'REJECTED':   return '거절됨';
       case 'COMPLETED':  return t('res_status_completed');
       default:           return status;
     }
@@ -270,7 +288,9 @@ export const ReservationManager: React.FC<ReservationManagerProps> = ({
     ? reservations
     : reservations.filter((r) => r.status === filterStatus);
 
-  const pendingCount   = reservations.filter((r) => r.status === 'PENDING').length;
+  const pendingCount   = reservations.filter(
+    (r) => r.status === 'PENDING' || r.status === 'REQUESTED' || r.status === 'CHANGE_REQUESTED'
+  ).length;
   const confirmedCount = reservations.filter((r) => r.status === 'CONFIRMED').length;
   const blockedCount   = reservations.filter((r) => r.status === 'BLOCKED').length;
 
@@ -421,15 +441,22 @@ export const ReservationManager: React.FC<ReservationManagerProps> = ({
                       const reservation = reservationsForDate.find(
                         (r) => new Date(r.startTime).getHours() === hour
                       );
-                      const isBooked =
+                       const isBooked =
                         reservation?.status === 'PENDING' ||
-                        reservation?.status === 'CONFIRMED';
+                        reservation?.status === 'REQUESTED' ||
+                        reservation?.status === 'CHANGE_REQUESTED' ||
+                        reservation?.status === 'ADMIN_BLOCK_PENDING' ||
+                        reservation?.status === 'COACH_APPROVED' ||
+                        reservation?.status === 'CONFIRMED' ||
+                        reservation?.status === 'CANCEL_REQUESTED';
                       const isBlocked = reservation?.status === 'BLOCKED';
 
                       const statusBg = isBlocked
                         ? 'bg-red-100 border-red-300 text-red-700 hover:bg-red-200 cursor-pointer'
-                        : reservation?.status === 'PENDING'
+                        : reservation?.status === 'PENDING' || reservation?.status === 'REQUESTED' || reservation?.status === 'CHANGE_REQUESTED'
                         ? 'bg-yellow-100 border-yellow-300 text-yellow-700 cursor-default'
+                        : reservation?.status === 'ADMIN_BLOCK_PENDING' || reservation?.status === 'COACH_APPROVED' || reservation?.status === 'CANCEL_REQUESTED'
+                        ? 'bg-indigo-100 border-indigo-300 text-indigo-700 cursor-default'
                         : reservation?.status === 'CONFIRMED'
                         ? 'bg-green-100 border-green-300 text-green-700 cursor-default'
                         : 'bg-emerald-50 border-emerald-300 text-emerald-700 hover:bg-emerald-100 cursor-pointer';
@@ -505,14 +532,15 @@ export const ReservationManager: React.FC<ReservationManagerProps> = ({
               {/* Filter bar */}
               <div className="px-5 py-3 border-b border-gray-100 flex items-center gap-2 overflow-x-auto">
                 <Filter className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                {(['ALL', 'PENDING', 'CONFIRMED', 'AVAILABLE', 'BLOCKED'] as const).map((s) => (
+                {(['ALL', 'REQUESTED', 'ADMIN_BLOCK_PENDING', 'CONFIRMED', 'AVAILABLE', 'BLOCKED'] as const).map((s) => (
                   <button
                     key={s}
                     onClick={() => setFilterStatus(s)}
                     className={`px-3 py-1 rounded-full text-xs font-medium transition whitespace-nowrap ${
                       filterStatus === s
                         ? s === 'ALL'       ? 'bg-blue-600 text-white'
-                        : s === 'PENDING'   ? 'bg-yellow-500 text-white'
+                        : s === 'REQUESTED'   ? 'bg-yellow-500 text-white'
+                        : s === 'ADMIN_BLOCK_PENDING' ? 'bg-indigo-500 text-white'
                         : s === 'CONFIRMED' ? 'bg-green-600 text-white'
                         : s === 'BLOCKED'   ? 'bg-red-500 text-white'
                         :                     'bg-gray-600 text-white'
@@ -520,7 +548,8 @@ export const ReservationManager: React.FC<ReservationManagerProps> = ({
                     }`}
                   >
                     {s === 'ALL'       ? `${t('reservation_count_all')} (${reservations.length})`
-                    : s === 'PENDING'   ? `${t('res_status_pending')} (${pendingCount})`
+                    : s === 'REQUESTED'   ? `요청됨 (${pendingCount})`
+                    : s === 'ADMIN_BLOCK_PENDING' ? `관리자 확정 대기 (${reservations.filter((r) => r.status === 'ADMIN_BLOCK_PENDING').length})`
                     : s === 'CONFIRMED' ? `${t('res_status_confirmed')} (${confirmedCount})`
                     : s === 'AVAILABLE' ? t('res_status_available')
                     :                     `${t('res_status_blocked')} (${blockedCount})`}
@@ -589,7 +618,7 @@ export const ReservationManager: React.FC<ReservationManagerProps> = ({
                       </div>
 
                       <div className="flex gap-2 flex-shrink-0">
-                        {reservation.status === 'PENDING' && (
+                        {(reservation.status === 'PENDING' || reservation.status === 'REQUESTED' || reservation.status === 'CHANGE_REQUESTED') && (
                           <>
                             <button
                               onClick={() => handleApprove(reservation.id)}
@@ -757,4 +786,3 @@ export const ReservationManager: React.FC<ReservationManagerProps> = ({
     </div>
   );
 };
-

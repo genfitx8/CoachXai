@@ -1,4 +1,4 @@
-import { LessonReservation, BayReservation, BranchAdminAccount, CoachProfile } from '../types';
+import { LessonReservation, BayReservation, BranchAdminAccount, CoachProfile, ClientProfile } from '../types';
 import { firebaseService } from './firebase';
 import { storageService } from './storage';
 import { createLogger } from '../utils/logger';
@@ -26,6 +26,35 @@ async function loadBranchAdminAccounts(branchId: string): Promise<BranchAdminAcc
     return firebaseService.getBranchAdminAccounts(branchId);
   }
   return Promise.resolve(storageService.getBranchAdminAccounts(branchId));
+}
+
+async function loadAllBranchAdminAccounts(): Promise<BranchAdminAccount[]> {
+  if (firebaseService.isInitialized()) {
+    return firebaseService.getBranchAdminAccounts();
+  }
+  return Promise.resolve(storageService.getBranchAdminAccounts());
+}
+
+async function loadClientByReservation(
+  reservation: LessonReservation
+): Promise<ClientProfile | null> {
+  const clientId = reservation.clientId;
+  if (!clientId) return null;
+
+  const [namePart, ...phoneParts] = clientId.split('_');
+  const phone = phoneParts.join('_') || reservation.clientPhone || '';
+  const name = namePart || reservation.clientName || '';
+
+  try {
+    if (firebaseService.isInitialized()) {
+      const clients = await firebaseService.getClients();
+      return clients.find((c) => c.name === name && c.phone === phone) ?? null;
+    }
+    const clients = storageService.getClients();
+    return clients.find((c) => c.name === name && c.phone === phone) ?? null;
+  } catch {
+    return null;
+  }
 }
 
 // ─── Push delivery ─────────────────────────────────────────────────────────────
@@ -85,46 +114,140 @@ async function notifyToken(
 export async function sendLessonReservationNotifications(
   reservation: LessonReservation
 ): Promise<void> {
-  const key = `lesson:${reservation.id}`;
+  await sendLessonReservationStatusNotifications(reservation, 'REQUESTED');
+}
+
+export type LessonReservationNotificationEvent =
+  | 'REQUESTED'
+  | 'COACH_APPROVED_ADMIN_PENDING'
+  | 'ADMIN_CONFIRMED'
+  | 'CANCEL_REQUESTED'
+  | 'CHANGE_REQUESTED'
+  | 'REJECTED'
+  | 'CANCELLED';
+
+export async function sendLessonReservationStatusNotifications(
+  reservation: LessonReservation,
+  event: LessonReservationNotificationEvent
+): Promise<void> {
+  const key = `lesson:${event}:${reservation.id}`;
   if (notifiedKeys.has(key)) return;
   notifiedKeys.add(key);
 
   const clientName = reservation.clientName || FALLBACK_CLIENT_NAME;
   const date = reservation.startTime.slice(0, 10);
   const time = reservation.startTime.slice(11, 16);
+  const [coach, client, admins] = await Promise.all([
+    reservation.coachId ? loadCoachById(reservation.coachId) : Promise.resolve(null),
+    loadClientByReservation(reservation),
+    reservation.branchId
+      ? loadBranchAdminAccounts(reservation.branchId)
+      : loadAllBranchAdminAccounts(),
+  ]);
 
-  // Notify the assigned coach
-  try {
-    if (reservation.coachId) {
-      const coach = await loadCoachById(reservation.coachId);
-      await notifyToken(
-        coach?.pushToken,
-        '새 레슨 예약',
-        `${clientName} 회원이 ${date} ${time} 레슨을 예약했습니다.`
-      );
+  const notifyCoach = async (title: string, body: string) => {
+    try {
+      await notifyToken(coach?.pushToken, title, body);
+    } catch (e) {
+      log.error('[PushNotification] Failed to notify coach:', e);
     }
-  } catch (e) {
-    log.error('[PushNotification] Failed to notify coach:', e);
-  }
-
-  // Notify branch admins (only when branchId is available on the reservation)
-  try {
-    if (reservation.branchId) {
-      const admins = await loadBranchAdminAccounts(reservation.branchId);
+  };
+  const notifyMember = async (title: string, body: string) => {
+    try {
+      await notifyToken(client?.pushToken, title, body);
+    } catch (e) {
+      log.error('[PushNotification] Failed to notify member:', e);
+    }
+  };
+  const notifyAdmins = async (title: string, body: string) => {
+    try {
       await Promise.all(
         admins
           .filter((a) => a.isActive)
-          .map((a) =>
-            notifyToken(
-              a.pushToken,
-              '새 레슨 예약 알림',
-              `${clientName} 회원이 ${date} ${time} 레슨을 예약했습니다.`
-            )
-          )
+          .map((a) => notifyToken(a.pushToken, title, body))
       );
+    } catch (e) {
+      log.error('[PushNotification] Failed to notify branch admins:', e);
     }
-  } catch (e) {
-    log.error('[PushNotification] Failed to notify branch admins:', e);
+  };
+
+  switch (event) {
+    case 'REQUESTED': {
+      await notifyCoach(
+        '새 레슨 예약 요청',
+        `${clientName} 회원이 ${date} ${time} 레슨을 요청했습니다.`
+      );
+      break;
+    }
+    case 'COACH_APPROVED_ADMIN_PENDING': {
+      await notifyAdmins(
+        '레슨 예약 타석 배정 필요',
+        `${clientName} 회원의 ${date} ${time} 레슨이 코치 승인되었습니다. 타석 배정을 진행해주세요.`
+      );
+      break;
+    }
+    case 'ADMIN_CONFIRMED': {
+      const bayLabel = reservation.bayLabel ? ` (${reservation.bayLabel})` : '';
+      await notifyToken(
+        coach?.pushToken,
+        '레슨 예약 확정',
+        `${clientName} 회원의 ${date} ${time} 레슨이 최종 확정되었습니다.${bayLabel}`
+      );
+      await notifyMember(
+        '레슨 예약 확정',
+        `${reservation.coachName} 코치와의 ${date} ${time} 레슨이 확정되었습니다.${bayLabel}`
+      );
+      break;
+    }
+    case 'CANCEL_REQUESTED': {
+      await Promise.all([
+        notifyCoach(
+          '레슨 취소 요청',
+          `${clientName} 회원이 ${date} ${time} 레슨 취소를 요청했습니다.`
+        ),
+        notifyAdmins(
+          '레슨 취소 요청',
+          `${clientName} 회원의 ${date} ${time} 레슨 취소 요청이 접수되었습니다.`
+        ),
+      ]);
+      break;
+    }
+    case 'CHANGE_REQUESTED': {
+      await Promise.all([
+        notifyCoach(
+          '레슨 변경 요청',
+          `${clientName} 회원이 ${date} ${time} 레슨 변경을 요청했습니다.`
+        ),
+        notifyAdmins(
+          '레슨 변경 요청',
+          `${clientName} 회원의 ${date} ${time} 레슨 변경 요청이 접수되었습니다.`
+        ),
+      ]);
+      break;
+    }
+    case 'REJECTED': {
+      await notifyMember(
+        '레슨 예약 거절',
+        `${date} ${time} 레슨 요청이 거절되었습니다.${reservation.rejectionReason ? ` 사유: ${reservation.rejectionReason}` : ''}`
+      );
+      break;
+    }
+    case 'CANCELLED': {
+      await Promise.all([
+        notifyCoach(
+          '레슨 예약 취소 완료',
+          `${clientName} 회원의 ${date} ${time} 레슨이 취소되었습니다.`
+        ),
+        notifyMember(
+          '레슨 예약 취소 완료',
+          `${date} ${time} 레슨 취소가 완료되었습니다.`
+        ),
+      ]);
+      break;
+    }
+    default: {
+      break;
+    }
   }
 }
 

@@ -261,7 +261,9 @@ describe('ReservationManager – slot click interactions', () => {
     render(<ReservationManager coachProfile={COACH} onBack={vi.fn()} initialDate={TEST_DATE} />);
 
     const slotButton = await screen.findByTestId('slot-9');
-    expect(slotButton).toBeDisabled();
+    await waitFor(() => {
+      expect(slotButton).toBeDisabled();
+    });
   });
 
   it('clicking a PENDING slot does not call toggleHourSlot', async () => {

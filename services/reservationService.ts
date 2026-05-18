@@ -1,14 +1,28 @@
 import { LessonReservation, ReservationStatus, DayOfWeek, CoachProfile } from '../types';
 import { firebaseService } from './firebase';
 import { storageService } from './storage';
-import { sendLessonReservationNotifications } from './reservationPushNotificationService';
+import {
+  sendLessonReservationNotifications,
+  sendLessonReservationStatusNotifications,
+} from './reservationPushNotificationService';
 import { createReservationRequestNotification } from './coachNotificationService';
+import { bayReservationService } from './bayReservationService';
 import { createLogger } from '../utils/logger';
 
 const log = createLogger('reservation');
 
 // Constants
 const MAX_DATE = '2099-12-31'; // Maximum date for filtering reservations
+const ACTIVE_BOOKED_STATUSES: ReservationStatus[] = [
+  'PENDING',
+  'REQUESTED',
+  'COACH_APPROVED',
+  'ADMIN_BLOCK_PENDING',
+  'CONFIRMED',
+  'CHANGE_REQUESTED',
+  'CANCEL_REQUESTED',
+  'COMPLETED',
+];
 
 /** Prefix used for synthesised (virtual) working-hour slot IDs. Not persisted. */
 export const VIRTUAL_SLOT_ID_PREFIX = 'virtual_';
@@ -16,6 +30,23 @@ export const VIRTUAL_SLOT_ID_PREFIX = 'virtual_';
 class ReservationService {
   private isFirebaseMode(): boolean {
     return firebaseService.isInitialized();
+  }
+
+  private async loadReservationById(reservationId: string): Promise<LessonReservation | undefined> {
+    if (this.isFirebaseMode()) {
+      const allReservations = await firebaseService.getReservations();
+      return allReservations.find((r) => r.id === reservationId);
+    }
+    const allReservations = storageService.getReservations();
+    return allReservations.find((r) => r.id === reservationId);
+  }
+
+  private async persistReservation(reservation: LessonReservation): Promise<void> {
+    if (this.isFirebaseMode()) {
+      await firebaseService.updateReservation(reservation);
+    } else {
+      storageService.updateReservation(reservation);
+    }
   }
 
   /**
@@ -71,11 +102,12 @@ class ReservationService {
       existing = storageService.getReservations();
     }
     const overlap = existing.find(
-      (r) =>
-        r.coachId === coachId &&
-        r.status !== 'CANCELLED' &&
-        r.startTime === startTime &&
-        r.endTime === endTime
+        (r) =>
+          r.coachId === coachId &&
+          r.status !== 'CANCELLED' &&
+          r.status !== 'REJECTED' &&
+          r.startTime === startTime &&
+          r.endTime === endTime
     );
     if (overlap) {
       throw new Error('해당 시간대에 이미 슬롯이 존재합니다.');
@@ -125,15 +157,7 @@ class ReservationService {
     clientPhone: string,
     notes?: string
   ): Promise<LessonReservation> {
-    let reservation: LessonReservation | undefined;
-
-    if (this.isFirebaseMode()) {
-      const allReservations = await firebaseService.getReservations();
-      reservation = allReservations.find((r) => r.id === reservationId);
-    } else {
-      const allReservations = storageService.getReservations();
-      reservation = allReservations.find((r) => r.id === reservationId);
-    }
+    const reservation = await this.loadReservationById(reservationId);
 
     if (!reservation) {
       throw new Error('예약을 찾을 수 없습니다.');
@@ -149,15 +173,11 @@ class ReservationService {
       clientName,
       clientPhone,
       notes,
-      status: 'PENDING',
+      status: 'REQUESTED',
+      requestedAt: Date.now(),
       updatedAt: Date.now(),
     };
-
-    if (this.isFirebaseMode()) {
-      await firebaseService.updateReservation(updatedReservation);
-    } else {
-      storageService.updateReservation(updatedReservation);
-    }
+    await this.persistReservation(updatedReservation);
 
     // Fire-and-forget: send push notifications after successful persistence.
     // Errors are caught inside the service and must not fail the reservation.
@@ -216,9 +236,9 @@ class ReservationService {
       throw new Error(`선택하신 시간은 예약이 불가능합니다. (사유: ${blockedConflict.blockReason || '블럭된 시간'})`);
     }
 
-    // 다른 예약(PENDING, CONFIRMED)과 겹치는지 확인
+    // 다른 예약(활성 예약 상태)과 겹치는지 확인
     const reservationConflict = allReservations.find((r) => {
-      if (r.status !== 'PENDING' && r.status !== 'CONFIRMED') return false;
+      if (!ACTIVE_BOOKED_STATUSES.includes(r.status)) return false;
       const existingStart = new Date(r.startTime);
       const existingEnd = new Date(r.endTime);
       return hasTimeOverlap(requestStart, requestEnd, existingStart, existingEnd);
@@ -238,8 +258,9 @@ class ReservationService {
       clientPhone,
       startTime,
       endTime,
-      status: 'PENDING',
+      status: 'REQUESTED',
       notes,
+      requestedAt: Date.now(),
       createdAt: Date.now(),
       updatedAt: Date.now(),
     };
@@ -267,35 +288,32 @@ class ReservationService {
    * 코치가 예약 승인
    */
   async approveReservation(reservationId: string): Promise<LessonReservation> {
-    let reservation: LessonReservation | undefined;
-
-    if (this.isFirebaseMode()) {
-      const allReservations = await firebaseService.getReservations();
-      reservation = allReservations.find((r) => r.id === reservationId);
-    } else {
-      const allReservations = storageService.getReservations();
-      reservation = allReservations.find((r) => r.id === reservationId);
-    }
+    const reservation = await this.loadReservationById(reservationId);
 
     if (!reservation) {
       throw new Error('예약을 찾을 수 없습니다.');
     }
 
-    if (reservation.status !== 'PENDING') {
-      throw new Error('대기 중인 예약만 승인할 수 있습니다.');
+    if (
+      reservation.status !== 'PENDING' &&
+      reservation.status !== 'REQUESTED' &&
+      reservation.status !== 'CHANGE_REQUESTED'
+    ) {
+      throw new Error('요청된 예약만 승인할 수 있습니다.');
     }
 
     const updatedReservation: LessonReservation = {
       ...reservation,
-      status: 'CONFIRMED',
+      status: 'ADMIN_BLOCK_PENDING',
+      coachApprovedAt: Date.now(),
       updatedAt: Date.now(),
     };
+    await this.persistReservation(updatedReservation);
 
-    if (this.isFirebaseMode()) {
-      await firebaseService.updateReservation(updatedReservation);
-    } else {
-      storageService.updateReservation(updatedReservation);
-    }
+    sendLessonReservationStatusNotifications(
+      updatedReservation,
+      'COACH_APPROVED_ADMIN_PENDING'
+    ).catch((e) => log.error('[ReservationService] Unexpected notification error:', e));
 
     return updatedReservation;
   }
@@ -304,39 +322,32 @@ class ReservationService {
    * 코치가 예약 거부
    */
   async rejectReservation(reservationId: string, reason?: string): Promise<LessonReservation> {
-    let reservation: LessonReservation | undefined;
-
-    if (this.isFirebaseMode()) {
-      const allReservations = await firebaseService.getReservations();
-      reservation = allReservations.find((r) => r.id === reservationId);
-    } else {
-      const allReservations = storageService.getReservations();
-      reservation = allReservations.find((r) => r.id === reservationId);
-    }
+    const reservation = await this.loadReservationById(reservationId);
 
     if (!reservation) {
       throw new Error('예약을 찾을 수 없습니다.');
     }
 
-    if (reservation.status !== 'PENDING') {
-      throw new Error('대기 중인 예약만 거부할 수 있습니다.');
+    if (
+      reservation.status !== 'PENDING' &&
+      reservation.status !== 'REQUESTED' &&
+      reservation.status !== 'CHANGE_REQUESTED'
+    ) {
+      throw new Error('요청된 예약만 거부할 수 있습니다.');
     }
 
     const updatedReservation: LessonReservation = {
       ...reservation,
-      status: 'AVAILABLE',
-      clientId: undefined,
-      clientName: undefined,
-      clientPhone: undefined,
-      notes: reason ? `거부됨: ${reason}` : undefined,
+      status: 'REJECTED',
+      rejectedAt: Date.now(),
+      rejectionReason: reason,
       updatedAt: Date.now(),
     };
+    await this.persistReservation(updatedReservation);
 
-    if (this.isFirebaseMode()) {
-      await firebaseService.updateReservation(updatedReservation);
-    } else {
-      storageService.updateReservation(updatedReservation);
-    }
+    sendLessonReservationStatusNotifications(updatedReservation, 'REJECTED').catch((e) =>
+      log.error('[ReservationService] Unexpected notification error:', e)
+    );
 
     return updatedReservation;
   }
@@ -345,11 +356,93 @@ class ReservationService {
    * 예약 취소
    */
   async cancelReservation(reservationId: string): Promise<void> {
-    if (this.isFirebaseMode()) {
-      await firebaseService.deleteReservation(reservationId);
-    } else {
-      storageService.deleteReservation(reservationId);
+    const reservation = await this.loadReservationById(reservationId);
+    if (!reservation) return;
+
+    if (reservation.status === 'AVAILABLE' || reservation.status === 'BLOCKED') {
+      if (this.isFirebaseMode()) {
+        await firebaseService.deleteReservation(reservationId);
+      } else {
+        storageService.deleteReservation(reservationId);
+      }
+      return;
     }
+
+    const updatedReservation: LessonReservation = {
+      ...reservation,
+      status: 'CANCELLED',
+      updatedAt: Date.now(),
+    };
+    await this.persistReservation(updatedReservation);
+    sendLessonReservationStatusNotifications(updatedReservation, 'CANCELLED').catch((e) =>
+      log.error('[ReservationService] Unexpected notification error:', e)
+    );
+  }
+
+  async requestCancellationByMember(
+    reservationId: string,
+    clientId: string,
+    notes?: string
+  ): Promise<LessonReservation> {
+    const reservation = await this.loadReservationById(reservationId);
+    if (!reservation) throw new Error('예약을 찾을 수 없습니다.');
+    if (reservation.clientId !== clientId) {
+      throw new Error('본인의 예약만 취소 요청할 수 있습니다.');
+    }
+    if (
+      reservation.status !== 'REQUESTED' &&
+      reservation.status !== 'ADMIN_BLOCK_PENDING' &&
+      reservation.status !== 'CONFIRMED' &&
+      reservation.status !== 'PENDING'
+    ) {
+      throw new Error('현재 상태에서는 취소 요청할 수 없습니다.');
+    }
+
+    const updatedReservation: LessonReservation = {
+      ...reservation,
+      status: 'CANCEL_REQUESTED',
+      cancellationRequestedAt: Date.now(),
+      notes: notes ?? reservation.notes,
+      updatedAt: Date.now(),
+    };
+    await this.persistReservation(updatedReservation);
+    sendLessonReservationStatusNotifications(updatedReservation, 'CANCEL_REQUESTED').catch((e) =>
+      log.error('[ReservationService] Unexpected notification error:', e)
+    );
+    return updatedReservation;
+  }
+
+  async requestChangeByMember(
+    reservationId: string,
+    clientId: string,
+    requestedChangeNote?: string
+  ): Promise<LessonReservation> {
+    const reservation = await this.loadReservationById(reservationId);
+    if (!reservation) throw new Error('예약을 찾을 수 없습니다.');
+    if (reservation.clientId !== clientId) {
+      throw new Error('본인의 예약만 변경 요청할 수 있습니다.');
+    }
+    if (
+      reservation.status !== 'REQUESTED' &&
+      reservation.status !== 'ADMIN_BLOCK_PENDING' &&
+      reservation.status !== 'CONFIRMED' &&
+      reservation.status !== 'PENDING'
+    ) {
+      throw new Error('현재 상태에서는 변경 요청할 수 없습니다.');
+    }
+
+    const updatedReservation: LessonReservation = {
+      ...reservation,
+      status: 'CHANGE_REQUESTED',
+      changeRequestedAt: Date.now(),
+      requestedChangeNote,
+      updatedAt: Date.now(),
+    };
+    await this.persistReservation(updatedReservation);
+    sendLessonReservationStatusNotifications(updatedReservation, 'CHANGE_REQUESTED').catch((e) =>
+      log.error('[ReservationService] Unexpected notification error:', e)
+    );
+    return updatedReservation;
   }
 
   /**
@@ -432,6 +525,68 @@ class ReservationService {
     return reservations.sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime());
   }
 
+  async getAdminPendingReservations(branchId?: string): Promise<LessonReservation[]> {
+    let reservations: LessonReservation[];
+    if (this.isFirebaseMode()) {
+      reservations = await firebaseService.getReservations();
+    } else {
+      reservations = storageService.getReservations();
+    }
+
+    const filtered = reservations.filter((r) => {
+      if (r.status !== 'ADMIN_BLOCK_PENDING') return false;
+      if (!branchId) return true;
+      return !r.branchId || r.branchId === branchId;
+    });
+
+    return filtered.sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
+  }
+
+  async confirmReservationByAdmin(params: {
+    reservationId: string;
+    branchId: string;
+    bayId: string;
+    adminUsername?: string;
+  }): Promise<LessonReservation> {
+    const { reservationId, branchId, bayId, adminUsername } = params;
+    const reservation = await this.loadReservationById(reservationId);
+    if (!reservation) throw new Error('예약을 찾을 수 없습니다.');
+    if (reservation.status !== 'ADMIN_BLOCK_PENDING') {
+      throw new Error('관리자 확정 대기 상태의 예약만 확정할 수 있습니다.');
+    }
+
+    const bayReservation = await bayReservationService.createAdminLessonBayReservation({
+      branchId,
+      bayId,
+      startTime: reservation.startTime,
+      endTime: reservation.endTime,
+      clientId: reservation.clientId || `${reservation.clientName || '회원'}_${reservation.clientPhone || ''}`,
+      clientName: reservation.clientName || '회원',
+      clientPhone: reservation.clientPhone || '',
+      lessonReservationId: reservation.id,
+    });
+    const bays = await bayReservationService.getBranchBays(branchId);
+    const bay = bays.find((b) => b.id === bayId);
+    const bayLabel = bay ? `${bay.floor}층 ${bay.roomNumber}번` : bayId;
+
+    const updatedReservation: LessonReservation = {
+      ...reservation,
+      status: 'CONFIRMED',
+      branchId,
+      bayId,
+      bayLabel,
+      bayReservationId: bayReservation.id,
+      adminConfirmedAt: Date.now(),
+      adminConfirmedBy: adminUsername,
+      updatedAt: Date.now(),
+    };
+    await this.persistReservation(updatedReservation);
+    sendLessonReservationStatusNotifications(updatedReservation, 'ADMIN_CONFIRMED').catch((e) =>
+      log.error('[ReservationService] Unexpected notification error:', e)
+    );
+    return updatedReservation;
+  }
+
   /**
    * 특정 코치의 예약 가능한 슬롯 조회 (회원용)
    */
@@ -494,12 +649,13 @@ class ReservationService {
       (r) =>
         r.coachId === coachId &&
         r.status !== 'CANCELLED' &&
+        r.status !== 'REJECTED' &&
         r.startTime === startTime &&
         r.endTime === endTime
     );
 
     if (slot) {
-      if (slot.status === 'PENDING' || slot.status === 'CONFIRMED') {
+      if (ACTIVE_BOOKED_STATUSES.includes(slot.status)) {
         throw new Error('이미 예약된 시간대는 변경할 수 없습니다.');
       }
 
@@ -567,7 +723,10 @@ class ReservationService {
     }
 
     const dateReservations = allReservations.filter(
-      (r) => r.startTime.slice(0, 10) === safeDate && r.status !== 'CANCELLED'
+      (r) =>
+        r.startTime.slice(0, 10) === safeDate &&
+        r.status !== 'CANCELLED' &&
+        r.status !== 'REJECTED'
     );
 
     // Determine working hours for this day of week
@@ -587,10 +746,10 @@ class ReservationService {
     const workEnd   = parseInt(dayEntry.close.split(':')[0], 10);
     const pad = (n: number) => String(n).padStart(2, '0');
 
-    // Build set of hours blocked by BLOCKED / PENDING / CONFIRMED reservations
+    // Build set of hours blocked by BLOCKED / active booked reservations
     const unavailableHours = new Set(
       dateReservations
-        .filter((r) => r.status === 'BLOCKED' || r.status === 'PENDING' || r.status === 'CONFIRMED')
+        .filter((r) => r.status === 'BLOCKED' || ACTIVE_BOOKED_STATUSES.includes(r.status))
         .map((r) => new Date(r.startTime).getHours())
     );
 
@@ -653,7 +812,7 @@ class ReservationService {
       s1 < e2 && e1 > s2;
 
     const conflict = allReservations.find((r) => {
-      if (r.status === 'CANCELLED') return false;
+      if (r.status === 'CANCELLED' || r.status === 'REJECTED') return false;
       const s = new Date(r.startTime);
       const e = new Date(r.endTime);
       return hasTimeOverlap(requestStart, requestEnd, s, e);
