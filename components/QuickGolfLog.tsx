@@ -95,7 +95,7 @@ export const QuickGolfLog: React.FC<QuickGolfLogProps> = ({ clientId, coachId, o
       <div className="flex items-center gap-3">
         <button
           onClick={onBack}
-          className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-600 transition-colors"
+          className="p-3 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-600 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
           aria-label="뒤로"
         >
           <ChevronLeft className="w-5 h-5" />

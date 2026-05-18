@@ -834,20 +834,20 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
       <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 px-4 py-3 flex items-center justify-between text-white flex-shrink-0 safe-area-top relative shadow-lg">
         <button
           onClick={onBack}
-          className="p-2 bg-white/10 backdrop-blur-sm rounded-full hover:bg-white/20 text-white transition-all duration-200 hover:scale-110 transform"
+          className="p-3 bg-white/10 backdrop-blur-sm rounded-full hover:bg-white/20 text-white transition-all duration-200 hover:scale-110 transform min-w-[44px] min-h-[44px] flex items-center justify-center"
           aria-label="목록으로 돌아가기"
         >
-          <ArrowLeft className="w-4 h-4" />
+          <ArrowLeft className="w-5 h-5" />
         </button>
-        <h2 className="text-lg font-bold truncate max-w-[220px] text-center">{lesson.title}</h2>
-        <div className="w-10 flex justify-end">
+        <h2 className="text-lg font-bold truncate max-w-[200px] text-center">{lesson.title}</h2>
+        <div className="w-11 flex justify-end">
             {canEdit && onEdit && (
-                <button 
-                    onClick={() => onEdit(lesson)} 
-                    className="p-2 bg-white/10 backdrop-blur-sm rounded-full hover:bg-white/20 text-white transition-all duration-200 hover:scale-110 transform"
+                <button
+                    onClick={() => onEdit(lesson)}
+                    className="p-3 bg-white/10 backdrop-blur-sm rounded-full hover:bg-white/20 text-white transition-all duration-200 hover:scale-110 transform min-w-[44px] min-h-[44px] flex items-center justify-center"
                     title="기록 수정"
                 >
-                    <Edit2 className="w-4 h-4" />
+                    <Edit2 className="w-5 h-5" />
                 </button>
             )}
         </div>

@@ -156,7 +156,7 @@ export const ImpactSelectionPage: React.FC<ImpactSelectionPageProps> = ({
         <button
           type="button"
           onClick={onBack}
-          className="p-2 rounded-xl text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors"
+          className="p-3 rounded-xl text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
           aria-label="Back"
           data-testid="impact-back-btn"
         >
