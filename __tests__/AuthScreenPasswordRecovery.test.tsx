@@ -14,6 +14,7 @@ const { mockedAuthService } = vi.hoisted(() => ({
     loginBranchAdmin: vi.fn(),
     findEmail: vi.fn(),
     findPassword: vi.fn(),
+    getAutoLoginPref: vi.fn().mockReturnValue(false),
   },
 }));
 

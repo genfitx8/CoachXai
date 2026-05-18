@@ -7,6 +7,7 @@ import { LanguageProvider } from '../components/LanguageContext';
 const { authServiceMock } = vi.hoisted(() => ({
   authServiceMock: {
     loginWithGoogle: vi.fn(),
+    getAutoLoginPref: vi.fn().mockReturnValue(false),
   },
 }));
 
@@ -17,9 +18,11 @@ vi.mock('../services/authService', () => ({
 describe('AuthScreen Google auth flow', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    localStorage.clear();
     authServiceMock.loginWithGoogle.mockResolvedValue({
       email: 'tester@example.com',
     });
+    authServiceMock.getAutoLoginPref.mockReturnValue(false);
   });
 
   it('uses active login tab role when Google login is clicked', async () => {
@@ -38,7 +41,7 @@ describe('AuthScreen Google auth flow', () => {
       expect(onLoginSuccess).toHaveBeenCalledWith(
         'CLIENT',
         { email: 'tester@example.com' },
-        true
+        false
       );
     });
   });
@@ -61,6 +64,26 @@ describe('AuthScreen Google auth flow', () => {
       expect(authServiceMock.loginWithGoogle).toHaveBeenCalledWith('CLIENT');
       expect(onLoginSuccess).toHaveBeenCalledWith(
         'CLIENT',
+        { email: 'tester@example.com' },
+        false
+      );
+    });
+  });
+
+  it('passes isAutoLogin=true when auto-login preference is stored', async () => {
+    authServiceMock.getAutoLoginPref.mockReturnValue(true);
+    const onLoginSuccess = vi.fn();
+    render(
+      <LanguageProvider>
+        <AuthScreen onLoginSuccess={onLoginSuccess} />
+      </LanguageProvider>
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Google로 로그인' }));
+
+    await waitFor(() => {
+      expect(onLoginSuccess).toHaveBeenCalledWith(
+        'COACH',
         { email: 'tester@example.com' },
         true
       );

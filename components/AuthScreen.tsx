@@ -108,7 +108,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
   const [branchAdminLoginId, setBranchAdminLoginId] = useState('');
   const [branchAdminPassword, setBranchAdminPassword] = useState('');
 
-  const [isAutoLogin, setIsAutoLogin] = useState(true);
+  const [isAutoLogin, setIsAutoLogin] = useState(() => authService.getAutoLoginPref());
   const [isSavePassword, setIsSavePassword] = useState(() => {
     try {
       return !!localStorage.getItem(SAVED_CREDENTIALS_KEY);
@@ -184,6 +184,17 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
   const clearCredentials = () => {
     try {
       localStorage.removeItem(SAVED_CREDENTIALS_KEY);
+    } catch {}
+  };
+
+  const autofillPasswordIfSaved = (typedEmail: string) => {
+    try {
+      const raw = localStorage.getItem(SAVED_CREDENTIALS_KEY);
+      if (!raw) return;
+      const creds: SavedCredentials = JSON.parse(raw);
+      if (creds.email === typedEmail) {
+        setPassword(creds.password);
+      }
     } catch {}
   };
 
@@ -597,7 +608,10 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
                 name="email"
                 autoComplete="email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  if (!isSignup) autofillPasswordIfSaved(e.target.value);
+                }}
                 placeholder="email@example.com"
                 leading={<Mail className="h-4 w-4" />}
               />

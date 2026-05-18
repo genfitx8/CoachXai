@@ -39,6 +39,7 @@ vi.mock('../services/authService', () => ({
     loginBranchAdmin: vi.fn(),
     findEmail: vi.fn(),
     findPassword: vi.fn(),
+    getAutoLoginPref: vi.fn().mockReturnValue(false),
   },
 }));
 

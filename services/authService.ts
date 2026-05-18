@@ -11,6 +11,7 @@ const STORAGE_KEYS = {
   SESSION_ROLE: 'swingnote_session_role',
   SESSION_CLIENT_DATA: 'swingnote_session_client_data',
   SESSION_BRANCH_ADMIN_DATA: 'swingnote_session_branch_admin_data',
+  AUTO_LOGIN_PREF: 'swingnote_auto_login_pref',
 };
 
 const PASSWORD_POLICY_REGEX =
@@ -602,6 +603,13 @@ export const authService = {
   ) => {
     const storage = isAutoLogin ? localStorage : sessionStorage;
 
+    // Persist auto-login preference so the login screen can restore it
+    if (isAutoLogin) {
+      localStorage.setItem(STORAGE_KEYS.AUTO_LOGIN_PREF, '1');
+    } else {
+      localStorage.removeItem(STORAGE_KEYS.AUTO_LOGIN_PREF);
+    }
+
     // Clear other storage to avoid conflicts
     if (isAutoLogin) {
       sessionStorage.removeItem(STORAGE_KEYS.SESSION_ROLE);
@@ -625,6 +633,14 @@ export const authService = {
         STORAGE_KEYS.SESSION_BRANCH_ADMIN_DATA,
         JSON.stringify(branchAdminData)
       );
+    }
+  },
+
+  getAutoLoginPref: (): boolean => {
+    try {
+      return localStorage.getItem(STORAGE_KEYS.AUTO_LOGIN_PREF) === '1';
+    } catch {
+      return false;
     }
   },
 
@@ -679,6 +695,7 @@ export const authService = {
     localStorage.removeItem(STORAGE_KEYS.SESSION_ROLE);
     localStorage.removeItem(STORAGE_KEYS.SESSION_CLIENT_DATA);
     localStorage.removeItem(STORAGE_KEYS.SESSION_BRANCH_ADMIN_DATA);
+    localStorage.removeItem(STORAGE_KEYS.AUTO_LOGIN_PREF);
     sessionStorage.removeItem(STORAGE_KEYS.SESSION_ROLE);
     sessionStorage.removeItem(STORAGE_KEYS.SESSION_CLIENT_DATA);
     sessionStorage.removeItem(STORAGE_KEYS.SESSION_BRANCH_ADMIN_DATA);
