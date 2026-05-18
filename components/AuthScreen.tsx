@@ -192,7 +192,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
       const raw = localStorage.getItem(SAVED_CREDENTIALS_KEY);
       if (!raw) return;
       const creds: SavedCredentials = JSON.parse(raw);
-      if (creds.email === typedEmail) {
+      if (creds.email.toLowerCase() === typedEmail.toLowerCase()) {
         setPassword(creds.password);
       }
     } catch {}
