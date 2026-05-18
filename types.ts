@@ -455,6 +455,7 @@ export interface VideoEditMetadata {
   hasDrawings: boolean;
   drawingData?: DrawingFrame[];
   editedAt: string;
+  slowMotionSpeed?: 0.5 | 0.25 | 0.125;
 }
 
 export interface DrawingFrame {

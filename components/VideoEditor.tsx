@@ -3,7 +3,7 @@ import { Button } from './Button';
 import { VideoTrimmer } from './VideoTrimmer';
 import { AudioRecorder } from './AudioRecorder';
 import { DrawingCanvas } from './DrawingCanvas';
-import { X, Scissors, Mic, PenTool, Loader2 } from 'lucide-react';
+import { X, Scissors, Mic, PenTool, Loader2, Gauge } from 'lucide-react';
 import { videoEditingService } from '../services/videoEditingService';
 import { drawingService } from '../services/drawingService';
 import { VideoEditMetadata } from '../types';
@@ -15,7 +15,7 @@ interface VideoEditorProps {
   lessonId?: string;
 }
 
-type EditMode = 'SELECT' | 'TRIM' | 'AUDIO' | 'DRAW';
+type EditMode = 'SELECT' | 'TRIM' | 'AUDIO' | 'DRAW' | 'SLOW';
 
 export const VideoEditor: React.FC<VideoEditorProps> = ({ 
   videoUrl, 
@@ -33,6 +33,7 @@ export const VideoEditor: React.FC<VideoEditorProps> = ({
   const [trimEnd, setTrimEnd] = useState<number | undefined>(undefined);
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const [hasDrawings, setHasDrawings] = useState(false);
+  const [slowMotionSpeed, setSlowMotionSpeed] = useState<0.5 | 0.25 | 0.125 | undefined>(undefined);
   const [currentVideoUrl, setCurrentVideoUrl] = useState(videoUrl);
 
   const handleTrim = async (startTime: number, endTime: number) => {
@@ -81,6 +82,29 @@ export const VideoEditor: React.FC<VideoEditorProps> = ({
     alert('그리기가 저장되었습니다.');
   };
 
+  const handleSlowMotion = async (speed: 0.5 | 0.25 | 0.125) => {
+    setIsProcessing(true);
+    setProcessingStatus(`슬로모션 ${speed}x 처리 중...`);
+    try {
+      const videoBlob = await fetch(currentVideoUrl).then(r => r.blob());
+      const slowBlob = await videoEditingService.createSlowMotionVideo(
+        videoBlob,
+        speed,
+        (progress) => setProcessingProgress(progress * 100)
+      );
+      setSlowMotionSpeed(speed);
+      setCurrentVideoUrl(URL.createObjectURL(slowBlob));
+      setEditMode('SELECT');
+    } catch (error) {
+      console.error('Error applying slow motion:', error);
+      alert('슬로모션 처리 중 오류가 발생했습니다.');
+    } finally {
+      setIsProcessing(false);
+      setProcessingProgress(0);
+      setProcessingStatus('');
+    }
+  };
+
   const handleSaveAll = async () => {
     setIsProcessing(true);
     setProcessingStatus('편집된 영상을 저장하는 중...');
@@ -113,6 +137,7 @@ export const VideoEditor: React.FC<VideoEditorProps> = ({
         hasDrawings: hasDrawings && drawingData.length > 0,
         drawingData: drawingData.length > 0 ? drawingData : undefined,
         editedAt: new Date().toISOString(),
+        slowMotionSpeed,
       };
       
       onSave(finalBlob, metadata);
@@ -126,7 +151,7 @@ export const VideoEditor: React.FC<VideoEditorProps> = ({
     }
   };
 
-  const hasEdits = trimStart !== undefined || audioBlob !== null || hasDrawings;
+  const hasEdits = trimStart !== undefined || audioBlob !== null || hasDrawings || slowMotionSpeed !== undefined;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -171,7 +196,7 @@ export const VideoEditor: React.FC<VideoEditorProps> = ({
 
               <div>
                 <h3 className="text-lg font-semibold mb-3">편집 도구 선택</h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <button
                     onClick={() => setEditMode('TRIM')}
                     disabled={isProcessing}
@@ -208,6 +233,19 @@ export const VideoEditor: React.FC<VideoEditorProps> = ({
                     <p className="text-sm text-gray-600">영상에 그림 추가</p>
                     {hasDrawings && (
                       <p className="text-xs text-green-600 mt-2">✓ 그려짐</p>
+                    )}
+                  </button>
+
+                  <button
+                    onClick={() => setEditMode('SLOW')}
+                    disabled={isProcessing}
+                    className="p-6 border-2 border-gray-200 rounded-lg hover:border-purple-500 hover:bg-purple-50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <Gauge className="w-12 h-12 mx-auto mb-3 text-purple-600" />
+                    <h4 className="font-semibold mb-1">슬로모션</h4>
+                    <p className="text-sm text-gray-600">스윙 느리게 보기</p>
+                    {slowMotionSpeed !== undefined && (
+                      <p className="text-xs text-green-600 mt-2">✓ {slowMotionSpeed}x 적용</p>
                     )}
                   </button>
                 </div>
@@ -248,6 +286,38 @@ export const VideoEditor: React.FC<VideoEditorProps> = ({
               onSave={handleDrawingSaved}
               onCancel={() => setEditMode('SELECT')}
             />
+          )}
+
+          {editMode === 'SLOW' && (
+            <div className="space-y-6">
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <video src={currentVideoUrl} controls className="w-full rounded" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold mb-1">슬로모션 속도 선택</h3>
+                <p className="text-sm text-gray-500 mb-4">선택 즉시 처리됩니다. 영상 길이에 따라 시간이 소요됩니다.</p>
+                <div className="grid grid-cols-3 gap-4">
+                  {([0.5, 0.25, 0.125] as const).map((speed) => (
+                    <button
+                      key={speed}
+                      onClick={() => handleSlowMotion(speed)}
+                      disabled={isProcessing}
+                      className="p-6 border-2 border-purple-200 rounded-lg hover:border-purple-500 hover:bg-purple-50 transition-all disabled:opacity-50 disabled:cursor-not-allowed text-center"
+                    >
+                      <p className="text-3xl font-bold text-purple-600 mb-1">{speed}x</p>
+                      <p className="text-sm text-gray-600">
+                        {speed === 0.5 ? '½배속' : speed === 0.25 ? '¼배속' : '⅛배속'}
+                      </p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="flex justify-end pt-4 border-t">
+                <Button onClick={() => setEditMode('SELECT')} variant="secondary">
+                  취소
+                </Button>
+              </div>
+            </div>
           )}
         </div>
       </div>
