@@ -2,10 +2,18 @@ import React from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { LessonUploadPage } from '../components/LessonUploadPage';
+import { Student } from '../types';
+
+const MOCK_STUDENTS: Student[] = [
+  { id: 'student-1', name: '박민준', phone: '010-1234-5678', coachId: 'coach-1' },
+  { id: 'student-2', name: '김서연', phone: '010-2345-6789', coachId: 'coach-1' },
+  { id: 'student-3', name: '이도현', phone: '010-3456-7890', coachId: 'coach-1' },
+  { id: 'student-4', name: '최수아', phone: '010-4567-8901', coachId: 'coach-1' },
+];
 
 describe('LessonUploadPage', () => {
   it('renders step header, student dropdown and both drop zones', () => {
-    render(<LessonUploadPage onBack={vi.fn()} onNext={vi.fn()} />);
+    render(<LessonUploadPage students={MOCK_STUDENTS} onBack={vi.fn()} onNext={vi.fn()} />);
 
     expect(screen.getByTestId('lesson-upload-page')).toBeInTheDocument();
     expect(screen.getByText(/Upload Lesson Videos/i)).toBeInTheDocument();
@@ -14,8 +22,8 @@ describe('LessonUploadPage', () => {
     expect(screen.getByTestId('drop-zone-after')).toBeInTheDocument();
   });
 
-  it('shows mock students in the dropdown', () => {
-    render(<LessonUploadPage onBack={vi.fn()} onNext={vi.fn()} />);
+  it('shows provided students in the dropdown', () => {
+    render(<LessonUploadPage students={MOCK_STUDENTS} onBack={vi.fn()} onNext={vi.fn()} />);
 
     const select = screen.getByTestId('student-select') as HTMLSelectElement;
     // Should have the placeholder plus at least 4 mock students
@@ -23,7 +31,7 @@ describe('LessonUploadPage', () => {
   });
 
   it('Next button is disabled until student and both videos are selected', () => {
-    render(<LessonUploadPage onBack={vi.fn()} onNext={vi.fn()} />);
+    render(<LessonUploadPage students={MOCK_STUDENTS} onBack={vi.fn()} onNext={vi.fn()} />);
 
     const nextBtn = screen.getByTestId('upload-next-btn');
     expect(nextBtn).toBeDisabled();
@@ -31,14 +39,14 @@ describe('LessonUploadPage', () => {
 
   it('calls onBack when the back button is clicked', () => {
     const onBack = vi.fn();
-    render(<LessonUploadPage onBack={onBack} onNext={vi.fn()} />);
+    render(<LessonUploadPage students={MOCK_STUDENTS} onBack={onBack} onNext={vi.fn()} />);
 
     fireEvent.click(screen.getByTestId('upload-back-btn'));
     expect(onBack).toHaveBeenCalledTimes(1);
   });
 
   it('enables Next button after student and both video files are selected', () => {
-    render(<LessonUploadPage onBack={vi.fn()} onNext={vi.fn()} />);
+    render(<LessonUploadPage students={MOCK_STUDENTS} onBack={vi.fn()} onNext={vi.fn()} />);
 
     // Select a student
     fireEvent.change(screen.getByTestId('student-select'), {
@@ -62,7 +70,7 @@ describe('LessonUploadPage', () => {
 
   it('calls onNext with a LessonUpload payload when Next is clicked', () => {
     const onNext = vi.fn();
-    render(<LessonUploadPage onBack={vi.fn()} onNext={onNext} />);
+    render(<LessonUploadPage students={MOCK_STUDENTS} onBack={vi.fn()} onNext={onNext} />);
 
     fireEvent.change(screen.getByTestId('student-select'), {
       target: { value: 'student-2' },
@@ -89,5 +97,14 @@ describe('LessonUploadPage', () => {
     expect(payload.afterVideoFile).toBeDefined();
     expect(typeof payload.id).toBe('string');
     expect(typeof payload.createdAt).toBe('number');
+  });
+
+  it('shows empty-student guidance when no students are provided', () => {
+    render(<LessonUploadPage students={[]} onBack={vi.fn()} onNext={vi.fn()} />);
+
+    expect(
+      screen.getByText('등록된 학생이 없습니다. 먼저 회원을 등록해 주세요.')
+    ).toBeInTheDocument();
+    expect(screen.getByTestId('upload-next-btn')).toBeDisabled();
   });
 });

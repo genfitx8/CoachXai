@@ -4,16 +4,6 @@ import { Button } from './Button';
 import { LessonUpload, Student } from '../types';
 
 // ---------------------------------------------------------------------------
-// Mock student data — replace with real API call in future phases
-// ---------------------------------------------------------------------------
-const MOCK_STUDENTS: Student[] = [
-  { id: 'student-1', name: '박민준', phone: '010-1234-5678', coachId: 'coach-1' },
-  { id: 'student-2', name: '김서연', phone: '010-2345-6789', coachId: 'coach-1' },
-  { id: 'student-3', name: '이도현', phone: '010-3456-7890', coachId: 'coach-1' },
-  { id: 'student-4', name: '최수아', phone: '010-4567-8901', coachId: 'coach-1' },
-];
-
-// ---------------------------------------------------------------------------
 // Sub-component: video drop zone
 // ---------------------------------------------------------------------------
 interface VideoDropZoneProps {
@@ -140,11 +130,13 @@ const VideoDropZone: React.FC<VideoDropZoneProps> = ({
 // Main component
 // ---------------------------------------------------------------------------
 export interface LessonUploadPageProps {
+  students: Student[];
   onBack: () => void;
   onNext: (upload: LessonUpload) => void;
 }
 
 export const LessonUploadPage: React.FC<LessonUploadPageProps> = ({
+  students,
   onBack,
   onNext,
 }) => {
@@ -162,6 +154,12 @@ export const LessonUploadPage: React.FC<LessonUploadPageProps> = ({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  React.useEffect(() => {
+    if (selectedStudentId && !students.some((s) => s.id === selectedStudentId)) {
+      setSelectedStudentId('');
+    }
+  }, [selectedStudentId, students]);
 
   const handleSelectFile = (label: 'BEFORE' | 'AFTER', file: File) => {
     const url = URL.createObjectURL(file);
@@ -233,20 +231,29 @@ export const LessonUploadPage: React.FC<LessonUploadPageProps> = ({
         >
           Student
         </label>
-        <select
-          id="student-select"
-          value={selectedStudentId}
-          onChange={(e) => setSelectedStudentId(e.target.value)}
-          className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          data-testid="student-select"
-        >
-          <option value="">— Select a student —</option>
-          {MOCK_STUDENTS.map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.name} ({s.phone})
-            </option>
-          ))}
-        </select>
+        {students.length > 0 ? (
+          <select
+            id="student-select"
+            value={selectedStudentId}
+            onChange={(e) => setSelectedStudentId(e.target.value)}
+            className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            data-testid="student-select"
+          >
+            <option value="">— Select a student —</option>
+            {students.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.name} ({s.phone})
+              </option>
+            ))}
+          </select>
+        ) : (
+          <div
+            className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-slate-400 text-sm"
+            data-testid="student-empty-message"
+          >
+            등록된 학생이 없습니다. 먼저 회원을 등록해 주세요.
+          </div>
+        )}
       </section>
 
       {/* Video upload zones */}
