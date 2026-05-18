@@ -24,7 +24,7 @@ const REQUIRED_FIREBASE_ENV_KEYS = [
   'VITE_FIREBASE_APP_ID',
 ] as const;
 
-const getMissingGoogleAuthEnvKeys = (): string[] =>
+const getMissingFirebaseEnvKeys = (): string[] =>
   REQUIRED_FIREBASE_ENV_KEYS.filter((key) => !import.meta.env[key]);
 
 const getMissingGoogleAuthConfigFields = (
@@ -37,14 +37,17 @@ const getMissingGoogleAuthConfigFields = (
 ): string[] => {
   if (!config) return [...REQUIRED_FIREBASE_ENV_KEYS];
 
-  const mapping: Record<(typeof REQUIRED_FIREBASE_ENV_KEYS)[number], string | undefined> = {
+  const configFieldMap: Record<
+    (typeof REQUIRED_FIREBASE_ENV_KEYS)[number],
+    string | undefined
+  > = {
     VITE_FIREBASE_API_KEY: config.apiKey,
     VITE_FIREBASE_AUTH_DOMAIN: config.authDomain,
     VITE_FIREBASE_PROJECT_ID: config.projectId,
     VITE_FIREBASE_APP_ID: config.appId,
   };
 
-  return REQUIRED_FIREBASE_ENV_KEYS.filter((key) => !mapping[key]);
+  return REQUIRED_FIREBASE_ENV_KEYS.filter((key) => !configFieldMap[key]);
 };
 
 const normalizePhoneNumber = (phone: string): string => {
@@ -282,7 +285,7 @@ export const authService = {
       const savedConfig = firebaseService.getSavedConfig();
       const missingConfigFields = getMissingGoogleAuthConfigFields(savedConfig);
       if (missingConfigFields.length > 0) {
-        const missingEnvKeys = getMissingGoogleAuthEnvKeys();
+        const missingEnvKeys = getMissingFirebaseEnvKeys();
         const missingKeyHint =
           missingEnvKeys.length > 0
             ? ` 누락된 환경변수: ${missingEnvKeys.join(', ')}`

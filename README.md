@@ -88,7 +88,7 @@ Optional (recommended when using additional Firebase features):
 Then configure Firebase Console:
 
 1. **Authentication → Sign-in method**: enable **Google** provider.
-2. **Authentication → Settings → Authorized domains**: add your production domain and local domains (for example `localhost`).
+2. **Authentication → Settings → Authorized domains**: add your production domain and local development domains (for example `localhost` and `127.0.0.1`).
 
 If these values are missing or incomplete, Google auth fails gracefully with an actionable error message in the UI.
 

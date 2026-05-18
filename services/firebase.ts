@@ -172,7 +172,7 @@ export const firebaseService = {
 
       if (hasAnyFirebaseEnv) {
         log.warn(
-          `Partial Firebase env detected; ignoring env config because required keys are missing: ${requiredMissingKeys.join(
+          `Partial Firebase env detected; ignoring env config and falling back to saved config. Missing required keys: ${requiredMissingKeys.join(
             ', '
           )}`
         );
