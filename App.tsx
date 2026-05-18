@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   ViewState,
   Lesson,
+  MediaItem,
   CoachProfile,
   ClientProfile,
   Homework,
@@ -1778,6 +1779,7 @@ const AppContent: React.FC = () => {
               setPendingLessonUpload(upload);
               setCoachView('LESSON_IMPACT');
             }}
+            onGoToStudents={() => setCoachView('CLIENTS')}
           />
         )}
 
@@ -1785,10 +1787,54 @@ const AppContent: React.FC = () => {
           <ImpactSelectionPage
             lessonUpload={pendingLessonUpload}
             onBack={() => setCoachView('LESSON_UPLOAD')}
-            onConfirm={(_selection: ImpactSelection) => {
-              // TODO: submit to processing pipeline in a future phase
+            onConfirm={(selection: ImpactSelection) => {
+              const upload = pendingLessonUpload;
+              const student = clients.find((c) => {
+                const id = c.id ?? `${c.name}_${c.phone}`;
+                return id === upload.studentId;
+              });
+              if (!student || !upload.beforeVideoUrl || !upload.afterVideoUrl) return;
+
+              const now = Date.now();
+              const coachId =
+                currentUser && 'id' in currentUser
+                  ? (currentUser as CoachProfile).id
+                  : undefined;
+
+              const beforeItem: MediaItem = {
+                id: `media_${now}_before`,
+                url: upload.beforeVideoUrl,
+                type: 'video',
+                role: 'BEFORE',
+                createdAt: now,
+              };
+              const afterItem: MediaItem = {
+                id: `media_${now}_after`,
+                url: upload.afterVideoUrl,
+                type: 'video',
+                role: 'AFTER',
+                createdAt: now,
+              };
+
+              const newLesson: Lesson = {
+                id: `lesson_${now}`,
+                clientName: student.name,
+                clientPhone: student.phone,
+                coachId,
+                createdBy: 'COACH',
+                recordType: 'LESSON',
+                date: new Date().toISOString().slice(0, 10),
+                title: `${student.name} 스윙 비교`,
+                videoUrl: upload.beforeVideoUrl,
+                mediaType: 'video',
+                additionalMedia: [beforeItem, afterItem],
+                coachNotes: `Before impact: ${selection.beforeImpactTimeSec.toFixed(2)}s / After impact: ${selection.afterImpactTimeSec.toFixed(2)}s`,
+                tags: ['before-after'],
+                createdAt: now,
+              };
+
               setPendingLessonUpload(null);
-              setCoachView('LIST');
+              handleSaveLesson(newLesson);
             }}
           />
         )}
