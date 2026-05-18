@@ -16,7 +16,7 @@ describe('LessonUploadPage', () => {
     render(<LessonUploadPage students={MOCK_STUDENTS} onBack={vi.fn()} onNext={vi.fn()} />);
 
     expect(screen.getByTestId('lesson-upload-page')).toBeInTheDocument();
-    expect(screen.getByText(/Upload Lesson Videos/i)).toBeInTheDocument();
+    expect(screen.getByText('자동 영상 편집')).toBeInTheDocument();
     expect(screen.getByTestId('student-select')).toBeInTheDocument();
     expect(screen.getByTestId('drop-zone-before')).toBeInTheDocument();
     expect(screen.getByTestId('drop-zone-after')).toBeInTheDocument();

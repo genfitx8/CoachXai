@@ -24,57 +24,85 @@ import { createLogger } from '../utils/logger';
 
 const log = createLogger('gemini');
 
-const AI_BACKEND_BASE_URL = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '');
-const AI_SERVER_FALLBACK_URL = (
-  import.meta.env.VITE_AI_FALLBACK_URL || 'http://localhost:4000'
-).replace(/\/$/, '');
-const getAiInvokeEndpoint = () => {
-  if (AI_BACKEND_BASE_URL) return `${AI_BACKEND_BASE_URL}/api/ai/invoke`;
+const API_BASE = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '');
+
+const getAiApiEndpoint = (): string => {
+  if (API_BASE) return `${API_BASE}/api/ai/invoke`;
   if (typeof window !== 'undefined' && window.location?.origin) {
     return `${window.location.origin}/api/ai/invoke`;
   }
-  return `${AI_SERVER_FALLBACK_URL}/api/ai/invoke`;
+  return '/api/ai/invoke';
 };
 
-type AgentRuntimePart = { text: string } | { inlineData: { data: string; mimeType: string } };
-
-interface RuntimeRequest {
-  operation: string;
-  prompt?: string;
-  parts?: AgentRuntimePart[];
-  responseMimeType?: string;
-  temperature?: number;
+interface InlineDataPart {
+  inlineData: {
+    data: string;
+    mimeType: string;
+  };
 }
 
-const invokeAgentRuntime = async (request: RuntimeRequest): Promise<string> => {
-  const response = await fetch(getAiInvokeEndpoint(), {
+const invokeBackendAI = async <T>(feature: string, payload: unknown): Promise<T> => {
+  const response = await fetch(getAiApiEndpoint(), {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(request),
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ feature, payload }),
   });
 
-  const payload = await response
-    .json()
-    .catch(() => ({ error: `Agent runtime request failed (${response.status})` }));
-
-  if (!response.ok) {
-    throw new Error(
-      typeof payload?.error === 'string'
-        ? payload.error
-        : `Agent runtime request failed (${response.status})`
-    );
+  let body: { ok?: boolean; result?: T; error?: string } | null = null;
+  try {
+    body = await response.json() as { ok?: boolean; result?: T; error?: string };
+  } catch {
+    if (response.ok) {
+      throw new Error('Failed to parse AI backend response.');
+    }
   }
 
-  if (typeof payload?.text !== 'string') {
-    throw new Error('Invalid Agent Platform runtime response: missing text field');
+  if (!response.ok || !body?.ok) {
+    const message = body?.error || `AI backend request failed (HTTP ${response.status})`;
+    throw new Error(message);
   }
-  const text = payload.text;
-  if (!text.trim()) {
-    throw new Error('Empty response from Agent Platform runtime');
+
+  return body.result as T;
+};
+
+const getResponseText = (result: unknown): string | null => {
+  if (typeof result === 'string') return result;
+  if (!result || typeof result !== 'object') return null;
+
+  const record = result as Record<string, unknown>;
+  if (typeof record.text === 'string') return record.text;
+  if (typeof record.response === 'string') return record.response;
+  if (typeof record.output === 'string') return record.output;
+
+  return null;
+};
+
+const getJsonTextFromResult = (result: unknown): string => {
+  const text = getResponseText(result);
+  if (text) return text;
+  return typeof result === 'object' ? JSON.stringify(result) : '';
+};
+
+const parseJsonObjectFromText = (text: string): Record<string, unknown> | null => {
+  const jsonMatch = text.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) return null;
+  try {
+    const parsed = JSON.parse(jsonMatch[0]);
+    return parsed && typeof parsed === 'object' ? (parsed as Record<string, unknown>) : null;
+  } catch {
+    return null;
   }
-  return text;
+};
+
+const parseJsonArrayFromText = (text: string): unknown[] | null => {
+  const jsonMatch = text.match(/\[[\s\S]*\]/);
+  if (!jsonMatch) return null;
+  try {
+    const parsed = JSON.parse(jsonMatch[0]);
+    return Array.isArray(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
 };
 
 /**
@@ -85,10 +113,16 @@ const getBlobFromUrl = async (url: string): Promise<Blob> => {
   return await response.blob();
 };
 
+const toMediaPart = async (blob: Blob, mimeType: string): Promise<InlineDataPart> =>
+  fileToGenerativePart(blob, mimeType);
+
 /**
  * Converts a File object or Blob to a Base64 string for backend Agent Runtime calls.
  */
-const fileToGenerativePart = async (file: Blob, mimeType: string) => {
+const fileToGenerativePart = async (
+  file: Blob,
+  mimeType: string
+): Promise<InlineDataPart> => {
   const base64EncodedDataPromise = new Promise<string>((resolve) => {
     const reader = new FileReader();
     reader.onloadend = () => {
@@ -206,6 +240,13 @@ export const analyzeSwingVideo = async (
   userNotes: string,
   swingAngle?: 'FRONT' | 'SIDE'
 ): Promise<string> => {
+  const fallback = () => {
+    const note = userNotes?.trim();
+    return `## 📝 오늘의 레슨 요약\n\n${
+      note ? note : '레슨 요약을 자동 생성하지 못해 코치 메모를 기준으로 저장합니다.'
+    }\n\n## 🎯 핵심 코칭 포인트\n- 업로드된 자료를 다시 확인해 핵심 포인트를 정리해 주세요.\n- AI 연동이 설정되면 보다 상세한 리포트를 자동 생성할 수 있습니다.`;
+  };
+
   try {
     // Convert all inputs to generative parts
     const mediaParts = await Promise.all(
@@ -216,7 +257,7 @@ export const analyzeSwingVideo = async (
         } else {
           blob = input.data;
         }
-        return fileToGenerativePart(blob, input.mimeType);
+        return toMediaPart(blob, input.mimeType);
       })
     );
 
@@ -261,15 +302,18 @@ export const analyzeSwingVideo = async (
       *회원에게 바로 공유할 수 있는 톤으로 정리해주세요.*
     `;
 
-    const text = await invokeAgentRuntime({
-      operation: 'analyze_swing_video',
-      parts: [...mediaParts, { text: prompt }],
+    const result = await invokeBackendAI<unknown>('lesson_summary', {
+      prompt,
+      mediaParts,
       temperature: 0.4,
     });
-    return text;
+
+    const text = getResponseText(result);
+    if (text) return text;
+    throw new Error('레슨 요약을 생성하지 못했습니다.');
   } catch (error) {
     log.error('AI Lesson Summary Error:', error);
-    throw error;
+    return fallback();
   }
 };
 
@@ -342,17 +386,19 @@ export const extractGolfData = async (
       \`\`\`
     `;
 
-    const text = await invokeAgentRuntime({
-      operation: 'extract_golf_data',
-      parts: [mediaPart, { text: prompt }],
+    const result = await invokeBackendAI<unknown>('extract_golf_data', {
+      prompt,
+      mediaParts: [mediaPart],
       responseMimeType: 'application/json',
     });
+    const text = getJsonTextFromResult(result);
+    if (!text) throw new Error('분석 실패');
 
-    const result = JSON.parse(text);
+    const parsedResult = JSON.parse(text);
     return {
-      textAnalysis: result.comment,
-      golfData: result.metrics,
-      score: result.score,
+      textAnalysis: parsedResult.comment,
+      golfData: parsedResult.metrics,
+      score: parsedResult.score,
     };
   } catch (error) {
     log.error('Golf Data Extraction Error:', error);
@@ -410,11 +456,13 @@ export const summarizeHoleVoice = async (
       \`\`\`
     `;
 
-    const text = await invokeAgentRuntime({
-      operation: 'summarize_hole_voice',
-      parts: [mediaPart, { text: prompt }],
+    const result = await invokeBackendAI<unknown>('hole_voice_summary', {
+      prompt,
+      mediaParts: [mediaPart],
       responseMimeType: 'application/json',
     });
+    const text = getJsonTextFromResult(result);
+    if (!text) throw new Error('No response');
 
     return JSON.parse(text);
   } catch (error) {
@@ -432,6 +480,13 @@ export const compareSwings = async (
   oldDate: string,
   newDate: string
 ): Promise<ComparisonResult> => {
+  const fallback = (): ComparisonResult => ({
+    improvementScore: 50,
+    summary: 'AI 비교 분석을 사용할 수 없어 기본 비교 결과를 제공합니다.',
+    keyChanges: ['비교 대상 레슨의 핵심 포인트를 수동으로 확인해 주세요.'],
+    coachComment: '현재 AI 백엔드 연결이 없어 자동 비교 분석을 생성하지 못했습니다.',
+  });
+
   try {
     const oldBlob = await getBlobFromUrl(oldVideoUrl);
     const newBlob = await getBlobFromUrl(newVideoUrl);
@@ -478,22 +533,22 @@ export const compareSwings = async (
       }
     `;
 
-    const text = await invokeAgentRuntime({
-      operation: 'compare_swings',
-      parts: [
-        { text: `Data 1 (Old - ${oldDate}):` },
+    const result = await invokeBackendAI<unknown>('compare_swings', {
+      prompt: prompt + commonPrompt,
+      mediaParts: [
         oldMediaPart,
-        { text: `Data 2 (New - ${newDate}):` },
         newMediaPart,
-        { text: prompt + commonPrompt },
       ],
+      metadata: { oldDate, newDate },
       responseMimeType: 'application/json',
     });
+    const text = getJsonTextFromResult(result);
+    if (!text) throw new Error('No response from AI');
 
     return JSON.parse(text) as ComparisonResult;
   } catch (error) {
-    log.error('Compare Analysis Error:', error);
-    throw error;
+    log.error('AI Compare Analysis Error:', error);
+    return fallback();
   }
 };
 
@@ -556,15 +611,19 @@ export const analyzeBodyPhotos = async (params: {
       - 코드블록 없이 순수 JSON만 반환
     `;
 
-    const text = await invokeAgentRuntime({
-      operation: 'analyze_body_photos',
-      parts: [frontPart, sidePart, { text: prompt }],
+    const result = await invokeBackendAI<unknown>('analyze_body_photos', {
+      prompt,
+      mediaParts: [frontPart, sidePart],
       responseMimeType: 'application/json',
     });
+    const text = getJsonTextFromResult(result);
+    if (!text) {
+      throw new Error('신체 사진 분석 결과를 생성하지 못했습니다.');
+    }
 
     return parseBodyPhotoAnalysisResponse(text);
   } catch (error) {
-    log.error('Body photo analysis failed:', error);
+    log.error('AI body photo analysis failed:', error);
     throw error;
   }
 };
@@ -606,13 +665,15 @@ export const getSwingPhaseTimestamps = async (
       }
     `;
 
-    const text = await invokeAgentRuntime({
-      operation: 'get_swing_phase_timestamps',
-      parts: [mediaPart, { text: prompt }],
+    const result = await invokeBackendAI<unknown>('swing_phase_timestamps', {
+      prompt,
+      mediaParts: [mediaPart],
       responseMimeType: 'application/json',
     });
+    const text = getJsonTextFromResult(result);
+    if (!text) throw new Error('AI analysis failed');
 
-    const result = JSON.parse(text);
+    const parsedResult = JSON.parse(text);
 
     // Map English keys to Korean labels expected by the UI
     const mapping: { [key: string]: string } = {
@@ -626,10 +687,10 @@ export const getSwingPhaseTimestamps = async (
       Finish: '피니쉬',
     };
 
-    const timestamps = Object.keys(result)
+    const timestamps = Object.keys(parsedResult)
       .map((key) => ({
         label: mapping[key] || key,
-        time: parseFloat(result[key]),
+        time: parseFloat(parsedResult[key]),
       }))
       .filter((item) => !isNaN(item.time));
 
@@ -693,11 +754,12 @@ export const generateGolfMissions = async (
       ["아이언 어드레스 척추각 유지하며 빈스윙 30회", "퍼팅 3m 거리감 익히기 20분", "드라이버 헤드 던지기 연습"]
     `;
 
-    const text = await invokeAgentRuntime({
-      operation: 'generate_golf_missions',
+    const result = await invokeBackendAI<unknown>('golf_missions', {
       prompt,
       responseMimeType: 'application/json',
     });
+    const text = getJsonTextFromResult(result);
+    if (!text) throw new Error('Mission generation failed');
 
     return JSON.parse(text) as string[];
   } catch (error) {
@@ -815,10 +877,9 @@ ${lessonContext}
 프로그램을 작성해주세요:
 `;
 
-    const text = await invokeAgentRuntime({
-      operation: 'generate_training_program',
-      prompt,
-    });
+    const result = await invokeBackendAI<unknown>('training_program', { prompt });
+    const text = getResponseText(result);
+    if (!text) throw new Error('Training program generation failed');
     return text;
   } catch (error) {
     log.error('Generate Training Program Error:', error);
@@ -912,20 +973,16 @@ ${logSummaries}${lessonContext}
   "recommendedFocus": "..."
 }`;
 
-    const text = await invokeAgentRuntime({
-      operation: 'generate_weekly_insight',
-      prompt,
-    });
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error('No JSON in response');
-    const parsed = JSON.parse(jsonMatch[0]);
-    if (!parsed.summary || !Array.isArray(parsed.keyPatterns) || !parsed.recommendedFocus) {
+    const result = await invokeBackendAI<unknown>('weekly_insight', { prompt });
+    const text = getResponseText(result);
+    const parsed = (text ? parseJsonObjectFromText(text) : result) as Record<string, unknown> | null;
+    if (!parsed || !parsed.summary || !Array.isArray(parsed.keyPatterns) || !parsed.recommendedFocus) {
       throw new Error('Invalid JSON structure');
     }
     return {
-      summary: parsed.summary,
-      keyPatterns: parsed.keyPatterns,
-      recommendedFocus: parsed.recommendedFocus,
+      summary: parsed.summary as string,
+      keyPatterns: parsed.keyPatterns as string[],
+      recommendedFocus: parsed.recommendedFocus as string,
     };
   } catch (error) {
     log.error('Generate Weekly Insight Error:', error);
@@ -1023,12 +1080,13 @@ Coach's question: "${userMessage}"
 
 Language instruction: ${LANG_INSTRUCTION[language]}`;
 
-    const text = await invokeAgentRuntime({
-      operation: 'generate_coachx_chat_response',
+    const result = await invokeBackendAI<unknown>('coachx_chat', {
       prompt,
       temperature: 0.7,
+      language,
     });
-    if (!text.trim()) throw new Error('Empty response from AI runtime');
+    const text = getResponseText(result) ?? '';
+    if (!text.trim()) throw new Error('Empty response from Gemini');
     return text;
   } catch (error) {
     log.error('CoachX runtime chat error:', error);
@@ -1118,14 +1176,9 @@ Example format:
   {"type":"attention","title":"High activity members this month","body":"..."}
 ]`;
 
-    const text = await invokeAgentRuntime({
-      operation: 'generate_coachx_insights',
-      prompt,
-    });
-    const jsonMatch = text.match(/\[[\s\S]*\]/);
-    if (!jsonMatch) throw new Error('No JSON array in AI response');
-
-    const parsed: CoachXInsight[] = JSON.parse(jsonMatch[0]);
+    const result = await invokeBackendAI<unknown>('coachx_insights', { prompt, language });
+    const text = getResponseText(result);
+    const parsed = (text ? parseJsonArrayFromText(text) : result) as CoachXInsight[] | null;
     if (!Array.isArray(parsed) || parsed.length === 0) throw new Error('Empty insight array');
 
     return parsed
@@ -1218,15 +1271,18 @@ Example format:
   "geminiSummary": "Your coaching practice this month..."
 }`;
 
-    const text = await invokeAgentRuntime({
-      operation: 'generate_coachx_growth_profile',
+    const result = await invokeBackendAI<unknown>('coachx_growth_profile', {
       prompt,
       temperature: 0.7,
+      language,
     });
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error('No JSON object in AI response');
-
-    const parsed: { recommendedActions?: string[]; geminiSummary?: string } = JSON.parse(jsonMatch[0]);
+    const text = getResponseText(result);
+    const parsed = (text
+      ? parseJsonObjectFromText(text)
+      : result) as { recommendedActions?: string[]; geminiSummary?: string } | null;
+    if (!parsed || typeof parsed !== 'object') {
+      throw new Error('Invalid growth profile response');
+    }
 
     const actions = Array.isArray(parsed.recommendedActions) && parsed.recommendedActions.length > 0
       ? parsed.recommendedActions.filter((a): a is string => typeof a === 'string' && a.trim().length > 0)
