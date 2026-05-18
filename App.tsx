@@ -1433,6 +1433,15 @@ const AppContent: React.FC = () => {
                 </Button>
 
                 <Button
+                  onClick={() => setCoachView('RESERVATIONS')}
+                  data-testid="reservations-entry-btn"
+                  className="w-full py-4 text-base rounded-2xl border border-emerald-500/30 shadow-lg shadow-slate-900/40 bg-gradient-to-r from-slate-900 to-slate-800 hover:from-slate-800 hover:to-slate-700 justify-center"
+                  icon={<Calendar className="w-5 h-5 text-emerald-400" />}
+                >
+                  예약 관리
+                </Button>
+
+                <Button
                   onClick={() => setCoachView('ALBUM')}
                   data-testid="album-entry-btn"
                   className="w-full py-4 text-base rounded-2xl border border-indigo-500/20 shadow-lg shadow-slate-900/40 bg-gradient-to-r from-slate-900 to-slate-800 hover:from-slate-800 hover:to-slate-700 justify-center"
