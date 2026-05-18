@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from './Button';
 import { Card, CardTitle } from './ui/Card';
 import { Input } from './ui/Input';
@@ -23,6 +23,14 @@ import {
 } from 'lucide-react';
 import { useLanguage } from './LanguageContext';
 import { AUTH_USER_TYPE_STORAGE_KEY } from '../constants/auth';
+
+const SAVED_CREDENTIALS_KEY = 'swingnote_saved_credentials';
+
+interface SavedCredentials {
+  email: string;
+  password: string;
+  role: 'COACH' | 'CLIENT';
+}
 
 interface AuthScreenProps {
   onLoginSuccess: (
@@ -101,6 +109,13 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
   const [branchAdminPassword, setBranchAdminPassword] = useState('');
 
   const [isAutoLogin, setIsAutoLogin] = useState(true);
+  const [isSavePassword, setIsSavePassword] = useState(() => {
+    try {
+      return !!localStorage.getItem(SAVED_CREDENTIALS_KEY);
+    } catch {
+      return false;
+    }
+  });
 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -117,6 +132,23 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
     setSuccessMsg(null);
     setFindResult(null);
   };
+
+  // Load saved credentials on mount and auto-login if both options are enabled
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(SAVED_CREDENTIALS_KEY);
+      if (!raw) return;
+      const creds: SavedCredentials = JSON.parse(raw);
+      setEmail(creds.email);
+      setPassword(creds.password);
+      setActiveTab(creds.role);
+      setIsSavePassword(true);
+      if (isAutoLogin && !isSignup) {
+        performLogin(creds.email, creds.password, creds.role);
+      }
+    } catch {}
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleTabChange = (tab: 'COACH' | 'CLIENT') => {
     setActiveTab(tab);
@@ -143,18 +175,44 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
     }
   };
 
-  const handleCoachSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const saveCredentials = (e: string, p: string, role: 'COACH' | 'CLIENT') => {
+    try {
+      localStorage.setItem(SAVED_CREDENTIALS_KEY, JSON.stringify({ email: e, password: p, role }));
+    } catch {}
+  };
+
+  const clearCredentials = () => {
+    try {
+      localStorage.removeItem(SAVED_CREDENTIALS_KEY);
+    } catch {}
+  };
+
+  const performLogin = async (loginEmail: string, loginPassword: string, role: 'COACH' | 'CLIENT') => {
     setError(null);
     setIsLoading(true);
     try {
-      const profile = await authService.loginCoach(email, password);
-      onLoginSuccess('COACH', profile, isAutoLogin);
+      let profile;
+      if (role === 'COACH') {
+        profile = await authService.loginCoach(loginEmail, loginPassword);
+      } else {
+        profile = await authService.loginClient(loginEmail, loginPassword);
+      }
+      if (isSavePassword) {
+        saveCredentials(loginEmail, loginPassword, role);
+      } else {
+        clearCredentials();
+      }
+      onLoginSuccess(role, profile, isAutoLogin);
     } catch (err: any) {
       setError(err as string);
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleCoachSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await performLogin(email, password, 'COACH');
   };
 
   const handleSignupSubmit = async (e: React.FormEvent) => {
@@ -185,16 +243,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
 
   const handleClientSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError(null);
-    setIsLoading(true);
-    try {
-      const profile = await authService.loginClient(email, password);
-      onLoginSuccess('CLIENT', profile, isAutoLogin);
-    } catch (err: any) {
-      setError(err as string);
-    } finally {
-      setIsLoading(false);
-    }
+    await performLogin(email, password, 'CLIENT');
   };
 
   const handleAdminSubmit = async (e: React.FormEvent) => {
@@ -579,18 +628,36 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
               />
 
               <div className="flex items-center justify-between pt-1">
-                <button
-                  type="button"
-                  onClick={() => setIsAutoLogin(!isAutoLogin)}
-                  className="flex items-center gap-2 text-sm text-ink-medium hover:text-ink-high transition-colors"
-                >
-                  {isAutoLogin ? (
-                    <CheckSquare className="h-5 w-5 text-primary-400" />
-                  ) : (
-                    <Square className="h-5 w-5 text-ink-faint" />
-                  )}
-                  {t('auto_login')}
-                </button>
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setIsAutoLogin(!isAutoLogin)}
+                    className="flex items-center gap-1.5 text-sm text-ink-medium hover:text-ink-high transition-colors"
+                  >
+                    {isAutoLogin ? (
+                      <CheckSquare className="h-5 w-5 text-primary-400" />
+                    ) : (
+                      <Square className="h-5 w-5 text-ink-faint" />
+                    )}
+                    {t('auto_login')}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const next = !isSavePassword;
+                      setIsSavePassword(next);
+                      if (!next) clearCredentials();
+                    }}
+                    className="flex items-center gap-1.5 text-sm text-ink-medium hover:text-ink-high transition-colors"
+                  >
+                    {isSavePassword ? (
+                      <CheckSquare className="h-5 w-5 text-primary-400" />
+                    ) : (
+                      <Square className="h-5 w-5 text-ink-faint" />
+                    )}
+                    비밀번호 저장
+                  </button>
+                </div>
                 {!isSignup && (
                   <button
                     type="button"
