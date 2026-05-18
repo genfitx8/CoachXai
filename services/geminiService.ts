@@ -1,4 +1,3 @@
-import { GoogleGenAI } from '@google/genai';
 import { classifyBodyType, BodyShapePatternScores } from './bodyAnalysisService';
 import {
   ComparisonResult,
@@ -25,17 +24,53 @@ import { createLogger } from '../utils/logger';
 
 const log = createLogger('gemini');
 
-// Initialize the Gemini client
-// Note: key can come from Vite env directly or process.env replacements from vite.config.
-const apiKey =
-  import.meta.env.VITE_GEMINI_API_KEY ||
-  process.env.GEMINI_API_KEY ||
-  process.env.API_KEY;
-if (!apiKey) {
-  log.warn('Gemini API key is not set. AI features will not work.');
+const API_BASE = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '');
+
+const getAiApiEndpoint = (): string => {
+  if (API_BASE) return `${API_BASE}/api/ai/invoke`;
+  if (typeof window !== 'undefined' && window.location?.origin) {
+    return `${window.location.origin}/api/ai/invoke`;
+  }
+  return '/api/ai/invoke';
+};
+
+interface InlineDataPart {
+  inlineData: {
+    data: string;
+    mimeType: string;
+  };
 }
 
-const ai = apiKey ? new GoogleGenAI({ apiKey }) : null;
+const invokeBackendAI = async <T>(feature: string, payload: unknown): Promise<T> => {
+  const response = await fetch(getAiApiEndpoint(), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ feature, payload }),
+  });
+
+  const body = await response.json().catch(() => null) as
+    | { ok?: boolean; result?: T; error?: string }
+    | null;
+
+  if (!response.ok || !body?.ok) {
+    const message = body?.error || `AI backend request failed (HTTP ${response.status})`;
+    throw new Error(message);
+  }
+
+  return body.result as T;
+};
+
+const getResponseText = (result: unknown): string | null => {
+  if (typeof result === 'string') return result;
+  if (!result || typeof result !== 'object') return null;
+
+  const record = result as Record<string, unknown>;
+  if (typeof record.text === 'string') return record.text;
+  if (typeof record.response === 'string') return record.response;
+  if (typeof record.output === 'string') return record.output;
+
+  return null;
+};
 
 /**
  * Fetches a blob from a local blob URL
@@ -45,61 +80,16 @@ const getBlobFromUrl = async (url: string): Promise<Blob> => {
   return await response.blob();
 };
 
-const LONG_FORM_AUDIO_THRESHOLD_BYTES = 20 * 1024 * 1024; // ~20MB+
-const MAX_FILE_PROCESSING_RETRIES = 20;
-const FILE_PROCESSING_POLL_INTERVAL_MS = 1500;
-
-const wait = (ms: number) =>
-  new Promise((resolve) => setTimeout(resolve, ms));
-
-const waitForUploadedFile = async (name: string) => {
-  for (let i = 0; i < MAX_FILE_PROCESSING_RETRIES; i++) {
-    const file = await ai!.files.get({ name });
-    if (file.state === 'ACTIVE' && file.uri) {
-      return file;
-    }
-    if (file.state === 'FAILED') {
-      throw new Error('업로드한 오디오 파일 처리에 실패했습니다.');
-    }
-    await wait(FILE_PROCESSING_POLL_INTERVAL_MS);
-  }
-  throw new Error('오디오 파일 처리 시간이 초과되었습니다.');
-};
-
-const toMediaPart = async (
-  blob: Blob,
-  mimeType: string,
-  uploadedFileNames: string[]
-) => {
-  // Long-form audio is uploaded as a Gemini file so the full lesson recording can be processed reliably.
-  if (mimeType.startsWith('audio/') && blob.size >= LONG_FORM_AUDIO_THRESHOLD_BYTES) {
-    const uploaded = await ai!.files.upload({
-      file: blob,
-      config: { mimeType },
-    });
-
-    if (!uploaded.name) {
-      throw new Error('오디오 파일 업로드에 실패했습니다.');
-    }
-
-    uploadedFileNames.push(uploaded.name);
-    const activeFile = await waitForUploadedFile(uploaded.name);
-
-    return {
-      fileData: {
-        fileUri: activeFile.uri,
-        mimeType: activeFile.mimeType || mimeType,
-      },
-    };
-  }
-
-  return fileToGenerativePart(blob, mimeType);
-};
+const toMediaPart = async (blob: Blob, mimeType: string): Promise<InlineDataPart> =>
+  fileToGenerativePart(blob, mimeType);
 
 /**
  * Converts a File object or Blob to a Base64 string for Gemini inline data.
  */
-const fileToGenerativePart = async (file: Blob, mimeType: string) => {
+const fileToGenerativePart = async (
+  file: Blob,
+  mimeType: string
+): Promise<InlineDataPart> => {
   const base64EncodedDataPromise = new Promise<string>((resolve) => {
     const reader = new FileReader();
     reader.onloadend = () => {
@@ -217,13 +207,12 @@ export const analyzeSwingVideo = async (
   userNotes: string,
   swingAngle?: 'FRONT' | 'SIDE'
 ): Promise<string> => {
-  if (!ai) {
-    throw new Error(
-      'Gemini API key is not configured. Please set VITE_GEMINI_API_KEY (or GEMINI_API_KEY) in your .env file.'
-    );
-  }
-
-  const uploadedFileNames: string[] = [];
+  const fallback = () => {
+    const note = userNotes?.trim();
+    return `## 📝 오늘의 레슨 요약\n\n${
+      note ? `${note}` : '레슨 요약을 자동 생성하지 못해 코치 메모를 기준으로 저장합니다.'
+    }\n\n## 🎯 핵심 코칭 포인트\n- 업로드된 자료를 다시 확인해 핵심 포인트를 정리해 주세요.\n- AI 연동이 설정되면 보다 상세한 리포트를 자동 생성할 수 있습니다.`;
+  };
 
   try {
     // Convert all inputs to generative parts
@@ -235,7 +224,7 @@ export const analyzeSwingVideo = async (
         } else {
           blob = input.data;
         }
-        return toMediaPart(blob, input.mimeType, uploadedFileNames);
+        return toMediaPart(blob, input.mimeType);
       })
     );
 
@@ -280,28 +269,18 @@ export const analyzeSwingVideo = async (
       *회원에게 바로 공유할 수 있는 톤으로 정리해주세요.*
     `;
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: {
-        parts: [...mediaParts, { text: prompt }],
-      },
-      config: {
-        temperature: 0.4,
-      },
+    const result = await invokeBackendAI<unknown>('lesson_summary', {
+      prompt,
+      mediaParts,
+      temperature: 0.4,
     });
 
-    if (response.text) {
-      return response.text;
-    } else {
-      throw new Error('레슨 요약을 생성하지 못했습니다.');
-    }
+    const text = getResponseText(result);
+    if (text) return text;
+    throw new Error('레슨 요약을 생성하지 못했습니다.');
   } catch (error) {
-    log.error('Gemini Lesson Summary Error:', error);
-    throw error;
-  } finally {
-    await Promise.allSettled(
-      uploadedFileNames.map((name) => ai!.files.delete({ name }))
-    );
+    log.error('AI Lesson Summary Error:', error);
+    return fallback();
   }
 };
 
@@ -317,12 +296,6 @@ export const extractGolfData = async (
   golfData: GolfData | null;
   score?: number;
 }> => {
-  if (!ai) {
-    throw new Error(
-      'Gemini API key is not configured. Please set VITE_GEMINI_API_KEY (or GEMINI_API_KEY) in your .env file.'
-    );
-  }
-
   try {
     let blob: Blob;
     if (typeof imageInput.data === 'string') {
@@ -380,24 +353,19 @@ export const extractGolfData = async (
       \`\`\`
     `;
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: {
-        parts: [mediaPart, { text: prompt }],
-      },
-      config: {
-        responseMimeType: 'application/json',
-      },
+    const result = await invokeBackendAI<unknown>('extract_golf_data', {
+      prompt,
+      mediaParts: [mediaPart],
+      responseMimeType: 'application/json',
     });
-
-    const text = response.text;
+    const text = getResponseText(result) ?? (typeof result === 'object' ? JSON.stringify(result) : '');
     if (!text) throw new Error('분석 실패');
 
-    const result = JSON.parse(text);
+    const parsedResult = JSON.parse(text);
     return {
-      textAnalysis: result.comment,
-      golfData: result.metrics,
-      score: result.score,
+      textAnalysis: parsedResult.comment,
+      golfData: parsedResult.metrics,
+      score: parsedResult.score,
     };
   } catch (error) {
     log.error('Golf Data Extraction Error:', error);
@@ -418,12 +386,6 @@ export const summarizeHoleVoice = async (
   score: number,
   putts: number
 ): Promise<{ summary: string; metrics: ShotMetrics }> => {
-  if (!ai) {
-    throw new Error(
-      'Gemini API key is not configured. Please set VITE_GEMINI_API_KEY (or GEMINI_API_KEY) in your .env file.'
-    );
-  }
-
   try {
     const mediaPart = await fileToGenerativePart(audioBlob, audioBlob.type);
 
@@ -461,17 +423,12 @@ export const summarizeHoleVoice = async (
       \`\`\`
     `;
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: {
-        parts: [mediaPart, { text: prompt }],
-      },
-      config: {
-        responseMimeType: 'application/json',
-      },
+    const result = await invokeBackendAI<unknown>('hole_voice_summary', {
+      prompt,
+      mediaParts: [mediaPart],
+      responseMimeType: 'application/json',
     });
-
-    const text = response.text;
+    const text = getResponseText(result) ?? (typeof result === 'object' ? JSON.stringify(result) : '');
     if (!text) throw new Error('No response');
 
     return JSON.parse(text);
@@ -490,11 +447,12 @@ export const compareSwings = async (
   oldDate: string,
   newDate: string
 ): Promise<ComparisonResult> => {
-  if (!ai) {
-    throw new Error(
-      'Gemini API key is not configured. Please set VITE_GEMINI_API_KEY (or GEMINI_API_KEY) in your .env file.'
-    );
-  }
+  const fallback = (): ComparisonResult => ({
+    improvementScore: 50,
+    summary: 'AI 비교 분석을 사용할 수 없어 기본 비교 결과를 제공합니다.',
+    keyChanges: ['비교 대상 레슨의 핵심 포인트를 수동으로 확인해 주세요.'],
+    coachComment: '현재 AI 백엔드 연결이 없어 자동 비교 분석을 생성하지 못했습니다.',
+  });
 
   try {
     const oldBlob = await getBlobFromUrl(oldVideoUrl);
@@ -542,29 +500,22 @@ export const compareSwings = async (
       }
     `;
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: {
-        parts: [
-          { text: `Data 1 (Old - ${oldDate}):` },
-          oldMediaPart,
-          { text: `Data 2 (New - ${newDate}):` },
-          newMediaPart,
-          { text: prompt + commonPrompt },
-        ],
-      },
-      config: {
-        responseMimeType: 'application/json',
-      },
+    const result = await invokeBackendAI<unknown>('compare_swings', {
+      prompt: prompt + commonPrompt,
+      mediaParts: [
+        oldMediaPart,
+        newMediaPart,
+      ],
+      metadata: { oldDate, newDate },
+      responseMimeType: 'application/json',
     });
-
-    const text = response.text;
+    const text = getResponseText(result) ?? (typeof result === 'object' ? JSON.stringify(result) : '');
     if (!text) throw new Error('No response from AI');
 
     return JSON.parse(text) as ComparisonResult;
   } catch (error) {
-    log.error('Compare Analysis Error:', error);
-    throw error;
+    log.error('AI Compare Analysis Error:', error);
+    return fallback();
   }
 };
 
@@ -575,12 +526,6 @@ export const analyzeBodyPhotos = async (params: {
   frontImage: AnalysisInput;
   sideImage: AnalysisInput;
 }): Promise<BodyPhotoAnalysisResult> => {
-  if (!ai) {
-    throw new Error(
-      'Gemini API key is not configured. Please set VITE_GEMINI_API_KEY (or GEMINI_API_KEY) in your .env file.'
-    );
-  }
-
   const toBlob = async (input: AnalysisInput): Promise<Blob> => {
     if (typeof input.data === 'string') {
       return getBlobFromUrl(input.data);
@@ -633,23 +578,19 @@ export const analyzeBodyPhotos = async (params: {
       - 코드블록 없이 순수 JSON만 반환
     `;
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: {
-        parts: [frontPart, sidePart, { text: prompt }],
-      },
-      config: {
-        responseMimeType: 'application/json',
-      },
+    const result = await invokeBackendAI<unknown>('analyze_body_photos', {
+      prompt,
+      mediaParts: [frontPart, sidePart],
+      responseMimeType: 'application/json',
     });
-
-    if (!response.text) {
+    const text = getResponseText(result) ?? (typeof result === 'object' ? JSON.stringify(result) : '');
+    if (!text) {
       throw new Error('신체 사진 분석 결과를 생성하지 못했습니다.');
     }
 
-    return parseBodyPhotoAnalysisResponse(response.text);
+    return parseBodyPhotoAnalysisResponse(text);
   } catch (error) {
-    log.error('Body photo analysis failed:', error);
+    log.error('AI body photo analysis failed:', error);
     throw error;
   }
 };
@@ -660,12 +601,6 @@ export const analyzeBodyPhotos = async (params: {
 export const getSwingPhaseTimestamps = async (
   videoBlob: Blob
 ): Promise<{ label: string; time: number }[]> => {
-  if (!ai) {
-    throw new Error(
-      'Gemini API key is not configured. Please set VITE_GEMINI_API_KEY (or GEMINI_API_KEY) in your .env file.'
-    );
-  }
-
   try {
     const mediaPart = await fileToGenerativePart(videoBlob, videoBlob.type);
 
@@ -697,20 +632,15 @@ export const getSwingPhaseTimestamps = async (
       }
     `;
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: {
-        parts: [mediaPart, { text: prompt }],
-      },
-      config: {
-        responseMimeType: 'application/json',
-      },
+    const result = await invokeBackendAI<unknown>('swing_phase_timestamps', {
+      prompt,
+      mediaParts: [mediaPart],
+      responseMimeType: 'application/json',
     });
-
-    const text = response.text;
+    const text = getResponseText(result) ?? (typeof result === 'object' ? JSON.stringify(result) : '');
     if (!text) throw new Error('AI analysis failed');
 
-    const result = JSON.parse(text);
+    const parsedResult = JSON.parse(text);
 
     // Map English keys to Korean labels expected by the UI
     const mapping: { [key: string]: string } = {
@@ -724,10 +654,10 @@ export const getSwingPhaseTimestamps = async (
       Finish: '피니쉬',
     };
 
-    const timestamps = Object.keys(result)
+    const timestamps = Object.keys(parsedResult)
       .map((key) => ({
         label: mapping[key] || key,
-        time: parseFloat(result[key]),
+        time: parseFloat(parsedResult[key]),
       }))
       .filter((item) => !isNaN(item.time));
 
@@ -746,12 +676,6 @@ export const generateGolfMissions = async (
   profile: ClientProfile,
   recentLessons: Lesson[]
 ): Promise<string[]> => {
-  if (!ai) {
-    throw new Error(
-      'Gemini API key is not configured. Please set VITE_GEMINI_API_KEY (or GEMINI_API_KEY) in your .env file.'
-    );
-  }
-
   try {
     // 1. Gather Context
     const handicapInfo = profile.handicap
@@ -797,17 +721,11 @@ export const generateGolfMissions = async (
       ["아이언 어드레스 척추각 유지하며 빈스윙 30회", "퍼팅 3m 거리감 익히기 20분", "드라이버 헤드 던지기 연습"]
     `;
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: {
-        parts: [{ text: prompt }],
-      },
-      config: {
-        responseMimeType: 'application/json',
-      },
+    const result = await invokeBackendAI<unknown>('golf_missions', {
+      prompt,
+      responseMimeType: 'application/json',
     });
-
-    const text = response.text;
+    const text = getResponseText(result) ?? (typeof result === 'object' ? JSON.stringify(result) : '');
     if (!text) throw new Error('Mission generation failed');
 
     return JSON.parse(text) as string[];
@@ -863,10 +781,6 @@ export const generateTrainingProgram = async (
 - 코치 피드백 반영 교정 집중
 - 목표 재설정
 `;
-
-  if (!ai) {
-    return fallbackPlan(config.performanceGoal);
-  }
 
   try {
     const handicapInfo = profile.handicap
@@ -930,14 +844,8 @@ ${lessonContext}
 프로그램을 작성해주세요:
 `;
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: {
-        parts: [{ text: prompt }],
-      },
-    });
-
-    const text = response.text;
+    const result = await invokeBackendAI<unknown>('training_program', { prompt });
+    const text = getResponseText(result);
     if (!text) throw new Error('Training program generation failed');
     return text;
   } catch (error) {
@@ -988,7 +896,7 @@ export const generateWeeklyInsight = async (
     };
   };
 
-  if (!ai || logs.length === 0) return fallback();
+  if (logs.length === 0) return fallback();
 
   try {
     const logSummaries = logs.map((l, i) => {
@@ -1032,15 +940,11 @@ ${logSummaries}${lessonContext}
   "recommendedFocus": "..."
 }`;
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: { parts: [{ text: prompt }] },
-    });
-
-    const text = response.text ?? '';
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error('No JSON in response');
-    const parsed = JSON.parse(jsonMatch[0]);
+    const result = await invokeBackendAI<unknown>('weekly_insight', { prompt });
+    const text = getResponseText(result);
+    const parsed = text
+      ? JSON.parse((text.match(/\{[\s\S]*\}/) ?? [text])[0])
+      : result;
     if (!parsed.summary || !Array.isArray(parsed.keyPatterns) || !parsed.recommendedFocus) {
       throw new Error('Invalid JSON structure');
     }
@@ -1094,8 +998,6 @@ export const generateCoachXChatResponse = async (
 ): Promise<string> => {
   const fallback = () => generateHeuristicResponse(userMessage, allLessons, clients, language);
 
-  if (!ai) return fallback();
-
   try {
     const memberCount = new Set(allLessons.map(l => `${l.clientName}_${l.clientPhone}`)).size;
 
@@ -1147,13 +1049,12 @@ Coach's question: "${userMessage}"
 
 Language instruction: ${LANG_INSTRUCTION[language]}`;
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: { parts: [{ text: prompt }] },
-      config: { temperature: 0.7 },
+    const result = await invokeBackendAI<unknown>('coachx_chat', {
+      prompt,
+      temperature: 0.7,
+      language,
     });
-
-    const text = response.text ?? '';
+    const text = getResponseText(result) ?? '';
     if (!text.trim()) throw new Error('Empty response from Gemini');
     return text;
   } catch (error) {
@@ -1181,7 +1082,7 @@ export const generateCoachXInsights = async (
 ): Promise<CoachXInsight[]> => {
   const fallback = () => generateCoachInsights(allLessons, coachProfile, language);
 
-  if (!ai || allLessons.length === 0) return fallback();
+  if (allLessons.length === 0) return fallback();
 
   try {
     const memberCount = new Set(allLessons.map(l => `${l.clientName}_${l.clientPhone}`)).size;
@@ -1244,16 +1145,11 @@ Example format:
   {"type":"attention","title":"High activity members this month","body":"..."}
 ]`;
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: { parts: [{ text: prompt }] },
-    });
-
-    const text = response.text ?? '';
-    const jsonMatch = text.match(/\[[\s\S]*\]/);
-    if (!jsonMatch) throw new Error('No JSON array in Gemini response');
-
-    const parsed: CoachXInsight[] = JSON.parse(jsonMatch[0]);
+    const result = await invokeBackendAI<unknown>('coachx_insights', { prompt, language });
+    const text = getResponseText(result);
+    const parsed = text
+      ? JSON.parse((text.match(/\[[\s\S]*\]/) ?? [text])[0])
+      : result;
     if (!Array.isArray(parsed) || parsed.length === 0) throw new Error('Empty insight array');
 
     return parsed
@@ -1289,7 +1185,7 @@ export const generateCoachXGrowthProfile = async (
 ): Promise<CoachGrowthProfile> => {
   const fallback = () => generateCoachGrowthProfile(allLessons, clients, language);
 
-  if (!ai || allLessons.length === 0) return fallback();
+  if (allLessons.length === 0) return fallback();
 
   // Compute the heuristic profile for deterministic metrics
   const heuristicProfile = generateCoachGrowthProfile(allLessons, clients, language);
@@ -1346,17 +1242,15 @@ Example format:
   "geminiSummary": "Your coaching practice this month..."
 }`;
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: { parts: [{ text: prompt }] },
-      config: { temperature: 0.7 },
+    const result = await invokeBackendAI<unknown>('coachx_growth_profile', {
+      prompt,
+      temperature: 0.7,
+      language,
     });
-
-    const text = response.text ?? '';
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error('No JSON object in Gemini response');
-
-    const parsed: { recommendedActions?: string[]; geminiSummary?: string } = JSON.parse(jsonMatch[0]);
+    const text = getResponseText(result);
+    const parsed = (text
+      ? JSON.parse((text.match(/\{[\s\S]*\}/) ?? [text])[0])
+      : result) as { recommendedActions?: string[]; geminiSummary?: string };
 
     const actions = Array.isArray(parsed.recommendedActions) && parsed.recommendedActions.length > 0
       ? parsed.recommendedActions.filter((a): a is string => typeof a === 'string' && a.trim().length > 0)
