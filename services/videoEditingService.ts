@@ -192,12 +192,10 @@ class VideoEditingService {
     const {
       outputWidth = 1080,
       outputHeight = 1920,
-      watermarkText = 'CoachXai',
     } = options;
 
     const halfWidth = outputWidth / 2;
-    const labelHeight = 40;
-    const videoHeight = outputHeight - labelHeight;
+    const videoHeight = outputHeight;
 
     const beforeName = 'before.mp4';
     const afterName = 'after.mp4';
@@ -213,37 +211,35 @@ class VideoEditingService {
         });
       }
 
-      // Scale each side to fill (halfWidth x videoHeight), then pad top with colored label bar
+      // Scale each half to fill (halfWidth x videoHeight), then hstack
+      // Avoid drawtext (requires libfreetype which may not be in the WASM build)
       const scaleAndCrop = `scale=${halfWidth}:${videoHeight}:force_original_aspect_ratio=increase,crop=${halfWidth}:${videoHeight}`;
-      const beforeLabel =
-        `pad=${halfWidth}:${outputHeight}:0:${labelHeight}:color=#2D6A2D,` +
-        `drawtext=text='Before':fontsize=20:fontcolor=white:x=(w-tw)/2:y=10`;
-      const afterLabel =
-        `pad=${halfWidth}:${outputHeight}:0:${labelHeight}:color=#1E508C,` +
-        `drawtext=text='After':fontsize=20:fontcolor=white:x=(w-tw)/2:y=10`;
-      const watermarkFilter =
-        `drawtext=text='${watermarkText}':fontsize=36:fontcolor=white:alpha=0.75:` +
-        `x=w-tw-20:y=h-th-20:shadowcolor=black:shadowx=2:shadowy=2`;
-
       const filterComplex =
-        `[0:v]${scaleAndCrop},${beforeLabel}[left];` +
-        `[1:v]${scaleAndCrop},${afterLabel}[right];` +
-        `[left][right]hstack=inputs=2,${watermarkFilter}[vout]`;
+        `[0:v]${scaleAndCrop}[left];` +
+        `[1:v]${scaleAndCrop}[right];` +
+        `[left][right]hstack=inputs=2[vout]`;
 
-      await this.ffmpeg.exec([
+      // Try libx264 first; fall back to mpeg4 if the codec is unavailable
+      const encodeArgs = (codec: string) => [
         '-i', beforeName,
         '-i', afterName,
         '-filter_complex', filterComplex,
         '-map', '[vout]',
         '-map', '1:a?',
-        '-c:v', 'libx264',
-        '-preset', 'fast',
-        '-crf', '23',
+        '-c:v', codec,
+        ...(codec === 'libx264' ? ['-preset', 'fast', '-crf', '23'] : ['-q:v', '5']),
         '-c:a', 'aac',
         '-shortest',
         '-movflags', '+faststart',
         outputName,
-      ]);
+      ];
+
+      try {
+        await this.ffmpeg.exec(encodeArgs('libx264'));
+      } catch {
+        log.warn('libx264 unavailable, falling back to mpeg4');
+        await this.ffmpeg.exec(encodeArgs('mpeg4'));
+      }
 
       const data = await this.ffmpeg.readFile(outputName);
       const blob = new Blob([data], { type: 'video/mp4' });

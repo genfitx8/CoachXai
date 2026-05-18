@@ -45,16 +45,24 @@ self.addEventListener('fetch', (event) => {
   // Skip cross-origin requests (Firebase, APIs, etc.)
   if (url.origin !== self.location.origin) return;
 
-  // For navigation requests, use network-first with cache fallback
+  // For navigation requests, use network-first with cache fallback.
+  // Inject COOP/COEP headers so SharedArrayBuffer is available (required by FFmpeg.wasm).
   if (event.request.mode === 'navigate') {
     event.respondWith(
       fetch(event.request)
         .then((response) => {
-          const clone = response.clone();
+          const headers = new Headers(response.headers);
+          headers.set('Cross-Origin-Opener-Policy', 'same-origin');
+          headers.set('Cross-Origin-Embedder-Policy', 'require-corp');
+          const patched = new Response(response.body, {
+            status: response.status,
+            statusText: response.statusText,
+            headers,
+          });
           event.waitUntil(
-            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone))
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, patched.clone()))
           );
-          return response;
+          return patched;
         })
         .catch(() => caches.match('/index.html'))
     );
