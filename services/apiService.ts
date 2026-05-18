@@ -28,7 +28,9 @@ async function uploadBlobToR2(blob: Blob, key: string): Promise<string> {
     body: blob,
     headers: { 'Content-Type': blob.type || 'application/octet-stream' },
   });
-  return fileUrl;
+  // fileUrl may be a relative path (e.g. "/api/files/...") – resolve it against the
+  // configured API base URL so stored URLs work regardless of where the frontend is hosted.
+  return fileUrl.startsWith('/') ? `${BASE_URL}${fileUrl}` : fileUrl;
 }
 
 async function processBlobUrl(blobUrl: string, key: string): Promise<string> {
@@ -107,14 +109,18 @@ export const apiService = {
 
     if (lesson.videoUrl?.startsWith('blob:')) {
       const ext = lesson.mediaType === 'image' ? 'jpg' : 'mp4';
-      processed.videoUrl = await processBlobUrl(lesson.videoUrl, `lessons/${id}/main.${ext}`);
+      const key = `lessons/${id}/main.${ext}`;
+      processed.videoUrl = await processBlobUrl(lesson.videoUrl, key);
+      processed.videoKey = key;
     }
 
     if (lesson.additionalMedia?.length) {
+      const mediaExtMap: Record<string, string> = { video: 'mp4', audio: 'webm', image: 'jpg' };
       processed.additionalMedia = await Promise.all(
         lesson.additionalMedia.map(async (item, idx) => {
           if (item.url?.startsWith('blob:')) {
-            const url = await processBlobUrl(item.url, `lessons/${id}/additional_${idx}_${Date.now()}`);
+            const ext = mediaExtMap[item.type] ?? 'bin';
+            const url = await processBlobUrl(item.url, `lessons/${id}/additional_${idx}_${Date.now()}.${ext}`);
             return { ...item, url };
           }
           return item;
