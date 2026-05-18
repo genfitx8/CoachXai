@@ -3,7 +3,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useLanguage } from './LanguageContext';
 import { Lesson, MediaItem, SwingSequenceItem, HoleRecord, ScorecardDetail, VideoEditMetadata, CompareVideoMetadata } from '../types';
 import { Button } from './Button';
-import { ArrowLeft, Calendar, User, Sparkles, Mic, Plus, Video, Image as ImageIcon, X, Camera, Square, Trash2, Mic2, PlayCircle, Lock, PenTool, Save, Target, AlertTriangle, MessageCircle, CheckCircle, AlertCircle, Clock, Volume2, StopCircle, Copy, Check, Film, ChevronRight, FileText, MonitorPlay, Scissors, GripHorizontal, RefreshCw, Maximize2, Zap, Play, Pause, ListChecks, Trophy, Wand2, MapPin, Edit2, TrendingUp, Send } from 'lucide-react';
+import { ArrowLeft, Calendar, User, Sparkles, Mic, Plus, Video, Image as ImageIcon, X, Camera, Square, Trash2, Mic2, PlayCircle, Lock, PenTool, Save, Target, AlertTriangle, MessageCircle, CheckCircle, AlertCircle, Clock, Volume2, StopCircle, Copy, Check, Film, ChevronRight, FileText, MonitorPlay, Scissors, GripHorizontal, RefreshCw, Maximize2, Zap, Play, Pause, ListChecks, Trophy, Wand2, MapPin, Edit2, TrendingUp, Send, Download, Loader2 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { analyzeSwingVideo } from '../services/geminiService';
 import { SwingGuideOverlay } from './SwingGuideOverlay';
@@ -79,6 +79,9 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
   // KakaoTalk Share State
   const [kakaoShareStatus, setKakaoShareStatus] = useState<'idle' | 'loading' | 'no_key' | 'error'>('idle');
   const [linkCopied, setLinkCopied] = useState(false);
+
+  // Edited video actions state
+  const [isDownloadingEditedVideo, setIsDownloadingEditedVideo] = useState(false);
 
 
   const mediaElementRef = useRef<HTMLMediaElement>(null);
@@ -812,6 +815,27 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
       }
   };
 
+  const handleDownloadEditedVideo = async () => {
+    if (!lesson.editedVideoUrl) return;
+    setIsDownloadingEditedVideo(true);
+    try {
+      const response = await fetch(lesson.editedVideoUrl);
+      const blob = await response.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = objectUrl;
+      a.download = `edited_${lesson.clientName}_${lesson.date}.mp4`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(objectUrl);
+    } catch {
+      alert('다운로드에 실패했습니다. 잠시 후 다시 시도해 주세요.');
+    } finally {
+      setIsDownloadingEditedVideo(false);
+    }
+  };
+
   useEffect(() => {
       if (isAddingMedia || isCommentaryMode || isSequenceMode || selectedSequenceImage) {
           document.body.style.overflow = 'hidden';
@@ -1034,6 +1058,22 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
                       </button>
                   )}
               </div>
+
+               {/* Edited Video Actions: Download */}
+               {activeMedia.id === 'edited' && lesson.editedVideoUrl && (
+                 <div className="pt-2">
+                   <button
+                     onClick={handleDownloadEditedVideo}
+                     disabled={isDownloadingEditedVideo}
+                     className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-semibold transition-colors disabled:opacity-50"
+                   >
+                     {isDownloadingEditedVideo
+                       ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                       : <Download className="w-3.5 h-3.5" />}
+                     기기에 저장
+                   </button>
+                 </div>
+               )}
 
                {/* Video Editor Button */}
                {activeMedia.type === 'video' && canEdit && (

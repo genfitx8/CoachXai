@@ -195,8 +195,9 @@ class VideoEditingService {
       watermarkText = 'CoachXai',
     } = options;
 
-    // Each side occupies half the output width
     const halfWidth = outputWidth / 2;
+    const labelHeight = 40;
+    const videoHeight = outputHeight - labelHeight;
 
     const beforeName = 'before.mp4';
     const afterName = 'after.mp4';
@@ -212,18 +213,21 @@ class VideoEditingService {
         });
       }
 
-      // Filter graph:
-      // 1. Scale each input to fill its half (halfWidth x outputHeight) using center-crop
-      // 2. Stack side by side with hstack
-      // 3. Burn watermark at bottom-right
-      const scaleFilter = `scale=${halfWidth}:${outputHeight}:force_original_aspect_ratio=increase,crop=${halfWidth}:${outputHeight}`;
+      // Scale each side to fill (halfWidth x videoHeight), then pad top with colored label bar
+      const scaleAndCrop = `scale=${halfWidth}:${videoHeight}:force_original_aspect_ratio=increase,crop=${halfWidth}:${videoHeight}`;
+      const beforeLabel =
+        `pad=${halfWidth}:${outputHeight}:0:${labelHeight}:color=#2D6A2D,` +
+        `drawtext=text='Before':fontsize=20:fontcolor=white:x=(w-tw)/2:y=10`;
+      const afterLabel =
+        `pad=${halfWidth}:${outputHeight}:0:${labelHeight}:color=#1E508C,` +
+        `drawtext=text='After':fontsize=20:fontcolor=white:x=(w-tw)/2:y=10`;
       const watermarkFilter =
         `drawtext=text='${watermarkText}':fontsize=36:fontcolor=white:alpha=0.75:` +
         `x=w-tw-20:y=h-th-20:shadowcolor=black:shadowx=2:shadowy=2`;
 
       const filterComplex =
-        `[0:v]${scaleFilter}[left];` +
-        `[1:v]${scaleFilter}[right];` +
+        `[0:v]${scaleAndCrop},${beforeLabel}[left];` +
+        `[1:v]${scaleAndCrop},${afterLabel}[right];` +
         `[left][right]hstack=inputs=2,${watermarkFilter}[vout]`;
 
       await this.ffmpeg.exec([
@@ -231,7 +235,7 @@ class VideoEditingService {
         '-i', afterName,
         '-filter_complex', filterComplex,
         '-map', '[vout]',
-        '-map', '1:a?',   // Use 'after' audio if present
+        '-map', '1:a?',
         '-c:v', 'libx264',
         '-preset', 'fast',
         '-crf', '23',
@@ -252,6 +256,67 @@ class VideoEditingService {
     } catch (error) {
       log.error('Error creating side-by-side compare video:', error);
       throw error;
+    }
+  }
+
+  async createSlowMotionVideo(
+    videoFile: File | Blob,
+    speed: 0.5 | 0.25 | 0.125,
+    onProgress?: (progress: number) => void
+  ): Promise<Blob> {
+    await this.initFFmpeg();
+    if (!this.ffmpeg) {
+      throw new Error('FFmpeg not initialized');
+    }
+
+    const inputName = 'input.mp4';
+    const outputName = 'slow_output.mp4';
+
+    try {
+      await this.ffmpeg.writeFile(inputName, await fetchFile(videoFile));
+
+      if (onProgress) {
+        this.ffmpeg.on('progress', ({ progress }) => onProgress(progress));
+      }
+
+      const ptsMultiplier = 1 / speed; // 0.5x → 2, 0.25x → 4, 0.125x → 8
+      // atempo only supports 0.5–2.0 per filter, so chain multiple for extreme speeds
+      const atempoCount = Math.round(Math.log(speed) / Math.log(0.5));
+      const atempoChain = Array(atempoCount).fill('atempo=0.5').join(',');
+
+      try {
+        await this.ffmpeg.exec([
+          '-i', inputName,
+          '-filter_complex', `[0:v]setpts=${ptsMultiplier}*PTS[v];[0:a]${atempoChain}[a]`,
+          '-map', '[v]',
+          '-map', '[a]',
+          '-c:v', 'libx264',
+          '-preset', 'fast',
+          '-crf', '23',
+          '-c:a', 'aac',
+          outputName,
+        ]);
+      } catch {
+        // Fallback: no audio stream
+        await this.ffmpeg.exec([
+          '-i', inputName,
+          '-filter:v', `setpts=${ptsMultiplier}*PTS`,
+          '-an',
+          '-c:v', 'libx264',
+          '-preset', 'fast',
+          '-crf', '23',
+          outputName,
+        ]);
+      }
+
+      const data = await this.ffmpeg.readFile(outputName);
+      return new Blob([data], { type: 'video/mp4' });
+    } catch (error) {
+      log.error('Error creating slow motion video:', error);
+      throw error;
+    } finally {
+      try { await this.ffmpeg!.deleteFile(inputName); } catch {}
+      try { await this.ffmpeg!.deleteFile(outputName); } catch {}
     }
   }
 
