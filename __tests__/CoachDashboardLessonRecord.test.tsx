@@ -118,12 +118,12 @@ describe('Coach dashboard – lesson-first MVP home', () => {
     expect(screen.queryByTestId('coachx-attention-card')).toBeNull();
   });
 
-  it('hides non-core surfaces from the coach home', async () => {
+  it('shows reservation management on the coach home', async () => {
     await renderCoachApp();
 
     expect(screen.queryByText(/최근 레슨 기록/i)).toBeNull();
     expect(screen.queryByText(/예약 및 회원 관리/i)).toBeNull();
-    expect(screen.queryByRole('button', { name: /예약 관리|reservation_management/i })).toBeNull();
+    expect(screen.getByRole('button', { name: /예약 관리/i })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /타석 예약/i })).toBeNull();
   });
 

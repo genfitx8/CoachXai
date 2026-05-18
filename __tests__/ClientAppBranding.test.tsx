@@ -55,14 +55,14 @@ describe('ClientApp CoachX premium dark alignment', () => {
     expect(screen.queryByText('멤버십 플랜')).toBeNull();
     expect(screen.queryByText('PRO 멤버십 바로 결제하기')).toBeNull();
     expect(screen.getByRole('button', { name: '멤버십 결제' })).toBeInTheDocument();
-    expect(screen.queryByText('예약')).toBeNull();
+    expect(screen.getByText('예약')).toBeInTheDocument();
   });
 
   it('uses CoachX cool accent styling for member primary actions', () => {
     renderClientApp();
 
     expect(screen.getByText('레슨 기록 시작').closest('button')?.className).toContain('from-indigo-600');
-    expect(screen.queryByRole('button', { name: '레슨 예약' })).toBeNull();
+    expect(screen.getByRole('button', { name: '레슨 예약' })).toBeInTheDocument();
     expect(screen.queryByText('CoachX AI')).toBeNull();
     expect(screen.queryByText('주간 인사이트')).toBeNull();
     expect(screen.getByRole('button', { name: '상세 통계' }).className).toContain('bg-slate-950/70');
