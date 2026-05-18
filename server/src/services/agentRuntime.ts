@@ -52,6 +52,11 @@ const buildRequestBody = (feature: string, payload: unknown, config: AgentRuntim
   },
 });
 
+/**
+ * Normalizes heterogeneous Agent Runtime responses into a single payload.
+ * Priority: output -> result -> response -> text -> first candidate part text.
+ * If none of these exist, returns the original parsed response body.
+ */
 const extractAgentResult = (responseBody: unknown): unknown => {
   if (!responseBody || typeof responseBody !== 'object') {
     return responseBody;

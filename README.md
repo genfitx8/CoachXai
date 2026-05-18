@@ -131,6 +131,14 @@ This app only invokes an already deployed Google Cloud Agent Platform Runtime ag
   Example: `projects/<project-id>/locations/<location>/reasoningEngines/<agent-id>`
 - `GCP_AGENT_PLATFORM_API_BASE_URL` (optional): defaults to `https://<location>-aiplatform.googleapis.com/v1`
 
+#### Authentication approach
+
+Backend calls use **Application Default Credentials (ADC)** via `google-auth-library`.
+Use one of the standard Google Cloud server auth setups:
+
+- local development: `gcloud auth application-default login` (or explicit service account key)
+- cloud runtime: Workload Identity / attached service account with required Vertex AI Agent Runtime permissions
+
 #### Local development steps
 
 1. Copy env file: `cp .env.example .env`

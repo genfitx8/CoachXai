@@ -48,9 +48,14 @@ const invokeBackendAI = async <T>(feature: string, payload: unknown): Promise<T>
     body: JSON.stringify({ feature, payload }),
   });
 
-  const body = await response.json().catch(() => null) as
-    | { ok?: boolean; result?: T; error?: string }
-    | null;
+  let body: { ok?: boolean; result?: T; error?: string } | null = null;
+  try {
+    body = await response.json() as { ok?: boolean; result?: T; error?: string };
+  } catch {
+    if (response.ok) {
+      throw new Error('Failed to parse AI backend response.');
+    }
+  }
 
   if (!response.ok || !body?.ok) {
     const message = body?.error || `AI backend request failed (HTTP ${response.status})`;
@@ -70,6 +75,34 @@ const getResponseText = (result: unknown): string | null => {
   if (typeof record.output === 'string') return record.output;
 
   return null;
+};
+
+const getJsonTextFromResult = (result: unknown): string => {
+  const text = getResponseText(result);
+  if (text) return text;
+  return typeof result === 'object' ? JSON.stringify(result) : '';
+};
+
+const parseJsonObjectFromText = (text: string): Record<string, unknown> | null => {
+  const jsonMatch = text.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) return null;
+  try {
+    const parsed = JSON.parse(jsonMatch[0]);
+    return parsed && typeof parsed === 'object' ? (parsed as Record<string, unknown>) : null;
+  } catch {
+    return null;
+  }
+};
+
+const parseJsonArrayFromText = (text: string): unknown[] | null => {
+  const jsonMatch = text.match(/\[[\s\S]*\]/);
+  if (!jsonMatch) return null;
+  try {
+    const parsed = JSON.parse(jsonMatch[0]);
+    return Array.isArray(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
 };
 
 /**
@@ -210,7 +243,7 @@ export const analyzeSwingVideo = async (
   const fallback = () => {
     const note = userNotes?.trim();
     return `## 📝 오늘의 레슨 요약\n\n${
-      note ? `${note}` : '레슨 요약을 자동 생성하지 못해 코치 메모를 기준으로 저장합니다.'
+      note ? note : '레슨 요약을 자동 생성하지 못해 코치 메모를 기준으로 저장합니다.'
     }\n\n## 🎯 핵심 코칭 포인트\n- 업로드된 자료를 다시 확인해 핵심 포인트를 정리해 주세요.\n- AI 연동이 설정되면 보다 상세한 리포트를 자동 생성할 수 있습니다.`;
   };
 
@@ -358,7 +391,7 @@ export const extractGolfData = async (
       mediaParts: [mediaPart],
       responseMimeType: 'application/json',
     });
-    const text = getResponseText(result) ?? (typeof result === 'object' ? JSON.stringify(result) : '');
+    const text = getJsonTextFromResult(result);
     if (!text) throw new Error('분석 실패');
 
     const parsedResult = JSON.parse(text);
@@ -428,7 +461,7 @@ export const summarizeHoleVoice = async (
       mediaParts: [mediaPart],
       responseMimeType: 'application/json',
     });
-    const text = getResponseText(result) ?? (typeof result === 'object' ? JSON.stringify(result) : '');
+    const text = getJsonTextFromResult(result);
     if (!text) throw new Error('No response');
 
     return JSON.parse(text);
@@ -509,7 +542,7 @@ export const compareSwings = async (
       metadata: { oldDate, newDate },
       responseMimeType: 'application/json',
     });
-    const text = getResponseText(result) ?? (typeof result === 'object' ? JSON.stringify(result) : '');
+    const text = getJsonTextFromResult(result);
     if (!text) throw new Error('No response from AI');
 
     return JSON.parse(text) as ComparisonResult;
@@ -583,7 +616,7 @@ export const analyzeBodyPhotos = async (params: {
       mediaParts: [frontPart, sidePart],
       responseMimeType: 'application/json',
     });
-    const text = getResponseText(result) ?? (typeof result === 'object' ? JSON.stringify(result) : '');
+    const text = getJsonTextFromResult(result);
     if (!text) {
       throw new Error('신체 사진 분석 결과를 생성하지 못했습니다.');
     }
@@ -637,7 +670,7 @@ export const getSwingPhaseTimestamps = async (
       mediaParts: [mediaPart],
       responseMimeType: 'application/json',
     });
-    const text = getResponseText(result) ?? (typeof result === 'object' ? JSON.stringify(result) : '');
+    const text = getJsonTextFromResult(result);
     if (!text) throw new Error('AI analysis failed');
 
     const parsedResult = JSON.parse(text);
@@ -725,7 +758,7 @@ export const generateGolfMissions = async (
       prompt,
       responseMimeType: 'application/json',
     });
-    const text = getResponseText(result) ?? (typeof result === 'object' ? JSON.stringify(result) : '');
+    const text = getJsonTextFromResult(result);
     if (!text) throw new Error('Mission generation failed');
 
     return JSON.parse(text) as string[];
@@ -942,16 +975,14 @@ ${logSummaries}${lessonContext}
 
     const result = await invokeBackendAI<unknown>('weekly_insight', { prompt });
     const text = getResponseText(result);
-    const parsed = text
-      ? JSON.parse((text.match(/\{[\s\S]*\}/) ?? [text])[0])
-      : result;
-    if (!parsed.summary || !Array.isArray(parsed.keyPatterns) || !parsed.recommendedFocus) {
+    const parsed = (text ? parseJsonObjectFromText(text) : result) as Record<string, unknown> | null;
+    if (!parsed || !parsed.summary || !Array.isArray(parsed.keyPatterns) || !parsed.recommendedFocus) {
       throw new Error('Invalid JSON structure');
     }
     return {
-      summary: parsed.summary,
-      keyPatterns: parsed.keyPatterns,
-      recommendedFocus: parsed.recommendedFocus,
+      summary: parsed.summary as string,
+      keyPatterns: parsed.keyPatterns as string[],
+      recommendedFocus: parsed.recommendedFocus as string,
     };
   } catch (error) {
     log.error('Generate Weekly Insight Error:', error);
@@ -1147,9 +1178,7 @@ Example format:
 
     const result = await invokeBackendAI<unknown>('coachx_insights', { prompt, language });
     const text = getResponseText(result);
-    const parsed = text
-      ? JSON.parse((text.match(/\[[\s\S]*\]/) ?? [text])[0])
-      : result;
+    const parsed = (text ? parseJsonArrayFromText(text) : result) as CoachXInsight[] | null;
     if (!Array.isArray(parsed) || parsed.length === 0) throw new Error('Empty insight array');
 
     return parsed
@@ -1249,8 +1278,11 @@ Example format:
     });
     const text = getResponseText(result);
     const parsed = (text
-      ? JSON.parse((text.match(/\{[\s\S]*\}/) ?? [text])[0])
-      : result) as { recommendedActions?: string[]; geminiSummary?: string };
+      ? parseJsonObjectFromText(text)
+      : result) as { recommendedActions?: string[]; geminiSummary?: string } | null;
+    if (!parsed || typeof parsed !== 'object') {
+      throw new Error('Invalid growth profile response');
+    }
 
     const actions = Array.isArray(parsed.recommendedActions) && parsed.recommendedActions.length > 0
       ? parsed.recommendedActions.filter((a): a is string => typeof a === 'string' && a.trim().length > 0)
