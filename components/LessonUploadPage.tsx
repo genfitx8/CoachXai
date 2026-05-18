@@ -1,5 +1,5 @@
 import React, { useCallback, useRef, useState } from 'react';
-import { ArrowLeft, ArrowRight, Upload, Video, X } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Upload, Video, X, Users } from 'lucide-react';
 import { Button } from './Button';
 import { LessonUpload, Student } from '../types';
 
@@ -133,12 +133,14 @@ export interface LessonUploadPageProps {
   students: Student[];
   onBack: () => void;
   onNext: (upload: LessonUpload) => void;
+  onGoToStudents?: () => void;
 }
 
 export const LessonUploadPage: React.FC<LessonUploadPageProps> = ({
   students,
   onBack,
   onNext,
+  onGoToStudents,
 }) => {
   const [selectedStudentId, setSelectedStudentId] = useState<string>('');
   const [beforeFile, setBeforeFile] = useState<File | undefined>();
@@ -247,11 +249,20 @@ export const LessonUploadPage: React.FC<LessonUploadPageProps> = ({
             ))}
           </select>
         ) : (
-          <div
-            className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-slate-400 text-sm"
-            data-testid="student-empty-message"
-          >
-            등록된 학생이 없습니다. 먼저 회원을 등록해 주세요.
+          <div className="flex flex-col gap-3" data-testid="student-empty-message">
+            <p className="text-slate-400 text-sm">
+              등록된 학생이 없습니다. 먼저 회원을 등록해 주세요.
+            </p>
+            {onGoToStudents && (
+              <button
+                type="button"
+                onClick={onGoToStudents}
+                className="flex items-center gap-2 w-fit px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold transition-colors"
+              >
+                <Users className="w-4 h-4" />
+                회원 등록하러 가기
+              </button>
+            )}
           </div>
         )}
       </section>
