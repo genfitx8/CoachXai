@@ -1,4 +1,3 @@
-import { GoogleGenAI } from '@google/genai';
 import { classifyBodyType, BodyShapePatternScores } from './bodyAnalysisService';
 import {
   ComparisonResult,
@@ -25,17 +24,49 @@ import { createLogger } from '../utils/logger';
 
 const log = createLogger('gemini');
 
-// Initialize the Gemini client
-// Note: key can come from Vite env directly or process.env replacements from vite.config.
-const apiKey =
-  import.meta.env.VITE_GEMINI_API_KEY ||
-  process.env.GEMINI_API_KEY ||
-  process.env.API_KEY;
-if (!apiKey) {
-  log.warn('Gemini API key is not set. AI features will not work.');
+const AI_BACKEND_BASE_URL = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '');
+const AI_INVOKE_ENDPOINT = AI_BACKEND_BASE_URL
+  ? `${AI_BACKEND_BASE_URL}/api/ai/invoke`
+  : typeof window !== 'undefined' && window.location?.origin
+  ? `${window.location.origin}/api/ai/invoke`
+  : 'http://localhost:4000/api/ai/invoke';
+type RuntimePart = { text: string } | { inlineData: { data: string; mimeType: string } };
+
+interface RuntimeRequest {
+  operation: string;
+  prompt?: string;
+  parts?: RuntimePart[];
+  responseMimeType?: string;
+  temperature?: number;
 }
 
-const ai = apiKey ? new GoogleGenAI({ apiKey }) : null;
+const invokeAgentRuntime = async (request: RuntimeRequest): Promise<string> => {
+  const response = await fetch(AI_INVOKE_ENDPOINT, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(request),
+  });
+
+  const payload = await response
+    .json()
+    .catch(() => ({ error: `Agent runtime request failed (${response.status})` }));
+
+  if (!response.ok) {
+    throw new Error(
+      typeof payload?.error === 'string'
+        ? payload.error
+        : `Agent runtime request failed (${response.status})`
+    );
+  }
+
+  const text = typeof payload?.text === 'string' ? payload.text : '';
+  if (!text.trim()) {
+    throw new Error('Empty response from Agent Platform runtime');
+  }
+  return text;
+};
 
 /**
  * Fetches a blob from a local blob URL
@@ -45,59 +76,8 @@ const getBlobFromUrl = async (url: string): Promise<Blob> => {
   return await response.blob();
 };
 
-const LONG_FORM_AUDIO_THRESHOLD_BYTES = 20 * 1024 * 1024; // ~20MB+
-const MAX_FILE_PROCESSING_RETRIES = 20;
-const FILE_PROCESSING_POLL_INTERVAL_MS = 1500;
-
-const wait = (ms: number) =>
-  new Promise((resolve) => setTimeout(resolve, ms));
-
-const waitForUploadedFile = async (name: string) => {
-  for (let i = 0; i < MAX_FILE_PROCESSING_RETRIES; i++) {
-    const file = await ai!.files.get({ name });
-    if (file.state === 'ACTIVE' && file.uri) {
-      return file;
-    }
-    if (file.state === 'FAILED') {
-      throw new Error('업로드한 오디오 파일 처리에 실패했습니다.');
-    }
-    await wait(FILE_PROCESSING_POLL_INTERVAL_MS);
-  }
-  throw new Error('오디오 파일 처리 시간이 초과되었습니다.');
-};
-
-const toMediaPart = async (
-  blob: Blob,
-  mimeType: string,
-  uploadedFileNames: string[]
-) => {
-  // Long-form audio is uploaded as a Gemini file so the full lesson recording can be processed reliably.
-  if (mimeType.startsWith('audio/') && blob.size >= LONG_FORM_AUDIO_THRESHOLD_BYTES) {
-    const uploaded = await ai!.files.upload({
-      file: blob,
-      config: { mimeType },
-    });
-
-    if (!uploaded.name) {
-      throw new Error('오디오 파일 업로드에 실패했습니다.');
-    }
-
-    uploadedFileNames.push(uploaded.name);
-    const activeFile = await waitForUploadedFile(uploaded.name);
-
-    return {
-      fileData: {
-        fileUri: activeFile.uri,
-        mimeType: activeFile.mimeType || mimeType,
-      },
-    };
-  }
-
-  return fileToGenerativePart(blob, mimeType);
-};
-
 /**
- * Converts a File object or Blob to a Base64 string for Gemini inline data.
+ * Converts a File object or Blob to a Base64 string for backend Agent Runtime calls.
  */
 const fileToGenerativePart = async (file: Blob, mimeType: string) => {
   const base64EncodedDataPromise = new Promise<string>((resolve) => {
@@ -113,7 +93,7 @@ const fileToGenerativePart = async (file: Blob, mimeType: string) => {
   return {
     inlineData: {
       data: await base64EncodedDataPromise,
-      mimeType: mimeType,
+      mimeType,
     },
   };
 };
@@ -209,7 +189,7 @@ export const parseBodyPhotoAnalysisResponse = (
 };
 
 /**
- * Summarizes multiple golf lesson assets (videos, images, audio) using Gemini 2.5 Flash.
+ * Summarizes multiple golf lesson assets (videos, images, audio) via backend Agent Runtime.
  * Generates a member-facing lesson summary report from coach feedback and media context.
  */
 export const analyzeSwingVideo = async (
@@ -217,14 +197,6 @@ export const analyzeSwingVideo = async (
   userNotes: string,
   swingAngle?: 'FRONT' | 'SIDE'
 ): Promise<string> => {
-  if (!ai) {
-    throw new Error(
-      'Gemini API key is not configured. Please set VITE_GEMINI_API_KEY (or GEMINI_API_KEY) in your .env file.'
-    );
-  }
-
-  const uploadedFileNames: string[] = [];
-
   try {
     // Convert all inputs to generative parts
     const mediaParts = await Promise.all(
@@ -235,7 +207,7 @@ export const analyzeSwingVideo = async (
         } else {
           blob = input.data;
         }
-        return toMediaPart(blob, input.mimeType, uploadedFileNames);
+        return fileToGenerativePart(blob, input.mimeType);
       })
     );
 
@@ -280,28 +252,15 @@ export const analyzeSwingVideo = async (
       *회원에게 바로 공유할 수 있는 톤으로 정리해주세요.*
     `;
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: {
-        parts: [...mediaParts, { text: prompt }],
-      },
-      config: {
-        temperature: 0.4,
-      },
+    const text = await invokeAgentRuntime({
+      operation: 'analyze_swing_video',
+      parts: [...mediaParts, { text: prompt }],
+      temperature: 0.4,
     });
-
-    if (response.text) {
-      return response.text;
-    } else {
-      throw new Error('레슨 요약을 생성하지 못했습니다.');
-    }
+    return text;
   } catch (error) {
-    log.error('Gemini Lesson Summary Error:', error);
+    log.error('AI Lesson Summary Error:', error);
     throw error;
-  } finally {
-    await Promise.allSettled(
-      uploadedFileNames.map((name) => ai!.files.delete({ name }))
-    );
   }
 };
 
@@ -317,12 +276,6 @@ export const extractGolfData = async (
   golfData: GolfData | null;
   score?: number;
 }> => {
-  if (!ai) {
-    throw new Error(
-      'Gemini API key is not configured. Please set VITE_GEMINI_API_KEY (or GEMINI_API_KEY) in your .env file.'
-    );
-  }
-
   try {
     let blob: Blob;
     if (typeof imageInput.data === 'string') {
@@ -380,18 +333,11 @@ export const extractGolfData = async (
       \`\`\`
     `;
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: {
-        parts: [mediaPart, { text: prompt }],
-      },
-      config: {
-        responseMimeType: 'application/json',
-      },
+    const text = await invokeAgentRuntime({
+      operation: 'extract_golf_data',
+      parts: [mediaPart, { text: prompt }],
+      responseMimeType: 'application/json',
     });
-
-    const text = response.text;
-    if (!text) throw new Error('분석 실패');
 
     const result = JSON.parse(text);
     return {
@@ -418,12 +364,6 @@ export const summarizeHoleVoice = async (
   score: number,
   putts: number
 ): Promise<{ summary: string; metrics: ShotMetrics }> => {
-  if (!ai) {
-    throw new Error(
-      'Gemini API key is not configured. Please set VITE_GEMINI_API_KEY (or GEMINI_API_KEY) in your .env file.'
-    );
-  }
-
   try {
     const mediaPart = await fileToGenerativePart(audioBlob, audioBlob.type);
 
@@ -461,18 +401,11 @@ export const summarizeHoleVoice = async (
       \`\`\`
     `;
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: {
-        parts: [mediaPart, { text: prompt }],
-      },
-      config: {
-        responseMimeType: 'application/json',
-      },
+    const text = await invokeAgentRuntime({
+      operation: 'summarize_hole_voice',
+      parts: [mediaPart, { text: prompt }],
+      responseMimeType: 'application/json',
     });
-
-    const text = response.text;
-    if (!text) throw new Error('No response');
 
     return JSON.parse(text);
   } catch (error) {
@@ -490,12 +423,6 @@ export const compareSwings = async (
   oldDate: string,
   newDate: string
 ): Promise<ComparisonResult> => {
-  if (!ai) {
-    throw new Error(
-      'Gemini API key is not configured. Please set VITE_GEMINI_API_KEY (or GEMINI_API_KEY) in your .env file.'
-    );
-  }
-
   try {
     const oldBlob = await getBlobFromUrl(oldVideoUrl);
     const newBlob = await getBlobFromUrl(newVideoUrl);
@@ -542,24 +469,17 @@ export const compareSwings = async (
       }
     `;
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: {
-        parts: [
-          { text: `Data 1 (Old - ${oldDate}):` },
-          oldMediaPart,
-          { text: `Data 2 (New - ${newDate}):` },
-          newMediaPart,
-          { text: prompt + commonPrompt },
-        ],
-      },
-      config: {
-        responseMimeType: 'application/json',
-      },
+    const text = await invokeAgentRuntime({
+      operation: 'compare_swings',
+      parts: [
+        { text: `Data 1 (Old - ${oldDate}):` },
+        oldMediaPart,
+        { text: `Data 2 (New - ${newDate}):` },
+        newMediaPart,
+        { text: prompt + commonPrompt },
+      ],
+      responseMimeType: 'application/json',
     });
-
-    const text = response.text;
-    if (!text) throw new Error('No response from AI');
 
     return JSON.parse(text) as ComparisonResult;
   } catch (error) {
@@ -575,12 +495,6 @@ export const analyzeBodyPhotos = async (params: {
   frontImage: AnalysisInput;
   sideImage: AnalysisInput;
 }): Promise<BodyPhotoAnalysisResult> => {
-  if (!ai) {
-    throw new Error(
-      'Gemini API key is not configured. Please set VITE_GEMINI_API_KEY (or GEMINI_API_KEY) in your .env file.'
-    );
-  }
-
   const toBlob = async (input: AnalysisInput): Promise<Blob> => {
     if (typeof input.data === 'string') {
       return getBlobFromUrl(input.data);
@@ -633,21 +547,13 @@ export const analyzeBodyPhotos = async (params: {
       - 코드블록 없이 순수 JSON만 반환
     `;
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: {
-        parts: [frontPart, sidePart, { text: prompt }],
-      },
-      config: {
-        responseMimeType: 'application/json',
-      },
+    const text = await invokeAgentRuntime({
+      operation: 'analyze_body_photos',
+      parts: [frontPart, sidePart, { text: prompt }],
+      responseMimeType: 'application/json',
     });
 
-    if (!response.text) {
-      throw new Error('신체 사진 분석 결과를 생성하지 못했습니다.');
-    }
-
-    return parseBodyPhotoAnalysisResponse(response.text);
+    return parseBodyPhotoAnalysisResponse(text);
   } catch (error) {
     log.error('Body photo analysis failed:', error);
     throw error;
@@ -655,17 +561,11 @@ export const analyzeBodyPhotos = async (params: {
 };
 
 /**
- * Identifies the timestamps for 8 key swing phases using Gemini.
+ * Identifies the timestamps for 8 key swing phases using backend AI runtime.
  */
 export const getSwingPhaseTimestamps = async (
   videoBlob: Blob
 ): Promise<{ label: string; time: number }[]> => {
-  if (!ai) {
-    throw new Error(
-      'Gemini API key is not configured. Please set VITE_GEMINI_API_KEY (or GEMINI_API_KEY) in your .env file.'
-    );
-  }
-
   try {
     const mediaPart = await fileToGenerativePart(videoBlob, videoBlob.type);
 
@@ -697,18 +597,11 @@ export const getSwingPhaseTimestamps = async (
       }
     `;
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: {
-        parts: [mediaPart, { text: prompt }],
-      },
-      config: {
-        responseMimeType: 'application/json',
-      },
+    const text = await invokeAgentRuntime({
+      operation: 'get_swing_phase_timestamps',
+      parts: [mediaPart, { text: prompt }],
+      responseMimeType: 'application/json',
     });
-
-    const text = response.text;
-    if (!text) throw new Error('AI analysis failed');
 
     const result = JSON.parse(text);
 
@@ -746,12 +639,6 @@ export const generateGolfMissions = async (
   profile: ClientProfile,
   recentLessons: Lesson[]
 ): Promise<string[]> => {
-  if (!ai) {
-    throw new Error(
-      'Gemini API key is not configured. Please set VITE_GEMINI_API_KEY (or GEMINI_API_KEY) in your .env file.'
-    );
-  }
-
   try {
     // 1. Gather Context
     const handicapInfo = profile.handicap
@@ -797,18 +684,11 @@ export const generateGolfMissions = async (
       ["아이언 어드레스 척추각 유지하며 빈스윙 30회", "퍼팅 3m 거리감 익히기 20분", "드라이버 헤드 던지기 연습"]
     `;
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: {
-        parts: [{ text: prompt }],
-      },
-      config: {
-        responseMimeType: 'application/json',
-      },
+    const text = await invokeAgentRuntime({
+      operation: 'generate_golf_missions',
+      prompt,
+      responseMimeType: 'application/json',
     });
-
-    const text = response.text;
-    if (!text) throw new Error('Mission generation failed');
 
     return JSON.parse(text) as string[];
   } catch (error) {
@@ -836,7 +716,7 @@ export const generateTrainingProgram = async (
   lessons: Lesson[],
   config: TrainingProgramConfig
 ): Promise<string> => {
-  // Fallback plan used when Gemini is unavailable or when there are too few lesson records.
+  // Fallback plan used when AI runtime is unavailable or when there are too few lesson records.
   const fallbackPlan = (goal: string) => `## 훈련 프로그램 (기본 플랜)
 
 > 레슨 기록 데이터 또는 AI 서비스가 부족하여 기본 플랜을 제공합니다.
@@ -863,10 +743,6 @@ export const generateTrainingProgram = async (
 - 코치 피드백 반영 교정 집중
 - 목표 재설정
 `;
-
-  if (!ai) {
-    return fallbackPlan(config.performanceGoal);
-  }
 
   try {
     const handicapInfo = profile.handicap
@@ -930,15 +806,10 @@ ${lessonContext}
 프로그램을 작성해주세요:
 `;
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: {
-        parts: [{ text: prompt }],
-      },
+    const text = await invokeAgentRuntime({
+      operation: 'generate_training_program',
+      prompt,
     });
-
-    const text = response.text;
-    if (!text) throw new Error('Training program generation failed');
     return text;
   } catch (error) {
     log.error('Generate Training Program Error:', error);
@@ -988,7 +859,7 @@ export const generateWeeklyInsight = async (
     };
   };
 
-  if (!ai || logs.length === 0) return fallback();
+  if (logs.length === 0) return fallback();
 
   try {
     const logSummaries = logs.map((l, i) => {
@@ -1032,12 +903,10 @@ ${logSummaries}${lessonContext}
   "recommendedFocus": "..."
 }`;
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: { parts: [{ text: prompt }] },
+    const text = await invokeAgentRuntime({
+      operation: 'generate_weekly_insight',
+      prompt,
     });
-
-    const text = response.text ?? '';
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) throw new Error('No JSON in response');
     const parsed = JSON.parse(jsonMatch[0]);
@@ -1055,7 +924,7 @@ ${logSummaries}${lessonContext}
   }
 };
 
-// ─── CoachX Gemini-backed intelligence ────────────────────────────────────────
+// ─── CoachX runtime-backed intelligence ────────────────────────────────────────
 
 // ─── CoachX module-level constants ──────────────────────────────────────────
 
@@ -1075,11 +944,11 @@ const COACHX_INSIGHT_ICON_MAP: Record<string, string> = {
 };
 
 /**
- * Generates a Gemini-backed CoachX chat response for a coach's question.
+ * Generates a runtime-backed CoachX chat response for a coach's question.
  *
  * Builds a structured prompt from the coach's lesson history and client data,
- * then calls Gemini 2.5 Flash for a supportive, data-driven coaching reply.
- * Falls back to the heuristic response if Gemini is unavailable or the call fails.
+ * then calls backend Agent Runtime for a supportive, data-driven coaching reply.
+ * Falls back to the heuristic response if runtime is unavailable or the call fails.
  *
  * @param userMessage  The coach's question or request
  * @param allLessons   Full lesson history for this coach
@@ -1093,8 +962,6 @@ export const generateCoachXChatResponse = async (
   language: CoachXLanguage = 'ko'
 ): Promise<string> => {
   const fallback = () => generateHeuristicResponse(userMessage, allLessons, clients, language);
-
-  if (!ai) return fallback();
 
   try {
     const memberCount = new Set(allLessons.map(l => `${l.clientName}_${l.clientPhone}`)).size;
@@ -1147,28 +1014,26 @@ Coach's question: "${userMessage}"
 
 Language instruction: ${LANG_INSTRUCTION[language]}`;
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: { parts: [{ text: prompt }] },
-      config: { temperature: 0.7 },
+    const text = await invokeAgentRuntime({
+      operation: 'generate_coachx_chat_response',
+      prompt,
+      temperature: 0.7,
     });
-
-    const text = response.text ?? '';
-    if (!text.trim()) throw new Error('Empty response from Gemini');
+    if (!text.trim()) throw new Error('Empty response from AI runtime');
     return text;
   } catch (error) {
-    log.error('CoachX Gemini chat error:', error);
+    log.error('CoachX runtime chat error:', error);
     return fallback();
   }
 };
 
 /**
- * Generates Gemini-backed CoachX insights for a coach's home dashboard.
+ * Generates runtime-backed CoachX insights for a coach's home dashboard.
  *
  * Produces richer, more nuanced insights than the heuristic version by using
- * Gemini 2.5 Flash to interpret lesson patterns, member trends, and coaching
+ * backend runtime to interpret lesson patterns, member trends, and coaching
  * opportunities. Returns a structured `CoachXInsight[]` array.
- * Falls back to heuristic insights if Gemini is unavailable or parsing fails.
+ * Falls back to heuristic insights if runtime is unavailable or parsing fails.
  *
  * @param allLessons   Full lesson history for this coach
  * @param coachProfile Coach profile object
@@ -1181,7 +1046,7 @@ export const generateCoachXInsights = async (
 ): Promise<CoachXInsight[]> => {
   const fallback = () => generateCoachInsights(allLessons, coachProfile, language);
 
-  if (!ai || allLessons.length === 0) return fallback();
+  if (allLessons.length === 0) return fallback();
 
   try {
     const memberCount = new Set(allLessons.map(l => `${l.clientName}_${l.clientPhone}`)).size;
@@ -1244,14 +1109,12 @@ Example format:
   {"type":"attention","title":"High activity members this month","body":"..."}
 ]`;
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: { parts: [{ text: prompt }] },
+    const text = await invokeAgentRuntime({
+      operation: 'generate_coachx_insights',
+      prompt,
     });
-
-    const text = response.text ?? '';
     const jsonMatch = text.match(/\[[\s\S]*\]/);
-    if (!jsonMatch) throw new Error('No JSON array in Gemini response');
+    if (!jsonMatch) throw new Error('No JSON array in AI response');
 
     const parsed: CoachXInsight[] = JSON.parse(jsonMatch[0]);
     if (!Array.isArray(parsed) || parsed.length === 0) throw new Error('Empty insight array');
@@ -1260,21 +1123,21 @@ Example format:
       .filter(i => i.title && i.body && COACHX_VALID_INSIGHT_TYPES.has(i.type))
       .map(i => ({ ...i, icon: COACHX_INSIGHT_ICON_MAP[i.type] ?? '💡' }));
   } catch (error) {
-    log.error('CoachX Gemini insights error:', error);
+    log.error('CoachX runtime insights error:', error);
     return fallback();
   }
 };
 
 /**
- * Generates a Gemini-backed CoachX coach growth profile.
+ * Generates a runtime-backed CoachX coach growth profile.
  *
  * Builds on the heuristic `generateCoachGrowthProfile()` result for all
  * deterministic metrics (activity stats, topic breakdown, member trends), then
- * uses Gemini 2.5 Flash to produce:
+ * uses backend runtime to produce:
  *   - Personalised `recommendedActions` grounded in the coach's actual data
  *   - A `geminiSummary` narrative paragraph for the Coach Growth tab
  *
- * Falls back to the heuristic profile if Gemini is unavailable or fails.
+ * Falls back to the heuristic profile if runtime is unavailable or fails.
  *
  * @param allLessons   Full lesson history for this coach
  * @param clients      Registered client profiles for this coach
@@ -1289,7 +1152,7 @@ export const generateCoachXGrowthProfile = async (
 ): Promise<CoachGrowthProfile> => {
   const fallback = () => generateCoachGrowthProfile(allLessons, clients, language);
 
-  if (!ai || allLessons.length === 0) return fallback();
+  if (allLessons.length === 0) return fallback();
 
   // Compute the heuristic profile for deterministic metrics
   const heuristicProfile = generateCoachGrowthProfile(allLessons, clients, language);
@@ -1346,15 +1209,13 @@ Example format:
   "geminiSummary": "Your coaching practice this month..."
 }`;
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: { parts: [{ text: prompt }] },
-      config: { temperature: 0.7 },
+    const text = await invokeAgentRuntime({
+      operation: 'generate_coachx_growth_profile',
+      prompt,
+      temperature: 0.7,
     });
-
-    const text = response.text ?? '';
     const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error('No JSON object in Gemini response');
+    if (!jsonMatch) throw new Error('No JSON object in AI response');
 
     const parsed: { recommendedActions?: string[]; geminiSummary?: string } = JSON.parse(jsonMatch[0]);
 
@@ -1372,7 +1233,7 @@ Example format:
       geminiSummary: summary,
     };
   } catch (error) {
-    log.error('CoachX Gemini growth profile error:', error);
+    log.error('CoachX runtime growth profile error:', error);
     return fallback();
   }
 };
