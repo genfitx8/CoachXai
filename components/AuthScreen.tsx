@@ -68,6 +68,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
   onLoginSuccess,
   initialMode = 'LOGIN',
 }) => {
+  const PASSWORD_RECOVERY_MESSAGE = '등록된 이메일로 비밀번호 안내 메일을 발송했습니다.';
   const { t, language, setLanguage } = useLanguage();
   const [activeTab, setActiveTab] = useState<'COACH' | 'CLIENT'>(() => {
     try {
@@ -248,15 +249,15 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
           setFindResult({ type: 'error', message: '이메일과 전화번호를 입력해주세요.' });
           return;
         }
-        const result = await authService.findPassword(email, phone, activeTab);
-        if (result) {
-          setFindResult({ type: 'success', message: `${t('result_pw')} ${result}` });
-        } else {
-          setFindResult({ type: 'error', message: t('not_found') });
-        }
+        await authService.findPassword(email, phone, activeTab);
+        setFindResult({ type: 'success', message: PASSWORD_RECOVERY_MESSAGE });
       }
     } catch {
-      setFindResult({ type: 'error', message: '오류가 발생했습니다.' });
+      if (findTab === 'PASSWORD') {
+        setFindResult({ type: 'success', message: PASSWORD_RECOVERY_MESSAGE });
+      } else {
+        setFindResult({ type: 'error', message: '오류가 발생했습니다.' });
+      }
     } finally {
       setIsLoading(false);
     }

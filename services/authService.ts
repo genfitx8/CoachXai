@@ -33,6 +33,20 @@ const normalizePhoneNumber = (phone: string): string => {
 const isSamePhoneNumber = (left: string | undefined, right: string): boolean =>
   normalizePhoneNumber(left ?? '') === normalizePhoneNumber(right);
 
+const createResetToken = (): string => {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID().replace(/-/g, '');
+  }
+
+  if (typeof crypto !== 'undefined' && typeof crypto.getRandomValues === 'function') {
+    const bytes = new Uint8Array(16);
+    crypto.getRandomValues(bytes);
+    return Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
+  }
+
+  return `fallback-${Date.now()}`;
+};
+
 export const authService = {
   signup: (
     role: 'COACH' | 'CLIENT',
@@ -466,9 +480,15 @@ export const authService = {
     email: string,
     phone: string,
     role: 'COACH' | 'CLIENT'
-  ): Promise<string | null> => {
+  ): Promise<void> => {
     return new Promise(async (resolve) => {
       try {
+        if (apiService.isAvailable()) {
+          await apiService.requestPasswordReset(role, email, phone);
+          resolve();
+          return;
+        }
+
         let profiles: any[] = [];
 
         if (role === 'COACH') {
@@ -491,12 +511,22 @@ export const authService = {
         const found = profiles.find(
           (p) => p.email === email && p.phone === phone
         );
-        // In a real application, we would trigger a password reset email here.
-        // For this simulation, we will return the password to the user.
-        resolve(found ? found.password : null);
+
+        if (found) {
+          const resetToken = createResetToken();
+          const resetUrl = `https://coachxai.local/reset-password?token=${resetToken}`;
+          log.info('비밀번호 재설정 메일 발송(개발 모드 시뮬레이션)', {
+            service: 'CoachXai',
+            to: found.email,
+            resetUrl,
+            expiresInMinutes: 30,
+          });
+        }
+
+        resolve();
       } catch (error) {
         log.error('Find password error:', error);
-        resolve(null);
+        resolve();
       }
     });
   },

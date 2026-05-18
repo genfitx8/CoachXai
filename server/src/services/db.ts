@@ -73,6 +73,18 @@ export async function initDb(): Promise<void> {
   `);
 
   await pool.query(`
+    CREATE TABLE IF NOT EXISTS password_reset_tokens (
+      id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      user_id    UUID NOT NULL,
+      role       VARCHAR(20) NOT NULL,
+      token_hash VARCHAR(255) NOT NULL,
+      expires_at BIGINT NOT NULL,
+      used_at    BIGINT,
+      created_at BIGINT NOT NULL
+    )
+  `);
+
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS lessons (
       id                   UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       client_id            VARCHAR(255),

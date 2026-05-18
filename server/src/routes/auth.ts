@@ -1,12 +1,28 @@
 import { Router, Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
+import { rateLimit } from 'express-rate-limit';
 import pool from '../services/db';
+import { sendPasswordResetMail } from '../services/mail';
 
 const router = Router();
 
 const BCRYPT_ROUNDS = 10;
 const JWT_EXPIRY = '30d';
+const PASSWORD_RECOVERY_MESSAGE = '등록된 이메일로 비밀번호 안내 메일을 발송했습니다.';
+const PASSWORD_RESET_TOKEN_EXPIRY_MS = 30 * 60 * 1000;
+const PASSWORD_RECOVERY_WINDOW_MS = 10 * 60 * 1000;
+const PASSWORD_RECOVERY_MAX_REQUESTS = 5;
+const passwordRecoveryLimiter = rateLimit({
+  windowMs: PASSWORD_RECOVERY_WINDOW_MS,
+  limit: PASSWORD_RECOVERY_MAX_REQUESTS,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (_req, res) => {
+    res.json({ message: PASSWORD_RECOVERY_MESSAGE });
+  },
+});
 
 function signToken(id: string, role: 'coach' | 'client'): string {
   const secret = process.env.JWT_SECRET;
@@ -192,6 +208,64 @@ router.post('/login/client', async (req: Request, res: Response) => {
   } catch (err) {
     console.error('[auth] login/client error:', err);
     res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// POST /api/auth/password/recover
+router.post('/password/recover', passwordRecoveryLimiter, async (req: Request, res: Response) => {
+  const { email, phone, role } = req.body as {
+    email?: string;
+    phone?: string;
+    role?: 'coach' | 'client';
+  };
+
+  if (!email || !phone || (role !== 'coach' && role !== 'client')) {
+    res.status(400).json({ error: 'email, phone, and role are required' });
+    return;
+  }
+
+  const normalizedEmail = email.trim().toLowerCase();
+  const normalizedPhone = phone.trim();
+
+  try {
+    const lookupSql =
+      role === 'coach'
+        ? 'SELECT id, email FROM coaches WHERE LOWER(email) = LOWER($1) AND phone = $2 LIMIT 1'
+        : 'SELECT id, email FROM clients WHERE LOWER(email) = LOWER($1) AND phone = $2 LIMIT 1';
+    const result = await pool.query(lookupSql, [normalizedEmail, normalizedPhone]);
+    const user = result.rows[0] as { id: string; email: string } | undefined;
+
+    if (user?.email) {
+      // 32 bytes = 256 bits of entropy for reset token security.
+      const rawToken = crypto.randomBytes(32).toString('hex');
+      const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
+      const now = Date.now();
+      const expiresAt = now + PASSWORD_RESET_TOKEN_EXPIRY_MS;
+
+      await pool.query(
+        `INSERT INTO password_reset_tokens (user_id, role, token_hash, expires_at, created_at)
+         VALUES ($1, $2, $3, $4, $5)`,
+        [user.id, role, tokenHash, expiresAt, now]
+      );
+
+      const appBaseUrl = (process.env.APP_BASE_URL || 'http://localhost:3000').replace(/\/$/, '');
+      const resetUrl = `${appBaseUrl}/reset-password?token=${rawToken}&role=${role}`;
+      const expiresInMinutes = Math.floor(PASSWORD_RESET_TOKEN_EXPIRY_MS / (60 * 1000));
+      try {
+        await sendPasswordResetMail(user.email, resetUrl, expiresInMinutes);
+      } catch (mailError) {
+        console.error('[auth] password recovery mail send error:', mailError, {
+          role,
+          userId: user.id,
+          email: user.email,
+        });
+      }
+    }
+
+    res.json({ message: PASSWORD_RECOVERY_MESSAGE });
+  } catch (err) {
+    console.error('[auth] password/recover error:', err);
+    res.json({ message: PASSWORD_RECOVERY_MESSAGE });
   }
 });
 

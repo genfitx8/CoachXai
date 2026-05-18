@@ -71,6 +71,18 @@ Build the most trusted AI assistant for coaches by turning each lesson into clea
 2. Fill in your own values in `.env`. See `.env.example` for all available variables and their descriptions.
 3. For deployments (e.g., Vercel), add the variables through the platform's environment variable UI — never hard-code them in source files.
 
+### Password recovery mail (SMTP)
+
+Configure the following environment variables to enable password recovery emails from **CoachXai**:
+
+- `SMTP_HOST`
+- `SMTP_PORT` (default: `587`)
+- `SMTP_USER`
+- `SMTP_PASS`
+- `MAIL_FROM` (example: `CoachXai <no-reply@coachxai.local>`)
+
+If SMTP is not configured in development, the server logs the recovery message content to the console instead.
+
 ## Run Locally
 
 **Prerequisites:** Node.js
