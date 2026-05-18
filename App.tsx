@@ -34,6 +34,7 @@ import { CoachReservationNotificationModal } from './components/CoachReservation
 import { CoachLessonReservationModal } from './components/CoachLessonReservationModal';
 import { LessonPackageManager } from './components/LessonPackageManager';
 import { TrainingProgramGenerator } from './components/TrainingProgramGenerator';
+import { VideoAlbum } from './components/VideoAlbum';
 import { LessonStartPromptModal } from './components/LessonStartPromptModal';
 import { storageService } from './services/storage';
 import { authService } from './services/authService';
@@ -80,6 +81,7 @@ import {
   ChevronRight,
   TrendingUp,
   Sparkles,
+  Film,
 } from 'lucide-react';
 import { LanguageProvider, useLanguage } from './components/LanguageContext';
 
@@ -1428,6 +1430,15 @@ const AppContent: React.FC = () => {
                 >
                   coachx ai
                 </Button>
+
+                <Button
+                  onClick={() => setCoachView('ALBUM')}
+                  data-testid="album-entry-btn"
+                  className="w-full py-4 text-base rounded-2xl border border-indigo-500/20 shadow-lg shadow-slate-900/40 bg-gradient-to-r from-slate-900 to-slate-800 hover:from-slate-800 hover:to-slate-700 justify-center"
+                  icon={<Film className="w-5 h-5 text-indigo-400" />}
+                >
+                  영상 앨범
+                </Button>
               </div>
             </section>
           </div>
@@ -1778,6 +1789,20 @@ const AppContent: React.FC = () => {
               // TODO: submit to processing pipeline in a future phase
               setPendingLessonUpload(null);
               setCoachView('LIST');
+            }}
+          />
+        )}
+
+        {coachView === 'ALBUM' && (
+          <VideoAlbum
+            lessons={allCoachLessons}
+            onBack={() => setCoachView('LIST')}
+            onViewLesson={(lessonId) => {
+              const lesson = lessons.find((l) => l.id === lessonId);
+              if (lesson) {
+                setSelectedLesson(lesson);
+                setCoachView('DETAIL');
+              }
             }}
           />
         )}
