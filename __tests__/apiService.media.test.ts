@@ -154,6 +154,6 @@ describe('apiService media helpers', () => {
 
     // The stored URL for additional media must be an absolute URL
     const addUrl = processed.additionalMedia![0].url;
-    expect(addUrl.startsWith(MOCK_BASE_URL)).toBe(true);
+    expect(addUrl).toBe(`${MOCK_BASE_URL}/api/files/lessons/lid/additional_0_ts.mp4`);
   });
 });

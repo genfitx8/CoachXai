@@ -115,10 +115,11 @@ export const apiService = {
     }
 
     if (lesson.additionalMedia?.length) {
+      const mediaExtMap: Record<string, string> = { video: 'mp4', audio: 'webm', image: 'jpg' };
       processed.additionalMedia = await Promise.all(
         lesson.additionalMedia.map(async (item, idx) => {
           if (item.url?.startsWith('blob:')) {
-            const ext = item.type === 'video' ? 'mp4' : item.type === 'audio' ? 'webm' : 'jpg';
+            const ext = mediaExtMap[item.type] ?? 'bin';
             const url = await processBlobUrl(item.url, `lessons/${id}/additional_${idx}_${Date.now()}.${ext}`);
             return { ...item, url };
           }
