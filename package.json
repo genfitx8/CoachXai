@@ -20,6 +20,7 @@
     "cap:add:android": "npx cap add android"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.96.0",
     "@capacitor/app": "^7.1.2",
     "@capacitor/core": "^7.6.2",
     "@capacitor/haptics": "^7.0.5",
