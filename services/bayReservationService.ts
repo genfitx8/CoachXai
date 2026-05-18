@@ -391,6 +391,62 @@ export const bayReservationService = {
   },
 
   /**
+   * Create bay blocking for an admin-confirmed lesson reservation (no point deduction).
+   */
+  createAdminLessonBayReservation: async (params: {
+    branchId: string;
+    bayId: string;
+    startTime: string;
+    endTime: string;
+    clientId: string;
+    clientName: string;
+    clientPhone: string;
+    lessonReservationId: string;
+  }): Promise<BayReservation> => {
+    const {
+      branchId,
+      bayId,
+      startTime,
+      endTime,
+      clientId,
+      clientName,
+      clientPhone,
+      lessonReservationId,
+    } = params;
+    const startDate = startTime.slice(0, 10);
+    const hour = parseInt(startTime.slice(11, 13), 10);
+    const reservationId = `${branchId}_${bayId}_${toYMD(startDate)}_${String(hour).padStart(2, '0')}`;
+
+    const existing = await loadReservationsByBranch(branchId, startDate);
+    const conflict = existing.find(
+      (r) =>
+        r.id === reservationId &&
+        r.status === 'CONFIRMED'
+    );
+    if (conflict) {
+      throw new Error('선택한 타석은 이미 예약되어 있습니다.');
+    }
+
+    const reservation: BayReservation = {
+      id: reservationId,
+      branchId,
+      bayId,
+      lessonReservationId,
+      startTime,
+      endTime,
+      clientId,
+      clientName,
+      clientPhone,
+      paidPoints: 0,
+      status: 'CONFIRMED',
+      createdAt: Date.now(),
+    };
+
+    await saveReservation(reservation);
+    return reservation;
+  },
+
+  /**
    * Approve a cancellation request by branch admin (status → CANCELLED).
    * Intended to be paired with point refund in a future step.
    */

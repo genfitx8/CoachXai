@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Bay, BayReservation, BayReservationStatus } from '../types';
+import { Bay, BayReservation, BayReservationStatus, LessonReservation } from '../types';
 import { bayReservationService } from '../services/bayReservationService';
+import { reservationService } from '../services/reservationService';
 import {
   Calendar,
   Clock,
@@ -105,6 +106,8 @@ export const BranchReservationStatus: React.FC<BranchReservationStatusProps> = (
   const [bays, setBays] = useState<Bay[]>([]);
   const [loading, setLoading] = useState(false);
   const [actioningId, setActioningId] = useState<string | null>(null);
+  const [pendingLessons, setPendingLessons] = useState<LessonReservation[]>([]);
+  const [pendingLessonBaySelection, setPendingLessonBaySelection] = useState<Record<string, string>>({});
 
   // Filters
   const [dateFrom, setDateFrom] = useState(today);
@@ -121,10 +124,13 @@ export const BranchReservationStatus: React.FC<BranchReservationStatusProps> = (
         bayReservationService.getBranchReservations(branchId, dateFrom, dateTo),
         bayReservationService.getBranchBays(branchId),
       ]);
+      const lessonPending = await reservationService.getAdminPendingReservations(branchId);
       // Sort ascending by startTime so earlier slots appear first
       reservationList.sort((a, b) => a.startTime.localeCompare(b.startTime));
+      lessonPending.sort((a, b) => a.startTime.localeCompare(b.startTime));
       setReservations(reservationList);
       setBays(bayList);
+      setPendingLessons(lessonPending);
     } catch (e) {
       onError?.('예약 목록을 불러오는 데 실패했습니다.');
     } finally {
@@ -183,6 +189,28 @@ export const BranchReservationStatus: React.FC<BranchReservationStatusProps> = (
     return bay ? bayLabel(bay) : bayId;
   };
 
+  const handleFinalizeLessonReservation = async (lesson: LessonReservation) => {
+    const selectedBayId = pendingLessonBaySelection[lesson.id];
+    if (!selectedBayId) {
+      onError?.('확정할 타석을 선택해주세요.');
+      return;
+    }
+    setActioningId(lesson.id);
+    try {
+      await reservationService.confirmReservationByAdmin({
+        reservationId: lesson.id,
+        branchId,
+        bayId: selectedBayId,
+      });
+      onSuccess?.('레슨 예약이 확정되고 타석이 배정되었습니다.');
+      await fetchData();
+    } catch (e: any) {
+      onError?.(e?.message || '레슨 예약 확정 중 오류가 발생했습니다.');
+    } finally {
+      setActioningId(null);
+    }
+  };
+
   // ── render ───────────────────────────────────────────────────────────────────
 
   return (
@@ -199,6 +227,52 @@ export const BranchReservationStatus: React.FC<BranchReservationStatusProps> = (
           <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
           새로고침
         </button>
+      </div>
+
+      {/* Lesson reservations waiting for admin bay assignment */}
+      <div className="bg-white rounded-2xl border border-indigo-100 shadow-sm p-4 space-y-3">
+        <h4 className="font-semibold text-gray-900">레슨 예약 관리자 확정 대기</h4>
+        {pendingLessons.length === 0 ? (
+          <p className="text-sm text-gray-400">확정 대기 중인 레슨 예약이 없습니다.</p>
+        ) : (
+          <ul className="space-y-2">
+            {pendingLessons.map((lesson) => (
+              <li key={lesson.id} className="border border-gray-100 rounded-xl p-3 space-y-2">
+                <div className="text-sm font-medium text-gray-800">
+                  {lesson.clientName || '회원'} · {lesson.coachName}
+                </div>
+                <div className="text-xs text-gray-500">
+                  {formatDateOnly(lesson.startTime)} · {formatHourRange(lesson.startTime, lesson.endTime)}
+                </div>
+                <div className="flex gap-2 items-center">
+                  <select
+                    value={pendingLessonBaySelection[lesson.id] ?? ''}
+                    onChange={(e) =>
+                      setPendingLessonBaySelection((prev) => ({ ...prev, [lesson.id]: e.target.value }))
+                    }
+                    className="border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                  >
+                    <option value="">타석 선택</option>
+                    {bays
+                      .filter((b) => b.isActive)
+                      .map((b) => (
+                        <option key={b.id} value={b.id}>
+                          {bayLabel(b)}
+                        </option>
+                      ))}
+                  </select>
+                  <Button
+                    onClick={() => handleFinalizeLessonReservation(lesson)}
+                    disabled={actioningId === lesson.id}
+                    className="text-sm bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5"
+                  >
+                    확정 + 타석 블럭
+                  </Button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
 
       {/* Cancel request alert */}

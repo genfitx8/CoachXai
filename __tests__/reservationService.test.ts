@@ -4,7 +4,11 @@ import { firebaseService } from '../services/firebase';
 import { storageService } from '../services/storage';
 import { LessonReservation, CoachProfile } from '../types';
 import * as coachNotificationService from '../services/coachNotificationService';
-import { sendLessonReservationNotifications } from '../services/reservationPushNotificationService';
+import {
+  sendLessonReservationNotifications,
+  sendLessonReservationStatusNotifications,
+} from '../services/reservationPushNotificationService';
+import { bayReservationService } from '../services/bayReservationService';
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
 
@@ -33,10 +37,33 @@ vi.mock('../services/storage', () => ({
 
 vi.mock('../services/reservationPushNotificationService', () => ({
   sendLessonReservationNotifications: vi.fn().mockResolvedValue(undefined),
+  sendLessonReservationStatusNotifications: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock('../services/coachNotificationService', () => ({
   createReservationRequestNotification: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock('../services/bayReservationService', () => ({
+  bayReservationService: {
+    createAdminLessonBayReservation: vi.fn().mockResolvedValue({
+      id: 'branch1_bay1_20260401_09',
+      branchId: 'branch1',
+      bayId: 'bay1',
+      lessonReservationId: 'res1',
+      startTime: '2026-04-01T09:00:00',
+      endTime: '2026-04-01T10:00:00',
+      clientId: 'client1',
+      clientName: '김회원',
+      clientPhone: '010-0000-0000',
+      paidPoints: 0,
+      status: 'CONFIRMED',
+      createdAt: 1000,
+    }),
+    getBranchBays: vi.fn().mockResolvedValue([
+      { id: 'bay1', branchId: 'branch1', floor: '1', roomNumber: '01', isActive: true, createdAt: 1 },
+    ]),
+  },
 }));
 
 // ─── Fixtures ─────────────────────────────────────────────────────────────────
@@ -410,7 +437,7 @@ describe('reservationService – requestReservation creates in-app notification'
     expect(coachNotificationService.createReservationRequestNotification).toHaveBeenCalledWith(
       expect.objectContaining({
         id: 'res-available',
-        status: 'PENDING',
+        status: 'REQUESTED',
         clientName: '김회원',
       })
     );
@@ -434,7 +461,7 @@ describe('reservationService – requestReservation creates in-app notification'
     expect(coachNotificationService.createReservationRequestNotification).toHaveBeenCalledWith(
       expect.objectContaining({
         coachId: 'coach1',
-        status: 'PENDING',
+        status: 'REQUESTED',
         clientName: '이회원',
       })
     );
@@ -565,5 +592,66 @@ describe('reservationService – createCoachMadeLessonReservation', () => {
       expect.objectContaining({ clientName: 'Firebase회원', status: 'CONFIRMED' })
     );
     expect(storageService.saveReservation).not.toHaveBeenCalled();
+  });
+});
+
+describe('reservationService – workflow status transitions', () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    (firebaseService.isInitialized as any).mockReturnValue(false);
+    (storageService.getReservations as any).mockReturnValue([]);
+    (storageService.updateReservation as any).mockReturnValue(undefined);
+    (sendLessonReservationStatusNotifications as any).mockResolvedValue(undefined);
+    (bayReservationService.createAdminLessonBayReservation as any).mockResolvedValue({
+      id: 'branch1_bay1_20260401_09',
+    });
+    (bayReservationService.getBranchBays as any).mockResolvedValue([
+      { id: 'bay1', branchId: 'branch1', floor: '1', roomNumber: '01', isActive: true, createdAt: 1 },
+    ]);
+  });
+
+  it('moves REQUESTED reservation to ADMIN_BLOCK_PENDING on coach approval', async () => {
+    (storageService.getReservations as any).mockReturnValue([
+      makeReservation({ id: 'res-workflow', status: 'REQUESTED', clientId: 'client1' }),
+    ]);
+
+    const updated = await reservationService.approveReservation('res-workflow');
+    expect(updated.status).toBe('ADMIN_BLOCK_PENDING');
+    expect(storageService.updateReservation).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'res-workflow', status: 'ADMIN_BLOCK_PENDING' })
+    );
+  });
+
+  it('marks reservation as REJECTED when coach rejects request', async () => {
+    (storageService.getReservations as any).mockReturnValue([
+      makeReservation({ id: 'res-reject', status: 'REQUESTED', clientId: 'client1' }),
+    ]);
+
+    const updated = await reservationService.rejectReservation('res-reject', '시간 불가');
+    expect(updated.status).toBe('REJECTED');
+    expect(updated.rejectionReason).toBe('시간 불가');
+  });
+
+  it('finalizes admin-pending reservation with bay link', async () => {
+    (storageService.getReservations as any).mockReturnValue([
+      makeReservation({
+        id: 'res-admin-finalize',
+        status: 'ADMIN_BLOCK_PENDING',
+        clientId: 'client1',
+        clientName: '김회원',
+        clientPhone: '010-0000-0000',
+      }),
+    ]);
+
+    const updated = await reservationService.confirmReservationByAdmin({
+      reservationId: 'res-admin-finalize',
+      branchId: 'branch1',
+      bayId: 'bay1',
+      adminUsername: 'admin1',
+    });
+
+    expect(updated.status).toBe('CONFIRMED');
+    expect(updated.bayReservationId).toBe('branch1_bay1_20260401_09');
+    expect(updated.bayLabel).toBe('1층 01번');
   });
 });

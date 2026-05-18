@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   sendLessonReservationNotifications,
+  sendLessonReservationStatusNotifications,
   sendBayReservationNotifications,
   _resetNotifiedKeysForTesting,
 } from '../services/reservationPushNotificationService';
@@ -147,21 +148,17 @@ describe('reservationPushNotificationService', () => {
       const bodies = getPostedBodies();
       expect(bodies).toHaveLength(1);
       expect(bodies[0].to).toBe(COACH_WITH_TOKEN.pushToken);
-      expect(bodies[0].title).toBe('새 레슨 예약');
+      expect(bodies[0].title).toBe('새 레슨 예약 요청');
       expect(bodies[0].body).toContain('홍길동');
     });
 
-    it('sends push to branch admins with tokens when branchId is present', async () => {
+    it('does not notify branch admins for initial member request event', async () => {
       vi.mocked(storageService.getCoachById).mockReturnValue(null);
       vi.mocked(storageService.getBranchAdminAccounts).mockReturnValue([ADMIN_WITH_TOKEN]);
 
       await sendLessonReservationNotifications(LESSON_RESERVATION);
 
-      const bodies = getPostedBodies();
-      expect(bodies).toHaveLength(1);
-      expect(bodies[0].to).toBe(ADMIN_WITH_TOKEN.pushToken);
-      expect(bodies[0].title).toBe('새 레슨 예약 알림');
-      expect(bodies[0].body).toContain('홍길동');
+      expect(mockFetch).not.toHaveBeenCalled();
     });
 
     it('skips coach notification when coach has no push token', async () => {
@@ -175,19 +172,38 @@ describe('reservationPushNotificationService', () => {
 
     it('skips branch admin notification when branchId is absent', async () => {
       vi.mocked(storageService.getCoachById).mockReturnValue(null);
+      vi.mocked(storageService.getBranchAdminAccounts).mockReturnValue([]);
 
       await sendLessonReservationNotifications(LESSON_RESERVATION_NO_BRANCH);
 
-      expect(storageService.getBranchAdminAccounts).not.toHaveBeenCalled();
+      expect(mockFetch).not.toHaveBeenCalled();
     });
 
-    it('skips inactive branch admins', async () => {
+    it('skips inactive branch admins when admin notification event is sent', async () => {
       vi.mocked(storageService.getCoachById).mockReturnValue(null);
       vi.mocked(storageService.getBranchAdminAccounts).mockReturnValue([INACTIVE_ADMIN]);
 
-      await sendLessonReservationNotifications(LESSON_RESERVATION);
+      await sendLessonReservationStatusNotifications(
+        LESSON_RESERVATION,
+        'COACH_APPROVED_ADMIN_PENDING'
+      );
 
       expect(mockFetch).not.toHaveBeenCalled();
+    });
+
+    it('notifies branch admins when coach approval requires admin bay handling', async () => {
+      vi.mocked(storageService.getCoachById).mockReturnValue(null);
+      vi.mocked(storageService.getBranchAdminAccounts).mockReturnValue([ADMIN_WITH_TOKEN]);
+
+      await sendLessonReservationStatusNotifications(
+        LESSON_RESERVATION,
+        'COACH_APPROVED_ADMIN_PENDING'
+      );
+
+      const bodies = getPostedBodies();
+      expect(bodies).toHaveLength(1);
+      expect(bodies[0].to).toBe(ADMIN_WITH_TOKEN.pushToken);
+      expect(bodies[0].title).toContain('타석 배정 필요');
     });
 
     it('includes the reservation date and time in the notification body', async () => {

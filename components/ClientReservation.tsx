@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { ClientProfile, LessonReservation, ReservationStatus } from '../types';
+import { ClientProfile, CoachProfile, LessonReservation, ReservationStatus } from '../types';
 import { reservationService, VIRTUAL_SLOT_ID_PREFIX } from '../services/reservationService';
+import { firebaseService } from '../services/firebase';
+import { storageService } from '../services/storage';
 import { Calendar, Clock, User, ArrowLeft, Filter, XCircle } from 'lucide-react';
 import { Button } from './Button';
 
@@ -24,6 +26,8 @@ export const ClientReservation: React.FC<ClientReservationProps> = ({ clientProf
   const [requestStartTime, setRequestStartTime] = useState('');
   const [requestEndTime, setRequestEndTime] = useState('');
   const [requestNotes, setRequestNotes] = useState('');
+  const [coaches, setCoaches] = useState<CoachProfile[]>([]);
+  const [selectedCoachId, setSelectedCoachId] = useState(clientProfile.coachId || '');
 
   // Date-based available slot state
   const [dateSlotsForDate, setDateSlotsForDate] = useState<LessonReservation[]>([]);
@@ -31,7 +35,9 @@ export const ClientReservation: React.FC<ClientReservationProps> = ({ clientProf
   const [selectedDateSlot, setSelectedDateSlot] = useState<LessonReservation | null>(null);
 
   const clientId = `${clientProfile.name}_${clientProfile.phone}`;
-  const coachId = clientProfile.coachId || '';
+  const coachId = selectedCoachId || '';
+  const selectedCoach = coaches.find((c) => c.id === coachId);
+  const selectedCoachName = selectedCoach?.name || clientProfile.designatedCoach || '';
 
   const loadAvailableSlots = async () => {
     if (!coachId) {
@@ -61,6 +67,24 @@ export const ClientReservation: React.FC<ClientReservationProps> = ({ clientProf
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    const loadCoaches = async () => {
+      try {
+        const coachList = firebaseService.isInitialized()
+          ? await firebaseService.getCoaches()
+          : storageService.getCoaches();
+        setCoaches(coachList);
+        if (!selectedCoachId && coachList.length > 0) {
+          const designated = coachList.find((c) => c.id === clientProfile.coachId);
+          setSelectedCoachId(designated?.id || coachList[0].id);
+        }
+      } catch {
+        setCoaches([]);
+      }
+    };
+    loadCoaches();
+  }, [clientProfile.coachId, selectedCoachId]);
 
   useEffect(() => {
     if (view === 'AVAILABLE') {
@@ -155,8 +179,8 @@ export const ClientReservation: React.FC<ClientReservationProps> = ({ clientProf
       return;
     }
 
-    if (!coachId || !clientProfile.designatedCoach) {
-      alert('담당 코치가 지정되지 않았습니다.');
+    if (!coachId || !selectedCoachName) {
+      alert('코치를 선택해주세요.');
       return;
     }
 
@@ -176,7 +200,7 @@ export const ClientReservation: React.FC<ClientReservationProps> = ({ clientProf
         const endDateTime = `${requestDate}T${requestEndTime}:00`;
         await reservationService.requestReservationWithTime(
           coachId,
-          clientProfile.designatedCoach,
+          selectedCoachName,
           clientId,
           clientProfile.name,
           clientProfile.phone,
@@ -201,14 +225,29 @@ export const ClientReservation: React.FC<ClientReservationProps> = ({ clientProf
   };
 
   const handleCancelReservation = async (reservationId: string) => {
-    if (!confirm('이 예약을 취소하시겠습니까?')) return;
+    if (!confirm('이 예약의 취소를 요청하시겠습니까?')) return;
 
     try {
-      await reservationService.cancelReservation(reservationId);
-      alert('예약이 취소되었습니다.');
+      await reservationService.requestCancellationByMember(
+        reservationId,
+        clientId
+      );
+      alert('취소 요청이 접수되었습니다.');
       loadMyReservations();
     } catch (error: any) {
       alert(error.message || '취소에 실패했습니다.');
+    }
+  };
+
+  const handleChangeRequest = async (reservationId: string) => {
+    const memo = prompt('변경 요청 내용을 입력해주세요. (예: 1시간 뒤로 변경)');
+    if (memo === null) return;
+    try {
+      await reservationService.requestChangeByMember(reservationId, clientId, memo || undefined);
+      alert('변경 요청이 접수되었습니다.');
+      loadMyReservations();
+    } catch (error: any) {
+      alert(error.message || '변경 요청에 실패했습니다.');
     }
   };
 
@@ -219,11 +258,20 @@ export const ClientReservation: React.FC<ClientReservationProps> = ({ clientProf
       case 'BLOCKED':
         return 'bg-red-100 text-red-700 border-red-300';
       case 'PENDING':
+      case 'REQUESTED':
         return 'bg-yellow-100 text-yellow-700 border-yellow-300';
+      case 'ADMIN_BLOCK_PENDING':
+      case 'COACH_APPROVED':
+        return 'bg-indigo-100 text-indigo-700 border-indigo-300';
       case 'CONFIRMED':
         return 'bg-green-100 text-green-700 border-green-300';
+      case 'CHANGE_REQUESTED':
+        return 'bg-purple-100 text-purple-700 border-purple-300';
+      case 'CANCEL_REQUESTED':
+        return 'bg-orange-100 text-orange-700 border-orange-300';
       case 'CANCELLED':
         return 'bg-red-100 text-red-700 border-red-300';
+      case 'REJECTED':
       case 'COMPLETED':
         return 'bg-blue-100 text-blue-700 border-blue-300';
       default:
@@ -238,11 +286,20 @@ export const ClientReservation: React.FC<ClientReservationProps> = ({ clientProf
       case 'BLOCKED':
         return 'border-red-200';
       case 'PENDING':
+      case 'REQUESTED':
         return 'border-yellow-100';
+      case 'ADMIN_BLOCK_PENDING':
+      case 'COACH_APPROVED':
+        return 'border-indigo-100';
       case 'CONFIRMED':
         return 'border-green-100';
+      case 'CHANGE_REQUESTED':
+        return 'border-purple-100';
+      case 'CANCEL_REQUESTED':
+        return 'border-orange-100';
       case 'CANCELLED':
         return 'border-red-100';
+      case 'REJECTED':
       case 'COMPLETED':
         return 'border-blue-100';
       default:
@@ -257,11 +314,21 @@ export const ClientReservation: React.FC<ClientReservationProps> = ({ clientProf
       case 'BLOCKED':
         return '블럭됨';
       case 'PENDING':
-        return '승인 대기중';
+      case 'REQUESTED':
+        return '요청 완료 · 코치 승인 대기';
+      case 'ADMIN_BLOCK_PENDING':
+      case 'COACH_APPROVED':
+        return '코치 승인 완료 · 관리자 확정 대기';
       case 'CONFIRMED':
-        return '승인됨';
+        return '예약 확정';
+      case 'CHANGE_REQUESTED':
+        return '변경 요청 처리중';
+      case 'CANCEL_REQUESTED':
+        return '취소 요청 처리중';
       case 'CANCELLED':
         return '취소됨';
+      case 'REJECTED':
+        return '거절됨';
       case 'COMPLETED':
         return '완료됨';
       default:
@@ -299,7 +366,7 @@ export const ClientReservation: React.FC<ClientReservationProps> = ({ clientProf
             <div>
               <h1 className="text-2xl font-bold text-gray-900">레슨 예약</h1>
               <p className="text-sm text-gray-600">
-                {clientProfile.designatedCoach ? `${clientProfile.designatedCoach} 코치` : '담당 코치를 지정해주세요'}
+                {selectedCoachName ? `${selectedCoachName} 코치` : '코치를 선택해주세요'}
               </p>
             </div>
           </div>
@@ -332,11 +399,30 @@ export const ClientReservation: React.FC<ClientReservationProps> = ({ clientProf
         {/* Content */}
         {view === 'AVAILABLE' ? (
           <div className="space-y-4">
+            <div className="bg-white rounded-lg shadow-sm p-4">
+              <label htmlFor="coach-select" className="block text-sm font-medium text-gray-700 mb-1">
+                프로 선택
+              </label>
+              <select
+                id="coach-select"
+                value={selectedCoachId}
+                onChange={(e) => setSelectedCoachId(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">코치를 선택해주세요</option>
+                {coaches.map((coach) => (
+                  <option key={coach.id} value={coach.id}>
+                    {coach.name}
+                    {clientProfile.coachId === coach.id ? ' (지정 코치)' : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
             {!coachId ? (
               <div className="bg-white rounded-lg shadow-sm p-12 text-center">
                 <User className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                <p className="text-gray-500 mb-2">담당 코치가 지정되지 않았습니다.</p>
-                <p className="text-sm text-gray-400">프로필에서 담당 코치를 지정해주세요.</p>
+                <p className="text-gray-500 mb-2">예약할 코치를 선택해주세요.</p>
+                <p className="text-sm text-gray-400">지정 코치가 있으면 기본으로 선택됩니다.</p>
               </div>
             ) : (
               <>
@@ -357,6 +443,17 @@ export const ClientReservation: React.FC<ClientReservationProps> = ({ clientProf
                   <div className="bg-white rounded-lg shadow-md p-6">
                     <h2 className="text-lg font-semibold mb-4">레슨 예약 신청</h2>
                     <form onSubmit={handleRequestWithTime} className="space-y-4">
+                      <div>
+                        <label htmlFor="request-coach" className="block text-sm font-medium text-gray-700 mb-1">
+                          프로
+                        </label>
+                        <input
+                          id="request-coach"
+                          value={selectedCoachName}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50"
+                          readOnly
+                        />
+                      </div>
                       <div>
                         <label htmlFor="request-date" className="block text-sm font-medium text-gray-700 mb-1">
                           날짜
@@ -502,12 +599,20 @@ export const ClientReservation: React.FC<ClientReservationProps> = ({ clientProf
                   전체
                 </button>
                 <button
-                  onClick={() => setFilterStatus('PENDING')}
+                  onClick={() => setFilterStatus('REQUESTED')}
                   className={`px-3 py-1 rounded-full text-sm font-medium transition whitespace-nowrap ${
-                    filterStatus === 'PENDING' ? 'bg-yellow-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    filterStatus === 'REQUESTED' ? 'bg-yellow-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                   }`}
                 >
-                  대기중
+                  코치 승인 대기
+                </button>
+                <button
+                  onClick={() => setFilterStatus('ADMIN_BLOCK_PENDING')}
+                  className={`px-3 py-1 rounded-full text-sm font-medium transition whitespace-nowrap ${
+                    filterStatus === 'ADMIN_BLOCK_PENDING' ? 'bg-indigo-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  관리자 확정 대기
                 </button>
                 <button
                   onClick={() => setFilterStatus('CONFIRMED')}
@@ -515,7 +620,7 @@ export const ClientReservation: React.FC<ClientReservationProps> = ({ clientProf
                     filterStatus === 'CONFIRMED' ? 'bg-green-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                   }`}
                 >
-                  승인됨
+                  확정됨
                 </button>
               </div>
             </div>
@@ -564,14 +669,25 @@ export const ClientReservation: React.FC<ClientReservationProps> = ({ clientProf
                         <p className="text-sm text-gray-600 mt-2 italic">{reservation.notes}</p>
                       )}
                     </div>
-                    {(reservation.status === 'PENDING' || reservation.status === 'CONFIRMED') && (
-                      <button
-                        onClick={() => handleCancelReservation(reservation.id)}
-                        className="flex items-center gap-1 px-3 py-2 text-red-600 hover:bg-red-50 rounded-lg transition text-sm"
-                      >
-                        <XCircle className="w-4 h-4" />
-                        취소
-                      </button>
+                    {(reservation.status === 'REQUESTED' ||
+                      reservation.status === 'PENDING' ||
+                      reservation.status === 'ADMIN_BLOCK_PENDING' ||
+                      reservation.status === 'CONFIRMED') && (
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleChangeRequest(reservation.id)}
+                          className="flex items-center gap-1 px-3 py-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition text-sm"
+                        >
+                          변경 요청
+                        </button>
+                        <button
+                          onClick={() => handleCancelReservation(reservation.id)}
+                          className="flex items-center gap-1 px-3 py-2 text-red-600 hover:bg-red-50 rounded-lg transition text-sm"
+                        >
+                          <XCircle className="w-4 h-4" />
+                          취소 요청
+                        </button>
+                      </div>
                     )}
                   </div>
                 </div>
