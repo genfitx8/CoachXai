@@ -966,15 +966,28 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
 
               {/* Media Thumbnails */}
               <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide px-1">
-                  <button 
+                  <button
                     onClick={() => setActiveMedia({ id: 'main', url: lesson.videoUrl, type: lesson.mediaType, createdAt: lesson.createdAt })}
                     className={`relative w-16 h-16 flex-shrink-0 rounded-lg overflow-hidden border-2 transition-all ${activeMedia.id === 'main' ? 'border-emerald-700 ring-2 ring-emerald-200' : 'border-transparent opacity-70 hover:opacity-100'}`}
                   >
-                      {lesson.mediaType === 'video' ? <video src={lesson.videoUrl} className="w-full h-full object-cover" /> : 
+                      {lesson.mediaType === 'video' ? <video src={lesson.videoUrl} className="w-full h-full object-cover" /> :
                        lesson.mediaType === 'image' ? <img src={lesson.videoUrl} className="w-full h-full object-cover" alt="thumb" /> :
                        <div className="w-full h-full bg-gray-800 flex items-center justify-center"><Mic className="w-6 h-6 text-white" /></div>}
                   </button>
-                  
+
+                  {/* Edited Video Thumbnail */}
+                  {lesson.editedVideoUrl && (
+                      <button
+                        onClick={() => setActiveMedia({ id: 'edited', url: lesson.editedVideoUrl!, type: 'video', createdAt: lesson.createdAt })}
+                        className={`relative w-16 h-16 flex-shrink-0 rounded-lg overflow-hidden border-2 transition-all ${activeMedia.id === 'edited' ? 'border-blue-600 ring-2 ring-blue-200' : 'border-transparent opacity-70 hover:opacity-100'}`}
+                      >
+                          <video src={lesson.editedVideoUrl} className="w-full h-full object-cover" />
+                          <div className="absolute bottom-0 left-0 right-0 bg-blue-600/90 text-white text-[9px] font-bold text-center py-0.5">
+                              편집본
+                          </div>
+                      </button>
+                  )}
+
                   {lesson.additionalMedia?.map(media => (
                       <div key={media.id} className="relative group flex-shrink-0">
                           <button 
