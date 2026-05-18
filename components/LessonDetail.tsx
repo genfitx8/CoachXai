@@ -82,8 +82,6 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
 
   // Edited video actions state
   const [isDownloadingEditedVideo, setIsDownloadingEditedVideo] = useState(false);
-  const [showEditedVideoSharePanel, setShowEditedVideoSharePanel] = useState(false);
-  const [editedVideoLinkCopied, setEditedVideoLinkCopied] = useState(false);
 
 
   const mediaElementRef = useRef<HTMLMediaElement>(null);
@@ -838,41 +836,6 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
     }
   };
 
-  const handleSendEditedVideoToMember = async () => {
-    setShowEditedVideoSharePanel(false);
-    setKakaoShareStatus('loading');
-    const result = await sendLessonNoteViaKakao(lesson);
-    if (result === 'success') {
-      setKakaoShareStatus('idle');
-    } else if (result === 'no_key') {
-      setKakaoShareStatus('no_key');
-      setTimeout(() => setKakaoShareStatus('idle'), 6000);
-    } else {
-      setKakaoShareStatus('error');
-      setTimeout(() => setKakaoShareStatus('idle'), 4000);
-    }
-  };
-
-  const handleCopyEditedVideoLink = async () => {
-    const url = buildLessonShareUrl(lesson);
-    try {
-      await navigator.clipboard.writeText(url);
-    } catch {
-      const input = document.createElement('input');
-      input.value = url;
-      document.body.appendChild(input);
-      input.select();
-      // eslint-disable-next-line @typescript-eslint/no-deprecated
-      document.execCommand('copy');
-      document.body.removeChild(input);
-    }
-    setEditedVideoLinkCopied(true);
-    setTimeout(() => {
-      setEditedVideoLinkCopied(false);
-      setShowEditedVideoSharePanel(false);
-    }, 2000);
-  };
-
   useEffect(() => {
       if (isAddingMedia || isCommentaryMode || isSequenceMode || selectedSequenceImage) {
           document.body.style.overflow = 'hidden';
@@ -1039,10 +1002,7 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
                   {/* Edited Video Thumbnail */}
                   {lesson.editedVideoUrl && (
                       <button
-                        onClick={() => {
-                          setActiveMedia({ id: 'edited', url: lesson.editedVideoUrl!, type: 'video', createdAt: lesson.createdAt });
-                          setShowEditedVideoSharePanel(false);
-                        }}
+                        onClick={() => setActiveMedia({ id: 'edited', url: lesson.editedVideoUrl!, type: 'video', createdAt: lesson.createdAt })}
                         className={`relative w-16 h-16 flex-shrink-0 rounded-lg overflow-hidden border-2 transition-all ${activeMedia.id === 'edited' ? 'border-blue-600 ring-2 ring-blue-200' : 'border-transparent opacity-70 hover:opacity-100'}`}
                       >
                           <video src={lesson.editedVideoUrl} className="w-full h-full object-cover" />
@@ -1099,52 +1059,19 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
                   )}
               </div>
 
-               {/* Edited Video Actions: Download + Send to Member */}
+               {/* Edited Video Actions: Download */}
                {activeMedia.id === 'edited' && lesson.editedVideoUrl && (
-                 <div className="pt-2 space-y-2">
-                   <div className="flex gap-2">
-                     <button
-                       onClick={handleDownloadEditedVideo}
-                       disabled={isDownloadingEditedVideo}
-                       className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-semibold transition-colors disabled:opacity-50"
-                     >
-                       {isDownloadingEditedVideo
-                         ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                         : <Download className="w-3.5 h-3.5" />}
-                       기기에 저장
-                     </button>
-                     <button
-                       onClick={() => setShowEditedVideoSharePanel(v => !v)}
-                       className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold transition-colors"
-                     >
-                       <Send className="w-3.5 h-3.5" />
-                       회원에게 보내기
-                     </button>
-                   </div>
-
-                   {showEditedVideoSharePanel && (
-                     <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 space-y-2 animate-fade-in">
-                       <p className="text-xs text-blue-700 font-medium text-center">
-                         편집된 영상이 포함된 레슨 링크를 전달합니다
-                       </p>
-                       <button
-                         onClick={handleSendEditedVideoToMember}
-                         disabled={kakaoShareStatus === 'loading'}
-                         className="w-full py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-2 bg-[#FEE500] text-[#3C1E1E] hover:bg-[#F5D800] disabled:opacity-60 transition-colors"
-                       >
-                         <Send className="w-3.5 h-3.5" />
-                         {kakaoShareStatus === 'loading' ? '카카오톡 열기…' : '카카오톡으로 보내기'}
-                       </button>
-                       <button
-                         onClick={handleCopyEditedVideoLink}
-                         className="w-full py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-2 bg-white border border-blue-300 text-blue-700 hover:bg-blue-100 transition-colors"
-                       >
-                         {editedVideoLinkCopied
-                           ? <><Check className="w-3.5 h-3.5" /> 링크 복사됨!</>
-                           : <><Copy className="w-3.5 h-3.5" /> 링크 복사하기</>}
-                       </button>
-                     </div>
-                   )}
+                 <div className="pt-2">
+                   <button
+                     onClick={handleDownloadEditedVideo}
+                     disabled={isDownloadingEditedVideo}
+                     className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-semibold transition-colors disabled:opacity-50"
+                   >
+                     {isDownloadingEditedVideo
+                       ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                       : <Download className="w-3.5 h-3.5" />}
+                     기기에 저장
+                   </button>
                  </div>
                )}
 
