@@ -1,6 +1,9 @@
 @import 'tailwindcss';
-
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700;800;900&display=swap');
+/* Load the v3-style config so Tailwind v4 generates our custom utility classes
+   (bg-bg-*, text-ink-*, border-line-*, etc.). Without this directive Tailwind v4
+   silently ignores tailwind.config.js and none of the semantic tokens are emitted. */
+@config './tailwind.config.js';
 
 /* ─── Design tokens ──────────────────────────────────────────────────────────
    Single source of truth for runtime themable values. The Tailwind palette
@@ -599,3 +602,38 @@ a:focus-visible {
   0%, 100% { transform: scale(1); }
   50% { transform: scale(1.06); }
 }
+
+/* ─── Semantic color token fallbacks ─────────────────────────────────────────
+   These explicit utility classes mirror what Tailwind generates from the
+   theme config. They act as a CSS-variable-aware fallback so that auth-screen
+   text remains visible even if the Tailwind build step does not emit the
+   semantic utilities (e.g. during SSR, CI, or a config-load race condition).
+   Values resolve from the CSS custom properties defined in :root above.
+   ───────────────────────────────────────────────────────────────────────── */
+
+/* Foreground (ink) */
+.text-ink-high    { color: var(--ink-high); }
+.text-ink-medium  { color: var(--ink-medium); }
+.text-ink-muted   { color: var(--ink-muted); }
+.text-ink-faint   { color: var(--ink-faint); }
+
+/* Placeholder foreground */
+.placeholder\:text-ink-faint::placeholder { color: var(--ink-faint); }
+.placeholder\:text-ink-muted::placeholder { color: var(--ink-muted); }
+
+/* Background layers */
+.bg-bg-base    { background-color: var(--bg-base); }
+.bg-bg-raised  { background-color: var(--bg-raised); }
+.bg-bg-overlay { background-color: var(--bg-overlay); }
+.bg-bg-inset   { background-color: var(--bg-inset); }
+
+/* Border hairlines */
+.border-line-subtle  { border-color: var(--line-subtle); }
+.border-line-default { border-color: var(--line-default); }
+.border-line-strong  { border-color: var(--line-strong); }
+
+/* Hover variants used in the auth screen */
+.hover\:text-ink-high:hover   { color: var(--ink-high); }
+.hover\:text-ink-medium:hover { color: var(--ink-medium); }
+.hover\:border-line-strong:hover { border-color: var(--line-strong); }
+.hover\:bg-bg-overlay:hover   { background-color: var(--bg-overlay); }
