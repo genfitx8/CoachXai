@@ -28,9 +28,35 @@ async function uploadBlobToR2(blob: Blob, key: string): Promise<string> {
     body: blob,
     headers: { 'Content-Type': blob.type || 'application/octet-stream' },
   });
-  // fileUrl may be a relative path (e.g. "/api/files/...") – resolve it against the
-  // configured API base URL so stored URLs work regardless of where the frontend is hosted.
+  // The server returns a relative path (/api/files/...). Convert it to an
+  // absolute URL so it works when the frontend and backend are on different
+  // origins (e.g. Render backend + separate static frontend host).
   return fileUrl.startsWith('/') ? `${BASE_URL}${fileUrl}` : fileUrl;
+}
+
+/**
+ * Resolve a potentially-relative /api/files/... URL to an absolute URL using
+ * the configured backend base URL. Blob, data, idb and already-absolute URLs
+ * are returned unchanged. This handles backward-compat for lessons stored
+ * before the absolute-URL fix was deployed.
+ *
+ * Only known-safe URL schemes (blob:, https?://, idb://, and our /api/ proxy
+ * path) are forwarded. Anything else returns '' to prevent unexpected content
+ * being injected into media src attributes.
+ */
+export function resolveMediaUrl(url: string | null | undefined): string {
+  if (!url) return '';
+  // Blob object URLs created by the browser – always safe
+  if (url.startsWith('blob:')) return url;
+  // Absolute HTTP(S) URLs – already resolved, return as-is
+  if (url.startsWith('http://') || url.startsWith('https://')) return url;
+  // IndexedDB pseudo-URLs handled separately by videoStore.resolve()
+  if (url.startsWith('idb://')) return url;
+  // Our backend proxy path – convert to absolute using BASE_URL
+  if (url.startsWith('/')) return `${BASE_URL}${url}`;
+  // Any other scheme (data:, javascript:, …) is blocked to prevent XSS
+  console.warn('[resolveMediaUrl] Blocked potentially unsafe URL scheme:', url.slice(0, 40));
+  return '';
 }
 
 async function processBlobUrl(blobUrl: string, key: string): Promise<string> {

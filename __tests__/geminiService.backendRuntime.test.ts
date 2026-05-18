@@ -10,7 +10,7 @@ describe('geminiService backend runtime adapter', () => {
   it('calls backend /api/ai/invoke for mission generation', async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
-      json: async () => ({ text: '["미션 A","미션 B","미션 C"]' }),
+      json: async () => ({ ok: true, result: '["미션 A","미션 B","미션 C"]' }),
     });
     vi.stubGlobal('fetch', fetchMock);
 

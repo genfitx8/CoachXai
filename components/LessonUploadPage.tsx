@@ -221,7 +221,7 @@ export const LessonUploadPage: React.FC<LessonUploadPageProps> = ({
           <p className="text-[11px] uppercase tracking-[0.16em] text-indigo-300/80 font-semibold">
             Step 1 of 2
           </p>
-          <h2 className="text-xl font-bold text-slate-50">Upload Lesson Videos</h2>
+          <h2 className="text-xl font-bold text-slate-50">자동 영상 편집</h2>
         </div>
       </div>
 
@@ -269,7 +269,7 @@ export const LessonUploadPage: React.FC<LessonUploadPageProps> = ({
 
       {/* Video upload zones */}
       <section className="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-4 space-y-4">
-        <h3 className="text-sm font-semibold text-slate-300">Swing Videos</h3>
+        <h3 className="text-sm font-semibold text-slate-300">편집할 전/후 영상</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <VideoDropZone
             label="BEFORE"

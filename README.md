@@ -54,7 +54,7 @@ Build the most trusted AI assistant for coaches by turning each lesson into clea
 >
 > 1. **Rotate/revoke any exposed Google API key** (`API_KEY`) in [Google Cloud Console](https://console.cloud.google.com/apis/credentials).
 > 2. **Rotate/revoke the exposed Firebase API key** (`VITE_FIREBASE_API_KEY`) — regenerate it in the [Firebase Console](https://console.firebase.google.com/) and review your Firebase Security Rules.
-> 3. **Do not expose AI keys in the browser.** Configure Agent Platform auth server-side only.
+> 3. **Rotate/revoke any exposed AI/GCP credentials** used for backend runtime access (service account keys, workload identity bindings, etc.).
 > 4. **Rotate any KakaoTalk app key** (`VITE_KAKAO_APP_KEY`) in the [Kakao Developers Console](https://developers.kakao.com/).
 > 5. **Do not reuse the old key values.** Push the newly generated values to your deployment platform's secret store (e.g., Vercel Project Environment Variables), never back to the repository.
 >
@@ -104,23 +104,51 @@ Configure the following environment variables to enable password recovery emails
 
 If SMTP is not configured in development, the server logs the recovery message content to the console instead.
 
-### Google Cloud Agent Platform Runtime setup
+### Google Cloud Agent Platform Runtime (backend-mediated)
 
-CoachX AI features now call a **server-side Agent Platform Runtime endpoint** (`/api/ai/invoke`).
+CoachXai **does not deploy agents from this TypeScript repository**.  
+This app only invokes an already deployed Google Cloud Agent Platform Runtime agent through the Express backend (`/api/ai/invoke`).
 
-Set these backend environment variables:
+#### What this app is responsible for
 
-- `AGENT_PLATFORM_RUNTIME_ENDPOINT` (recommended: full runtime invoke URL), **or**
-- `AGENT_PLATFORM_AGENT_RESOURCE` + `AGENT_PLATFORM_LOCATION`
-  - Example resource: `projects/{PROJECT}/locations/{LOCATION}/reasoningEngines/{AGENT_ID}`
-- `GOOGLE_APPLICATION_CREDENTIALS` (recommended ADC auth), or `AGENT_PLATFORM_ACCESS_TOKEN` for temporary local testing only
-- Optional: `GOOGLE_CLOUD_PROJECT`, `GOOGLE_CLOUD_LOCATION`
+- Frontend calls backend AI endpoints (no direct browser Gemini SDK calls)
+- Backend forwards requests to your deployed Agent Runtime endpoint
+- Backend uses Google Cloud auth (`google-auth-library`) and server-side env config
 
-Notes:
+#### What operators must do separately (Python-first flow)
 
-- Agent authoring/deployment is managed **outside this repository** (typically via Google Cloud Agent/ADK Python workflows).
-- This app expects an already deployed runtime-capable agent resource.
-- If runtime config is missing, AI features degrade gracefully (fallback responses where supported), and the app remains usable.
+- Deploy the agent using Google Cloud Agent Platform / Agent Runtime tooling (Python SDK)
+  - e.g. `google-cloud-aiplatform[agent_engines,...]`
+- Ensure project + billing + IAM are configured
+- Ensure a deployed agent resource exists and is callable
+- Prefer Agent identity setup per docs (for example `types.IdentityType.AGENT_IDENTITY`)
+
+#### Required server environment variables
+
+- `GCP_PROJECT_ID`: Google Cloud project ID
+- `GCP_LOCATION`: Vertex AI / Agent Runtime region (for example `us-central1`)
+- `GCP_AGENT_RESOURCE_NAME`: full deployed resource name  
+  Example: `projects/<project-id>/locations/<location>/reasoningEngines/<agent-id>`
+- `GCP_AGENT_PLATFORM_API_BASE_URL` (optional): defaults to `https://<location>-aiplatform.googleapis.com/v1`
+
+#### Authentication approach
+
+Backend calls use **Application Default Credentials (ADC)** via `google-auth-library`.
+Use one of the standard Google Cloud server auth setups:
+
+- local development: `gcloud auth application-default login` (or explicit service account key)
+- cloud runtime: Workload Identity / attached service account with required Vertex AI Agent Runtime permissions
+
+#### Local development steps
+
+1. Copy env file: `cp .env.example .env`
+2. Fill the Agent Runtime variables above
+3. Run backend and frontend together: `npm run dev:all`
+4. Optional health checks:
+   - Backend health: `GET /api/health`
+   - AI config status: `GET /api/ai/status`
+
+If Agent Runtime is not configured/reachable, CoachXai keeps existing fallback behavior for AI-assisted features where possible.
 
 ## Run Locally
 

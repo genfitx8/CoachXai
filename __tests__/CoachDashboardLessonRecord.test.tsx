@@ -118,7 +118,21 @@ describe('Coach dashboard – lesson-first MVP home', () => {
     expect(screen.queryByTestId('coachx-attention-card')).toBeNull();
   });
 
-  it('shows reservation management on the coach home', async () => {
+  it('shows lesson upload entry as 자동 영상 편집', async () => {
+    await renderCoachApp();
+
+    expect(screen.getByTestId('lesson-upload-entry-btn')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '자동 영상 편집' })).toBeInTheDocument();
+  });
+
+  it('does not show separate album entry on coach home', async () => {
+    await renderCoachApp();
+
+    expect(screen.queryByTestId('album-entry-btn')).toBeNull();
+    expect(screen.queryByRole('button', { name: '영상 앨범' })).toBeNull();
+  });
+
+  it('hides non-core surfaces from the coach home', async () => {
     await renderCoachApp();
 
     expect(screen.queryByText(/최근 레슨 기록/i)).toBeNull();
