@@ -71,6 +71,27 @@ Build the most trusted AI assistant for coaches by turning each lesson into clea
 2. Fill in your own values in `.env`. See `.env.example` for all available variables and their descriptions.
 3. For deployments (e.g., Vercel), add the variables through the platform's environment variable UI — never hard-code them in source files.
 
+### Firebase Google auth setup
+
+To use **Google login/signup**, set these client environment variables:
+
+- `VITE_FIREBASE_API_KEY`
+- `VITE_FIREBASE_AUTH_DOMAIN`
+- `VITE_FIREBASE_PROJECT_ID`
+- `VITE_FIREBASE_APP_ID`
+
+Optional (recommended when using additional Firebase features):
+
+- `VITE_FIREBASE_STORAGE_BUCKET`
+- `VITE_FIREBASE_MESSAGING_SENDER_ID`
+
+Then configure Firebase Console:
+
+1. **Authentication → Sign-in method**: enable **Google** provider.
+2. **Authentication → Settings → Authorized domains**: add your production domain and local development domains (for example `localhost` and `127.0.0.1`).
+
+If these values are missing or incomplete, Google auth fails gracefully with an actionable error message in the UI.
+
 ### Password recovery mail (SMTP)
 
 Configure the following environment variables to enable password recovery emails from **CoachXai**:

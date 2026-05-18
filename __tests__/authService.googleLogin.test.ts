@@ -75,7 +75,7 @@ describe('authService.loginWithGoogle', () => {
     firebaseServiceMock.getSavedConfig.mockReturnValue(null);
 
     await expect(authService.loginWithGoogle('CLIENT')).rejects.toBe(
-      'Firebase 설정이 없거나 초기화에 실패해 구글 로그인을 사용할 수 없습니다. VITE_FIREBASE_API_KEY, VITE_FIREBASE_AUTH_DOMAIN, VITE_FIREBASE_PROJECT_ID, VITE_FIREBASE_APP_ID 값을 확인해주세요.'
+      'Firebase 설정이 불완전해 구글 로그인을 사용할 수 없습니다. 누락된 환경변수: VITE_FIREBASE_API_KEY, VITE_FIREBASE_AUTH_DOMAIN, VITE_FIREBASE_PROJECT_ID, VITE_FIREBASE_APP_ID 값을 확인해주세요.'
     );
   });
 
@@ -87,6 +87,17 @@ describe('authService.loginWithGoogle', () => {
 
     await expect(authService.loginWithGoogle('CLIENT')).rejects.toBe(
       'Firebase 인증 도메인 설정이 없어 구글 로그인을 진행할 수 없습니다. VITE_FIREBASE_AUTH_DOMAIN 값을 설정하고 Firebase Console에서 승인된 도메인을 확인해주세요.'
+    );
+  });
+
+  it('maps unauthorized-domain Firebase error to actionable message', async () => {
+    firebaseServiceMock.isInitialized.mockReturnValue(true);
+    firebaseServiceMock.signInWithGoogle.mockRejectedValue({
+      code: 'auth/unauthorized-domain',
+    });
+
+    await expect(authService.loginWithGoogle('CLIENT')).rejects.toBe(
+      '현재 도메인이 Firebase 승인 도메인에 등록되어 있지 않아 구글 로그인을 진행할 수 없습니다. Firebase Console > Authentication > Settings > Authorized domains에서 현재 도메인을 추가해주세요.'
     );
   });
 });
