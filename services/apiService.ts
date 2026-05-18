@@ -55,6 +55,7 @@ export function resolveMediaUrl(url: string | null | undefined): string {
   // Our backend proxy path – convert to absolute using BASE_URL
   if (url.startsWith('/')) return `${BASE_URL}${url}`;
   // Any other scheme (data:, javascript:, …) is blocked to prevent XSS
+  console.warn('[resolveMediaUrl] Blocked potentially unsafe URL scheme:', url.slice(0, 40));
   return '';
 }
 
