@@ -10,6 +10,7 @@ import {
   TrainingProgram,
   LessonUpload,
   ImpactSelection,
+  Student,
 } from './types';
 import { LessonCard } from './components/LessonCard';
 import { LessonDetail } from './components/LessonDetail';
@@ -1245,6 +1246,27 @@ const AppContent: React.FC = () => {
   const coachXUrgentCount = coachXMemberReports.filter(
     r => r.trendIndicator === 'inactive' || r.trendIndicator === 'plateau'
   ).length;
+  const lessonUploadStudents = useMemo<Student[]>(() => {
+    const currentCoachId =
+      coachProfile?.id ??
+      (userRole === 'COACH' && currentUser && 'id' in currentUser
+        ? (currentUser as CoachProfile).id
+        : undefined);
+
+    if (!currentCoachId) return [];
+
+    return clients
+      .filter((client) => client.coachId === currentCoachId)
+      .map((client) => {
+        return {
+          id: client.id ?? `${client.name}_${client.phone}`,
+          name: client.name,
+          phone: client.phone,
+          email: client.email,
+          coachId: client.coachId,
+        };
+      });
+  }, [clients, coachProfile?.id, currentUser, userRole]);
   const latestLesson = dashboardData?.recentLessons?.[0];
 
   if (isLoading) {
@@ -1739,6 +1761,7 @@ const AppContent: React.FC = () => {
 
         {coachView === 'LESSON_UPLOAD' && (
           <LessonUploadPage
+            students={lessonUploadStudents}
             onBack={() => setCoachView('LIST')}
             onNext={(upload) => {
               setPendingLessonUpload(upload);

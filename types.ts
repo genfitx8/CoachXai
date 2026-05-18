@@ -382,6 +382,7 @@ export interface ClubSpec {
 }
 
 export interface ClientProfile {
+  id?: string;
   name: string;
   phone: string;
   email?: string; // Added: For Auth
