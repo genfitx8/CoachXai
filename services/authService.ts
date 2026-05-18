@@ -17,6 +17,35 @@ const PASSWORD_POLICY_REGEX =
   /^(?=.*[A-Za-z])(?=.*\d)(?=.*[^A-Za-z\d\s]).{8,}$/;
 const PASSWORD_POLICY_ERROR_MESSAGE =
   '비밀번호는 8자 이상이며 문자, 숫자, 특수문자를 모두 포함해야 합니다.';
+const REQUIRED_FIREBASE_ENV_KEYS = [
+  'VITE_FIREBASE_API_KEY',
+  'VITE_FIREBASE_AUTH_DOMAIN',
+  'VITE_FIREBASE_PROJECT_ID',
+  'VITE_FIREBASE_APP_ID',
+] as const;
+
+const getMissingGoogleAuthEnvKeys = (): string[] =>
+  REQUIRED_FIREBASE_ENV_KEYS.filter((key) => !import.meta.env[key]);
+
+const getMissingGoogleAuthConfigFields = (
+  config: {
+    apiKey?: string;
+    authDomain?: string;
+    projectId?: string;
+    appId?: string;
+  } | null
+): string[] => {
+  if (!config) return [...REQUIRED_FIREBASE_ENV_KEYS];
+
+  const mapping: Record<(typeof REQUIRED_FIREBASE_ENV_KEYS)[number], string | undefined> = {
+    VITE_FIREBASE_API_KEY: config.apiKey,
+    VITE_FIREBASE_AUTH_DOMAIN: config.authDomain,
+    VITE_FIREBASE_PROJECT_ID: config.projectId,
+    VITE_FIREBASE_APP_ID: config.appId,
+  };
+
+  return REQUIRED_FIREBASE_ENV_KEYS.filter((key) => !mapping[key]);
+};
 
 const normalizePhoneNumber = (phone: string): string => {
   const digitsOnly = phone.replace(/\D/g, '');
@@ -251,6 +280,15 @@ export const authService = {
   ): Promise<CoachProfile | ClientProfile> => {
     if (!firebaseService.isInitialized()) {
       const savedConfig = firebaseService.getSavedConfig();
+      const missingConfigFields = getMissingGoogleAuthConfigFields(savedConfig);
+      if (missingConfigFields.length > 0) {
+        const missingEnvKeys = getMissingGoogleAuthEnvKeys();
+        const missingKeyHint =
+          missingEnvKeys.length > 0
+            ? ` 누락된 환경변수: ${missingEnvKeys.join(', ')}`
+            : ` Firebase 설정에서 누락된 값: ${missingConfigFields.join(', ')}`;
+        throw `Firebase 설정이 불완전해 구글 로그인을 사용할 수 없습니다.${missingKeyHint} 값을 확인해주세요.`;
+      }
       const initialized =
         savedConfig ? firebaseService.init(savedConfig) : false;
       if (!initialized) {
@@ -267,10 +305,16 @@ export const authService = {
         'auth/cancelled-popup-request': '구글 로그인이 취소되었습니다.',
         'auth/popup-blocked':
           '팝업이 차단되었습니다. 브라우저의 팝업 차단을 해제한 후 다시 시도해주세요.',
+        'auth/unauthorized-domain':
+          '현재 도메인이 Firebase 승인 도메인에 등록되어 있지 않아 구글 로그인을 진행할 수 없습니다. Firebase Console > Authentication > Settings > Authorized domains에서 현재 도메인을 추가해주세요.',
         'auth/auth-domain-config-required':
           'Firebase 인증 도메인 설정이 없어 구글 로그인을 진행할 수 없습니다. VITE_FIREBASE_AUTH_DOMAIN 값을 설정하고 Firebase Console에서 승인된 도메인을 확인해주세요.',
         'auth/operation-not-allowed':
           'Firebase Console에서 Google 로그인 제공자가 비활성화되어 있습니다. Authentication > Sign-in method에서 Google을 활성화해주세요.',
+        'auth/operation-not-supported-in-this-environment':
+          '현재 환경에서는 팝업 기반 구글 로그인을 지원하지 않습니다. 기본 브라우저(Chrome/Safari 등)에서 다시 시도해주세요.',
+        'auth/web-storage-unsupported':
+          '브라우저 저장소를 사용할 수 없어 구글 로그인을 진행할 수 없습니다. 시크릿 모드를 해제하거나 다른 브라우저에서 다시 시도해주세요.',
       };
 
       const mappedMessage = err?.code ? codeToMessage[err.code] : undefined;

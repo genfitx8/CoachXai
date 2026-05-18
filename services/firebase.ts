@@ -141,15 +141,41 @@ export const firebaseService = {
         .VITE_FIREBASE_MESSAGING_SENDER_ID;
       const appId = import.meta.env.VITE_FIREBASE_APP_ID;
 
-      if (apiKey && projectId) {
+      const hasAnyFirebaseEnv = [
+        apiKey,
+        authDomain,
+        projectId,
+        storageBucket,
+        messagingSenderId,
+        appId,
+      ].some((value) => !!value);
+
+      const requiredMissingKeys = [
+        ['VITE_FIREBASE_API_KEY', apiKey],
+        ['VITE_FIREBASE_AUTH_DOMAIN', authDomain],
+        ['VITE_FIREBASE_PROJECT_ID', projectId],
+        ['VITE_FIREBASE_APP_ID', appId],
+      ]
+        .filter(([, value]) => !value)
+        .map(([key]) => key);
+
+      if (requiredMissingKeys.length === 0) {
         return {
           apiKey,
-          authDomain: authDomain || '',
+          authDomain,
           projectId,
           storageBucket: storageBucket || '',
           messagingSenderId: messagingSenderId || '',
-          appId: appId || '',
+          appId,
         };
+      }
+
+      if (hasAnyFirebaseEnv) {
+        log.warn(
+          `Partial Firebase env detected; ignoring env config because required keys are missing: ${requiredMissingKeys.join(
+            ', '
+          )}`
+        );
       }
       return null;
     })();
