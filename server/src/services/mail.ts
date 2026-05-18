@@ -17,7 +17,11 @@ const transporter = smtpHost
     })
   : null;
 
-export async function sendPasswordResetMail(to: string, resetUrl: string): Promise<void> {
+export async function sendPasswordResetMail(
+  to: string,
+  resetUrl: string,
+  expiresInMinutes: number
+): Promise<void> {
   const subject = `[${SERVICE_NAME}] 비밀번호 재설정 안내`;
   const text = [
     `안녕하세요, ${SERVICE_NAME} 입니다.`,
@@ -25,7 +29,7 @@ export async function sendPasswordResetMail(to: string, resetUrl: string): Promi
     '비밀번호 재설정을 요청하셨다면 아래 링크를 눌러 새 비밀번호를 설정해주세요.',
     resetUrl,
     '',
-    '본 링크는 30분 후 만료됩니다.',
+    `본 링크는 ${expiresInMinutes}분 후 만료됩니다.`,
     '본인이 요청하지 않았다면 이 메일을 무시해 주세요.',
   ].join('\n');
 

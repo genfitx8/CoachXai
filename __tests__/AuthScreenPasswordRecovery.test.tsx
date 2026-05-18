@@ -27,7 +27,7 @@ describe('AuthScreen password recovery', () => {
   });
 
   it('shows generic success message and never renders returned password', async () => {
-    mockedAuthService.findPassword.mockResolvedValue('plain-password-1234');
+    mockedAuthService.findPassword.mockResolvedValue(undefined);
 
     render(
       <LanguageProvider>

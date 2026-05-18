@@ -33,8 +33,18 @@ const normalizePhoneNumber = (phone: string): string => {
 const isSamePhoneNumber = (left: string | undefined, right: string): boolean =>
   normalizePhoneNumber(left ?? '') === normalizePhoneNumber(right);
 
-const createTemporaryPassword = (): string => {
-  return `Cx!${Math.random().toString(36).slice(-4)}${Date.now().toString().slice(-4)}`;
+const createResetToken = (): string => {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID().replace(/-/g, '');
+  }
+
+  if (typeof crypto !== 'undefined' && typeof crypto.getRandomValues === 'function') {
+    const bytes = new Uint8Array(16);
+    crypto.getRandomValues(bytes);
+    return Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
+  }
+
+  return `fallback-${Date.now()}`;
 };
 
 export const authService = {
@@ -503,25 +513,13 @@ export const authService = {
         );
 
         if (found) {
-          const temporaryPassword = createTemporaryPassword();
-          found.password = temporaryPassword;
-
-          if (role === 'COACH') {
-            if (firebaseService.isInitialized()) {
-              await firebaseService.saveCoach(found as CoachProfile);
-            } else {
-              localStorage.setItem(STORAGE_KEYS.COACH_PROFILE, JSON.stringify(found));
-            }
-          } else if (firebaseService.isInitialized()) {
-            await firebaseService.saveClients(profiles as ClientProfile[]);
-          } else {
-            storageService.saveClients(profiles as ClientProfile[]);
-          }
-
+          const resetToken = createResetToken();
+          const resetUrl = `https://coachxai.local/reset-password?token=${resetToken}`;
           log.info('비밀번호 재설정 메일 발송(개발 모드 시뮬레이션)', {
             service: 'CoachXai',
             to: found.email,
-            temporaryPassword,
+            resetUrl,
+            expiresInMinutes: 30,
           });
         }
 
