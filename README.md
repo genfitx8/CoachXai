@@ -52,9 +52,9 @@ Build the most trusted AI assistant for coaches by turning each lesson into clea
 >
 > Take the following steps immediately:
 >
-> 1. **Rotate/revoke the exposed Google API key** (`API_KEY`) in [Google Cloud Console](https://console.cloud.google.com/apis/credentials).
+> 1. **Rotate/revoke any exposed Google API key** (`API_KEY`) in [Google Cloud Console](https://console.cloud.google.com/apis/credentials).
 > 2. **Rotate/revoke the exposed Firebase API key** (`VITE_FIREBASE_API_KEY`) — regenerate it in the [Firebase Console](https://console.firebase.google.com/) and review your Firebase Security Rules.
-> 3. **Rotate/revoke the exposed Gemini API key** (`VITE_GEMINI_API_KEY` / `GEMINI_API_KEY`) in [Google AI Studio](https://aistudio.google.com/app/apikey).
+> 3. **Do not expose AI keys in the browser.** Configure Agent Platform auth server-side only.
 > 4. **Rotate any KakaoTalk app key** (`VITE_KAKAO_APP_KEY`) in the [Kakao Developers Console](https://developers.kakao.com/).
 > 5. **Do not reuse the old key values.** Push the newly generated values to your deployment platform's secret store (e.g., Vercel Project Environment Variables), never back to the repository.
 >
@@ -104,6 +104,24 @@ Configure the following environment variables to enable password recovery emails
 
 If SMTP is not configured in development, the server logs the recovery message content to the console instead.
 
+### Google Cloud Agent Platform Runtime setup
+
+CoachX AI features now call a **server-side Agent Platform Runtime endpoint** (`/api/ai/invoke`).
+
+Set these backend environment variables:
+
+- `AGENT_PLATFORM_RUNTIME_ENDPOINT` (recommended: full runtime invoke URL), **or**
+- `AGENT_PLATFORM_AGENT_RESOURCE` + `AGENT_PLATFORM_LOCATION`
+  - Example resource: `projects/{PROJECT}/locations/{LOCATION}/reasoningEngines/{AGENT_ID}`
+- `GOOGLE_APPLICATION_CREDENTIALS` (recommended ADC auth), or `AGENT_PLATFORM_ACCESS_TOKEN` for temporary local testing only
+- Optional: `GOOGLE_CLOUD_PROJECT`, `GOOGLE_CLOUD_LOCATION`
+
+Notes:
+
+- Agent authoring/deployment is managed **outside this repository** (typically via Google Cloud Agent/ADK Python workflows).
+- This app expects an already deployed runtime-capable agent resource.
+- If runtime config is missing, AI features degrade gracefully (fallback responses where supported), and the app remains usable.
+
 ## Run Locally
 
 **Prerequisites:** Node.js
@@ -115,7 +133,8 @@ If SMTP is not configured in development, the server logs the recovery message c
 2. Set up your environment file (see [Environment Setup](#environment-setup) above).
 3. Run the app:
    ```bash
-   npm run dev
+   npm run dev:all
    ```
+   (`dev:all` starts both Vite frontend and Express backend for AI runtime calls.)
 
 **Note:** If Firebase configuration is not provided or initialization fails, the app automatically falls back to local storage mode.

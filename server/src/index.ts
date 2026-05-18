@@ -10,6 +10,7 @@ import clientsRouter from './routes/clients';
 import coachesRouter from './routes/coaches';
 import filesRouter from './routes/files';
 import lessonPackagesRouter from './routes/lessonPackages';
+import aiRouter from './routes/ai';
 
 const app = express();
 const PORT = parseInt(process.env.PORT ?? '4000', 10);
@@ -57,6 +58,7 @@ app.use('/api/clients', clientsRouter);
 app.use('/api/coaches', coachesRouter);
 app.use('/api/files', filesRouter);
 app.use('/api/lesson-packages', lessonPackagesRouter);
+app.use('/api/ai', aiRouter);
 
 // PayApp payments routes
 app.use('/api/payments/payapp', payappPaymentsRouter);
