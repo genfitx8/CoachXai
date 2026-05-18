@@ -1258,9 +1258,8 @@ const AppContent: React.FC = () => {
     return clients
       .filter((client) => client.coachId === currentCoachId)
       .map((client) => {
-        const clientId = (client as ClientProfile & { id?: string }).id;
         return {
-          id: clientId ?? `${client.name}_${client.phone}`,
+          id: client.id ?? `${client.name}_${client.phone}`,
           name: client.name,
           phone: client.phone,
           email: client.email,
