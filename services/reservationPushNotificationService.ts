@@ -40,10 +40,13 @@ async function loadClientByReservation(
 ): Promise<ClientProfile | null> {
   const clientId = reservation.clientId;
   if (!clientId) return null;
-
-  const [namePart, ...phoneParts] = clientId.split('_');
-  const phone = phoneParts.join('_') || reservation.clientPhone || '';
-  const name = namePart || reservation.clientName || '';
+  const separatorIndex = clientId.lastIndexOf('_');
+  const name =
+    reservation.clientName ||
+    (separatorIndex >= 0 ? clientId.slice(0, separatorIndex) : clientId);
+  const phone =
+    reservation.clientPhone ||
+    (separatorIndex >= 0 ? clientId.slice(separatorIndex + 1) : '');
 
   try {
     if (firebaseService.isInitialized()) {

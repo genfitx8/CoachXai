@@ -288,7 +288,7 @@ export const ReservationManager: React.FC<ReservationManagerProps> = ({
     ? reservations
     : reservations.filter((r) => r.status === filterStatus);
 
-  const pendingCount   = reservations.filter(
+  const actionRequiredCount = reservations.filter(
     (r) => r.status === 'PENDING' || r.status === 'REQUESTED' || r.status === 'CHANGE_REQUESTED'
   ).length;
   const confirmedCount = reservations.filter((r) => r.status === 'CONFIRMED').length;
@@ -370,7 +370,7 @@ export const ReservationManager: React.FC<ReservationManagerProps> = ({
               </div>
               <div className="bg-yellow-50 rounded-xl p-4 shadow-sm border border-yellow-100">
                 <p className="text-xs text-yellow-600 mb-1">{t('res_status_pending')}</p>
-                <p className="text-2xl font-bold text-yellow-800">{pendingCount}</p>
+                <p className="text-2xl font-bold text-yellow-800">{actionRequiredCount}</p>
               </div>
               <div className="bg-green-50 rounded-xl p-4 shadow-sm border border-green-100">
                 <p className="text-xs text-green-600 mb-1">{t('res_status_confirmed')}</p>
@@ -548,7 +548,7 @@ export const ReservationManager: React.FC<ReservationManagerProps> = ({
                     }`}
                   >
                     {s === 'ALL'       ? `${t('reservation_count_all')} (${reservations.length})`
-                    : s === 'REQUESTED'   ? `요청됨 (${pendingCount})`
+                    : s === 'REQUESTED'   ? `요청됨 (${actionRequiredCount})`
                     : s === 'ADMIN_BLOCK_PENDING' ? `관리자 확정 대기 (${reservations.filter((r) => r.status === 'ADMIN_BLOCK_PENDING').length})`
                     : s === 'CONFIRMED' ? `${t('res_status_confirmed')} (${confirmedCount})`
                     : s === 'AVAILABLE' ? t('res_status_available')

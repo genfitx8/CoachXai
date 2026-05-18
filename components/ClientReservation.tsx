@@ -68,25 +68,23 @@ export const ClientReservation: React.FC<ClientReservationProps> = ({ clientProf
     }
   };
 
-  const loadCoaches = async () => {
-    try {
-      const coachList = firebaseService.isInitialized()
-        ? await firebaseService.getCoaches()
-        : storageService.getCoaches();
-      setCoaches(coachList);
-      if (!selectedCoachId && coachList.length > 0) {
-        const designated = coachList.find((c) => c.id === clientProfile.coachId);
-        setSelectedCoachId(designated?.id || coachList[0].id);
-      }
-    } catch {
-      setCoaches([]);
-    }
-  };
-
   useEffect(() => {
+    const loadCoaches = async () => {
+      try {
+        const coachList = firebaseService.isInitialized()
+          ? await firebaseService.getCoaches()
+          : storageService.getCoaches();
+        setCoaches(coachList);
+        if (!selectedCoachId && coachList.length > 0) {
+          const designated = coachList.find((c) => c.id === clientProfile.coachId);
+          setSelectedCoachId(designated?.id || coachList[0].id);
+        }
+      } catch {
+        setCoaches([]);
+      }
+    };
     loadCoaches();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [clientProfile.coachId, selectedCoachId]);
 
   useEffect(() => {
     if (view === 'AVAILABLE') {

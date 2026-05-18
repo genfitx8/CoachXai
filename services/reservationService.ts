@@ -13,7 +13,7 @@ const log = createLogger('reservation');
 
 // Constants
 const MAX_DATE = '2099-12-31'; // Maximum date for filtering reservations
-const ACTIVE_BOOKED_STATUSES: ReservationStatus[] = [
+const OCCUPIED_SLOT_STATUSES: ReservationStatus[] = [
   'PENDING',
   'REQUESTED',
   'COACH_APPROVED',
@@ -102,12 +102,12 @@ class ReservationService {
       existing = storageService.getReservations();
     }
     const overlap = existing.find(
-        (r) =>
-          r.coachId === coachId &&
-          r.status !== 'CANCELLED' &&
-          r.status !== 'REJECTED' &&
-          r.startTime === startTime &&
-          r.endTime === endTime
+      (r) =>
+        r.coachId === coachId &&
+        r.status !== 'CANCELLED' &&
+        r.status !== 'REJECTED' &&
+        r.startTime === startTime &&
+        r.endTime === endTime
     );
     if (overlap) {
       throw new Error('해당 시간대에 이미 슬롯이 존재합니다.');
@@ -238,7 +238,7 @@ class ReservationService {
 
     // 다른 예약(활성 예약 상태)과 겹치는지 확인
     const reservationConflict = allReservations.find((r) => {
-      if (!ACTIVE_BOOKED_STATUSES.includes(r.status)) return false;
+      if (!OCCUPIED_SLOT_STATUSES.includes(r.status)) return false;
       const existingStart = new Date(r.startTime);
       const existingEnd = new Date(r.endTime);
       return hasTimeOverlap(requestStart, requestEnd, existingStart, existingEnd);
@@ -554,13 +554,21 @@ class ReservationService {
     if (reservation.status !== 'ADMIN_BLOCK_PENDING') {
       throw new Error('관리자 확정 대기 상태의 예약만 확정할 수 있습니다.');
     }
+    const clientId =
+      reservation.clientId ||
+      (reservation.clientName && reservation.clientPhone
+        ? `${reservation.clientName}_${reservation.clientPhone}`
+        : undefined);
+    if (!clientId) {
+      throw new Error('회원 식별 정보가 없어 레슨 예약을 확정할 수 없습니다.');
+    }
 
     const bayReservation = await bayReservationService.createAdminLessonBayReservation({
       branchId,
       bayId,
       startTime: reservation.startTime,
       endTime: reservation.endTime,
-      clientId: reservation.clientId || `${reservation.clientName || '회원'}_${reservation.clientPhone || ''}`,
+      clientId,
       clientName: reservation.clientName || '회원',
       clientPhone: reservation.clientPhone || '',
       lessonReservationId: reservation.id,
@@ -655,7 +663,7 @@ class ReservationService {
     );
 
     if (slot) {
-      if (ACTIVE_BOOKED_STATUSES.includes(slot.status)) {
+      if (OCCUPIED_SLOT_STATUSES.includes(slot.status)) {
         throw new Error('이미 예약된 시간대는 변경할 수 없습니다.');
       }
 
@@ -749,7 +757,7 @@ class ReservationService {
     // Build set of hours blocked by BLOCKED / active booked reservations
     const unavailableHours = new Set(
       dateReservations
-        .filter((r) => r.status === 'BLOCKED' || ACTIVE_BOOKED_STATUSES.includes(r.status))
+        .filter((r) => r.status === 'BLOCKED' || OCCUPIED_SLOT_STATUSES.includes(r.status))
         .map((r) => new Date(r.startTime).getHours())
     );
 
