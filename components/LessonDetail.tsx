@@ -14,6 +14,7 @@ import { apiService } from '../services/apiService';
 import { storageService } from '../services/storage';
 import { sendLessonNoteViaKakao, buildLessonShareUrl } from '../services/kakaoShareService';
 import { videoEditingService } from '../services/videoEditingService';
+import { videoStore, IDB_PREFIX } from '../services/videoStore';
 
 interface LessonDetailProps {
   lesson: Lesson;
@@ -82,6 +83,10 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
 
   // Edited video actions state
   const [isDownloadingEditedVideo, setIsDownloadingEditedVideo] = useState(false);
+
+  // Resolved blob URLs for locally-stored (idb://) videos
+  const [resolvedEditedUrl, setResolvedEditedUrl] = useState<string | null>(null);
+  const [resolvedCompareUrl, setResolvedCompareUrl] = useState<string | null>(null);
 
 
   const mediaElementRef = useRef<HTMLMediaElement>(null);
@@ -223,16 +228,19 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
 
   const handleSaveEditedVideo = async (editedBlob: Blob, metadata: VideoEditMetadata) => {
     try {
-      // Try to upload to Firebase if available
       let editedUrl: string;
-      
       const userId = lesson.coachId || 'unknown';
+
       if (apiService.isAvailable()) {
         editedUrl = await apiService.uploadEditedVideo(editedBlob, lesson.id, userId);
       } else if (firebaseService.isInitialized()) {
         editedUrl = await firebaseService.uploadEditedVideo(editedBlob, lesson.id, userId);
       } else {
-        editedUrl = URL.createObjectURL(editedBlob);
+        // Persist to IndexedDB so the URL survives page refresh
+        editedUrl = await videoStore.save(`edited_${lesson.id}`, editedBlob);
+        // Immediately resolve for use in this session
+        const freshUrl = URL.createObjectURL(editedBlob);
+        setResolvedEditedUrl(freshUrl);
       }
 
       const updatedLesson: Lesson = {
@@ -282,7 +290,10 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
       } else if (firebaseService.isInitialized()) {
         compareUrl = await firebaseService.uploadCompareVideo(compareBlob, lesson.id, userId);
       } else {
-        compareUrl = URL.createObjectURL(compareBlob);
+        // Persist to IndexedDB so the URL survives page refresh
+        compareUrl = await videoStore.save(`compare_${lesson.id}`, compareBlob);
+        const freshUrl = URL.createObjectURL(compareBlob);
+        setResolvedCompareUrl(freshUrl);
       }
 
       const metadata: CompareVideoMetadata = {
@@ -819,7 +830,13 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
     if (!lesson.editedVideoUrl) return;
     setIsDownloadingEditedVideo(true);
     try {
-      const response = await fetch(lesson.editedVideoUrl);
+      // For idb:// URLs, use the already-resolved blob URL if available
+      const fetchUrl = resolvedEditedUrl || lesson.editedVideoUrl;
+      if (!fetchUrl || fetchUrl.startsWith(IDB_PREFIX)) {
+        alert('영상을 불러올 수 없습니다. 앱을 다시 열고 시도해 주세요.');
+        return;
+      }
+      const response = await fetch(fetchUrl);
       const blob = await response.blob();
       const objectUrl = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -843,6 +860,35 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
           document.body.style.overflow = 'unset';
       }
   }, [isAddingMedia, isCommentaryMode, isSequenceMode, selectedSequenceImage]);
+
+  // Resolve idb:// URLs to fresh blob URLs whenever the lesson changes
+  useEffect(() => {
+    let editedObjUrl: string | null = null;
+    let compareObjUrl: string | null = null;
+
+    const resolve = async () => {
+      if (lesson.editedVideoUrl?.startsWith(IDB_PREFIX)) {
+        editedObjUrl = await videoStore.resolve(lesson.editedVideoUrl);
+        setResolvedEditedUrl(editedObjUrl);
+      } else {
+        setResolvedEditedUrl(null);
+      }
+
+      if (lesson.compareVideoUrl?.startsWith(IDB_PREFIX)) {
+        compareObjUrl = await videoStore.resolve(lesson.compareVideoUrl);
+        setResolvedCompareUrl(compareObjUrl);
+      } else {
+        setResolvedCompareUrl(null);
+      }
+    };
+
+    resolve();
+
+    return () => {
+      if (editedObjUrl) URL.revokeObjectURL(editedObjUrl);
+      if (compareObjUrl) URL.revokeObjectURL(compareObjUrl);
+    };
+  }, [lesson.editedVideoUrl, lesson.compareVideoUrl]);
 
   const recordTypeLabel =
     lesson.recordType === 'SCORE'
@@ -1002,10 +1048,15 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
                   {/* Edited Video Thumbnail */}
                   {lesson.editedVideoUrl && (
                       <button
-                        onClick={() => setActiveMedia({ id: 'edited', url: lesson.editedVideoUrl!, type: 'video', createdAt: lesson.createdAt })}
+                        onClick={() => {
+                          const url = resolvedEditedUrl || (lesson.editedVideoUrl!.startsWith(IDB_PREFIX) ? null : lesson.editedVideoUrl!);
+                          if (url) setActiveMedia({ id: 'edited', url, type: 'video', createdAt: lesson.createdAt });
+                        }}
                         className={`relative w-16 h-16 flex-shrink-0 rounded-lg overflow-hidden border-2 transition-all ${activeMedia.id === 'edited' ? 'border-blue-600 ring-2 ring-blue-200' : 'border-transparent opacity-70 hover:opacity-100'}`}
                       >
-                          <video src={lesson.editedVideoUrl} className="w-full h-full object-cover" />
+                          {(resolvedEditedUrl || !lesson.editedVideoUrl.startsWith(IDB_PREFIX)) && (
+                            <video src={resolvedEditedUrl || lesson.editedVideoUrl} className="w-full h-full object-cover" />
+                          )}
                           <div className="absolute bottom-0 left-0 right-0 bg-blue-600/90 text-white text-[9px] font-bold text-center py-0.5">
                               편집본
                           </div>
@@ -1122,7 +1173,7 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
                })()}
 
                {/* Compare Video Preview */}
-               {lesson.compareVideoUrl && (
+               {lesson.compareVideoUrl && (resolvedCompareUrl || !lesson.compareVideoUrl.startsWith(IDB_PREFIX)) && (
                  <div className="bg-white rounded-xl shadow-sm border border-purple-100 p-4 mt-2">
                    <div className="flex justify-between items-center mb-3">
                      <h3 className="font-bold text-gray-900 flex items-center gap-2 text-sm">
@@ -1143,7 +1194,7 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
                    </div>
                    <div className="max-w-xs mx-auto aspect-[9/16] rounded-lg overflow-hidden bg-black">
                      <video
-                       src={lesson.compareVideoUrl}
+                       src={resolvedCompareUrl || lesson.compareVideoUrl}
                        controls
                        playsInline
                        className="w-full h-full object-contain"
@@ -1963,7 +2014,11 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
       {/* Video Editor Modal */}
       {showVideoEditor && (
           <VideoEditor
-              videoUrl={lesson.editedVideoUrl || lesson.videoUrl}
+              videoUrl={
+                lesson.editedVideoUrl
+                  ? (resolvedEditedUrl || (!lesson.editedVideoUrl.startsWith(IDB_PREFIX) ? lesson.editedVideoUrl : lesson.videoUrl))
+                  : lesson.videoUrl
+              }
               onSave={handleSaveEditedVideo}
               onCancel={() => setShowVideoEditor(false)}
               lessonId={lesson.id}
