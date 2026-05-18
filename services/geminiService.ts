@@ -25,23 +25,29 @@ import { createLogger } from '../utils/logger';
 const log = createLogger('gemini');
 
 const AI_BACKEND_BASE_URL = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '');
-const AI_INVOKE_ENDPOINT = AI_BACKEND_BASE_URL
-  ? `${AI_BACKEND_BASE_URL}/api/ai/invoke`
-  : typeof window !== 'undefined' && window.location?.origin
-  ? `${window.location.origin}/api/ai/invoke`
-  : 'http://localhost:4000/api/ai/invoke';
-type RuntimePart = { text: string } | { inlineData: { data: string; mimeType: string } };
+const AI_SERVER_FALLBACK_URL = (
+  import.meta.env.VITE_AI_FALLBACK_URL || 'http://localhost:4000'
+).replace(/\/$/, '');
+const getAiInvokeEndpoint = () => {
+  if (AI_BACKEND_BASE_URL) return `${AI_BACKEND_BASE_URL}/api/ai/invoke`;
+  if (typeof window !== 'undefined' && window.location?.origin) {
+    return `${window.location.origin}/api/ai/invoke`;
+  }
+  return `${AI_SERVER_FALLBACK_URL}/api/ai/invoke`;
+};
+
+type AgentRuntimePart = { text: string } | { inlineData: { data: string; mimeType: string } };
 
 interface RuntimeRequest {
   operation: string;
   prompt?: string;
-  parts?: RuntimePart[];
+  parts?: AgentRuntimePart[];
   responseMimeType?: string;
   temperature?: number;
 }
 
 const invokeAgentRuntime = async (request: RuntimeRequest): Promise<string> => {
-  const response = await fetch(AI_INVOKE_ENDPOINT, {
+  const response = await fetch(getAiInvokeEndpoint(), {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -61,7 +67,10 @@ const invokeAgentRuntime = async (request: RuntimeRequest): Promise<string> => {
     );
   }
 
-  const text = typeof payload?.text === 'string' ? payload.text : '';
+  if (typeof payload?.text !== 'string') {
+    throw new Error('Invalid Agent Platform runtime response: missing text field');
+  }
+  const text = payload.text;
   if (!text.trim()) {
     throw new Error('Empty response from Agent Platform runtime');
   }
@@ -93,7 +102,7 @@ const fileToGenerativePart = async (file: Blob, mimeType: string) => {
   return {
     inlineData: {
       data: await base64EncodedDataPromise,
-      mimeType,
+      mimeType: mimeType,
     },
   };
 };

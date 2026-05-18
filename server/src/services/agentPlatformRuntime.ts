@@ -119,6 +119,7 @@ export const invokeAgentRuntime = async (
       : [];
 
   const body = {
+    // snake_case is required by the external Agent Platform runtime API contract.
     class_method: 'query',
     input: {
       messages: [

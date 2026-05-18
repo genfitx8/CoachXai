@@ -135,5 +135,6 @@ Notes:
    ```bash
    npm run dev:all
    ```
+   (`dev:all` starts both Vite frontend and Express backend for AI runtime calls.)
 
 **Note:** If Firebase configuration is not provided or initialization fails, the app automatically falls back to local storage mode.

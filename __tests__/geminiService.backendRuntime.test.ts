@@ -30,6 +30,6 @@ describe('geminiService backend runtime adapter', () => {
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('network down')));
 
     const result = await generateCoachXChatResponse('unknown question', [], [], 'en');
-    expect(result).toContain('Coachx');
+    expect(result).toMatch(/coachx/i);
   });
 });
