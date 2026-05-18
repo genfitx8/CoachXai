@@ -28,7 +28,23 @@ async function uploadBlobToR2(blob: Blob, key: string): Promise<string> {
     body: blob,
     headers: { 'Content-Type': blob.type || 'application/octet-stream' },
   });
-  return fileUrl;
+  // The server returns a relative path (/api/files/...). Convert it to an
+  // absolute URL so it works when the frontend and backend are on different
+  // origins (e.g. Render backend + separate static frontend host).
+  return fileUrl.startsWith('/') ? `${BASE_URL}${fileUrl}` : fileUrl;
+}
+
+/**
+ * Resolve a potentially-relative /api/files/... URL to an absolute URL using
+ * the configured backend base URL. Blob, data, idb and already-absolute URLs
+ * are returned unchanged. This handles backward-compat for lessons stored
+ * before the absolute-URL fix was deployed.
+ */
+export function resolveMediaUrl(url: string | null | undefined): string {
+  if (!url) return '';
+  if (url.startsWith('blob:') || url.startsWith('data:') || url.startsWith('http') || url.startsWith('idb://')) return url;
+  if (url.startsWith('/')) return `${BASE_URL}${url}`;
+  return url;
 }
 
 async function processBlobUrl(blobUrl: string, key: string): Promise<string> {

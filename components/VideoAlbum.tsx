@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useRef } from 'react';
 import { Lesson } from '../types';
+import { resolveMediaUrl } from '../services/apiService';
 import {
   ArrowLeft,
   Download,
@@ -186,7 +187,7 @@ export const VideoAlbum: React.FC<VideoAlbumProps> = ({ lessons, onBack }) => {
         entries.push({
           lessonId: lesson.id,
           type: 'edited',
-          videoUrl: lesson.editedVideoUrl,
+          videoUrl: resolveMediaUrl(lesson.editedVideoUrl),
           clientName: lesson.clientName,
           date: lesson.date,
           title: lesson.title,
@@ -198,7 +199,7 @@ export const VideoAlbum: React.FC<VideoAlbumProps> = ({ lessons, onBack }) => {
         entries.push({
           lessonId: lesson.id,
           type: 'compare',
-          videoUrl: lesson.compareVideoUrl,
+          videoUrl: resolveMediaUrl(lesson.compareVideoUrl),
           clientName: lesson.clientName,
           date: lesson.date,
           title: lesson.title,

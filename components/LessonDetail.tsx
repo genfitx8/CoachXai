@@ -10,7 +10,7 @@ import { SwingGuideOverlay } from './SwingGuideOverlay';
 import { GolfDataVisualizer } from './GolfDataVisualizer';
 import { VideoEditor } from './VideoEditor';
 import { firebaseService } from '../services/firebase';
-import { apiService } from '../services/apiService';
+import { apiService, resolveMediaUrl } from '../services/apiService';
 import { storageService } from '../services/storage';
 import { sendLessonNoteViaKakao, buildLessonShareUrl } from '../services/kakaoShareService';
 import { videoEditingService } from '../services/videoEditingService';
@@ -272,8 +272,8 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
 
     try {
       const [beforeBlob, afterBlob] = await Promise.all([
-        fetch(beforeItem.url).then(r => r.blob()),
-        fetch(afterItem.url).then(r => r.blob()),
+        fetch(resolveMediaUrl(beforeItem.url)).then(r => r.blob()),
+        fetch(resolveMediaUrl(afterItem.url)).then(r => r.blob()),
       ]);
 
       const compareBlob = await videoEditingService.createSideBySideCompareVideo(
@@ -831,7 +831,7 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
     setIsDownloadingEditedVideo(true);
     try {
       // For idb:// URLs, use the already-resolved blob URL if available
-      const fetchUrl = resolvedEditedUrl || lesson.editedVideoUrl;
+      const fetchUrl = resolvedEditedUrl || resolveMediaUrl(lesson.editedVideoUrl!);
       if (!fetchUrl || fetchUrl.startsWith(IDB_PREFIX)) {
         alert('영상을 불러올 수 없습니다. 앱을 다시 열고 시도해 주세요.');
         return;
@@ -951,7 +951,7 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
                             activeMedia.url ? (
                             <video
                                 ref={mediaElementRef as React.RefObject<HTMLVideoElement>}
-                                src={activeMedia.url}
+                                src={resolveMediaUrl(activeMedia.url)}
                                 className="w-full h-full object-contain bg-black"
                                 playsInline
                                 onTimeUpdate={handleTimeUpdate}
@@ -969,14 +969,14 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
                                 </div>
                             )
                         ) : activeMedia.type === 'image' ? (
-                            <img src={activeMedia.url} className="w-full h-full object-contain" alt="Lesson Media" />
+                            <img src={resolveMediaUrl(activeMedia.url)} className="w-full h-full object-contain" alt="Lesson Media" />
                         ) : (
                             <div className="text-center p-8">
                                 <div className="w-20 h-20 bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-4 animate-pulse">
                                     <Mic className="w-10 h-10 text-emerald-400" />
                                 </div>
                                 <h3 className="text-white font-bold mb-2">음성 녹음</h3>
-                                <audio src={activeMedia.url} controls className="mt-4" />
+                                <audio src={resolveMediaUrl(activeMedia.url)} controls className="mt-4" />
                             </div>
                         )}
                         
@@ -1049,13 +1049,13 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
                   {lesson.editedVideoUrl && (
                       <button
                         onClick={() => {
-                          const url = resolvedEditedUrl || (lesson.editedVideoUrl!.startsWith(IDB_PREFIX) ? null : lesson.editedVideoUrl!);
+                          const url = resolvedEditedUrl || (lesson.editedVideoUrl!.startsWith(IDB_PREFIX) ? null : resolveMediaUrl(lesson.editedVideoUrl!));
                           if (url) setActiveMedia({ id: 'edited', url, type: 'video', createdAt: lesson.createdAt });
                         }}
                         className={`relative w-16 h-16 flex-shrink-0 rounded-lg overflow-hidden border-2 transition-all ${activeMedia.id === 'edited' ? 'border-blue-600 ring-2 ring-blue-200' : 'border-transparent opacity-70 hover:opacity-100'}`}
                       >
                           {(resolvedEditedUrl || !lesson.editedVideoUrl.startsWith(IDB_PREFIX)) && (
-                            <video src={resolvedEditedUrl || lesson.editedVideoUrl} className="w-full h-full object-cover" />
+                            <video src={resolvedEditedUrl || resolveMediaUrl(lesson.editedVideoUrl!)} className="w-full h-full object-cover" />
                           )}
                           <div className="absolute bottom-0 left-0 right-0 bg-blue-600/90 text-white text-[9px] font-bold text-center py-0.5">
                               편집본
@@ -1069,8 +1069,8 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
                             onClick={() => setActiveMedia(media)}
                             className={`w-16 h-16 rounded-lg overflow-hidden border-2 transition-all ${activeMedia.id === media.id ? 'border-emerald-700 ring-2 ring-emerald-200' : 'border-transparent opacity-70 hover:opacity-100'}`}
                           >
-                            {media.type === 'video' ? <video src={media.url} className="w-full h-full object-cover" /> : 
-                             media.type === 'image' ? <img src={media.url} className="w-full h-full object-cover" alt="thumb" /> :
+                            {media.type === 'video' ? <video src={resolveMediaUrl(media.url)} className="w-full h-full object-cover" /> : 
+                             media.type === 'image' ? <img src={resolveMediaUrl(media.url)} className="w-full h-full object-cover" alt="thumb" /> :
                              <div className="w-full h-full bg-gray-800 flex items-center justify-center"><Mic className="w-6 h-6 text-white" /></div>}
                           </button>
                           {/* Role badge for video items */}
@@ -1194,7 +1194,7 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
                    </div>
                    <div className="max-w-xs mx-auto aspect-[9/16] rounded-lg overflow-hidden bg-black">
                      <video
-                       src={resolvedCompareUrl || lesson.compareVideoUrl}
+                       src={resolvedCompareUrl || resolveMediaUrl(lesson.compareVideoUrl)}
                        controls
                        playsInline
                        className="w-full h-full object-contain"
@@ -2016,8 +2016,8 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
           <VideoEditor
               videoUrl={
                 lesson.editedVideoUrl
-                  ? (resolvedEditedUrl || (!lesson.editedVideoUrl.startsWith(IDB_PREFIX) ? lesson.editedVideoUrl : lesson.videoUrl))
-                  : lesson.videoUrl
+                  ? (resolvedEditedUrl || (!lesson.editedVideoUrl.startsWith(IDB_PREFIX) ? resolveMediaUrl(lesson.editedVideoUrl) : resolveMediaUrl(lesson.videoUrl)))
+                  : resolveMediaUrl(lesson.videoUrl)
               }
               onSave={handleSaveEditedVideo}
               onCancel={() => setShowVideoEditor(false)}
