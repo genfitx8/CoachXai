@@ -71,7 +71,10 @@ export const authService = {
 
         if (apiService.isAvailable()) {
           const { coach } = await apiService.signupCoach(name, email, password, normalizedPhone);
-          localStorage.setItem(STORAGE_KEYS.COACH_PROFILE, JSON.stringify(coach));
+          const { ...safeCoach } = coach as any;
+          delete safeCoach.password;
+          delete safeCoach.password_hash;
+          localStorage.setItem(STORAGE_KEYS.COACH_PROFILE, JSON.stringify(safeCoach));
           resolve(coach);
           return;
         }
@@ -83,7 +86,7 @@ export const authService = {
         if (existingCoaches.some((c) => isSamePhoneNumber(c.phone, normalizedPhone))) { reject('이미 가입된 휴대폰 번호입니다.'); return; }
 
         const newProfile: CoachProfile = {
-          id: crypto.randomUUID(), name, email, phone: normalizedPhone, password,
+          id: crypto.randomUUID(), name, email, phone: normalizedPhone,
           isSubscribed: false, subscriptionPlan: 'FREE',
         };
         localStorage.setItem(STORAGE_KEYS.COACH_PROFILE, JSON.stringify(newProfile));
@@ -100,7 +103,10 @@ export const authService = {
       try {
         if (apiService.isAvailable()) {
           const { coach } = await apiService.loginCoach(email, password);
-          localStorage.setItem(STORAGE_KEYS.COACH_PROFILE, JSON.stringify(coach));
+          const { ...safeCoach } = coach as any;
+          delete safeCoach.password;
+          delete safeCoach.password_hash;
+          localStorage.setItem(STORAGE_KEYS.COACH_PROFILE, JSON.stringify(safeCoach));
           resolve(coach);
           return;
         }
@@ -335,16 +341,16 @@ export const authService = {
     }
   },
 
-  loginAdmin: (email: string, password: string): Promise<boolean> => {
-    return new Promise((resolve, reject) => {
-      setTimeout(() => {
-        if (email === 'admin@swingnote.com' && password === 'admin1234') {
-          resolve(true);
-        } else {
-          reject('관리자 로그인 정보가 일치하지 않습니다.');
-        }
-      }, 500);
-    });
+  loginAdmin: async (email: string, password: string): Promise<boolean> => {
+    if (apiService.isAvailable()) {
+      try {
+        await apiService.loginAdmin(email, password);
+        return true;
+      } catch (err: any) {
+        throw typeof err === 'string' ? err : '관리자 로그인 정보가 일치하지 않습니다.';
+      }
+    }
+    throw '관리자 로그인은 서버 연결이 필요합니다.';
   },
 
   // --- Branch Admin Authentication ---
@@ -491,9 +497,8 @@ export const authService = {
         const found = profiles.find(
           (p) => p.email === email && p.phone === phone
         );
-        // In a real application, we would trigger a password reset email here.
-        // For this simulation, we will return the password to the user.
-        resolve(found ? found.password : null);
+        // Return a placeholder message; never return the actual password.
+        resolve(found ? '비밀번호 재설정은 관리자에게 문의해주세요.' : null);
       } catch (error) {
         log.error('Find password error:', error);
         resolve(null);

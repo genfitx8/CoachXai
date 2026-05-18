@@ -73,6 +73,10 @@ export const apiService = {
     return data;
   },
 
+  async loginAdmin(email: string, password: string): Promise<void> {
+    await req('POST', '/api/auth/login/admin', { email, password });
+  },
+
   // ── Lessons ───────────────────────────────────────────────────────────────
 
   async getLessons(): Promise<Lesson[]> {

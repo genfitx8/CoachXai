@@ -1,10 +1,10 @@
 import { Router, Request, Response } from 'express';
 import pool from '../services/db';
-import { authMiddleware } from '../middleware/auth';
+import { authMiddleware, requireRole } from '../middleware/auth';
 
 const router = Router();
 
-// All routes require authentication
+// All routes require a valid JWT
 router.use(authMiddleware);
 
 function mapLesson(row: Record<string, unknown>) {
@@ -65,8 +65,8 @@ router.get('/', async (req: Request, res: Response) => {
   }
 });
 
-// POST /api/lessons
-router.post('/', async (req: Request, res: Response) => {
+// POST /api/lessons  (coach only)
+router.post('/', requireRole('coach'), async (req: Request, res: Response) => {
   try {
     const coachId = req.user!.id;
     const {
@@ -151,8 +151,8 @@ router.post('/', async (req: Request, res: Response) => {
   }
 });
 
-// PUT /api/lessons/:id
-router.put('/:id', async (req: Request, res: Response) => {
+// PUT /api/lessons/:id  (coach only)
+router.put('/:id', requireRole('coach'), async (req: Request, res: Response) => {
   try {
     const coachId = req.user!.id;
     const { id } = req.params;
@@ -235,8 +235,8 @@ router.put('/:id', async (req: Request, res: Response) => {
   }
 });
 
-// DELETE /api/lessons/:id
-router.delete('/:id', async (req: Request, res: Response) => {
+// DELETE /api/lessons/:id  (coach only)
+router.delete('/:id', requireRole('coach'), async (req: Request, res: Response) => {
   try {
     const coachId = req.user!.id;
     const { id } = req.params;

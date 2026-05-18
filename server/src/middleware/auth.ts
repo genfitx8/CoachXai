@@ -48,9 +48,18 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction):
 }
 
 /**
- * optionalAuth – attaches the decoded payload if a valid token is present,
- * but does not reject the request if it is missing or invalid.
+ * requireRole – returns a middleware that rejects requests whose JWT role
+ * does not match the expected value.  Always call after authMiddleware.
  */
+export function requireRole(role: 'coach' | 'client') {
+  return (req: Request, res: Response, next: NextFunction): void => {
+    if (req.user?.role !== role) {
+      res.status(403).json({ error: 'Access denied' });
+      return;
+    }
+    next();
+  };
+}
 export function optionalAuth(req: Request, _res: Response, next: NextFunction): void {
   const token = extractToken(req);
   if (token) {

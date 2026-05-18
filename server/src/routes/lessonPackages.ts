@@ -1,11 +1,11 @@
 import { Router, Request, Response } from 'express';
 import pool from '../services/db';
-import { authMiddleware } from '../middleware/auth';
+import { authMiddleware, requireRole } from '../middleware/auth';
 
 const router = Router();
 
-// All routes require authentication
-router.use(authMiddleware);
+// All lesson-package routes are coach-only
+router.use(authMiddleware, requireRole('coach'));
 
 function mapPackage(row: Record<string, unknown>) {
   return {
@@ -27,7 +27,7 @@ function mapPackage(row: Record<string, unknown>) {
 // GET /api/lesson-packages
 router.get('/', async (req: Request, res: Response) => {
   try {
-    const coachId = (req.query.coachId as string | undefined) ?? req.user!.id;
+    const coachId = req.user!.id;
     const result = await pool.query(
       'SELECT * FROM lesson_packages WHERE coach_id = $1 ORDER BY created_at DESC',
       [coachId]

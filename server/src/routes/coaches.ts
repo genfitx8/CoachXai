@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import pool from '../services/db';
-import { authMiddleware } from '../middleware/auth';
+import { authMiddleware, requireRole } from '../middleware/auth';
 
 const router = Router();
 
@@ -21,8 +21,8 @@ function mapCoach(row: Record<string, unknown>) {
   };
 }
 
-// GET /api/coaches/me
-router.get('/me', authMiddleware, async (req: Request, res: Response) => {
+// GET /api/coaches/me  (coach only)
+router.get('/me', authMiddleware, requireRole('coach'), async (req: Request, res: Response) => {
   try {
     const coachId = req.user!.id;
     const result = await pool.query(
@@ -42,8 +42,8 @@ router.get('/me', authMiddleware, async (req: Request, res: Response) => {
   }
 });
 
-// PUT /api/coaches/me
-router.put('/me', authMiddleware, async (req: Request, res: Response) => {
+// PUT /api/coaches/me  (coach only)
+router.put('/me', authMiddleware, requireRole('coach'), async (req: Request, res: Response) => {
   try {
     const coachId = req.user!.id;
     const {

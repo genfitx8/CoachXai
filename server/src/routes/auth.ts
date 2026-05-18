@@ -195,4 +195,28 @@ router.post('/login/client', async (req: Request, res: Response) => {
   }
 });
 
+// POST /api/auth/login/admin
+router.post('/login/admin', async (req: Request, res: Response) => {
+  const { email, password } = req.body as { email?: string; password?: string };
+  if (!email || !password) {
+    res.status(400).json({ error: 'email and password are required' });
+    return;
+  }
+
+  const adminEmail = process.env.ADMIN_EMAIL;
+  const adminPassword = process.env.ADMIN_PASSWORD;
+
+  if (!adminEmail || !adminPassword) {
+    res.status(503).json({ error: 'Admin login is not configured' });
+    return;
+  }
+
+  if (email !== adminEmail || password !== adminPassword) {
+    res.status(401).json({ error: '관리자 로그인 정보가 일치하지 않습니다.' });
+    return;
+  }
+
+  res.json({ ok: true });
+});
+
 export default router;

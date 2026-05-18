@@ -1,10 +1,11 @@
 import { Router, Request, Response } from 'express';
 import pool from '../services/db';
-import { authMiddleware } from '../middleware/auth';
+import { authMiddleware, requireRole } from '../middleware/auth';
 
 const router = Router();
 
-router.use(authMiddleware);
+// All client management routes are coach-only
+router.use(authMiddleware, requireRole('coach'));
 
 function mapClient(row: Record<string, unknown>) {
   return {

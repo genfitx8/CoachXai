@@ -3,6 +3,7 @@ import axios from 'axios';
 import { v4 as uuidv4 } from 'uuid';
 import { orderStorage } from '../services/orderStorage';
 import { creditPoints, pendingApplyTokens } from '../services/pointCredit';
+import { authMiddleware } from '../middleware/auth';
 
 const router = Router();
 
@@ -23,12 +24,12 @@ const APP_BASE_URL = (() => {
 const PAYAPP_API_BASE = process.env.PAYAPP_API_BASE || 'https://api.payapp.kr/v1/payments';
 const PAYAPP_CHECKOUT_URL = process.env.PAYAPP_CHECKOUT_URL || '';
 
-router.post('/create-order', async (req: Request, res: Response) => {
-  const { userId, amount, points } = req.body as {
-    userId?: string;
+router.post('/create-order', authMiddleware, async (req: Request, res: Response) => {
+  const { amount, points } = req.body as {
     amount?: number;
     points?: number;
   };
+  const userId = req.user!.id;
 
   if (!userId || typeof amount !== 'number' || typeof points !== 'number') {
     res.status(400).json({ error: '잘못된 요청입니다.' });
@@ -90,7 +91,7 @@ router.post('/create-order', async (req: Request, res: Response) => {
   });
 });
 
-router.post('/confirm', async (req: Request, res: Response) => {
+router.post('/confirm', authMiddleware, async (req: Request, res: Response) => {
   const { paymentKey, orderId, amount } = req.body as {
     paymentKey?: string;
     orderId?: string;
