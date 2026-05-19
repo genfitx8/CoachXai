@@ -2446,7 +2446,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
                   ? '예: 벽대고 빈스윙 20회'
                   : '예: 7번 아이언 리듬 연습'
               }
-              className="flex-1 px-3 py-2 border border-indigo-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+              className="flex-1 px-4 py-3 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-emerald-700 focus:border-emerald-700 outline-none transition-all"
               onKeyDown={(e) =>
                 e.key === 'Enter' && (e.preventDefault(), addHomework())
               }
