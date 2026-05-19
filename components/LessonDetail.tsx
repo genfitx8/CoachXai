@@ -104,6 +104,10 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
   // Always show AI lesson summary if it exists
   const showAiAnalysis = true; 
   const hasGolfData = !!lesson.golfData;
+  const getHoleVoiceUrls = (hole: HoleRecord): string[] => {
+    if (hole.voiceUrls && hole.voiceUrls.length > 0) return hole.voiceUrls;
+    return hole.voiceUrl ? [hole.voiceUrl] : [];
+  };
 
   // Permissions: Coach can edit all, Client can edit only their own records
   const canEdit = !isClientView || lesson.createdBy === 'CLIENT';
@@ -1518,17 +1522,32 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
                              <MessageCircle className="w-4 h-4 text-blue-500" /> 홀별 상세 기록 (음성 분석)
                         </h4>
                         <div className="space-y-3">
-                            {lesson.scorecardDetail.holes.filter(h => h.aiSummary || h.voiceUrl).length === 0 ? (
+                            {lesson.scorecardDetail.holes.filter(h => h.aiSummary || getHoleVoiceUrls(h).length > 0).length === 0 ? (
                                 <p className="text-xs text-gray-400 text-center py-2">상세 기록이 없습니다.</p>
                             ) : (
-                                lesson.scorecardDetail.holes.filter(h => h.aiSummary || h.voiceUrl).map(h => (
+                                lesson.scorecardDetail.holes.filter(h => h.aiSummary || getHoleVoiceUrls(h).length > 0).map(h => (
                                     <div key={h.holeNumber} className="bg-gray-50 p-3 rounded-lg border border-gray-100">
                                         <div className="flex justify-between items-center mb-2">
                                             <span className="font-bold text-xs bg-gray-900 text-white px-2 py-0.5 rounded-full">{h.holeNumber}H</span>
-                                            {h.voiceUrl && (
-                                                <audio src={h.voiceUrl} controls className="h-6 w-32" />
+                                            {getHoleVoiceUrls(h).length > 0 && (
+                                                <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">
+                                                    음성 {getHoleVoiceUrls(h).length}개
+                                                </span>
                                             )}
                                         </div>
+                                        {getHoleVoiceUrls(h).length > 0 && (
+                                            <div className="space-y-1 mb-2">
+                                                {getHoleVoiceUrls(h).map((voiceUrl, index) => (
+                                                    <audio
+                                                        key={`${h.holeNumber}-${index}`}
+                                                        src={voiceUrl}
+                                                        controls
+                                                        aria-label={`홀 ${h.holeNumber} 음성 기록 ${index + 1}`}
+                                                        className="h-6 w-full"
+                                                    />
+                                                ))}
+                                            </div>
+                                        )}
                                         {h.aiSummary && (
                                             <p className="text-xs text-gray-700 leading-relaxed bg-white p-2 rounded border border-gray-200 mb-2">
                                                 {h.aiSummary}
