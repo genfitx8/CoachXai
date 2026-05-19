@@ -34,7 +34,7 @@ const makeBlob = (type: string, content = 'data') =>
 //   1. POST /api/files/presign  → returns { uploadUrl, fileUrl }
 //   2. PUT  <uploadUrl>          → actually uploads to R2 (no-op in test)
 
-function stubFetch(presignFileUrl: string) {
+function stubFetch(presignFileUrl: string, r2PutStatus = 200) {
   const mockFetch = vi.fn(async (url: string, opts?: RequestInit) => {
     if (typeof url === 'string' && url.includes('/api/files/presign')) {
       return new Response(
@@ -47,7 +47,7 @@ function stubFetch(presignFileUrl: string) {
       return new Response('fakedata', { status: 200 });
     }
     // R2 presigned PUT
-    return new Response(null, { status: 200 });
+    return new Response(null, { status: r2PutStatus });
   });
   vi.stubGlobal('fetch', mockFetch);
   return mockFetch;
@@ -60,6 +60,19 @@ function stubFetch(presignFileUrl: string) {
 describe('apiService media helpers', () => {
   beforeEach(() => localStorageMock.clear());
   afterEach(() => vi.restoreAllMocks());
+
+  it('uploadBlobToR2 throws when the R2 PUT request returns a non-2xx status', async () => {
+    const relativeFileUrl = '/api/files/lessons/abc/main.mp4';
+    // Simulate R2 returning 403 Forbidden (e.g. wrong credentials)
+    stubFetch(relativeFileUrl, 403);
+
+    const { apiService } = await import('../services/apiService');
+
+    const blob = makeBlob('video/mp4');
+    await expect(
+      apiService.uploadEditedVideo(blob, 'lesson-err', 'coach-err')
+    ).rejects.toThrow(/upload to storage failed/i);
+  });
 
   it('uploadBlobToR2 converts relative fileUrl to absolute using BASE_URL', async () => {
     // Server returns a relative path (the current behaviour of getFileUrl)

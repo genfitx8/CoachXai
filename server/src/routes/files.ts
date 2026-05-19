@@ -15,9 +15,12 @@ router.post('/presign', authMiddleware, async (req: Request, res: Response) => {
     return;
   }
 
+  console.log(`[files] POST /presign key="${key}" contentType="${contentType}" user=${req.user?.id}`);
+
   try {
     const uploadUrl = await generateUploadUrl(key, contentType);
     const fileUrl = getFileUrl(key);
+    console.log(`[files] Presign succeeded for key="${key}"`);
     res.json({ uploadUrl, fileUrl });
   } catch (err) {
     console.error('[files] POST /presign error:', err);

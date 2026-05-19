@@ -20,14 +20,26 @@ async function req<T = unknown>(method: string, path: string, body?: unknown): P
 }
 
 async function uploadBlobToR2(blob: Blob, key: string): Promise<string> {
+  console.log(`[upload] Requesting presign for key="${key}" contentType="${blob.type || 'application/octet-stream'}"`);
   const { uploadUrl, fileUrl } = await req<{ uploadUrl: string; fileUrl: string }>(
     'POST', '/api/files/presign', { key, contentType: blob.type || 'application/octet-stream' }
   );
-  await fetch(uploadUrl, {
+  console.log(`[upload] Uploading blob (${blob.size} bytes) to presigned URL`);
+  const uploadRes = await fetch(uploadUrl, {
     method: 'PUT',
     body: blob,
     headers: { 'Content-Type': blob.type || 'application/octet-stream' },
   });
+  if (!uploadRes.ok) {
+    const body = await uploadRes.text().catch(() => '');
+    console.error(`[upload] R2 PUT failed: HTTP ${uploadRes.status}`, body);
+    throw new Error(
+      `File upload to storage failed (HTTP ${uploadRes.status}). ` +
+      'This may be due to misconfigured credentials or a network issue. ' +
+      'Please try again or contact support if the problem persists.'
+    );
+  }
+  console.log(`[upload] Upload succeeded. fileUrl="${fileUrl}"`);
   // The server returns a relative path (/api/files/...). Convert it to an
   // absolute URL so it works when the frontend and backend are on different
   // origins (e.g. Render backend + separate static frontend host).

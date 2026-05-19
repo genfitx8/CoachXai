@@ -3,12 +3,27 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
 export const R2_BUCKET = process.env.R2_BUCKET ?? 'coachxai';
 
+// Warn at startup if any required R2 credentials are missing so the problem
+// is immediately obvious in server logs rather than surfacing as a cryptic
+// "upload failed" error when a user tries to save a lesson.
+const R2_ACCOUNT_ID = process.env.R2_ACCOUNT_ID ?? '';
+const R2_ACCESS_KEY_ID = process.env.R2_ACCESS_KEY_ID ?? '';
+const R2_SECRET_ACCESS_KEY = process.env.R2_SECRET_ACCESS_KEY ?? '';
+
+if (!R2_ACCOUNT_ID || !R2_ACCESS_KEY_ID || !R2_SECRET_ACCESS_KEY) {
+  console.warn(
+    '[r2] WARNING: One or more required R2 environment variables are missing ' +
+    '(R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY). ' +
+    'File uploads will fail until these are configured.'
+  );
+}
+
 export const r2Client = new S3Client({
   region: 'auto',
-  endpoint: `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+  endpoint: `https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
   credentials: {
-    accessKeyId: process.env.R2_ACCESS_KEY_ID ?? '',
-    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY ?? '',
+    accessKeyId: R2_ACCESS_KEY_ID,
+    secretAccessKey: R2_SECRET_ACCESS_KEY,
   },
 });
 
