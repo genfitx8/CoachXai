@@ -4,9 +4,6 @@ import { initializeApp, FirebaseApp } from 'firebase/app';
 import {
   getAuth,
   Auth,
-  GoogleAuthProvider,
-  signInWithPopup,
-  UserCredential,
 } from 'firebase/auth';
 import {
   getFirestore,
@@ -197,16 +194,6 @@ export const firebaseService = {
    * Returns the Firebase Auth instance (null if not initialized).
    */
   getAuth: (): Auth | null => auth,
-
-  /**
-   * Opens a Google sign-in popup and returns the UserCredential.
-   * Throws if Firebase is not initialized or the popup is blocked/cancelled.
-   */
-  signInWithGoogle: (): Promise<UserCredential> => {
-    if (!auth) throw new Error('Firebase not initialized');
-    const provider = new GoogleAuthProvider();
-    return signInWithPopup(auth, provider);
-  },
 
   // --- Firestore Operations ---
 
