@@ -633,7 +633,7 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
                                     onShare={() => {}}
                                     onDelete={lesson.createdBy === 'CLIENT' ? (l, e) => {
                                         e.stopPropagation();
-                                        if(onDeleteLesson && confirm('삭제하시겠습니까?')) onDeleteLesson(l.id);
+                                        if(onDeleteLesson && window.confirm(t('lesson_delete_confirm'))) onDeleteLesson(l.id);
                                     } : undefined}
                                     showMedia={showMedia}
                                 />

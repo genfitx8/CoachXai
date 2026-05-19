@@ -606,6 +606,11 @@ const AppContent: React.FC = () => {
   };
 
   const handleDeleteLesson = async (lessonId: string) => {
+    const previousLessons = lessons;
+    const lessonToDelete = previousLessons.find((l) => l.id === lessonId);
+    const previousSelectedLesson = selectedLesson;
+    const previousCoachView = coachView;
+
     // 1. Optimistic UI Update
     setLessons((prev) => prev.filter((l) => l.id !== lessonId));
 
@@ -616,16 +621,21 @@ const AppContent: React.FC = () => {
 
     // 2. Persistence
     const isFb = apiService.isAvailable();
-    if (isFb) {
-      const lessonToDelete = lessons.find((l) => l.id === lessonId);
-      try {
+    try {
+      if (isFb) {
         await apiService.deleteLesson(lessonId, lessonToDelete);
-      } catch (e) {
-        console.error('Failed to delete lesson from Firebase', e);
+      } else {
+        const updatedList = previousLessons.filter((l) => l.id !== lessonId);
+        storageService.saveLessons(updatedList);
       }
-    } else {
-      const updatedList = lessons.filter((l) => l.id !== lessonId);
-      storageService.saveLessons(updatedList);
+    } catch (e) {
+      console.error('Failed to delete lesson', e);
+      setLessons(previousLessons);
+      if (previousSelectedLesson?.id === lessonId) {
+        setSelectedLesson(previousSelectedLesson);
+        setCoachView(previousCoachView);
+      }
+      alert('레슨 기록 삭제에 실패했습니다. 다시 시도해주세요.');
     }
   };
 
@@ -1558,7 +1568,9 @@ const AppContent: React.FC = () => {
                     onShare={() => {}} // Removed manual sharing
                     onDelete={(l, e) => {
                       e.stopPropagation();
-                      handleDeleteLesson(l.id);
+                      if (window.confirm(t('lesson_delete_confirm'))) {
+                        void handleDeleteLesson(l.id);
+                      }
                     }}
                     showMedia={showMedia}
                   />
