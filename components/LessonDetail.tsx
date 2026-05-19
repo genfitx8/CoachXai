@@ -1538,7 +1538,13 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
                                         {getHoleVoiceUrls(h).length > 0 && (
                                             <div className="space-y-1 mb-2">
                                                 {getHoleVoiceUrls(h).map((voiceUrl, index) => (
-                                                    <audio key={`${h.holeNumber}-${index}`} src={voiceUrl} controls className="h-6 w-full" />
+                                                    <audio
+                                                        key={`${h.holeNumber}-${index}`}
+                                                        src={voiceUrl}
+                                                        controls
+                                                        aria-label={`홀 ${h.holeNumber} 음성 기록 ${index + 1}`}
+                                                        className="h-6 w-full"
+                                                    />
                                                 ))}
                                             </div>
                                         )}

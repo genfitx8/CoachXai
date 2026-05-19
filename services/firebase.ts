@@ -581,11 +581,15 @@ export const firebaseService = {
               );
             })
           );
+          const lastVoiceUrl =
+            uploadedVoiceUrls.length > 0
+              ? uploadedVoiceUrls[uploadedVoiceUrls.length - 1]
+              : h.voiceUrl;
 
           return {
             ...h,
             voiceUrls: uploadedVoiceUrls,
-            voiceUrl: uploadedVoiceUrls[uploadedVoiceUrls.length - 1],
+            voiceUrl: lastVoiceUrl,
           };
         })
       );
