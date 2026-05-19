@@ -593,10 +593,22 @@ const AppContent: React.FC = () => {
 
     const isFb = apiService.isAvailable();
     if (isFb) {
-      const processedLesson = await apiService.processLessonMedia(
-        updatedLesson
-      );
-      await apiService.saveLesson(processedLesson);
+      try {
+        const processedLesson = await apiService.processLessonMedia(
+          updatedLesson
+        );
+        await apiService.saveLesson(processedLesson);
+        // Update local state with the resolved (non-blob) URLs
+        setLessons((prev) =>
+          prev.map((l) => (l.id === updatedLesson.id ? processedLesson : l))
+        );
+        if (selectedLesson?.id === updatedLesson.id) {
+          setSelectedLesson(processedLesson);
+        }
+      } catch (e) {
+        console.error('[handleUpdateLesson] Save failed', e);
+        alert('저장에 실패했습니다.');
+      }
     } else {
       const updatedList = lessons.map((l) =>
         l.id === updatedLesson.id ? updatedLesson : l
