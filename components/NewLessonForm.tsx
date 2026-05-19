@@ -80,7 +80,7 @@ interface NewLessonFormProps {
    * at the record-type selection step with this member pre-filled.
    * Used when the lesson-start suggestion flow triggers the new-lesson form.
    */
-  prefilledClient?: ClientProfile;
+  prefilledClient?: Pick<ClientProfile, 'name' | 'phone'>;
   onDirectRegisterFromLessonStart?: () => void;
 }
 

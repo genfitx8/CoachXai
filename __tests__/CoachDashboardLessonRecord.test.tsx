@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import React from 'react';
 import App from '../App';
+import { reservationService } from '../services/reservationService';
 
 vi.mock('../services/firebase', () => ({
   firebaseService: {
@@ -68,6 +69,12 @@ vi.mock('../services/authService', () => ({
 vi.mock('../services/coachNotificationService', () => ({
   getUnreadReservationNotificationsForCoach: vi.fn().mockResolvedValue([]),
   markNotificationsAsRead: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock('../services/reservationService', () => ({
+  reservationService: {
+    getCoachReservations: vi.fn().mockResolvedValue([]),
+  },
 }));
 
 vi.mock('../services/realtime', () => ({
@@ -177,5 +184,41 @@ describe('Coach dashboard – lesson-first MVP home', () => {
     await waitFor(() => {
       expect(screen.getByTestId('coach-client-add-modal')).toBeInTheDocument();
     });
+  });
+
+  it('prefills the reserved member when starting a lesson from the reservation prompt', async () => {
+    const upcomingStart = new Date(Date.now() + 5 * 60 * 1000).toISOString();
+    const upcomingEnd = new Date(Date.now() + 65 * 60 * 1000).toISOString();
+    vi.mocked(reservationService.getCoachReservations).mockResolvedValueOnce([
+      {
+        id: 'res-lesson-start',
+        coachId: 'coach1',
+        coachName: '테스트코치',
+        clientName: '예약회원',
+        clientPhone: '010-9999-0000',
+        startTime: upcomingStart,
+        endTime: upcomingEnd,
+        status: 'CONFIRMED',
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      },
+    ]);
+
+    render(<App />);
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole('heading', {
+          name: '예약회원 학생 레슨을 시작하시겠습니까?',
+        })
+      ).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: '바로 시작' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('기록 유형 선택')).toBeInTheDocument();
+    });
+    expect(screen.queryByPlaceholderText('이름을 입력하세요')).not.toBeInTheDocument();
   });
 });

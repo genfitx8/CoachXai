@@ -150,7 +150,7 @@ const AppContent: React.FC = () => {
    * Client pre-filled from the lesson-start suggestion.  Passed to
    * `NewLessonForm` so the CLIENT_SELECT step is skipped.
    */
-  const [prefilledSuggestionClient, setPrefilledSuggestionClient] = useState<ClientProfile | null>(null);
+  const [prefilledSuggestionClient, setPrefilledSuggestionClient] = useState<Pick<ClientProfile, 'name' | 'phone'> | null>(null);
   const [autoOpenAddMemberFromLessonStart, setAutoOpenAddMemberFromLessonStart] = useState(false);
   const [clientsOpenedFromLessonStart, setClientsOpenedFromLessonStart] = useState(false);
 
@@ -1934,13 +1934,23 @@ const AppContent: React.FC = () => {
           suggestion={lessonSuggestion}
           onStart={(s) => {
             setLessonSuggestion(null);
-            // Pre-fill the matching client in the new-lesson form
+            // Pre-fill the lesson form from the reservation, even if the member
+            // is not already registered in the coach's client list.
             const matchedClient = clients.find(
               (c) =>
                 c.name === s.reservation.clientName &&
                 c.phone === (s.reservation.clientPhone ?? '')
             ) ?? null;
-            setPrefilledSuggestionClient(matchedClient);
+            setPrefilledSuggestionClient(
+              matchedClient ?? (
+                s.reservation.clientName && s.reservation.clientPhone
+                  ? {
+                      name: s.reservation.clientName,
+                      phone: s.reservation.clientPhone,
+                    }
+                  : null
+              )
+            );
             setIsEditingLesson(false);
             setSelectedLesson(null);
             setCoachView('NEW');
