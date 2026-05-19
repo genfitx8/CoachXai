@@ -606,26 +606,41 @@ const AppContent: React.FC = () => {
   };
 
   const handleDeleteLesson = async (lessonId: string) => {
-    // 1. Optimistic UI Update
-    setLessons((prev) => prev.filter((l) => l.id !== lessonId));
+    const previousLessons = [...lessons];
+    const updatedLessons = previousLessons.filter((l) => l.id !== lessonId);
+    const lessonToDelete = previousLessons.find((l) => l.id === lessonId);
+    if (!lessonToDelete) {
+      alert(t('admin_prompt_delete_failed'));
+      return;
+    }
+    const previousSelectedLesson = selectedLesson;
+    const previousCoachView = coachView;
+    const wasDeletedLessonSelected = selectedLesson?.id === lessonId;
 
-    if (selectedLesson?.id === lessonId) {
+    // 1. Optimistic UI Update
+    setLessons(updatedLessons);
+
+    if (wasDeletedLessonSelected) {
       setSelectedLesson(null);
       setCoachView('LESSON_LIST');
     }
 
     // 2. Persistence
     const isFb = apiService.isAvailable();
-    if (isFb) {
-      const lessonToDelete = lessons.find((l) => l.id === lessonId);
-      try {
+    try {
+      if (isFb) {
         await apiService.deleteLesson(lessonId, lessonToDelete);
-      } catch (e) {
-        console.error('Failed to delete lesson from Firebase', e);
+      } else {
+        storageService.saveLessons(updatedLessons);
       }
-    } else {
-      const updatedList = lessons.filter((l) => l.id !== lessonId);
-      storageService.saveLessons(updatedList);
+    } catch (e) {
+      console.error('Failed to delete lesson', e);
+      setLessons(previousLessons);
+      if (wasDeletedLessonSelected && previousSelectedLesson) {
+        setSelectedLesson(previousSelectedLesson);
+        setCoachView(previousCoachView);
+      }
+      alert(t('admin_prompt_delete_failed'));
     }
   };
 
@@ -1558,7 +1573,9 @@ const AppContent: React.FC = () => {
                     onShare={() => {}} // Removed manual sharing
                     onDelete={(l, e) => {
                       e.stopPropagation();
-                      handleDeleteLesson(l.id);
+                      if (window.confirm(t('lesson_delete_confirm'))) {
+                        handleDeleteLesson(l.id);
+                      }
                     }}
                     showMedia={showMedia}
                   />
