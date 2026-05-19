@@ -606,15 +606,21 @@ const AppContent: React.FC = () => {
   };
 
   const handleDeleteLesson = async (lessonId: string) => {
-    const previousLessons = lessons;
+    const previousLessons = [...lessons];
+    const updatedLessons = previousLessons.filter((l) => l.id !== lessonId);
     const lessonToDelete = previousLessons.find((l) => l.id === lessonId);
+    if (!lessonToDelete) {
+      alert(t('admin_prompt_delete_failed'));
+      return;
+    }
     const previousSelectedLesson = selectedLesson;
     const previousCoachView = coachView;
+    const wasDeletedLessonSelected = selectedLesson?.id === lessonId;
 
     // 1. Optimistic UI Update
-    setLessons((prev) => prev.filter((l) => l.id !== lessonId));
+    setLessons(updatedLessons);
 
-    if (selectedLesson?.id === lessonId) {
+    if (wasDeletedLessonSelected) {
       setSelectedLesson(null);
       setCoachView('LESSON_LIST');
     }
@@ -625,17 +631,16 @@ const AppContent: React.FC = () => {
       if (isFb) {
         await apiService.deleteLesson(lessonId, lessonToDelete);
       } else {
-        const updatedList = previousLessons.filter((l) => l.id !== lessonId);
-        storageService.saveLessons(updatedList);
+        storageService.saveLessons(updatedLessons);
       }
     } catch (e) {
       console.error('Failed to delete lesson', e);
       setLessons(previousLessons);
-      if (previousSelectedLesson?.id === lessonId) {
+      if (wasDeletedLessonSelected && previousSelectedLesson) {
         setSelectedLesson(previousSelectedLesson);
         setCoachView(previousCoachView);
       }
-      alert('레슨 기록 삭제에 실패했습니다. 다시 시도해주세요.');
+      alert(t('admin_prompt_delete_failed'));
     }
   };
 
@@ -1569,7 +1574,7 @@ const AppContent: React.FC = () => {
                     onDelete={(l, e) => {
                       e.stopPropagation();
                       if (window.confirm(t('lesson_delete_confirm'))) {
-                        void handleDeleteLesson(l.id);
+                        handleDeleteLesson(l.id);
                       }
                     }}
                     showMedia={showMedia}
