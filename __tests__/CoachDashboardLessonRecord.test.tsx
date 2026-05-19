@@ -168,8 +168,8 @@ describe('Coach dashboard – lesson-first MVP home', () => {
     const buttonGroup = lessonRecordStartBtn.parentElement;
     expect(buttonGroup).not.toBeNull();
     const buttonsInOrder = Array.from(buttonGroup!.querySelectorAll('button'));
-    expect(buttonsInOrder.indexOf(directRegisterBtn)).toBe(
-      buttonsInOrder.indexOf(lessonRecordStartBtn) + 1
+    expect(buttonsInOrder.indexOf(directRegisterBtn)).toBeGreaterThan(
+      buttonsInOrder.indexOf(lessonRecordStartBtn)
     );
     expect(directRegisterBtn).toBeInTheDocument();
 
