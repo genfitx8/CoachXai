@@ -561,14 +561,32 @@ export const firebaseService = {
     if (updatedLesson.scorecardDetail) {
       updatedLesson.scorecardDetail.holes = await Promise.all(
         updatedLesson.scorecardDetail.holes.map(async (h) => {
-          if (h.voiceUrl && h.voiceUrl.startsWith('blob:')) {
-            const newUrl = await uploadBlob(
-              h.voiceUrl,
-              `lessons/${updatedLesson.id}/hole_${h.holeNumber}_${timestamp}.mp4`
-            );
-            return { ...h, voiceUrl: newUrl };
+          const originalVoiceUrls =
+            h.voiceUrls && h.voiceUrls.length > 0
+              ? h.voiceUrls
+              : h.voiceUrl
+              ? [h.voiceUrl]
+              : [];
+
+          if (originalVoiceUrls.length === 0) {
+            return h;
           }
-          return h;
+
+          const uploadedVoiceUrls = await Promise.all(
+            originalVoiceUrls.map(async (voiceUrl, idx) => {
+              if (!voiceUrl.startsWith('blob:')) return voiceUrl;
+              return uploadBlob(
+                voiceUrl,
+                `lessons/${updatedLesson.id}/hole_${h.holeNumber}_${idx}_${timestamp}.mp4`
+              );
+            })
+          );
+
+          return {
+            ...h,
+            voiceUrls: uploadedVoiceUrls,
+            voiceUrl: uploadedVoiceUrls[uploadedVoiceUrls.length - 1],
+          };
         })
       );
     }

@@ -50,6 +50,7 @@ export interface HoleRecord {
   score: number;
   putts: number;
   voiceUrl?: string; // Audio reflection for this hole
+  voiceUrls?: string[]; // Multiple audio reflections for this hole (latest also stored in voiceUrl)
   aiSummary?: string; // AI summary of the play
   shotMetrics?: ShotMetrics; // Added: Structured data from AI
 }

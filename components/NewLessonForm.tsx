@@ -289,6 +289,13 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
   const [statusMessage, setStatusMessage] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
 
+  const getHoleVoiceUrls = (hole: HoleRecord): string[] => {
+    if (hole.voiceUrls && hole.voiceUrls.length > 0) {
+      return hole.voiceUrls;
+    }
+    return hole.voiceUrl ? [hole.voiceUrl] : [];
+  };
+
   // Recording State (Main Media)
   const [isMediaReady, setIsMediaReady] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
@@ -338,7 +345,12 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
         if (initialData.scorecardDetail) {
           setScoreMode('DETAILED');
           setCourseName(initialData.scorecardDetail.courseName);
-          setHoleRecords(initialData.scorecardDetail.holes);
+          setHoleRecords(
+            initialData.scorecardDetail.holes.map((hole) => ({
+              ...hole,
+              voiceUrls: getHoleVoiceUrls(hole),
+            }))
+          );
           setScore(initialData.score || initialData.scorecardDetail.totalScore);
         } else {
           setScoreMode('SIMPLE');
@@ -572,6 +584,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
               h.holeNumber === holeNum
                 ? {
                     ...h,
+                    voiceUrls: [...getHoleVoiceUrls(h), url],
                     voiceUrl: url,
                     aiSummary: result.summary,
                     shotMetrics: result.metrics, // Save structured metrics
@@ -585,7 +598,12 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
           setHoleRecords((prev) =>
             prev.map((h) =>
               h.holeNumber === holeNum
-                ? { ...h, voiceUrl: url, aiSummary: '분석 실패' }
+                ? {
+                    ...h,
+                    voiceUrls: [...getHoleVoiceUrls(h), url],
+                    voiceUrl: url,
+                    aiSummary: '분석 실패',
+                  }
                 : h
             )
           );
@@ -1216,8 +1234,11 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
       // Save hole voice URLs
       if (scorecardDetail) {
         scorecardDetail.holes.forEach((h) => {
-          if (h.voiceUrl && h.voiceUrl.startsWith('blob:'))
-            savedUrlsRef.current.add(h.voiceUrl);
+          getHoleVoiceUrls(h).forEach((voiceUrl) => {
+            if (voiceUrl.startsWith('blob:')) {
+              savedUrlsRef.current.add(voiceUrl);
+            }
+          });
         });
       }
 
@@ -1839,6 +1860,11 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
                         />
                       </div>
                       <div className="col-span-5 flex justify-end gap-2">
+                        {getHoleVoiceUrls(hole).length > 0 && (
+                          <span className="text-[10px] text-emerald-400 bg-emerald-900/30 border border-emerald-800 rounded-full px-2 py-1">
+                            {getHoleVoiceUrls(hole).length}개
+                          </span>
+                        )}
                         {activeRecordingHole === hole.holeNumber ? (
                           <button
                             type="button"
@@ -1853,13 +1879,13 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
                             type="button"
                             onClick={() => startHoleRecording(hole.holeNumber)}
                             className={`px-2 py-1 rounded-full text-xs flex items-center gap-1 border transition-colors ${
-                              hole.voiceUrl
+                              getHoleVoiceUrls(hole).length > 0
                                 ? 'bg-emerald-900/40 text-emerald-400 border-emerald-700'
                                 : 'bg-slate-700 text-slate-400 border-slate-600 hover:border-emerald-600 hover:text-emerald-400'
                             }`}
                           >
                             <Mic className="w-3 h-3" />{' '}
-                            {hole.voiceUrl ? '다시 녹음' : '기록'}
+                            {getHoleVoiceUrls(hole).length > 0 ? '추가 녹음' : '기록'}
                           </button>
                         )}
                       </div>
@@ -1909,7 +1935,8 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
                   {holeRecords.reduce((a, b) => a + (b.putts || 0), 0)}
                 </div>
                 <div className="col-span-5 text-right text-xs text-slate-500 pr-2">
-                  {holeRecords.filter((h) => h.voiceUrl).length}개 홀 기록됨
+                  {holeRecords.filter((h) => getHoleVoiceUrls(h).length > 0).length}개 홀 /{' '}
+                  {holeRecords.reduce((sum, h) => sum + getHoleVoiceUrls(h).length, 0)}개 음성
                 </div>
               </div>
             </div>
