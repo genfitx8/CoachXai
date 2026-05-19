@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 
 interface CoachXLandingProps {
   onLogin: () => void;
-  onSignup: () => void;
 }
 
 type InstallChoiceOutcome = 'accepted' | 'dismissed';
@@ -17,7 +16,6 @@ const GREETING_SPEECH_RATE = 0.92;
 
 export const CoachXLanding: React.FC<CoachXLandingProps> = ({
   onLogin,
-  onSignup,
 }) => {
   const [deferredInstallPrompt, setDeferredInstallPrompt] =
     useState<DeferredInstallPromptEvent | null>(null);
@@ -208,13 +206,6 @@ export const CoachXLanding: React.FC<CoachXLandingProps> = ({
             className="px-4 py-1.5 rounded-full border border-white/15 bg-white/5 backdrop-blur-sm text-white/75 text-xs uppercase tracking-wider hover:text-white hover:border-white/30 transition-colors"
           >
             Log in
-          </button>
-          <button
-            type="button"
-            onClick={onSignup}
-            className="px-4 py-1.5 rounded-full border border-white/15 bg-white/5 backdrop-blur-sm text-white/75 text-xs uppercase tracking-wider hover:text-white hover:border-white/30 transition-colors"
-          >
-            Sign up
           </button>
         </div>
       </div>

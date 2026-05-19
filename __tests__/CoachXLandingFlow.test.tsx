@@ -32,9 +32,7 @@ vi.mock('../services/authService', () => ({
     logout: vi.fn(),
     saveSession: vi.fn(),
     loginCoach: vi.fn(),
-    signupCoach: vi.fn(),
     loginClient: vi.fn(),
-    signupClient: vi.fn(),
     loginAdmin: vi.fn(),
     loginBranchAdmin: vi.fn(),
     findEmail: vi.fn(),
@@ -59,14 +57,5 @@ describe('CoachX landing auth entry flow', () => {
       expect(screen.getByPlaceholderText('email@example.com')).toBeInTheDocument();
       expect(screen.queryByPlaceholderText('Name')).not.toBeInTheDocument();
     });
-  });
-
-  it('opens signup mode from landing', async () => {
-    render(<App />);
-
-    expect(await screen.findByText('Hello, coach.')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Sign up' }));
-
-    expect(await screen.findByPlaceholderText('Name')).toBeInTheDocument();
   });
 });

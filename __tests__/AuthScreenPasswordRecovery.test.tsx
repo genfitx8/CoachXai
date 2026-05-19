@@ -7,9 +7,7 @@ import { LanguageProvider } from '../components/LanguageContext';
 const { mockedAuthService } = vi.hoisted(() => ({
   mockedAuthService: {
     loginCoach: vi.fn(),
-    signupCoach: vi.fn(),
     loginClient: vi.fn(),
-    signupClient: vi.fn(),
     loginAdmin: vi.fn(),
     loginBranchAdmin: vi.fn(),
     findEmail: vi.fn(),

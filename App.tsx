@@ -101,9 +101,7 @@ const AppContent: React.FC = () => {
     adminId: string;
   } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [authEntryMode, setAuthEntryMode] = useState<'LOGIN' | 'SIGNUP' | null>(
-    null
-  );
+  const [showAuthScreen, setShowAuthScreen] = useState(false);
 
   // Data State
   const [lessons, setLessons] = useState<Lesson[]>([]);
@@ -1308,18 +1306,16 @@ const AppContent: React.FC = () => {
   // --- Render Views ---
 
   if (!userRole) {
-    if (!authEntryMode) {
+    if (!showAuthScreen) {
       return (
         <CoachXLanding
-          onLogin={() => setAuthEntryMode('LOGIN')}
-          onSignup={() => setAuthEntryMode('SIGNUP')}
+          onLogin={() => setShowAuthScreen(true)}
         />
       );
     }
     return (
       <AuthScreen
         onLoginSuccess={handleLoginSuccess}
-        initialMode={authEntryMode}
       />
     );
   }

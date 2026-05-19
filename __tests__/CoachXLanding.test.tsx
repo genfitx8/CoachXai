@@ -39,19 +39,17 @@ beforeEach(() => {
 describe('CoachXLanding', () => {
   it('renders premium landing essentials and auth actions', () => {
     const onLogin = vi.fn();
-    const onSignup = vi.fn();
 
-    render(<CoachXLanding onLogin={onLogin} onSignup={onSignup} />);
+    render(<CoachXLanding onLogin={onLogin} />);
 
     expect(screen.getByText('CoachX AI')).toBeInTheDocument();
     expect(screen.getByText('Hello, coach.')).toBeInTheDocument();
     expect(screen.getByTestId('coachx-ai-orb')).toHaveClass('animate-coachx-orb-drift');
 
     fireEvent.click(screen.getByRole('button', { name: 'Log in' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Sign up' }));
 
     expect(onLogin).toHaveBeenCalledTimes(1);
-    expect(onSignup).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole('button', { name: 'Sign up' })).not.toBeInTheDocument();
   });
 
   it('attempts a single voice greeting on first landing entry when speech is available', () => {
@@ -68,7 +66,7 @@ describe('CoachXLanding', () => {
       value: MockSpeechSynthesisUtterance,
     });
 
-    const { unmount } = render(<CoachXLanding onLogin={() => {}} onSignup={() => {}} />);
+    const { unmount } = render(<CoachXLanding onLogin={() => {}} />);
     vi.runAllTimers();
 
     expect(cancel).toHaveBeenCalledTimes(1);
@@ -79,7 +77,7 @@ describe('CoachXLanding', () => {
     expect(utterance.lang).toBe('en-US');
 
     unmount();
-    render(<CoachXLanding onLogin={() => {}} onSignup={() => {}} />);
+    render(<CoachXLanding onLogin={() => {}} />);
     vi.runAllTimers();
 
     expect(speak).toHaveBeenCalledTimes(1);
@@ -96,7 +94,7 @@ describe('CoachXLanding', () => {
     });
 
     expect(() => {
-      render(<CoachXLanding onLogin={() => {}} onSignup={() => {}} />);
+      render(<CoachXLanding onLogin={() => {}} />);
     }).not.toThrow();
   });
 
@@ -115,7 +113,7 @@ describe('CoachXLanding', () => {
     installEvent.prompt = prompt;
     installEvent.userChoice = userChoice;
 
-    render(<CoachXLanding onLogin={() => {}} onSignup={() => {}} />);
+    render(<CoachXLanding onLogin={() => {}} />);
     await act(async () => {
       window.dispatchEvent(installEvent);
     });
@@ -132,7 +130,7 @@ describe('CoachXLanding', () => {
   });
 
   it('shows fallback install guidance when install prompt is unsupported', () => {
-    render(<CoachXLanding onLogin={() => {}} onSignup={() => {}} />);
+    render(<CoachXLanding onLogin={() => {}} />);
 
     expect(
       screen.getByText(/Install prompt is unavailable here/)
@@ -154,7 +152,7 @@ describe('CoachXLanding', () => {
       })),
     });
 
-    render(<CoachXLanding onLogin={() => {}} onSignup={() => {}} />);
+    render(<CoachXLanding onLogin={() => {}} />);
 
     expect(screen.queryByRole('button', { name: 'Install CoachX' })).not.toBeInTheDocument();
     expect(screen.queryByText('CoachX App')).not.toBeInTheDocument();
