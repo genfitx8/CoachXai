@@ -491,6 +491,28 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
     }
   };
 
+  const handleStartRound = () => {
+    if (!clientName.trim()) {
+      setError(t('new_lesson_member_name_required'));
+      return;
+    }
+    if (!isExistingClientSelected && !clientPhone.trim()) {
+      setError(t('new_lesson_member_not_found'));
+      return;
+    }
+
+    setError(null);
+    setRecordType('SCORE');
+    setIsDataExtractionMode(false);
+    setScoreMode('SIMPLE');
+
+    const today = new Date();
+    const dateStr = `${today.getMonth() + 1}월 ${today.getDate()}일`;
+    setTitle(`${dateStr} 필드 스코어`);
+
+    setStep('FORM');
+  };
+
   const handleSelectType = (type: RecordType) => {
     setRecordType(type);
     setStep('FORM');
@@ -1155,7 +1177,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
         clientPhone: clientPhone.trim(),
         coachId: userRole === 'CLIENT' ? currentUser?.coachId : undefined, // Assign coachId if created by client
         createdBy: userRole as 'COACH' | 'CLIENT',
-        recordType: userRole === 'CLIENT' ? recordType : 'LESSON',
+        recordType,
         date: initialData ? initialData.date : getLocalISODate(),
         title,
         club: club || undefined,
@@ -1506,6 +1528,17 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
             레슨 기록 시작 <Play className="w-5 h-5 ml-2 fill-current" />
           </Button>
 
+          {userRole === 'COACH' && (
+            <button
+              type="button"
+              onClick={handleStartRound}
+              data-testid="coach-start-round-btn"
+              className="w-full flex items-center justify-center gap-2 py-3.5 px-4 bg-blue-900/40 border border-blue-700/60 rounded-xl text-blue-200 font-semibold hover:bg-blue-900/70 hover:border-blue-600 transition-colors mt-2"
+            >
+              <Trophy className="w-5 h-5" /> 라운드 기록
+            </button>
+          )}
+
           {userRole === 'COACH' && onDirectRegisterFromLessonStart && (
             <Button
               onClick={onDirectRegisterFromLessonStart}
@@ -1622,6 +1655,8 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
               : recordType === 'LESSON'
               ? '레슨 내용 기록'
               : '새 연습 기록'
+            : recordType === 'SCORE'
+            ? '라운드 기록'
             : '새 레슨 기록'}
         </h2>
         <button
