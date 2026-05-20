@@ -276,7 +276,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
     setError(null);
 
     if (!name || !email || !password || !phone) {
-      setError('모든 필드를 입력해주세요.');
+      setError(t('signup_required_fields'));
       return;
     }
     if (password.length < 8) {

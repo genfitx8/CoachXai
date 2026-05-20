@@ -56,10 +56,11 @@ export const authService = {
       name,
       email,
       phone,
-      password,
       isSubscribed: false,
     };
-    localStorage.setItem(STORAGE_KEYS.COACH_PROFILE, JSON.stringify(newCoach));
+    // Store password separately so the localStorage login fallback can verify it.
+    // The returned profile intentionally omits the password field.
+    localStorage.setItem(STORAGE_KEYS.COACH_PROFILE, JSON.stringify({ ...newCoach, password }));
     return newCoach;
   },
 
@@ -86,11 +87,11 @@ export const authService = {
       name,
       email,
       phone,
-      password,
       isSubscribed: false,
     };
-    const updatedClients = [...clients, newClient];
-    storageService.saveClients(updatedClients);
+    // Store password alongside the profile so the localStorage login fallback can verify it.
+    // The returned profile intentionally omits the password field.
+    storageService.saveClients([...clients, { ...newClient, password }]);
     return newClient;
   },
 
