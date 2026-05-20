@@ -3,6 +3,8 @@ import pool from '../services/db';
 import { authMiddleware } from '../middleware/auth';
 
 const router = Router();
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 // All routes require authentication
 router.use(authMiddleware);
@@ -70,6 +72,7 @@ router.post('/', async (req: Request, res: Response) => {
   try {
     const coachId = req.user!.id;
     const {
+      id,
       clientId, clientName, clientPhone,
       createdBy, recordType,
       title, date, club, score, scorecardDetail,
@@ -83,11 +86,18 @@ router.post('/', async (req: Request, res: Response) => {
       compareVideoUrl, compareVideoMetadata,
       media, lessonPackageId, sessionNumber,
     } = req.body as Record<string, unknown>;
+    const lessonId =
+      typeof id === 'string' && id.trim().length > 0 ? id.trim() : null;
+    if (lessonId && !UUID_PATTERN.test(lessonId)) {
+      res.status(400).json({ error: 'Invalid lesson id: must be a valid UUID format' });
+      return;
+    }
 
     const now = Date.now();
 
     const result = await pool.query(
       `INSERT INTO lessons (
+        id,
         client_id, client_name, client_phone, coach_id,
         created_by, record_type,
         title, date, club, score, scorecard_detail,
@@ -102,21 +112,23 @@ router.post('/', async (req: Request, res: Response) => {
         media, lesson_package_id, session_number,
         created_at, updated_at
       ) VALUES (
-        $1, $2, $3, $4,
-        $5, $6,
-        $7, $8, $9, $10, $11,
-        $12, $13, $14, $15,
-        $16, $17,
-        $18, $19, $20,
-        $21, $22, $23, $24,
-        $25, $26,
-        $27, $28,
-        $29, $30,
-        $31, $32,
-        $33, $34, $35,
-        $36, $37
+        COALESCE($1::uuid, gen_random_uuid()),
+        $2, $3, $4, $5,
+        $6, $7,
+        $8, $9, $10, $11, $12,
+        $13, $14, $15, $16,
+        $17, $18,
+        $19, $20, $21,
+        $22, $23, $24, $25,
+        $26, $27,
+        $28, $29,
+        $30, $31,
+        $32, $33,
+        $34, $35, $36,
+        $37, $38
       ) RETURNING *`,
       [
+        lessonId,
         clientId ?? null, clientName ?? null, clientPhone ?? null, coachId,
         createdBy ?? null, recordType ?? null,
         title ?? null, date ?? null, club ?? null, score ?? null,

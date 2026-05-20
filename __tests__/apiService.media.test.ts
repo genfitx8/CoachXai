@@ -169,4 +169,81 @@ describe('apiService media helpers', () => {
     const addUrl = processed.additionalMedia![0].url;
     expect(addUrl).toBe(`${MOCK_BASE_URL}/api/files/lessons/lid/additional_0_ts.mp4`);
   });
+
+  it('saveLesson falls back to POST when PUT returns lesson-not-found', async () => {
+    const lesson = {
+      id: '65d06885-d8f6-4cba-95df-7db18b8a8de6',
+      clientName: 'Test',
+      clientPhone: '000',
+      createdBy: 'COACH' as const,
+      recordType: 'LESSON' as const,
+      date: '2024-01-01',
+      title: 'New lesson',
+      coachNotes: '',
+      videoUrl: '',
+      mediaType: 'image' as const,
+      tags: [],
+      createdAt: Date.now(),
+    };
+
+    const mockFetch = vi.fn(async (url: string, opts?: RequestInit) => {
+      if (typeof url === 'string' && url.endsWith(`/api/lessons/${lesson.id}`)) {
+        return new Response(
+          JSON.stringify({ error: 'Lesson not found or access denied' }),
+          { status: 404, headers: { 'Content-Type': 'application/json' } }
+        );
+      }
+
+      if (typeof url === 'string' && url.endsWith('/api/lessons') && opts?.method === 'POST') {
+        return new Response(
+          JSON.stringify({ lesson }),
+          { status: 201, headers: { 'Content-Type': 'application/json' } }
+        );
+      }
+
+      return new Response(null, { status: 500 });
+    });
+    vi.stubGlobal('fetch', mockFetch);
+
+    const { apiService } = await import('../services/apiService');
+    const saved = await apiService.saveLesson(lesson as never);
+
+    expect(saved.id).toBe(lesson.id);
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+    expect(mockFetch.mock.calls[0][0]).toBe(`${MOCK_BASE_URL}/api/lessons/${lesson.id}`);
+    expect((mockFetch.mock.calls[0][1] as RequestInit).method).toBe('PUT');
+    expect(mockFetch.mock.calls[1][0]).toBe(`${MOCK_BASE_URL}/api/lessons`);
+    expect((mockFetch.mock.calls[1][1] as RequestInit).method).toBe('POST');
+  });
+
+  it('saveLesson does not fall back to POST on non-404 errors', async () => {
+    const lesson = {
+      id: '4bd25af4-e5ef-4f6d-b68a-6336fcb6b8e2',
+      clientName: 'Test',
+      clientPhone: '000',
+      createdBy: 'COACH' as const,
+      recordType: 'LESSON' as const,
+      date: '2024-01-01',
+      title: 'Existing lesson',
+      coachNotes: '',
+      videoUrl: '',
+      mediaType: 'image' as const,
+      tags: [],
+      createdAt: Date.now(),
+    };
+
+    const mockFetch = vi.fn(async () => new Response(
+      JSON.stringify({ error: 'Internal server error' }),
+      { status: 500, headers: { 'Content-Type': 'application/json' } }
+    ));
+    vi.stubGlobal('fetch', mockFetch);
+
+    const { apiService } = await import('../services/apiService');
+
+    await expect(apiService.saveLesson(lesson as never)).rejects.toBe(
+      'Internal server error'
+    );
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    expect((mockFetch.mock.calls[0][1] as RequestInit).method).toBe('PUT');
+  });
 });

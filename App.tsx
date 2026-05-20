@@ -554,10 +554,10 @@ const AppContent: React.FC = () => {
         const processedLesson = await apiService.processLessonMedia(
           lessonToSave
         );
-        await apiService.saveLesson(processedLesson);
+        const savedLesson = await apiService.saveLesson(processedLesson);
         // Update local state with processed URLs
         setLessons((prev) =>
-          prev.map((l) => (l.id === lessonToSave.id ? processedLesson : l))
+          prev.map((l) => (l.id === lessonToSave.id ? savedLesson : l))
         );
 
         if (userRole === 'COACH') {
@@ -566,7 +566,7 @@ const AppContent: React.FC = () => {
             setCoachView('LESSON_PACKAGE');
           } else {
             setCoachView('DETAIL');
-            setSelectedLesson(processedLesson);
+            setSelectedLesson(savedLesson);
           }
         }
       } else {
@@ -612,13 +612,13 @@ const AppContent: React.FC = () => {
         const processedLesson = await apiService.processLessonMedia(
           updatedLesson
         );
-        await apiService.saveLesson(processedLesson);
+        const savedLesson = await apiService.saveLesson(processedLesson);
         // Update local state with the resolved (non-blob) URLs
         setLessons((prev) =>
-          prev.map((l) => (l.id === updatedLesson.id ? processedLesson : l))
+          prev.map((l) => (l.id === updatedLesson.id ? savedLesson : l))
         );
         if (selectedLesson?.id === updatedLesson.id) {
-          setSelectedLesson(processedLesson);
+          setSelectedLesson(savedLesson);
         }
       } catch (e) {
         console.error('[handleUpdateLesson] Save failed', e);
