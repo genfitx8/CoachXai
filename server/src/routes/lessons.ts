@@ -3,8 +3,8 @@ import pool from '../services/db';
 import { authMiddleware } from '../middleware/auth';
 
 const router = Router();
-const UUID_V4_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 // All routes require authentication
 router.use(authMiddleware);
@@ -88,8 +88,8 @@ router.post('/', async (req: Request, res: Response) => {
     } = req.body as Record<string, unknown>;
     const lessonId =
       typeof id === 'string' && id.trim().length > 0 ? id.trim() : null;
-    if (lessonId && !UUID_V4_PATTERN.test(lessonId)) {
-      res.status(400).json({ error: 'Invalid lesson id' });
+    if (lessonId && !UUID_PATTERN.test(lessonId)) {
+      res.status(400).json({ error: 'Invalid lesson id: must be a valid UUID format' });
       return;
     }
 

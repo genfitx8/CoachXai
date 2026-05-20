@@ -2,6 +2,20 @@ import type { Lesson, ClientProfile, CoachProfile, LessonPackage, TrainingProgra
 
 const BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000').replace(/\/$/, '');
 const TOKEN_KEY = 'swingnote_api_token';
+const LESSON_NOT_FOUND_ERROR = 'Lesson not found or access denied';
+const HTTP_404_ERROR = 'HTTP 404';
+
+function parseErrorDetails(error: unknown): { status?: number; message: string } {
+  if (typeof error === 'string') return { message: error };
+  if (typeof error === 'object' && error !== null) {
+    const e = error as { status?: number; message?: string; error?: string };
+    return {
+      status: e.status,
+      message: e.message || e.error || '',
+    };
+  }
+  return { message: '' };
+}
 
 async function req<T = unknown>(method: string, path: string, body?: unknown): Promise<T> {
   const token = localStorage.getItem(TOKEN_KEY);
@@ -138,18 +152,11 @@ export const apiService = {
         );
         return data.lesson;
       } catch (error) {
-        const status = typeof error === 'object' && error !== null
-          ? (error as { status?: number }).status
-          : undefined;
-        const message = typeof error === 'string'
-          ? error
-          : (error as { message?: string; error?: string })?.message ||
-            (error as { error?: string })?.error ||
-            '';
+        const { status, message } = parseErrorDetails(error);
         const isMissingLesson =
           status === 404 ||
-          message === 'Lesson not found or access denied' ||
-          message.includes('HTTP 404');
+          message === LESSON_NOT_FOUND_ERROR ||
+          message === HTTP_404_ERROR;
         if (!isMissingLesson) throw error;
       }
     }
