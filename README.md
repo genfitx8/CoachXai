@@ -125,6 +125,18 @@ This app only invokes an already deployed Google Cloud Agent Platform Runtime ag
 
 #### Required server environment variables
 
+The backend supports two runtime modes. **Option A** (Agent Platform Runtime) is preferred and is used automatically when its variables are set. **Option B** (Legacy Agent Runtime) is the fallback.
+
+**Option A – Agent Platform Runtime (preferred)**
+
+- `AGENT_PLATFORM_AGENT_RESOURCE`: full agent resource path, e.g.  
+  `projects/<project-id>/locations/<location>/reasoningEngines/<agent-id>`
+- `AGENT_PLATFORM_LOCATION` (optional, default `us-central1`): Vertex AI region
+- `AGENT_PLATFORM_RUNTIME_ENDPOINT` (optional): overrides the derived endpoint URL
+- `AGENT_PLATFORM_ACCESS_TOKEN` (optional): static Bearer token for local testing (instead of ADC)
+
+**Option B – Legacy Agent Runtime (fallback)**
+
 - `GCP_PROJECT_ID`: Google Cloud project ID
 - `GCP_LOCATION`: Vertex AI / Agent Runtime region (for example `us-central1`)
 - `GCP_AGENT_RESOURCE_NAME`: full deployed resource name  
