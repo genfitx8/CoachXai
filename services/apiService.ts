@@ -130,8 +130,22 @@ export const apiService = {
 
   async saveLesson(lesson: Lesson): Promise<Lesson> {
     if (lesson.id) {
-      const data = await req<{ lesson: Lesson }>('PUT', `/api/lessons/${lesson.id}`, lesson);
-      return data.lesson;
+      try {
+        const data = await req<{ lesson: Lesson }>(
+          'PUT',
+          `/api/lessons/${lesson.id}`,
+          lesson
+        );
+        return data.lesson;
+      } catch (error) {
+        const message = typeof error === 'string'
+          ? error
+          : (error as { message?: string })?.message || '';
+        const isMissingLesson =
+          message === 'Lesson not found or access denied' ||
+          message.includes('HTTP 404');
+        if (!isMissingLesson) throw error;
+      }
     }
     const data = await req<{ lesson: Lesson }>('POST', '/api/lessons', lesson);
     return data.lesson;
