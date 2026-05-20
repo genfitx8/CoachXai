@@ -149,7 +149,7 @@ describe('authService logout and auto-login preference', () => {
 
   it('loginCoach falls back to local storage when API login fails', async () => {
     (apiService.isAvailable as any).mockReturnValue(false);
-    (apiService.loginCoach as any).mockRejectedValue(new Error('network down'));
+    (apiService.loginCoach as any).mockRejectedValueOnce(new Error('network down'));
     localStorage.setItem(
       'swingnote_coach_profile',
       JSON.stringify({
@@ -169,6 +169,7 @@ describe('authService logout and auto-login preference', () => {
 
   it('fallback login keeps working without API mode and does not set JWT token', async () => {
     (apiService.isAvailable as any).mockReturnValue(false);
+    (apiService.loginCoach as any).mockRejectedValueOnce(new Error('api unavailable'));
     localStorage.setItem(
       'swingnote_coach_profile',
       JSON.stringify({

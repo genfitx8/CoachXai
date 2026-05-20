@@ -87,7 +87,9 @@ export const authService = {
           localStorage.setItem(STORAGE_KEYS.COACH_PROFILE, JSON.stringify(coach));
           resolve(coach);
           return;
-        } catch {}
+        } catch (apiError) {
+          log.warn('Coach API login failed, falling back to local login', apiError);
+        }
 
         // localStorage fallback
         const data = localStorage.getItem(STORAGE_KEYS.COACH_PROFILE);
@@ -118,7 +120,9 @@ export const authService = {
           apiService.setToken(token);
           resolve(client);
           return;
-        } catch {}
+        } catch (apiError) {
+          log.warn('Client API login failed, falling back to local login', apiError);
+        }
 
         const clients = storageService.getClients();
         const client = clients.find((c) => {
