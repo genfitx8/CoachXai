@@ -220,7 +220,7 @@ const AppContent: React.FC = () => {
                 (c) => c.name === name && c.phone === phone
               );
             } catch (e) {
-              console.warn('[App] Failed to restore client profile from API, falling back to local session data:', e);
+              console.warn('[App] Failed to restore client profile from API, falling back to local storage data:', e);
             }
           } else {
             const allClients = storageService.getClients();
@@ -246,7 +246,7 @@ const AppContent: React.FC = () => {
                 profile = allCoaches[0];
               }
             } catch (e) {
-              console.warn('[App] Failed to restore coach profile from API, falling back to local storage profile:', e);
+              console.warn('[App] Failed to restore coach profile from API, falling back to authService coach profile:', e);
             }
           }
           // Fallback to localStorage
@@ -294,7 +294,7 @@ const AppContent: React.FC = () => {
         fetchedCoaches = coachesData;
         setCoaches(fetchedCoaches);
       } catch (e) {
-        console.warn('[App] Failed to load protected API data, falling back to local storage:', e);
+        console.warn('[App] Failed to load data from API (lessons, clients, coaches), falling back to local storage:', e);
         setLessons(storageService.getLessons());
         fetchedClients = storageService.getClients();
         fetchedCoaches = storageService.getCoaches();
