@@ -29,6 +29,71 @@ const createResetToken = (): string => {
 };
 
 export const authService = {
+  // Coach Signup
+  signupCoach: async (
+    name: string,
+    email: string,
+    password: string,
+    phone: string
+  ): Promise<CoachProfile> => {
+    if (apiService.isAvailable()) {
+      const { coach } = await apiService.signupCoach(name, email, password, phone);
+      localStorage.setItem(STORAGE_KEYS.COACH_PROFILE, JSON.stringify(coach));
+      return coach;
+    }
+
+    // localStorage fallback
+    const existing = localStorage.getItem(STORAGE_KEYS.COACH_PROFILE);
+    if (existing) {
+      const profile = JSON.parse(existing);
+      if (profile.email === email) {
+        throw '이미 사용 중인 이메일입니다.';
+      }
+    }
+
+    const newCoach: CoachProfile = {
+      id: crypto.randomUUID ? crypto.randomUUID() : `coach_${Date.now()}`,
+      name,
+      email,
+      phone,
+      password,
+      isSubscribed: false,
+    };
+    localStorage.setItem(STORAGE_KEYS.COACH_PROFILE, JSON.stringify(newCoach));
+    return newCoach;
+  },
+
+  // Client Signup
+  signupClient: async (
+    name: string,
+    email: string,
+    password: string,
+    phone: string
+  ): Promise<ClientProfile> => {
+    if (apiService.isAvailable()) {
+      const { client } = await apiService.signupClient(name, email, password, phone);
+      return client;
+    }
+
+    // localStorage fallback
+    const clients = storageService.getClients();
+    if (clients.some((c) => c.email === email)) {
+      throw '이미 사용 중인 이메일입니다.';
+    }
+
+    const newClient: ClientProfile = {
+      id: crypto.randomUUID ? crypto.randomUUID() : `client_${Date.now()}`,
+      name,
+      email,
+      phone,
+      password,
+      isSubscribed: false,
+    };
+    const updatedClients = [...clients, newClient];
+    storageService.saveClients(updatedClients);
+    return newClient;
+  },
+
   // Coach Authentication
   loginCoach: (email: string, password: string): Promise<CoachProfile> => {
     return new Promise(async (resolve, reject) => {
