@@ -138,10 +138,16 @@ export const apiService = {
         );
         return data.lesson;
       } catch (error) {
+        const status = typeof error === 'object' && error !== null
+          ? (error as { status?: number }).status
+          : undefined;
         const message = typeof error === 'string'
           ? error
-          : (error as { message?: string })?.message || '';
+          : (error as { message?: string; error?: string })?.message ||
+            (error as { error?: string })?.error ||
+            '';
         const isMissingLesson =
+          status === 404 ||
           message === 'Lesson not found or access denied' ||
           message.includes('HTTP 404');
         if (!isMissingLesson) throw error;
