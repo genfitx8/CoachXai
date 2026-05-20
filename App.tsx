@@ -200,7 +200,8 @@ const AppContent: React.FC = () => {
   useEffect(() => {
     const initApp = async () => {
       // 1. Check API availability
-      const isFirebaseReady = apiService.isAvailable();
+      const hasApi = apiService.isAvailable();
+      const canUseProtectedApi = hasApi && !!apiService.getToken();
 
       // 2. Restore Session
       const session = authService.restoreSession();
@@ -212,11 +213,15 @@ const AppContent: React.FC = () => {
 
           // Fetch full profile
           let foundClient: ClientProfile | undefined;
-          if (isFirebaseReady) {
-            const allClients = await apiService.getClients();
-            foundClient = allClients.find(
-              (c) => c.name === name && c.phone === phone
-            );
+          if (canUseProtectedApi) {
+            try {
+              const allClients = await apiService.getClients();
+              foundClient = allClients.find(
+                (c) => c.name === name && c.phone === phone
+              );
+            } catch (e) {
+              console.warn('[App] Failed to restore client profile from API:', e);
+            }
           } else {
             const allClients = storageService.getClients();
             foundClient = allClients.find(
@@ -227,17 +232,21 @@ const AppContent: React.FC = () => {
         } else if (session.role === 'COACH') {
           // Try to get coach profile from Firebase first, then localStorage
           let profile: CoachProfile | null = null;
-          if (isFirebaseReady) {
-            const allCoaches = await apiService.getCoaches();
-            // Try to find coach by email from localStorage first
-            const localProfile = authService.getCoachProfile();
-            if (localProfile?.email) {
-              profile =
-                allCoaches.find((c) => c.email === localProfile.email) || null;
-            }
-            // If not found by email, try to get the first coach (if only one exists)
-            if (!profile && allCoaches.length === 1) {
-              profile = allCoaches[0];
+          if (canUseProtectedApi) {
+            try {
+              const allCoaches = await apiService.getCoaches();
+              // Try to find coach by email from localStorage first
+              const localProfile = authService.getCoachProfile();
+              if (localProfile?.email) {
+                profile =
+                  allCoaches.find((c) => c.email === localProfile.email) || null;
+              }
+              // If not found by email, try to get the first coach (if only one exists)
+              if (!profile && allCoaches.length === 1) {
+                profile = allCoaches[0];
+              }
+            } catch (e) {
+              console.warn('[App] Failed to restore coach profile from API:', e);
             }
           }
           // Fallback to localStorage
@@ -262,7 +271,7 @@ const AppContent: React.FC = () => {
       }
 
       // 3. Load Data
-      await loadData(isFirebaseReady);
+      await loadData(canUseProtectedApi);
       setIsLoading(false);
     };
 
@@ -274,15 +283,23 @@ const AppContent: React.FC = () => {
     let fetchedCoaches: CoachProfile[] = [];
 
     if (useFirebase) {
-      const [fetchedLessons, clients, coachesData] = await Promise.all([
-        apiService.getLessons(),
-        apiService.getClients(),
-        apiService.getCoaches(),
-      ]);
-      setLessons(fetchedLessons);
-      fetchedClients = clients;
-      fetchedCoaches = coachesData;
-      setCoaches(fetchedCoaches);
+      try {
+        const [fetchedLessons, clients, coachesData] = await Promise.all([
+          apiService.getLessons(),
+          apiService.getClients(),
+          apiService.getCoaches(),
+        ]);
+        setLessons(fetchedLessons);
+        fetchedClients = clients;
+        fetchedCoaches = coachesData;
+        setCoaches(fetchedCoaches);
+      } catch (e) {
+        console.warn('[App] Failed to load data from API (lessons, clients, coaches), falling back to local storage:', e);
+        setLessons(storageService.getLessons());
+        fetchedClients = storageService.getClients();
+        fetchedCoaches = storageService.getCoaches();
+        setCoaches(fetchedCoaches);
+      }
     } else {
       setLessons(storageService.getLessons());
       fetchedClients = storageService.getClients();
@@ -419,7 +436,7 @@ const AppContent: React.FC = () => {
     authService.saveSession(role, clientIdentity, isAutoLogin);
 
     // Reload data to ensure freshness
-    const isFb = apiService.isAvailable();
+    const isFb = apiService.isAvailable() && !!apiService.getToken();
     await loadData(isFb);
   };
 
