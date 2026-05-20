@@ -41,27 +41,7 @@ export const authService = {
       localStorage.setItem(STORAGE_KEYS.COACH_PROFILE, JSON.stringify(coach));
       return coach;
     }
-
-    // localStorage fallback
-    const existing = localStorage.getItem(STORAGE_KEYS.COACH_PROFILE);
-    if (existing) {
-      const profile = JSON.parse(existing);
-      if (profile.email === email) {
-        throw '이미 사용 중인 이메일입니다.';
-      }
-    }
-
-    const newCoach: CoachProfile = {
-      id: crypto.randomUUID ? crypto.randomUUID() : `coach_${Date.now()}`,
-      name,
-      email,
-      phone,
-      isSubscribed: false,
-    };
-    // Store password separately so the localStorage login fallback can verify it.
-    // The returned profile intentionally omits the password field.
-    localStorage.setItem(STORAGE_KEYS.COACH_PROFILE, JSON.stringify({ ...newCoach, password }));
-    return newCoach;
+    throw '회원가입을 위해 서버 연결이 필요합니다.';
   },
 
   // Client Signup
@@ -75,24 +55,7 @@ export const authService = {
       const { client } = await apiService.signupClient(name, email, password, phone);
       return client;
     }
-
-    // localStorage fallback
-    const clients = storageService.getClients();
-    if (clients.some((c) => c.email === email)) {
-      throw '이미 사용 중인 이메일입니다.';
-    }
-
-    const newClient: ClientProfile = {
-      id: crypto.randomUUID ? crypto.randomUUID() : `client_${Date.now()}`,
-      name,
-      email,
-      phone,
-      isSubscribed: false,
-    };
-    // Store password alongside the profile so the localStorage login fallback can verify it.
-    // The returned profile intentionally omits the password field.
-    storageService.saveClients([...clients, { ...newClient, password }]);
-    return newClient;
+    throw '회원가입을 위해 서버 연결이 필요합니다.';
   },
 
   // Coach Authentication

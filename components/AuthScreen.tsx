@@ -275,7 +275,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
     e.preventDefault();
     setError(null);
 
-    if (!name || !email || !password || !phone) {
+    if (!name.trim() || !email.trim() || !password || !phone.trim()) {
       setError(t('signup_required_fields'));
       return;
     }
@@ -352,7 +352,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
                 label={t('name')}
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="홍길동"
+                placeholder={t('name_placeholder')}
                 leading={<User className="h-4 w-4" />}
                 autoComplete="name"
               />
