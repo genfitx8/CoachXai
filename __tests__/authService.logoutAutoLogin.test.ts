@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { authService } from '../services/authService';
 import { firebaseService } from '../services/firebase';
 import { storageService } from '../services/storage';
+import { apiService } from '../services/apiService';
 
 vi.mock('../services/firebase', () => ({
   firebaseService: {
@@ -23,6 +24,12 @@ vi.mock('../services/storage', () => ({
 vi.mock('../services/apiService', () => ({
   apiService: {
     isAvailable: vi.fn().mockReturnValue(false),
+    signupCoach: vi.fn(),
+    signupClient: vi.fn(),
+    loginCoach: vi.fn(),
+    loginClient: vi.fn(),
+    setToken: vi.fn(),
+    clearToken: vi.fn(),
   },
 }));
 
@@ -95,5 +102,50 @@ describe('authService logout and auto-login preference', () => {
 
     authService.logout();
     expect(authService.restoreSession()).toBeNull();
+  });
+
+  it('loginCoach in API mode persists returned JWT token', async () => {
+    const coach = { id: 'coach-1', name: 'Coach', email: 'coach@test.com', phone: '010-0000-0000' };
+    (apiService.isAvailable as any).mockReturnValue(true);
+    (apiService.loginCoach as any).mockResolvedValue({ token: 'jwt-coach-token', coach });
+
+    await authService.loginCoach('coach@test.com', 'password123');
+
+    expect(apiService.setToken).toHaveBeenCalledWith('jwt-coach-token');
+    expect(localStorage.getItem('swingnote_coach_profile')).toEqual(JSON.stringify(coach));
+  });
+
+  it('signupClient in API mode persists returned JWT token', async () => {
+    const client = { id: 'client-1', name: 'Client', email: 'client@test.com', phone: '010-1111-1111' };
+    (apiService.isAvailable as any).mockReturnValue(true);
+    (apiService.signupClient as any).mockResolvedValue({ token: 'jwt-client-token', client });
+
+    await authService.signupClient('Client', 'client@test.com', 'password123', '010-1111-1111');
+
+    expect(apiService.setToken).toHaveBeenCalledWith('jwt-client-token');
+  });
+
+  it('fallback login keeps working without API mode and does not set JWT token', async () => {
+    (apiService.isAvailable as any).mockReturnValue(false);
+    localStorage.setItem(
+      'swingnote_coach_profile',
+      JSON.stringify({
+        id: 'coach-fallback',
+        name: 'Fallback Coach',
+        email: 'fallback@test.com',
+        phone: '010-2222-2222',
+        password: 'pw1234',
+      })
+    );
+
+    const coach = await authService.loginCoach('fallback@test.com', 'pw1234');
+
+    expect(coach.email).toBe('fallback@test.com');
+    expect(apiService.setToken).not.toHaveBeenCalled();
+  });
+
+  it('logout clears persisted API JWT token', () => {
+    authService.logout();
+    expect(apiService.clearToken).toHaveBeenCalledTimes(1);
   });
 });
