@@ -37,7 +37,8 @@ export const authService = {
     phone: string
   ): Promise<CoachProfile> => {
     if (apiService.isAvailable()) {
-      const { coach } = await apiService.signupCoach(name, email, password, phone);
+      const { token, coach } = await apiService.signupCoach(name, email, password, phone);
+      apiService.setToken(token);
       localStorage.setItem(STORAGE_KEYS.COACH_PROFILE, JSON.stringify(coach));
       return coach;
     }
@@ -52,7 +53,8 @@ export const authService = {
     phone: string
   ): Promise<ClientProfile> => {
     if (apiService.isAvailable()) {
-      const { client } = await apiService.signupClient(name, email, password, phone);
+      const { token, client } = await apiService.signupClient(name, email, password, phone);
+      apiService.setToken(token);
       return client;
     }
     throw '회원가입을 위해 서버 연결이 필요합니다.';
@@ -63,7 +65,8 @@ export const authService = {
     return new Promise(async (resolve, reject) => {
       try {
         if (apiService.isAvailable()) {
-          const { coach } = await apiService.loginCoach(email, password);
+          const { token, coach } = await apiService.loginCoach(email, password);
+          apiService.setToken(token);
           localStorage.setItem(STORAGE_KEYS.COACH_PROFILE, JSON.stringify(coach));
           resolve(coach);
           return;
@@ -91,7 +94,8 @@ export const authService = {
     return new Promise(async (resolve, reject) => {
       try {
         if (apiService.isAvailable()) {
-          const { client } = await apiService.loginClient(email, password);
+          const { token, client } = await apiService.loginClient(email, password);
+          apiService.setToken(token);
           resolve(client);
           return;
         }
@@ -401,6 +405,7 @@ export const authService = {
   },
 
   logout: () => {
+    apiService.clearToken();
     localStorage.removeItem(STORAGE_KEYS.SESSION_ROLE);
     localStorage.removeItem(STORAGE_KEYS.SESSION_CLIENT_DATA);
     localStorage.removeItem(STORAGE_KEYS.SESSION_BRANCH_ADMIN_DATA);
