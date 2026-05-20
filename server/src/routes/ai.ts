@@ -2,13 +2,41 @@ import { Router, Request, Response } from 'express';
 import {
   AgentRuntimeError,
   getAgentRuntimeStatus,
-  invokeAgentRuntime,
+  invokeAgentRuntime as invokeAgentRuntimeLegacy,
 } from '../services/agentRuntime';
+import {
+  isAgentRuntimeConfigured,
+  invokeAgentRuntime as invokeAgentPlatformRuntime,
+  AgentRuntimeInvokeRequest,
+} from '../services/agentPlatformRuntime';
+
+type RuntimePart =
+  | { text: string }
+  | { inlineData: { data: string; mimeType: string } };
+
+const isValidRuntimePart = (part: unknown): part is RuntimePart => {
+  if (!part || typeof part !== 'object') return false;
+  const p = part as Record<string, unknown>;
+  if (typeof p.text === 'string') return true;
+  if (
+    p.inlineData &&
+    typeof p.inlineData === 'object' &&
+    typeof (p.inlineData as Record<string, unknown>).data === 'string' &&
+    typeof (p.inlineData as Record<string, unknown>).mimeType === 'string'
+  ) {
+    return true;
+  }
+  return false;
+};
 
 const router = Router();
 
 router.get('/status', (_req: Request, res: Response) => {
-  res.json(getAgentRuntimeStatus());
+  const legacy = getAgentRuntimeStatus();
+  res.json({
+    ...legacy,
+    agentPlatformConfigured: isAgentRuntimeConfigured(),
+  });
 });
 
 router.post('/invoke', async (req: Request, res: Response) => {
@@ -23,7 +51,36 @@ router.post('/invoke', async (req: Request, res: Response) => {
       return;
     }
 
-    const result = await invokeAgentRuntime(feature, payload ?? {});
+    const payloadObj =
+      payload && typeof payload === 'object' && !Array.isArray(payload)
+        ? (payload as Record<string, unknown>)
+        : {};
+
+    // Prefer Agent Platform Runtime when configured; fall back to legacy Agent Runtime.
+    if (isAgentRuntimeConfigured()) {
+      const rawParts = Array.isArray(payloadObj.mediaParts) ? payloadObj.mediaParts : [];
+      const validParts = rawParts.filter(isValidRuntimePart);
+
+      const request: AgentRuntimeInvokeRequest = {
+        operation: feature,
+        prompt: typeof payloadObj.prompt === 'string' ? payloadObj.prompt : undefined,
+        parts: validParts.length > 0 ? validParts : undefined,
+        responseMimeType:
+          typeof payloadObj.responseMimeType === 'string'
+            ? payloadObj.responseMimeType
+            : undefined,
+        temperature:
+          typeof payloadObj.temperature === 'number'
+            ? payloadObj.temperature
+            : undefined,
+      };
+
+      const result = await invokeAgentPlatformRuntime(request);
+      res.json({ ok: true, result });
+      return;
+    }
+
+    const result = await invokeAgentRuntimeLegacy(feature, payload ?? {});
     res.json({ ok: true, result });
   } catch (error) {
     if (error instanceof AgentRuntimeError) {
