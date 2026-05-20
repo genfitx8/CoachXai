@@ -29,6 +29,35 @@ const createResetToken = (): string => {
 };
 
 export const authService = {
+  // Coach Signup
+  signupCoach: async (
+    name: string,
+    email: string,
+    password: string,
+    phone: string
+  ): Promise<CoachProfile> => {
+    if (apiService.isAvailable()) {
+      const { coach } = await apiService.signupCoach(name, email, password, phone);
+      localStorage.setItem(STORAGE_KEYS.COACH_PROFILE, JSON.stringify(coach));
+      return coach;
+    }
+    throw '회원가입을 위해 서버 연결이 필요합니다.';
+  },
+
+  // Client Signup
+  signupClient: async (
+    name: string,
+    email: string,
+    password: string,
+    phone: string
+  ): Promise<ClientProfile> => {
+    if (apiService.isAvailable()) {
+      const { client } = await apiService.signupClient(name, email, password, phone);
+      return client;
+    }
+    throw '회원가입을 위해 서버 연결이 필요합니다.';
+  },
+
   // Coach Authentication
   loginCoach: (email: string, password: string): Promise<CoachProfile> => {
     return new Promise(async (resolve, reject) => {

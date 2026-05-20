@@ -8,6 +8,8 @@ import {
   Activity,
   Mail,
   Lock,
+  User,
+  Phone,
   CheckCircle,
   CheckSquare,
   Square,
@@ -77,6 +79,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
   const [showLangMenu, setShowLangMenu] = useState(false);
 
   const [showFindAccount, setShowFindAccount] = useState(false);
+  const [showSignup, setShowSignup] = useState(false);
   const [findTab, setFindTab] = useState<'EMAIL' | 'PASSWORD'>('EMAIL');
   const [findResult, setFindResult] = useState<{
     type: 'success' | 'error';
@@ -87,6 +90,9 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
+
+  const [signupPasswordConfirm, setSignupPasswordConfirm] = useState('');
+  const [signupSuccess, setSignupSuccess] = useState(false);
 
   const [branchAdminLoginId, setBranchAdminLoginId] = useState('');
   const [branchAdminPassword, setBranchAdminPassword] = useState('');
@@ -108,6 +114,8 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
     setPassword('');
     setName('');
     setPhone('');
+    setSignupPasswordConfirm('');
+    setSignupSuccess(false);
     setBranchAdminLoginId('');
     setBranchAdminPassword('');
     setError(null);
@@ -263,7 +271,151 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
     }
   };
 
+  const handleSignup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+
+    if (!name.trim() || !email.trim() || !password || !phone.trim()) {
+      setError(t('signup_required_fields'));
+      return;
+    }
+    if (password.length < 8) {
+      setError(t('signup_pw_min'));
+      return;
+    }
+    if (password !== signupPasswordConfirm) {
+      setError(t('signup_pw_mismatch'));
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      if (activeTab === 'COACH') {
+        const coach = await authService.signupCoach(name, email, password, phone);
+        onLoginSuccess('COACH', coach, false);
+      } else {
+        const client = await authService.signupClient(name, email, password, phone);
+        onLoginSuccess('CLIENT', client, false);
+      }
+    } catch (err: any) {
+      setError(typeof err === 'string' ? err : t('signup_email_exists'));
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const currentLanguage = LANGUAGES.find((l) => l.code === language) ?? LANGUAGES[0];
+
+  // ─── Signup view ──────────────────────────────────────────────────────────
+  if (showSignup) {
+    return (
+      <div className="min-h-screen bg-bg-base flex items-center justify-center p-4 safe-top safe-bottom">
+        <Card variant="elevated" padding="none" className="w-full max-w-md overflow-hidden">
+          <div className="bg-gradient-to-br from-primary-500 to-primary-700 px-8 py-10 text-center">
+            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-white/10 backdrop-blur-sm">
+              <Activity className="h-7 w-7 text-white" />
+            </div>
+            <h1 className="text-display-sm font-semibold text-white">{t('signup_title')}</h1>
+            <p className="mt-1 text-sm text-primary-100">CoachX AI</p>
+          </div>
+
+          <div className="p-7">
+            {/* Role tabs */}
+            <div className="mb-5 grid grid-cols-2 gap-1.5 rounded-xl bg-bg-inset p-1.5">
+              {(['COACH', 'CLIENT'] as const).map((tab) => {
+                const active = activeTab === tab;
+                return (
+                  <button
+                    key={tab}
+                    type="button"
+                    aria-pressed={active}
+                    onClick={() => {
+                      setActiveTab(tab);
+                      setError(null);
+                    }}
+                    className={`h-10 rounded-lg text-sm font-semibold transition-all ${
+                      active
+                        ? 'bg-primary-600/25 text-primary-300 shadow-elev-1 ring-1 ring-inset ring-primary-500/40'
+                        : 'text-ink-muted hover:text-ink-medium hover:bg-bg-overlay/50'
+                    }`}
+                  >
+                    {tab === 'COACH' ? t('signup_coach') : t('signup_client')}
+                  </button>
+                );
+              })}
+            </div>
+
+            {error && <ErrorAlert message={error} />}
+
+            <form onSubmit={handleSignup} className="space-y-4">
+              <Input
+                label={t('name')}
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder={t('name_placeholder')}
+                leading={<User className="h-4 w-4" />}
+                autoComplete="name"
+              />
+              <Input
+                label={t('email')}
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="email@example.com"
+                leading={<Mail className="h-4 w-4" />}
+                autoComplete="email"
+              />
+              <Input
+                label={t('phone')}
+                type="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="010-0000-0000"
+                helper={t('phone_desc')}
+                leading={<Phone className="h-4 w-4" />}
+                autoComplete="tel"
+              />
+              <Input
+                label={t('password')}
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                helper={t('signup_pw_min')}
+                leading={<Lock className="h-4 w-4" />}
+                autoComplete="new-password"
+              />
+              <Input
+                label={t('signup_pw_confirm')}
+                type="password"
+                value={signupPasswordConfirm}
+                onChange={(e) => setSignupPasswordConfirm(e.target.value)}
+                placeholder="••••••••"
+                leading={<Lock className="h-4 w-4" />}
+                autoComplete="new-password"
+              />
+
+              <Button type="submit" fullWidth size="lg" isLoading={isLoading} className="mt-2">
+                {t('signup_btn')}
+              </Button>
+            </form>
+
+            <div className="mt-6 text-center">
+              <button
+                onClick={() => {
+                  setShowSignup(false);
+                  resetForm();
+                }}
+                className="inline-flex items-center gap-1 text-sm text-ink-muted hover:text-ink-high transition-colors"
+              >
+                <ArrowLeft className="h-3.5 w-3.5" /> {t('go_to_login')}
+              </button>
+            </div>
+          </div>
+        </Card>
+      </div>
+    );
+  }
 
   // ─── Branch admin view ─────────────────────────────────────────────────────
   if (isBranchAdminMode) {
@@ -571,6 +723,20 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
                 {t('login_btn')}
               </Button>
             </form>
+
+            <div className="mt-5 text-center text-sm text-ink-muted">
+              <span>{t('no_account_yet')}</span>{' '}
+              <button
+                type="button"
+                onClick={() => {
+                  setShowSignup(true);
+                  resetForm();
+                }}
+                className="font-semibold text-primary-300 hover:text-primary-200 hover:underline transition-colors"
+              >
+                {t('signup_btn')}
+              </button>
+            </div>
           </div>
         </Card>
       </div>
