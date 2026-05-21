@@ -35,6 +35,10 @@ services:
         sync: false
       - key: TOSS_SECRET_KEY
         sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GEMINI_MODEL
+        sync: false
 
 databases:
   - name: coachxai-db
