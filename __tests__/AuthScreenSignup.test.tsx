@@ -58,6 +58,34 @@ describe('AuthScreen signup', () => {
     expect(screen.getByRole('button', { name: '로그인' })).toBeInTheDocument();
   });
 
+  it('toggles password visibility on login screen', () => {
+    renderAuth();
+
+    const passwordInput = screen.getByLabelText('비밀번호');
+    expect(passwordInput).toHaveAttribute('type', 'password');
+
+    fireEvent.click(screen.getByRole('button', { name: '비밀번호 표시' }));
+    expect(passwordInput).toHaveAttribute('type', 'text');
+
+    fireEvent.click(screen.getByRole('button', { name: '비밀번호 숨기기' }));
+    expect(passwordInput).toHaveAttribute('type', 'password');
+  });
+
+  it('toggles each password visibility independently on signup screen', () => {
+    renderAuth();
+    fireEvent.click(screen.getByRole('button', { name: '회원가입' }));
+
+    const passwordInputs = screen.getAllByPlaceholderText('••••••••');
+    expect(passwordInputs[0]).toHaveAttribute('type', 'password');
+    expect(passwordInputs[1]).toHaveAttribute('type', 'password');
+
+    const toggleButtons = screen.getAllByRole('button', { name: '비밀번호 표시' });
+    fireEvent.click(toggleButtons[0]);
+
+    expect(passwordInputs[0]).toHaveAttribute('type', 'text');
+    expect(passwordInputs[1]).toHaveAttribute('type', 'password');
+  });
+
   it('shows validation error when passwords do not match', async () => {
     renderAuth();
     fireEvent.click(screen.getByRole('button', { name: '회원가입' }));

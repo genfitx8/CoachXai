@@ -20,6 +20,8 @@ import {
   ChevronDown,
   HelpCircle,
   AlertCircle,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 import { useLanguage } from './LanguageContext';
 import { AUTH_USER_TYPE_STORAGE_KEY } from '../constants/auth';
@@ -90,12 +92,15 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
+  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
 
   const [signupPasswordConfirm, setSignupPasswordConfirm] = useState('');
+  const [isSignupConfirmPasswordVisible, setIsSignupConfirmPasswordVisible] = useState(false);
   const [signupSuccess, setSignupSuccess] = useState(false);
 
   const [branchAdminLoginId, setBranchAdminLoginId] = useState('');
   const [branchAdminPassword, setBranchAdminPassword] = useState('');
+  const [isBranchAdminPasswordVisible, setIsBranchAdminPasswordVisible] = useState(false);
 
   const [isAutoLogin, setIsAutoLogin] = useState(() => authService.getAutoLoginPref());
   const [isSavePassword, setIsSavePassword] = useState(() => {
@@ -118,9 +123,23 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
     setSignupSuccess(false);
     setBranchAdminLoginId('');
     setBranchAdminPassword('');
+    setIsPasswordVisible(false);
+    setIsSignupConfirmPasswordVisible(false);
+    setIsBranchAdminPasswordVisible(false);
     setError(null);
     setFindResult(null);
   };
+
+  const renderPasswordToggle = (visible: boolean, onToggle: () => void) => (
+    <button
+      type="button"
+      aria-label={visible ? '비밀번호 숨기기' : '비밀번호 표시'}
+      onClick={onToggle}
+      className="inline-flex items-center justify-center rounded text-ink-muted transition-colors hover:text-ink-high"
+    >
+      {visible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+    </button>
+  );
 
   // Load saved credentials on mount and auto-login if both options are enabled
   useEffect(() => {
@@ -377,21 +396,26 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
               />
               <Input
                 label={t('password')}
-                type="password"
+                type={isPasswordVisible ? 'text' : 'password'}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
                 helper={t('signup_pw_min')}
                 leading={<Lock className="h-4 w-4" />}
+                trailing={renderPasswordToggle(isPasswordVisible, () => setIsPasswordVisible((v) => !v))}
                 autoComplete="new-password"
               />
               <Input
                 label={t('signup_pw_confirm')}
-                type="password"
+                type={isSignupConfirmPasswordVisible ? 'text' : 'password'}
                 value={signupPasswordConfirm}
                 onChange={(e) => setSignupPasswordConfirm(e.target.value)}
                 placeholder="••••••••"
                 leading={<Lock className="h-4 w-4" />}
+                trailing={renderPasswordToggle(
+                  isSignupConfirmPasswordVisible,
+                  () => setIsSignupConfirmPasswordVisible((v) => !v)
+                )}
                 autoComplete="new-password"
               />
 
@@ -444,11 +468,15 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
               />
               <Input
                 label={t('password')}
-                type="password"
+                type={isBranchAdminPasswordVisible ? 'text' : 'password'}
                 value={branchAdminPassword}
                 onChange={(e) => setBranchAdminPassword(e.target.value)}
                 placeholder="••••••••"
                 leading={<Lock className="h-4 w-4" />}
+                trailing={renderPasswordToggle(
+                  isBranchAdminPasswordVisible,
+                  () => setIsBranchAdminPasswordVisible((v) => !v)
+                )}
               />
 
               <button
@@ -513,11 +541,12 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
               />
               <Input
                 label={t('password')}
-                type="password"
+                type={isPasswordVisible ? 'text' : 'password'}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
                 leading={<Lock className="h-4 w-4" />}
+                trailing={renderPasswordToggle(isPasswordVisible, () => setIsPasswordVisible((v) => !v))}
               />
 
               <Button
@@ -661,13 +690,14 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
 
               <Input
                 label={t('password')}
-                type="password"
+                type={isPasswordVisible ? 'text' : 'password'}
                 name="password"
                 autoComplete="current-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
                 leading={<Lock className="h-4 w-4" />}
+                trailing={renderPasswordToggle(isPasswordVisible, () => setIsPasswordVisible((v) => !v))}
               />
 
               <div className="flex items-center justify-between pt-1">
