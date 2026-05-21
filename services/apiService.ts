@@ -86,7 +86,7 @@ export function resolveMediaUrl(url: string | null | undefined): string {
 }
 
 async function processBlobUrl(blobUrl: string, key: string): Promise<string> {
-  if (!blobUrl || !blobUrl.startsWith('blob:')) return blobUrl;
+  if (!blobUrl || (!blobUrl.startsWith('blob:') && !blobUrl.startsWith('data:'))) return blobUrl;
   const res = await fetch(blobUrl);
   const blob = await res.blob();
   return uploadBlobToR2(blob, key);
@@ -171,6 +171,7 @@ export const apiService = {
   async processLessonMedia(lesson: Lesson): Promise<Lesson> {
     const processed = { ...lesson };
     const id = lesson.id || crypto.randomUUID();
+    const timestamp = Date.now();
 
     if (lesson.videoUrl?.startsWith('blob:')) {
       const ext = lesson.mediaType === 'image' ? 'jpg' : 'mp4';
@@ -185,12 +186,60 @@ export const apiService = {
         lesson.additionalMedia.map(async (item, idx) => {
           if (item.url?.startsWith('blob:')) {
             const ext = mediaExtMap[item.type] ?? 'bin';
-            const url = await processBlobUrl(item.url, `lessons/${id}/additional_${idx}_${Date.now()}.${ext}`);
+            const url = await processBlobUrl(item.url, `lessons/${id}/additional_${idx}_${timestamp}.${ext}`);
             return { ...item, url };
           }
           return item;
         })
       );
+    }
+
+    // Scorecard hole voice recordings (blob URLs become invalid after page refresh)
+    if (lesson.scorecardDetail) {
+      processed.scorecardDetail = {
+        ...lesson.scorecardDetail,
+        holes: await Promise.all(
+          lesson.scorecardDetail.holes.map(async (h) => {
+            const voiceUrls = h.voiceUrls?.length
+              ? h.voiceUrls
+              : h.voiceUrl
+              ? [h.voiceUrl]
+              : [];
+            if (voiceUrls.length === 0) return h;
+
+            const uploadedVoiceUrls = await Promise.all(
+              voiceUrls.map(async (voiceUrl, idx) => {
+                if (!voiceUrl.startsWith('blob:') && !voiceUrl.startsWith('data:')) return voiceUrl;
+                return processBlobUrl(
+                  voiceUrl,
+                  `lessons/${id}/hole_${h.holeNumber}_${idx}_${timestamp}.mp4`
+                );
+              })
+            );
+
+            return {
+              ...h,
+              voiceUrls: uploadedVoiceUrls,
+              voiceUrl: uploadedVoiceUrls[uploadedVoiceUrls.length - 1] ?? undefined,
+            };
+          })
+        ),
+      };
+    }
+
+    // Client voice feedback stored as a data URL (base64) or blob URL
+    if (lesson.clientFeedback?.voiceUrl) {
+      const voiceUrl = lesson.clientFeedback.voiceUrl;
+      if (voiceUrl.startsWith('data:') || voiceUrl.startsWith('blob:')) {
+        const uploadedUrl = await processBlobUrl(
+          voiceUrl,
+          `lessons/${id}/feedback_${timestamp}.mp4`
+        );
+        processed.clientFeedback = {
+          ...lesson.clientFeedback,
+          voiceUrl: uploadedUrl,
+        };
+      }
     }
 
     return processed;
