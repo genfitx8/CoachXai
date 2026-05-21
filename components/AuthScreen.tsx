@@ -123,9 +123,6 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
     setSignupSuccess(false);
     setBranchAdminLoginId('');
     setBranchAdminPassword('');
-    setIsPasswordVisible(false);
-    setIsSignupConfirmPasswordVisible(false);
-    setIsBranchAdminPasswordVisible(false);
     setError(null);
     setFindResult(null);
   };
@@ -133,9 +130,10 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
   const renderPasswordToggle = (visible: boolean, onToggle: () => void) => (
     <button
       type="button"
-      aria-label={visible ? '비밀번호 숨기기' : '비밀번호 표시'}
+      tabIndex={0}
+      aria-label={visible ? t('hide_password') : t('show_password')}
       onClick={onToggle}
-      className="inline-flex items-center justify-center rounded text-ink-muted transition-colors hover:text-ink-high"
+      className="inline-flex items-center justify-center rounded text-ink-muted transition-colors hover:text-ink-high focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-400"
     >
       {visible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
     </button>
