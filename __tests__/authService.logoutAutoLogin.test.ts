@@ -125,8 +125,51 @@ describe('authService logout and auto-login preference', () => {
     expect(apiService.setToken).toHaveBeenCalledWith('jwt-client-token');
   });
 
+  it('signupCoach still uses API when availability flag is false (default-base mode)', async () => {
+    const coach = { id: 'coach-2', name: 'Coach', email: 'coach@test.com', phone: '010-3333-3333' };
+    (apiService.isAvailable as any).mockReturnValue(false);
+    (apiService.signupCoach as any).mockResolvedValue({ token: 'jwt-coach-token-2', coach });
+
+    await authService.signupCoach(' Coach ', ' Coach@Test.com ', 'password123', ' 010-3333-3333 ');
+
+    expect(apiService.signupCoach).toHaveBeenCalledWith('Coach', 'coach@test.com', 'password123', '010-3333-3333');
+    expect(apiService.setToken).toHaveBeenCalledWith('jwt-coach-token-2');
+  });
+
+  it('loginClient still uses API when availability flag is false (default-base mode)', async () => {
+    const client = { id: 'client-2', name: 'Client', email: 'client@test.com', phone: '010-4444-4444' };
+    (apiService.isAvailable as any).mockReturnValue(false);
+    (apiService.loginClient as any).mockResolvedValue({ token: 'jwt-client-token-2', client });
+
+    await authService.loginClient(' Client@Test.com ', 'password123');
+
+    expect(apiService.loginClient).toHaveBeenCalledWith('client@test.com', 'password123');
+    expect(apiService.setToken).toHaveBeenCalledWith('jwt-client-token-2');
+  });
+
+  it('loginCoach falls back to local storage when API login fails', async () => {
+    (apiService.isAvailable as any).mockReturnValue(false);
+    (apiService.loginCoach as any).mockRejectedValueOnce(new Error('network down'));
+    localStorage.setItem(
+      'swingnote_coach_profile',
+      JSON.stringify({
+        id: 'coach-fallback-2',
+        name: 'Fallback Coach',
+        email: 'fallback@test.com',
+        phone: '010-5555-5555',
+        password: 'pw1234',
+      })
+    );
+
+    const coach = await authService.loginCoach(' Fallback@Test.com ', 'pw1234');
+
+    expect(apiService.loginCoach).toHaveBeenCalledWith('fallback@test.com', 'pw1234');
+    expect(coach.email).toBe('fallback@test.com');
+  });
+
   it('fallback login keeps working without API mode and does not set JWT token', async () => {
     (apiService.isAvailable as any).mockReturnValue(false);
+    (apiService.loginCoach as any).mockRejectedValueOnce(new Error('api unavailable'));
     localStorage.setItem(
       'swingnote_coach_profile',
       JSON.stringify({

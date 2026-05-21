@@ -1,6 +1,6 @@
 import type { Lesson, ClientProfile, CoachProfile, LessonPackage, TrainingProgram, Homework } from '../types';
 
-const BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000').replace(/\/$/, '');
+const BASE_URL = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '');
 const TOKEN_KEY = 'swingnote_api_token';
 const LESSON_NOT_FOUND_ERROR = 'Lesson not found or access denied';
 const HTTP_404_ERROR = 'HTTP 404';
