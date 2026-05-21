@@ -25,17 +25,24 @@ export const invokeGeminiApi = async (
     | { text: string }
     | { inline_data: { data: string; mime_type: string } };
 
+  const mappedParts: GeminiPart[] = (request.parts ?? []).map((p) => {
+    if ('text' in p) return { text: p.text };
+    return {
+      inline_data: {
+        data: p.inlineData.data,
+        mime_type: p.inlineData.mimeType,
+      },
+    };
+  });
+
+  // When media parts are present, prepend the text prompt so Gemini receives
+  // both the instructions and the media in a single content block.
+  // Without this, the text prompt is silently dropped for all multimodal calls.
   const contentParts: GeminiPart[] =
-    request.parts && request.parts.length > 0
-      ? request.parts.map((p) => {
-          if ('text' in p) return { text: p.text };
-          return {
-            inline_data: {
-              data: p.inlineData.data,
-              mime_type: p.inlineData.mimeType,
-            },
-          };
-        })
+    mappedParts.length > 0
+      ? request.prompt
+        ? [{ text: request.prompt }, ...mappedParts]
+        : mappedParts
       : request.prompt
       ? [{ text: request.prompt }]
       : [];

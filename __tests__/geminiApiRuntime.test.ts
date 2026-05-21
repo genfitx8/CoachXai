@@ -136,6 +136,42 @@ describe('geminiApiRuntime', () => {
       });
     });
 
+    it('includes text prompt alongside media parts when both are provided', async () => {
+      process.env.GEMINI_API_KEY = FAKE_KEY;
+      const fetchMock = vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          candidates: [
+            { content: { parts: [{ text: 'lesson summary result' }], role: 'model' } },
+          ],
+        }),
+      });
+      vi.stubGlobal('fetch', fetchMock);
+
+      // This mirrors the real frontend call: a text prompt + media parts together.
+      // Previously, the text prompt was silently dropped when parts were present.
+      const request: AgentRuntimeInvokeRequest = {
+        operation: 'lesson_summary',
+        prompt: 'Summarize this golf lesson',
+        parts: [
+          { inlineData: { data: 'base64video==', mimeType: 'video/mp4' } },
+        ],
+      };
+      const result = await invokeGeminiApi(request);
+      expect(result.text).toBe('lesson summary result');
+
+      const callBody = JSON.parse(fetchMock.mock.calls[0][1].body as string) as {
+        contents: Array<{ role: string; parts: unknown[] }>;
+      };
+      const parts = callBody.contents[0].parts as Array<Record<string, unknown>>;
+      // Text prompt must be the first part, followed by the media part
+      expect(parts).toHaveLength(2);
+      expect(parts[0]).toEqual({ text: 'Summarize this golf lesson' });
+      expect(parts[1]).toEqual({
+        inline_data: { data: 'base64video==', mime_type: 'video/mp4' },
+      });
+    });
+
     it('throws on non-ok HTTP response', async () => {
       process.env.GEMINI_API_KEY = FAKE_KEY;
       const fetchMock = vi.fn().mockResolvedValue({
