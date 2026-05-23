@@ -92,6 +92,15 @@ async function processBlobUrl(blobUrl: string, key: string): Promise<string> {
   return uploadBlobToR2(blob, key);
 }
 
+async function processLocalMediaUrl(url: string, key: string): Promise<string> {
+  if (!url) return url;
+  const isLocalUrl = url.startsWith('blob:') || url.startsWith('data:');
+  if (!isLocalUrl) return url;
+  const res = await fetch(url);
+  const blob = await res.blob();
+  return uploadBlobToR2(blob, key);
+}
+
 export const apiService = {
   isAvailable(): boolean {
     return !!(import.meta.env.VITE_API_BASE_URL);
@@ -171,6 +180,7 @@ export const apiService = {
   async processLessonMedia(lesson: Lesson): Promise<Lesson> {
     const processed = { ...lesson };
     const id = lesson.id || crypto.randomUUID();
+    const timestamp = Date.now();
 
     if (lesson.videoUrl?.startsWith('blob:')) {
       const ext = lesson.mediaType === 'image' ? 'jpg' : 'mp4';
@@ -191,6 +201,49 @@ export const apiService = {
           return item;
         })
       );
+    }
+
+    if (lesson.scorecardDetail?.holes?.length) {
+      processed.scorecardDetail = {
+        ...lesson.scorecardDetail,
+        holes: await Promise.all(
+          lesson.scorecardDetail.holes.map(async (hole) => {
+            const voiceUrls =
+              hole.voiceUrls && hole.voiceUrls.length > 0
+                ? hole.voiceUrls
+                : hole.voiceUrl
+                ? [hole.voiceUrl]
+                : [];
+
+            if (voiceUrls.length === 0) return hole;
+
+            const uploadedVoiceUrls = await Promise.all(
+              voiceUrls.map((voiceUrl, idx) =>
+                processLocalMediaUrl(
+                  voiceUrl,
+                  `lessons/${id}/hole_${hole.holeNumber}_${idx}_${timestamp}.mp4`
+                )
+              )
+            );
+
+            return {
+              ...hole,
+              voiceUrls: uploadedVoiceUrls,
+              voiceUrl: uploadedVoiceUrls[uploadedVoiceUrls.length - 1] ?? hole.voiceUrl,
+            };
+          })
+        ),
+      };
+    }
+
+    if (lesson.clientFeedback?.voiceUrl) {
+      processed.clientFeedback = {
+        ...lesson.clientFeedback,
+        voiceUrl: await processLocalMediaUrl(
+          lesson.clientFeedback.voiceUrl,
+          `lessons/${id}/feedback_${timestamp}.mp4`
+        ),
+      };
     }
 
     return processed;

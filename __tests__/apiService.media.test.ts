@@ -170,6 +170,120 @@ describe('apiService media helpers', () => {
     expect(addUrl).toBe(`${MOCK_BASE_URL}/api/files/lessons/lid/additional_0_ts.mp4`);
   });
 
+  it('processLessonMedia uploads hole voice blob URLs and preserves voiceUrl/voiceUrls', async () => {
+    vi.spyOn(Date, 'now').mockReturnValue(1700000000000);
+
+    const mockFetch = vi.fn(async (url: string, opts?: RequestInit) => {
+      if (typeof url === 'string' && url.includes('/api/files/presign')) {
+        const body = opts?.body ? JSON.parse(String(opts.body)) : {};
+        return new Response(
+          JSON.stringify({
+            uploadUrl: 'https://r2.example.com/put',
+            fileUrl: `/api/files/${body.key}`,
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
+        );
+      }
+      if (typeof url === 'string' && url.startsWith('blob:')) {
+        return new Response('fakedata', { status: 200 });
+      }
+      return new Response(null, { status: 200 });
+    });
+    vi.stubGlobal('fetch', mockFetch);
+
+    const { apiService } = await import('../services/apiService');
+
+    const lesson = {
+      id: 'lid',
+      videoUrl: '',
+      mediaType: 'audio' as const,
+      additionalMedia: [],
+      scorecardDetail: {
+        courseName: 'Test CC',
+        holes: [
+          {
+            holeNumber: 1,
+            par: 4,
+            score: 5,
+            putts: 2,
+            voiceUrls: ['blob:http://localhost/hole-voice'],
+            voiceUrl: 'blob:http://localhost/hole-voice',
+          },
+        ],
+        totalScore: 5,
+        totalPutts: 2,
+      },
+      clientName: 'Test',
+      clientPhone: '000',
+      createdBy: 'COACH' as const,
+      recordType: 'SCORE' as const,
+      date: '2024-01-01',
+      title: 'Round note',
+      coachNotes: '',
+      tags: [],
+      createdAt: Date.now(),
+    };
+
+    const processed = await apiService.processLessonMedia(lesson as never);
+    const uploaded = processed.scorecardDetail!.holes[0].voiceUrls![0];
+
+    expect(uploaded).toBe(
+      `${MOCK_BASE_URL}/api/files/lessons/lid/hole_1_0_1700000000000.mp4`
+    );
+    expect(processed.scorecardDetail!.holes[0].voiceUrl).toBe(uploaded);
+  });
+
+  it('processLessonMedia uploads client feedback data URL voice', async () => {
+    vi.spyOn(Date, 'now').mockReturnValue(1700000000000);
+
+    const mockFetch = vi.fn(async (url: string, opts?: RequestInit) => {
+      if (typeof url === 'string' && url.includes('/api/files/presign')) {
+        const body = opts?.body ? JSON.parse(String(opts.body)) : {};
+        return new Response(
+          JSON.stringify({
+            uploadUrl: 'https://r2.example.com/put',
+            fileUrl: `/api/files/${body.key}`,
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
+        );
+      }
+      if (typeof url === 'string' && (url.startsWith('blob:') || url.startsWith('data:'))) {
+        return new Response('fakedata', { status: 200 });
+      }
+      return new Response(null, { status: 200 });
+    });
+    vi.stubGlobal('fetch', mockFetch);
+
+    const { apiService } = await import('../services/apiService');
+
+    const lesson = {
+      id: 'lid',
+      videoUrl: '',
+      mediaType: 'audio' as const,
+      additionalMedia: [],
+      clientFeedback: {
+        text: 'voice note',
+        voiceUrl: 'data:audio/webm;base64,ZmFrZQ==',
+        updatedAt: Date.now(),
+      },
+      clientName: 'Test',
+      clientPhone: '000',
+      createdBy: 'CLIENT' as const,
+      recordType: 'LESSON' as const,
+      date: '2024-01-01',
+      title: 'Client note',
+      coachNotes: '',
+      tags: [],
+      createdAt: Date.now(),
+    };
+
+    const processed = await apiService.processLessonMedia(lesson as never);
+
+    expect(processed.clientFeedback!.voiceUrl).toBe(
+      `${MOCK_BASE_URL}/api/files/lessons/lid/feedback_1700000000000.mp4`
+    );
+  });
+
   it('saveLesson falls back to POST when PUT returns lesson-not-found', async () => {
     const lesson = {
       id: '65d06885-d8f6-4cba-95df-7db18b8a8de6',
