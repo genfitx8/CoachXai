@@ -85,6 +85,27 @@ export function resolveMediaUrl(url: string | null | undefined): string {
   return '';
 }
 
+function normalizeLessonMediaUrls(lesson: Lesson): Lesson {
+  const videoUrlSource =
+    lesson.videoUrl ||
+    (lesson.videoKey ? `/api/files/${lesson.videoKey}` : '');
+
+  return {
+    ...lesson,
+    videoUrl: resolveMediaUrl(videoUrlSource),
+    additionalMedia: lesson.additionalMedia?.map((item) => ({
+      ...item,
+      url: resolveMediaUrl(item.url),
+    })),
+    editedVideoUrl: lesson.editedVideoUrl
+      ? resolveMediaUrl(lesson.editedVideoUrl)
+      : lesson.editedVideoUrl,
+    compareVideoUrl: lesson.compareVideoUrl
+      ? resolveMediaUrl(lesson.compareVideoUrl)
+      : lesson.compareVideoUrl,
+  };
+}
+
 async function processBlobUrl(blobUrl: string, key: string): Promise<string> {
   if (!blobUrl || !blobUrl.startsWith('blob:')) return blobUrl;
   const res = await fetch(blobUrl);
@@ -148,7 +169,7 @@ export const apiService = {
 
   async getLessons(): Promise<Lesson[]> {
     const data = await req<{ lessons: Lesson[] }>('GET', '/api/lessons');
-    return data.lessons;
+    return data.lessons.map(normalizeLessonMediaUrls);
   },
 
   async saveLesson(lesson: Lesson): Promise<Lesson> {
@@ -159,7 +180,7 @@ export const apiService = {
           `/api/lessons/${lesson.id}`,
           lesson
         );
-        return data.lesson;
+        return normalizeLessonMediaUrls(data.lesson);
       } catch (error) {
         const { status, message } = parseErrorDetails(error);
         const isMissingLesson =
@@ -170,7 +191,7 @@ export const apiService = {
       }
     }
     const data = await req<{ lesson: Lesson }>('POST', '/api/lessons', lesson);
-    return data.lesson;
+    return normalizeLessonMediaUrls(data.lesson);
   },
 
   async deleteLesson(lessonId: string): Promise<void> {
