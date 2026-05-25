@@ -114,6 +114,7 @@ export interface Lesson {
   memberBodyAnalysis?: LessonBodyAnalysis; // Added: Member body analysis captured during lesson
   swingAngle?: 'FRONT' | 'SIDE'; // Added: Camera angle of the swing
   videoUrl: string; // Blob URL for media
+  videoKey?: string; // Storage key for media, used to recover URL when videoUrl is missing
   mediaType: 'video' | 'image' | 'audio';
   additionalMedia?: MediaItem[];
   thumbnailUrl?: string;

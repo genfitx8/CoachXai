@@ -1,8 +1,9 @@
 
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Lesson } from '../types';
 import { Calendar, PlayCircle, ChevronRight, Image as ImageIcon, Mic, User, Send, Target, Award, AlertCircle, MessageCircle, CheckCircle, Trash2, Flag, BookOpen, Trophy } from 'lucide-react';
 import { useLanguage } from './LanguageContext';
+import { resolveMediaUrl } from '../services/apiService';
 
 interface LessonCardProps {
   lesson: Lesson;
@@ -15,9 +16,17 @@ interface LessonCardProps {
 export const LessonCard: React.FC<LessonCardProps> = ({ lesson, onClick, onShare, onDelete, showMedia = true }) => {
   const [mediaError, setMediaError] = useState(false);
   const { t } = useLanguage();
+  const lessonMediaUrl = useMemo(
+    () => resolveMediaUrl(lesson.videoUrl || (lesson.videoKey ? `/api/files/${lesson.videoKey}` : '')),
+    [lesson.videoUrl, lesson.videoKey]
+  );
+
+  useEffect(() => {
+    setMediaError(false);
+  }, [lessonMediaUrl]);
 
   const renderMediaPreview = () => {
-    if (mediaError || !lesson.videoUrl) {
+    if (mediaError || !lessonMediaUrl) {
         return (
             <div className="w-full h-full flex flex-col items-center justify-center bg-gray-100 text-gray-400">
                 <AlertCircle className="w-8 h-8 mb-2 opacity-50" />
@@ -30,7 +39,7 @@ export const LessonCard: React.FC<LessonCardProps> = ({ lesson, onClick, onShare
         case 'image':
             return (
                 <img 
-                    src={lesson.videoUrl} 
+                    src={lessonMediaUrl} 
                     className="w-full h-full object-cover" 
                     alt={lesson.title}
                     onError={() => setMediaError(true)}
@@ -53,7 +62,7 @@ export const LessonCard: React.FC<LessonCardProps> = ({ lesson, onClick, onShare
         default:
              return (
                 <video 
-                    src={lesson.videoUrl} 
+                    src={lessonMediaUrl} 
                     className="w-full h-full object-cover"
                     muted
                     playsInline
@@ -69,7 +78,7 @@ export const LessonCard: React.FC<LessonCardProps> = ({ lesson, onClick, onShare
   };
 
   const renderIcon = () => {
-     if (mediaError || !lesson.videoUrl) return null;
+     if (mediaError || !lessonMediaUrl) return null;
 
      switch(lesson.mediaType) {
          case 'image': 

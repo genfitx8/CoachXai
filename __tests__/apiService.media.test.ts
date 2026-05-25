@@ -360,4 +360,69 @@ describe('apiService media helpers', () => {
     expect(mockFetch).toHaveBeenCalledTimes(1);
     expect((mockFetch.mock.calls[0][1] as RequestInit).method).toBe('PUT');
   });
+
+  it('getLessons resolves relative media URLs to absolute URLs', async () => {
+    const lesson = {
+      id: 'l1',
+      clientName: 'Test',
+      clientPhone: '000',
+      createdBy: 'COACH' as const,
+      recordType: 'LESSON' as const,
+      date: '2024-01-01',
+      title: 'Lesson',
+      coachNotes: '',
+      videoUrl: '/api/files/lessons/l1/main.mp4',
+      mediaType: 'video' as const,
+      tags: [],
+      createdAt: Date.now(),
+    };
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () =>
+        new Response(JSON.stringify({ lessons: [lesson] }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        })
+      )
+    );
+
+    const { apiService } = await import('../services/apiService');
+    const lessons = await apiService.getLessons();
+
+    expect(lessons[0].videoUrl).toBe(`${MOCK_BASE_URL}/api/files/lessons/l1/main.mp4`);
+  });
+
+  it('getLessons builds playable video URL from videoKey when videoUrl is empty', async () => {
+    const lesson = {
+      id: 'l2',
+      clientName: 'Test',
+      clientPhone: '000',
+      createdBy: 'COACH' as const,
+      recordType: 'LESSON' as const,
+      date: '2024-01-01',
+      title: 'Lesson',
+      coachNotes: '',
+      videoUrl: '',
+      videoKey: 'lessons/l2/main.mp4',
+      mediaType: 'video' as const,
+      tags: [],
+      createdAt: Date.now(),
+    };
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () =>
+        new Response(JSON.stringify({ lessons: [lesson] }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        })
+      )
+    );
+
+    const { apiService } = await import('../services/apiService');
+    const lessons = await apiService.getLessons();
+
+    expect(lessons[0].videoUrl).toBe(`${MOCK_BASE_URL}/api/files/lessons/l2/main.mp4`);
+  });
 });
