@@ -187,6 +187,27 @@ describe('AuthScreen signup', () => {
 
   it('stores email and password when remember password is enabled', async () => {
     mockedAuthService.loginCoach.mockResolvedValue(mockCoachProfile);
+    const storeSpy = vi.fn().mockResolvedValue(undefined);
+
+    Object.defineProperty(globalThis, 'PasswordCredential', {
+      value: class {
+        id: string;
+        password: string;
+        constructor(form: HTMLFormElement) {
+          const emailInput = form.querySelector('input[type="email"]') as HTMLInputElement;
+          const passwordInput = form.querySelector('input[type="password"]') as HTMLInputElement;
+          this.id = emailInput?.value ?? '';
+          this.password = passwordInput?.value ?? '';
+        }
+      },
+      configurable: true,
+      writable: true,
+    });
+
+    Object.defineProperty(navigator, 'credentials', {
+      value: { store: storeSpy, get: vi.fn().mockResolvedValue(null) },
+      configurable: true,
+    });
 
     renderAuth();
 
@@ -207,13 +228,14 @@ describe('AuthScreen signup', () => {
       );
     });
 
-    const savedCredentials = localStorage.getItem('swingnote_saved_credentials');
-    expect(savedCredentials).not.toBeNull();
-    expect(JSON.parse(savedCredentials as string)).toEqual({
+    expect(localStorage.getItem('swingnote_remember_password')).toBe('1');
+    const savedLoginId = localStorage.getItem('swingnote_saved_login_id');
+    expect(savedLoginId).not.toBeNull();
+    expect(JSON.parse(savedLoginId as string)).toEqual({
       email: 'coach@test.com',
-      password: 'password123',
       role: 'COACH',
     });
+    expect(storeSpy).toHaveBeenCalledTimes(1);
   });
 
   it('shows error message when signup fails with duplicate email', async () => {

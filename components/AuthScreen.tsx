@@ -25,15 +25,11 @@ import { useLanguage } from './LanguageContext';
 import { AUTH_USER_TYPE_STORAGE_KEY } from '../constants/auth';
 
 const SAVED_LOGIN_ID_KEY = 'swingnote_saved_login_id';
-const SAVED_CREDENTIALS_KEY = 'swingnote_saved_credentials';
+const REMEMBER_PASSWORD_PREF_KEY = 'swingnote_remember_password';
 
 interface SavedLoginId {
   email: string;
   role: 'COACH' | 'CLIENT';
-}
-
-interface SavedCredentials extends SavedLoginId {
-  password: string;
 }
 
 interface AuthScreenProps {
@@ -109,7 +105,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
   });
   const [isRememberPassword, setIsRememberPassword] = useState(() => {
     try {
-      return !!localStorage.getItem(SAVED_CREDENTIALS_KEY);
+      return localStorage.getItem(REMEMBER_PASSWORD_PREF_KEY) === '1';
     } catch {
       return false;
     }
@@ -134,17 +130,6 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
   // Load saved login id on mount
   useEffect(() => {
     try {
-      const rawCredentials = localStorage.getItem(SAVED_CREDENTIALS_KEY);
-      if (rawCredentials) {
-        const savedCredentials: SavedCredentials = JSON.parse(rawCredentials);
-        setEmail(savedCredentials.email);
-        setPassword(savedCredentials.password);
-        setActiveTab(savedCredentials.role);
-        setIsRememberId(true);
-        setIsRememberPassword(true);
-        return;
-      }
-
       const raw = localStorage.getItem(SAVED_LOGIN_ID_KEY);
       if (!raw) return;
       const savedLoginId: SavedLoginId = JSON.parse(raw);
@@ -153,6 +138,40 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
       setIsRememberId(true);
     } catch {}
   }, []);
+
+  useEffect(() => {
+    if (!isRememberPassword || typeof navigator === 'undefined') return;
+    const credentialsApi = navigator.credentials;
+    if (!credentialsApi || typeof credentialsApi.get !== 'function') return;
+
+    let cancelled = false;
+    const loadSavedPassword = async () => {
+      try {
+        const credential = (await credentialsApi.get({
+          password: true,
+          mediation: 'optional',
+        } as CredentialRequestOptions)) as
+          | PasswordCredential
+          | ({ id?: string; password?: string } & Credential)
+          | null;
+        if (!credential || cancelled) return;
+        if (typeof credential.id === 'string' && credential.id) {
+          setEmail(credential.id);
+        }
+        if (
+          'password' in credential &&
+          typeof (credential as { password?: string }).password === 'string'
+        ) {
+          setPassword((credential as { password: string }).password);
+        }
+      } catch {}
+    };
+
+    void loadSavedPassword();
+    return () => {
+      cancelled = true;
+    };
+  }, [isRememberPassword]);
 
   const handleTabChange = (tab: 'COACH' | 'CLIENT') => {
     setActiveTab(tab);
@@ -176,15 +195,45 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
     } catch {}
   };
 
-  const saveCredentials = (email: string, password: string, role: 'COACH' | 'CLIENT') => {
+  const setRememberPasswordPref = (remember: boolean) => {
     try {
-      localStorage.setItem(SAVED_CREDENTIALS_KEY, JSON.stringify({ email, password, role }));
+      if (remember) {
+        localStorage.setItem(REMEMBER_PASSWORD_PREF_KEY, '1');
+      } else {
+        localStorage.removeItem(REMEMBER_PASSWORD_PREF_KEY);
+      }
     } catch {}
   };
 
-  const clearCredentials = () => {
+  const saveBrowserCredential = async (loginEmail: string, loginPassword: string) => {
+    if (
+      typeof navigator === 'undefined' ||
+      typeof window === 'undefined' ||
+      typeof PasswordCredential === 'undefined'
+    ) {
+      return;
+    }
+    const credentialsApi = navigator.credentials;
+    if (!credentialsApi || typeof credentialsApi.store !== 'function') return;
+
     try {
-      localStorage.removeItem(SAVED_CREDENTIALS_KEY);
+      const form = document.createElement('form');
+      const emailInput = document.createElement('input');
+      emailInput.type = 'email';
+      emailInput.name = 'email';
+      emailInput.value = loginEmail;
+
+      const passwordInput = document.createElement('input');
+      passwordInput.type = 'password';
+      passwordInput.name = 'password';
+      passwordInput.value = loginPassword;
+
+      form.appendChild(emailInput);
+      form.appendChild(passwordInput);
+      const credential = new PasswordCredential(form);
+      if (credential) {
+        await credentialsApi.store(credential);
+      }
     } catch {}
   };
 
@@ -199,12 +248,14 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
         profile = await authService.loginClient(loginEmail, loginPassword);
       }
       if (isRememberPassword) {
-        saveCredentials(loginEmail, loginPassword, role);
+        setRememberPasswordPref(true);
+        saveLoginId(loginEmail, role);
+        await saveBrowserCredential(loginEmail, loginPassword);
       } else if (isRememberId) {
-        clearCredentials();
+        setRememberPasswordPref(false);
         saveLoginId(loginEmail, role);
       } else {
-        clearCredentials();
+        setRememberPasswordPref(false);
         clearLoginId();
       }
       onLoginSuccess(role, profile);
@@ -685,7 +736,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
                       setIsRememberId(next);
                       if (!next) {
                         setIsRememberPassword(false);
-                        clearCredentials();
+                        setRememberPasswordPref(false);
                         clearLoginId();
                       }
                     }}
@@ -705,9 +756,10 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
                       setIsRememberPassword(next);
                       if (next) {
                         setIsRememberId(true);
+                        setRememberPasswordPref(true);
                         return;
                       }
-                      clearCredentials();
+                      setRememberPasswordPref(false);
                     }}
                     className="flex items-center gap-1.5 text-sm text-ink-medium hover:text-ink-high transition-colors"
                   >
