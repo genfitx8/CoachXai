@@ -1046,9 +1046,11 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
                     onClick={() => setActiveMedia({ id: 'main', url: mainMediaUrl, type: lesson.mediaType, createdAt: lesson.createdAt })}
                     className={`relative w-16 h-16 flex-shrink-0 rounded-lg overflow-hidden border-2 transition-all ${activeMedia.id === 'main' ? 'border-emerald-700 ring-2 ring-emerald-200' : 'border-transparent opacity-70 hover:opacity-100'}`}
                   >
-                      {lesson.mediaType === 'video' ? <video src={resolveMediaUrl(mainMediaUrl)} className="w-full h-full object-cover" /> :
-                       lesson.mediaType === 'image' ? <img src={resolveMediaUrl(mainMediaUrl)} className="w-full h-full object-cover" alt="thumb" /> :
-                       <div className="w-full h-full bg-gray-800 flex items-center justify-center"><Mic className="w-6 h-6 text-white" /></div>}
+                      <div className="w-full h-full bg-gray-800 flex items-center justify-center">
+                        {lesson.mediaType === 'video' ? <Video className="w-6 h-6 text-white" /> :
+                         lesson.mediaType === 'image' ? <ImageIcon className="w-6 h-6 text-white" /> :
+                         <Mic className="w-6 h-6 text-white" />}
+                      </div>
                   </button>
 
                   {/* Edited Video Thumbnail */}
