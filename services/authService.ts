@@ -80,31 +80,13 @@ export const authService = {
     return new Promise(async (resolve, reject) => {
       const normalizedEmail = normalizeEmail(email);
       try {
-        try {
-          const { token, coach } = await apiService.loginCoach(normalizedEmail, password);
-          apiService.setToken(token);
-          localStorage.setItem(STORAGE_KEYS.COACH_PROFILE, JSON.stringify(coach));
-          resolve(coach);
-          return;
-        } catch (apiError) {
-          log.warn('Coach API login failed, falling back to local login', apiError);
-        }
-
-        // localStorage fallback
-        const data = localStorage.getItem(STORAGE_KEYS.COACH_PROFILE);
-        if (data) {
-          const localProfile = JSON.parse(data);
-          const fallbackEmail =
-            typeof localProfile.email === 'string' ? normalizeEmail(localProfile.email) : '';
-          if (fallbackEmail === normalizedEmail && localProfile.password === password) {
-            resolve(localProfile);
-            return;
-          }
-        }
-        reject('이메일 또는 비밀번호가 일치하지 않습니다.');
+        const { token, coach } = await apiService.loginCoach(normalizedEmail, password);
+        apiService.setToken(token);
+        localStorage.setItem(STORAGE_KEYS.COACH_PROFILE, JSON.stringify(coach));
+        resolve(coach);
       } catch (error: any) {
         log.error('Login error:', error);
-        reject(typeof error === 'string' ? error : '로그인 중 오류가 발생했습니다.');
+        reject(typeof error === 'string' ? error : '로그인을 위해 서버 연결이 필요합니다.');
       }
     });
   },
@@ -114,28 +96,12 @@ export const authService = {
     return new Promise(async (resolve, reject) => {
       const normalizedEmail = normalizeEmail(email);
       try {
-        try {
-          const { token, client } = await apiService.loginClient(normalizedEmail, password);
-          apiService.setToken(token);
-          resolve(client);
-          return;
-        } catch (apiError) {
-          log.warn('Client API login failed, falling back to local login', apiError);
-        }
-
-        const clients = storageService.getClients();
-        const client = clients.find((c) => {
-          const clientEmail = typeof c.email === 'string' ? normalizeEmail(c.email) : '';
-          return clientEmail === normalizedEmail && c.password === password;
-        });
-        if (client) {
-          resolve(client);
-        } else {
-          reject('이메일 또는 비밀번호가 일치하지 않습니다.');
-        }
+        const { token, client } = await apiService.loginClient(normalizedEmail, password);
+        apiService.setToken(token);
+        resolve(client);
       } catch (error: any) {
         log.error('Login error:', error);
-        reject(typeof error === 'string' ? error : '로그인 중 오류가 발생했습니다.');
+        reject(typeof error === 'string' ? error : '로그인을 위해 서버 연결이 필요합니다.');
       }
     });
   },
