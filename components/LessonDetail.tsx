@@ -33,9 +33,10 @@ const SEQUENCE_LABELS = [
 
 export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons = [], role = 'COACH', onBack, onUpdate, onDelete, onEdit }) => {
   const { t } = useLanguage();
+  const mainMediaUrl = resolveMediaUrl(lesson.videoUrl || (lesson.videoKey ? `/api/files/${lesson.videoKey}` : ''));
   const [activeMedia, setActiveMedia] = useState<MediaItem>({
     id: 'main',
-    url: lesson.videoUrl,
+    url: mainMediaUrl,
     type: lesson.mediaType,
     createdAt: lesson.createdAt
   });
@@ -123,7 +124,7 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
   useEffect(() => {
     setActiveMedia({
       id: 'main',
-      url: lesson.videoUrl,
+      url: mainMediaUrl,
       type: lesson.mediaType,
       createdAt: lesson.createdAt
     });
@@ -137,7 +138,7 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
       setEditingHoles(JSON.parse(JSON.stringify(lesson.scorecardDetail.holes)));
     }
     setIsEditingScorecardDetail(false);
-  }, [lesson.id, lesson.clientFeedback, lesson.scorecardDetail]);
+  }, [lesson.id, lesson.clientFeedback, lesson.scorecardDetail, lesson.mediaType, lesson.createdAt, mainMediaUrl]);
 
   useEffect(() => {
       setMediaError(false);
@@ -199,7 +200,7 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
       setIsGeneratingAnalysis(true);
       try {
           const allMediaItems = [
-              { url: lesson.videoUrl, type: lesson.mediaType },
+              { url: mainMediaUrl, type: lesson.mediaType },
               ...(lesson.additionalMedia || []).map(m => ({ url: m.url, type: m.type }))
           ];
 
@@ -338,7 +339,7 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
     if (activeMedia.id === mediaId) {
         setActiveMedia({
             id: 'main',
-            url: lesson.videoUrl,
+            url: mainMediaUrl,
             type: lesson.mediaType,
             createdAt: lesson.createdAt
         });
@@ -944,7 +945,7 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
           </div>
 
           {/* Media Player Section - Only if URL exists */}
-          {lesson.videoUrl ? (
+          {mainMediaUrl ? (
              <div className="space-y-3">
               <div className="bg-black rounded-xl overflow-hidden shadow-2xl relative aspect-[9/16] group max-w-md mx-auto">
                     <div 
@@ -1041,11 +1042,11 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
               {/* Media Thumbnails */}
               <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide px-1">
                   <button
-                    onClick={() => setActiveMedia({ id: 'main', url: lesson.videoUrl, type: lesson.mediaType, createdAt: lesson.createdAt })}
+                    onClick={() => setActiveMedia({ id: 'main', url: mainMediaUrl, type: lesson.mediaType, createdAt: lesson.createdAt })}
                     className={`relative w-16 h-16 flex-shrink-0 rounded-lg overflow-hidden border-2 transition-all ${activeMedia.id === 'main' ? 'border-emerald-700 ring-2 ring-emerald-200' : 'border-transparent opacity-70 hover:opacity-100'}`}
                   >
-                      {lesson.mediaType === 'video' ? <video src={lesson.videoUrl} className="w-full h-full object-cover" /> :
-                       lesson.mediaType === 'image' ? <img src={lesson.videoUrl} className="w-full h-full object-cover" alt="thumb" /> :
+                      {lesson.mediaType === 'video' ? <video src={mainMediaUrl} className="w-full h-full object-cover" /> :
+                       lesson.mediaType === 'image' ? <img src={mainMediaUrl} className="w-full h-full object-cover" alt="thumb" /> :
                        <div className="w-full h-full bg-gray-800 flex items-center justify-center"><Mic className="w-6 h-6 text-white" /></div>}
                   </button>
 
@@ -2035,8 +2036,8 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
           <VideoEditor
               videoUrl={
                 lesson.editedVideoUrl
-                  ? (resolvedEditedUrl || (!lesson.editedVideoUrl.startsWith(IDB_PREFIX) ? resolveMediaUrl(lesson.editedVideoUrl) : resolveMediaUrl(lesson.videoUrl)))
-                  : resolveMediaUrl(lesson.videoUrl)
+                  ? (resolvedEditedUrl || (!lesson.editedVideoUrl.startsWith(IDB_PREFIX) ? resolveMediaUrl(lesson.editedVideoUrl) : mainMediaUrl))
+                  : mainMediaUrl
               }
               onSave={handleSaveEditedVideo}
               onCancel={() => setShowVideoEditor(false)}
