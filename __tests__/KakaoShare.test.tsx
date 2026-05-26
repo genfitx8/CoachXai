@@ -163,6 +163,29 @@ describe('LessonDetail – KakaoTalk share button', () => {
     expect(screen.queryByTestId('kakao-share-button')).toBeNull();
   });
 
+  it('renders playable main video from videoKey when videoUrl is empty', async () => {
+    const { LessonDetail } = await import('../components/LessonDetail');
+
+    const lessonWithVideoKey = {
+      ...mockLesson,
+      videoUrl: '',
+      videoKey: 'lessons/lesson-001/main.mp4',
+    };
+
+    const { container } = renderWithLanguage(
+      <LessonDetail
+        lesson={lessonWithVideoKey as Parameters<typeof LessonDetail>[0]['lesson']}
+        role="COACH"
+        onBack={vi.fn()}
+        onUpdate={vi.fn()}
+      />
+    );
+
+    const video = container.querySelector('video');
+    expect(video).toBeTruthy();
+    expect(video?.getAttribute('src')).toContain('/api/files/lessons/lesson-001/main.mp4');
+  });
+
   it('shows no_key warning and copy-link button when app key is missing and button is clicked', async () => {
     vi.stubEnv('VITE_KAKAO_APP_KEY', '');
 
