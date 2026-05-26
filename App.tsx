@@ -1367,10 +1367,10 @@ const AppContent: React.FC = () => {
     );
   }
 
-  if (userRole === 'CLIENT' && currentUser && !('id' in currentUser)) {
+  if (userRole === 'CLIENT' && currentUser) {
     return (
       <ClientApp
-        clientProfile={currentUser}
+        clientProfile={currentUser as ClientProfile}
         allLessons={lessons}
         onLogout={handleLogout}
         onUpdateLesson={handleUpdateLesson}
