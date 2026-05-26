@@ -150,19 +150,13 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
         const credential = (await credentialsApi.get({
           password: true,
           mediation: 'optional',
-        } as CredentialRequestOptions)) as
-          | PasswordCredential
-          | ({ id?: string; password?: string } & Credential)
-          | null;
+        } as CredentialRequestOptions)) as PasswordCredential | null;
         if (!credential || cancelled) return;
         if (typeof credential.id === 'string' && credential.id) {
           setEmail(credential.id);
         }
-        if (
-          'password' in credential &&
-          typeof (credential as { password?: string }).password === 'string'
-        ) {
-          setPassword((credential as { password: string }).password);
+        if (typeof credential.password === 'string' && credential.password) {
+          setPassword(credential.password);
         }
       } catch {}
     };
@@ -231,9 +225,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
       form.appendChild(emailInput);
       form.appendChild(passwordInput);
       const credential = new PasswordCredential(form);
-      if (credential) {
-        await credentialsApi.store(credential);
-      }
+      await credentialsApi.store(credential);
     } catch {}
   };
 
