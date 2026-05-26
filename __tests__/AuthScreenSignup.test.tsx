@@ -185,6 +185,37 @@ describe('AuthScreen signup', () => {
     });
   });
 
+  it('stores email and password when remember password is enabled', async () => {
+    mockedAuthService.loginCoach.mockResolvedValue(mockCoachProfile);
+
+    renderAuth();
+
+    fireEvent.change(screen.getByPlaceholderText('email@example.com'), {
+      target: { value: 'coach@test.com' },
+    });
+    fireEvent.change(screen.getByPlaceholderText('••••••••'), {
+      target: { value: 'password123' },
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: '비밀번호 저장' }));
+    fireEvent.click(screen.getByRole('button', { name: '로그인' }));
+
+    await waitFor(() => {
+      expect(mockedAuthService.loginCoach).toHaveBeenCalledWith(
+        'coach@test.com',
+        'password123'
+      );
+    });
+
+    const savedCredentials = localStorage.getItem('swingnote_saved_credentials');
+    expect(savedCredentials).not.toBeNull();
+    expect(JSON.parse(savedCredentials as string)).toEqual({
+      email: 'coach@test.com',
+      password: 'password123',
+      role: 'COACH',
+    });
+  });
+
   it('shows error message when signup fails with duplicate email', async () => {
     mockedAuthService.signupCoach.mockRejectedValue('이미 사용 중인 이메일입니다.');
     renderAuth();

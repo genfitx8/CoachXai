@@ -25,11 +25,15 @@ import { useLanguage } from './LanguageContext';
 import { AUTH_USER_TYPE_STORAGE_KEY } from '../constants/auth';
 
 const SAVED_LOGIN_ID_KEY = 'swingnote_saved_login_id';
-const LEGACY_SAVED_CREDENTIALS_KEY = 'swingnote_saved_credentials';
+const SAVED_CREDENTIALS_KEY = 'swingnote_saved_credentials';
 
 interface SavedLoginId {
   email: string;
   role: 'COACH' | 'CLIENT';
+}
+
+interface SavedCredentials extends SavedLoginId {
+  password: string;
 }
 
 interface AuthScreenProps {
@@ -103,6 +107,13 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
       return false;
     }
   });
+  const [isRememberPassword, setIsRememberPassword] = useState(() => {
+    try {
+      return !!localStorage.getItem(SAVED_CREDENTIALS_KEY);
+    } catch {
+      return false;
+    }
+  });
 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -123,9 +134,17 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
   // Load saved login id on mount
   useEffect(() => {
     try {
-      if (localStorage.getItem(LEGACY_SAVED_CREDENTIALS_KEY) !== null) {
-        localStorage.removeItem(LEGACY_SAVED_CREDENTIALS_KEY);
+      const rawCredentials = localStorage.getItem(SAVED_CREDENTIALS_KEY);
+      if (rawCredentials) {
+        const savedCredentials: SavedCredentials = JSON.parse(rawCredentials);
+        setEmail(savedCredentials.email);
+        setPassword(savedCredentials.password);
+        setActiveTab(savedCredentials.role);
+        setIsRememberId(true);
+        setIsRememberPassword(true);
+        return;
       }
+
       const raw = localStorage.getItem(SAVED_LOGIN_ID_KEY);
       if (!raw) return;
       const savedLoginId: SavedLoginId = JSON.parse(raw);
@@ -157,6 +176,18 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
     } catch {}
   };
 
+  const saveCredentials = (email: string, password: string, role: 'COACH' | 'CLIENT') => {
+    try {
+      localStorage.setItem(SAVED_CREDENTIALS_KEY, JSON.stringify({ email, password, role }));
+    } catch {}
+  };
+
+  const clearCredentials = () => {
+    try {
+      localStorage.removeItem(SAVED_CREDENTIALS_KEY);
+    } catch {}
+  };
+
   const performLogin = async (loginEmail: string, loginPassword: string, role: 'COACH' | 'CLIENT') => {
     setError(null);
     setIsLoading(true);
@@ -167,9 +198,13 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
       } else {
         profile = await authService.loginClient(loginEmail, loginPassword);
       }
-      if (isRememberId) {
+      if (isRememberPassword) {
+        saveCredentials(loginEmail, loginPassword, role);
+      } else if (isRememberId) {
+        clearCredentials();
         saveLoginId(loginEmail, role);
       } else {
+        clearCredentials();
         clearLoginId();
       }
       onLoginSuccess(role, profile);
@@ -648,7 +683,11 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
                     onClick={() => {
                       const next = !isRememberId;
                       setIsRememberId(next);
-                      if (!next) clearLoginId();
+                      if (!next) {
+                        setIsRememberPassword(false);
+                        clearCredentials();
+                        clearLoginId();
+                      }
                     }}
                     className="flex items-center gap-1.5 text-sm text-ink-medium hover:text-ink-high transition-colors"
                   >
@@ -658,6 +697,26 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
                       <Square className="h-5 w-5 text-ink-faint" />
                     )}
                     {t('remember_id')}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const next = !isRememberPassword;
+                      setIsRememberPassword(next);
+                      if (next) {
+                        setIsRememberId(true);
+                        return;
+                      }
+                      clearCredentials();
+                    }}
+                    className="flex items-center gap-1.5 text-sm text-ink-medium hover:text-ink-high transition-colors"
+                  >
+                    {isRememberPassword ? (
+                      <CheckSquare className="h-5 w-5 text-primary-400" />
+                    ) : (
+                      <Square className="h-5 w-5 text-ink-faint" />
+                    )}
+                    {t('remember_password')}
                   </button>
                 </div>
                 <button
