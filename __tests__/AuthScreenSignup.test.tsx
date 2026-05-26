@@ -185,6 +185,59 @@ describe('AuthScreen signup', () => {
     });
   });
 
+  it('stores email and password when remember password is enabled', async () => {
+    mockedAuthService.loginCoach.mockResolvedValue(mockCoachProfile);
+    const storeSpy = vi.fn().mockResolvedValue(undefined);
+
+    Object.defineProperty(globalThis, 'PasswordCredential', {
+      value: class {
+        id: string;
+        password: string;
+        constructor(form: HTMLFormElement) {
+          const emailInput = form.querySelector('input[type="email"]') as HTMLInputElement;
+          const passwordInput = form.querySelector('input[type="password"]') as HTMLInputElement;
+          this.id = emailInput?.value ?? '';
+          this.password = passwordInput?.value ?? '';
+        }
+      },
+      configurable: true,
+      writable: true,
+    });
+
+    Object.defineProperty(navigator, 'credentials', {
+      value: { store: storeSpy, get: vi.fn().mockResolvedValue(null) },
+      configurable: true,
+    });
+
+    renderAuth();
+
+    fireEvent.change(screen.getByPlaceholderText('email@example.com'), {
+      target: { value: 'coach@test.com' },
+    });
+    fireEvent.change(screen.getByPlaceholderText('••••••••'), {
+      target: { value: 'password123' },
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: '비밀번호 저장' }));
+    fireEvent.click(screen.getByRole('button', { name: '로그인' }));
+
+    await waitFor(() => {
+      expect(mockedAuthService.loginCoach).toHaveBeenCalledWith(
+        'coach@test.com',
+        'password123'
+      );
+    });
+
+    expect(localStorage.getItem('swingnote_remember_password')).toBe('1');
+    const savedLoginId = localStorage.getItem('swingnote_saved_login_id');
+    expect(savedLoginId).not.toBeNull();
+    expect(JSON.parse(savedLoginId as string)).toEqual({
+      email: 'coach@test.com',
+      role: 'COACH',
+    });
+    expect(storeSpy).toHaveBeenCalledTimes(1);
+  });
+
   it('shows error message when signup fails with duplicate email', async () => {
     mockedAuthService.signupCoach.mockRejectedValue('이미 사용 중인 이메일입니다.');
     renderAuth();

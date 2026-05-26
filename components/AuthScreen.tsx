@@ -25,7 +25,7 @@ import { useLanguage } from './LanguageContext';
 import { AUTH_USER_TYPE_STORAGE_KEY } from '../constants/auth';
 
 const SAVED_LOGIN_ID_KEY = 'swingnote_saved_login_id';
-const LEGACY_SAVED_CREDENTIALS_KEY = 'swingnote_saved_credentials';
+const REMEMBER_PASSWORD_PREF_KEY = 'swingnote_remember_password';
 
 interface SavedLoginId {
   email: string;
@@ -103,6 +103,13 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
       return false;
     }
   });
+  const [isRememberPassword, setIsRememberPassword] = useState(() => {
+    try {
+      return localStorage.getItem(REMEMBER_PASSWORD_PREF_KEY) === '1';
+    } catch {
+      return false;
+    }
+  });
 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -123,9 +130,6 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
   // Load saved login id on mount
   useEffect(() => {
     try {
-      if (localStorage.getItem(LEGACY_SAVED_CREDENTIALS_KEY) !== null) {
-        localStorage.removeItem(LEGACY_SAVED_CREDENTIALS_KEY);
-      }
       const raw = localStorage.getItem(SAVED_LOGIN_ID_KEY);
       if (!raw) return;
       const savedLoginId: SavedLoginId = JSON.parse(raw);
@@ -134,6 +138,34 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
       setIsRememberId(true);
     } catch {}
   }, []);
+
+  useEffect(() => {
+    if (!isRememberPassword || typeof navigator === 'undefined') return;
+    const credentialsApi = navigator.credentials;
+    if (!credentialsApi || typeof credentialsApi.get !== 'function') return;
+
+    let cancelled = false;
+    const loadSavedPassword = async () => {
+      try {
+        const credential = (await credentialsApi.get({
+          password: true,
+          mediation: 'optional',
+        } as CredentialRequestOptions)) as PasswordCredential | null;
+        if (!credential || cancelled) return;
+        if (typeof credential.id === 'string' && credential.id) {
+          setEmail(credential.id);
+        }
+        if (typeof credential.password === 'string' && credential.password) {
+          setPassword(credential.password);
+        }
+      } catch {}
+    };
+
+    void loadSavedPassword();
+    return () => {
+      cancelled = true;
+    };
+  }, [isRememberPassword]);
 
   const handleTabChange = (tab: 'COACH' | 'CLIENT') => {
     setActiveTab(tab);
@@ -157,6 +189,46 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
     } catch {}
   };
 
+  const setRememberPasswordPref = (remember: boolean) => {
+    try {
+      if (remember) {
+        localStorage.setItem(REMEMBER_PASSWORD_PREF_KEY, '1');
+      } else {
+        localStorage.removeItem(REMEMBER_PASSWORD_PREF_KEY);
+      }
+    } catch {}
+  };
+
+  const saveBrowserCredential = async (loginEmail: string, loginPassword: string) => {
+    if (
+      typeof navigator === 'undefined' ||
+      typeof window === 'undefined' ||
+      typeof PasswordCredential === 'undefined'
+    ) {
+      return;
+    }
+    const credentialsApi = navigator.credentials;
+    if (!credentialsApi || typeof credentialsApi.store !== 'function') return;
+
+    try {
+      const form = document.createElement('form');
+      const emailInput = document.createElement('input');
+      emailInput.type = 'email';
+      emailInput.name = 'email';
+      emailInput.value = loginEmail;
+
+      const passwordInput = document.createElement('input');
+      passwordInput.type = 'password';
+      passwordInput.name = 'password';
+      passwordInput.value = loginPassword;
+
+      form.appendChild(emailInput);
+      form.appendChild(passwordInput);
+      const credential = new PasswordCredential(form);
+      await credentialsApi.store(credential);
+    } catch {}
+  };
+
   const performLogin = async (loginEmail: string, loginPassword: string, role: 'COACH' | 'CLIENT') => {
     setError(null);
     setIsLoading(true);
@@ -167,9 +239,15 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
       } else {
         profile = await authService.loginClient(loginEmail, loginPassword);
       }
-      if (isRememberId) {
+      if (isRememberPassword) {
+        setRememberPasswordPref(true);
+        saveLoginId(loginEmail, role);
+        await saveBrowserCredential(loginEmail, loginPassword);
+      } else if (isRememberId) {
+        setRememberPasswordPref(false);
         saveLoginId(loginEmail, role);
       } else {
+        setRememberPasswordPref(false);
         clearLoginId();
       }
       onLoginSuccess(role, profile);
@@ -648,7 +726,11 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
                     onClick={() => {
                       const next = !isRememberId;
                       setIsRememberId(next);
-                      if (!next) clearLoginId();
+                      if (!next) {
+                        setIsRememberPassword(false);
+                        setRememberPasswordPref(false);
+                        clearLoginId();
+                      }
                     }}
                     className="flex items-center gap-1.5 text-sm text-ink-medium hover:text-ink-high transition-colors"
                   >
@@ -658,6 +740,27 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
                       <Square className="h-5 w-5 text-ink-faint" />
                     )}
                     {t('remember_id')}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const next = !isRememberPassword;
+                      setIsRememberPassword(next);
+                      if (next) {
+                        setIsRememberId(true);
+                        setRememberPasswordPref(true);
+                        return;
+                      }
+                      setRememberPasswordPref(false);
+                    }}
+                    className="flex items-center gap-1.5 text-sm text-ink-medium hover:text-ink-high transition-colors"
+                  >
+                    {isRememberPassword ? (
+                      <CheckSquare className="h-5 w-5 text-primary-400" />
+                    ) : (
+                      <Square className="h-5 w-5 text-ink-faint" />
+                    )}
+                    {t('remember_password')}
                   </button>
                 </div>
                 <button
