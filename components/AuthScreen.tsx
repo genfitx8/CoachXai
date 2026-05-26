@@ -27,7 +27,7 @@ import { AUTH_USER_TYPE_STORAGE_KEY } from '../constants/auth';
 const SAVED_LOGIN_ID_KEY = 'swingnote_saved_login_id';
 const LEGACY_SAVED_CREDENTIALS_KEY = 'swingnote_saved_credentials';
 
-interface SavedCredentials {
+interface SavedLoginId {
   email: string;
   role: 'COACH' | 'CLIENT';
 }
@@ -123,12 +123,14 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
   // Load saved login id on mount
   useEffect(() => {
     try {
-      localStorage.removeItem(LEGACY_SAVED_CREDENTIALS_KEY);
+      if (localStorage.getItem(LEGACY_SAVED_CREDENTIALS_KEY) !== null) {
+        localStorage.removeItem(LEGACY_SAVED_CREDENTIALS_KEY);
+      }
       const raw = localStorage.getItem(SAVED_LOGIN_ID_KEY);
       if (!raw) return;
-      const creds: SavedCredentials = JSON.parse(raw);
-      setEmail(creds.email);
-      setActiveTab(creds.role);
+      const savedLoginId: SavedLoginId = JSON.parse(raw);
+      setEmail(savedLoginId.email);
+      setActiveTab(savedLoginId.role);
       setIsRememberId(true);
     } catch {}
   }, []);
@@ -143,13 +145,13 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
     resetForm();
   };
 
-  const saveCredentials = (e: string, role: 'COACH' | 'CLIENT') => {
+  const saveLoginId = (email: string, role: 'COACH' | 'CLIENT') => {
     try {
-      localStorage.setItem(SAVED_LOGIN_ID_KEY, JSON.stringify({ email: e, role }));
+      localStorage.setItem(SAVED_LOGIN_ID_KEY, JSON.stringify({ email, role }));
     } catch {}
   };
 
-  const clearCredentials = () => {
+  const clearLoginId = () => {
     try {
       localStorage.removeItem(SAVED_LOGIN_ID_KEY);
     } catch {}
@@ -166,9 +168,9 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
         profile = await authService.loginClient(loginEmail, loginPassword);
       }
       if (isRememberId) {
-        saveCredentials(loginEmail, role);
+        saveLoginId(loginEmail, role);
       } else {
-        clearCredentials();
+        clearLoginId();
       }
       onLoginSuccess(role, profile);
     } catch (err: any) {
@@ -646,7 +648,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
                     onClick={() => {
                       const next = !isRememberId;
                       setIsRememberId(next);
-                      if (!next) clearCredentials();
+                      if (!next) clearLoginId();
                     }}
                     className="flex items-center gap-1.5 text-sm text-ink-medium hover:text-ink-high transition-colors"
                   >

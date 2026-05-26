@@ -54,7 +54,7 @@ describe('authService logout and session persistence', () => {
     expect(localStorage.getItem('swingnote_session_role')).toBeNull();
   });
 
-  it('saveSession clears stale localStorage session values', () => {
+  it('saveSession prefers sessionStorage even when localStorage has stale session values', () => {
     localStorage.setItem('swingnote_session_role', 'COACH');
     localStorage.setItem(
       'swingnote_session_client_data',
@@ -63,9 +63,12 @@ describe('authService logout and session persistence', () => {
 
     authService.saveSession('CLIENT', { name: 'client', phone: '010-1111-2222' });
 
-    expect(localStorage.getItem('swingnote_session_role')).toBeNull();
-    expect(localStorage.getItem('swingnote_session_client_data')).toBeNull();
+    expect(localStorage.getItem('swingnote_session_role')).toBe('COACH');
     expect(sessionStorage.getItem('swingnote_session_role')).toBe('CLIENT');
+    expect(authService.restoreSession()).toEqual({
+      role: 'CLIENT',
+      clientData: { name: 'client', phone: '010-1111-2222' },
+    });
   });
 
   it('logout clears session so login is not persisted', () => {

@@ -344,10 +344,6 @@ export const authService = {
     }
   ) => {
     // Auto-login is removed: always persist only in sessionStorage
-    localStorage.removeItem(STORAGE_KEYS.SESSION_ROLE);
-    localStorage.removeItem(STORAGE_KEYS.SESSION_CLIENT_DATA);
-    localStorage.removeItem(STORAGE_KEYS.SESSION_BRANCH_ADMIN_DATA);
-    sessionStorage.removeItem(STORAGE_KEYS.SESSION_ROLE);
     sessionStorage.removeItem(STORAGE_KEYS.SESSION_CLIENT_DATA);
     sessionStorage.removeItem(STORAGE_KEYS.SESSION_BRANCH_ADMIN_DATA);
 
