@@ -139,7 +139,7 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
       setEditingHoles(JSON.parse(JSON.stringify(lesson.scorecardDetail.holes)));
     }
     setIsEditingScorecardDetail(false);
-  }, [lesson.id, lesson.clientFeedback, lesson.scorecardDetail, lesson.mediaType, lesson.createdAt, lesson.videoUrl, lesson.videoKey, mainMediaUrl]);
+  }, [lesson.id, lesson.clientFeedback, lesson.scorecardDetail, lesson.mediaType, lesson.createdAt, lesson.videoUrl, lesson.videoKey]);
 
   useEffect(() => {
       setMediaError(false);
