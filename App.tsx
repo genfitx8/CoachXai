@@ -84,6 +84,12 @@ import {
 } from 'lucide-react';
 import { LanguageProvider, useLanguage } from './components/LanguageContext';
 
+const isClientSessionProfile = (
+  role: 'COACH' | 'CLIENT' | 'ADMIN' | 'BRANCH_ADMIN' | null,
+  user: CoachProfile | ClientProfile | null
+): user is ClientProfile =>
+  role === 'CLIENT' && !!user && typeof user.phone === 'string';
+
 const AppContent: React.FC = () => {
   const { t, language, setLanguage } = useLanguage();
 
@@ -1366,7 +1372,7 @@ const AppContent: React.FC = () => {
     );
   }
 
-  if (userRole === 'CLIENT' && currentUser && !('id' in currentUser)) {
+  if (isClientSessionProfile(userRole, currentUser)) {
     return (
       <ClientApp
         clientProfile={currentUser}
