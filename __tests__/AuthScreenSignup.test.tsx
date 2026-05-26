@@ -17,7 +17,6 @@ const { mockedAuthService } = vi.hoisted(() => ({
     signupClient: vi.fn(),
     findEmail: vi.fn(),
     findPassword: vi.fn(),
-    getAutoLoginPref: vi.fn().mockReturnValue(false),
   },
 }));
 
@@ -35,6 +34,7 @@ const renderAuth = (onLoginSuccess = vi.fn()) =>
 describe('AuthScreen signup', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    localStorage.clear();
   });
 
   it('shows a signup button on the login screen', () => {
@@ -121,7 +121,7 @@ describe('AuthScreen signup', () => {
         '010-1111-2222'
       );
     });
-    expect(onLoginSuccess).toHaveBeenCalledWith('COACH', mockCoachProfile, false);
+    expect(onLoginSuccess).toHaveBeenCalledWith('COACH', mockCoachProfile);
   });
 
   it('calls signupClient and triggers onLoginSuccess for client signup', async () => {
@@ -152,7 +152,37 @@ describe('AuthScreen signup', () => {
         '010-3333-4444'
       );
     });
-    expect(onLoginSuccess).toHaveBeenCalledWith('CLIENT', mockClientProfile, false);
+    expect(onLoginSuccess).toHaveBeenCalledWith('CLIENT', mockClientProfile);
+  });
+
+  it('stores only login id when remember id is enabled', async () => {
+    mockedAuthService.loginCoach.mockResolvedValue(mockCoachProfile);
+
+    renderAuth();
+
+    fireEvent.change(screen.getByPlaceholderText('email@example.com'), {
+      target: { value: 'coach@test.com' },
+    });
+    fireEvent.change(screen.getByPlaceholderText('••••••••'), {
+      target: { value: 'password123' },
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: '아이디 저장' }));
+    fireEvent.click(screen.getByRole('button', { name: '로그인' }));
+
+    await waitFor(() => {
+      expect(mockedAuthService.loginCoach).toHaveBeenCalledWith(
+        'coach@test.com',
+        'password123'
+      );
+    });
+
+    const saved = localStorage.getItem('swingnote_saved_login_id');
+    expect(saved).not.toBeNull();
+    expect(JSON.parse(saved as string)).toEqual({
+      email: 'coach@test.com',
+      role: 'COACH',
+    });
   });
 
   it('shows error message when signup fails with duplicate email', async () => {

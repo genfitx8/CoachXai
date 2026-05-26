@@ -11,7 +11,6 @@ const STORAGE_KEYS = {
   SESSION_ROLE: 'swingnote_session_role',
   SESSION_CLIENT_DATA: 'swingnote_session_client_data',
   SESSION_BRANCH_ADMIN_DATA: 'swingnote_session_branch_admin_data',
-  AUTO_LOGIN_PREF: 'swingnote_auto_login_pref',
 };
 
 const createResetToken = (): string => {
@@ -337,7 +336,6 @@ export const authService = {
   saveSession: (
     role: 'COACH' | 'CLIENT' | 'ADMIN' | 'BRANCH_ADMIN',
     clientData?: { name: string; phone: string },
-    isAutoLogin: boolean = false,
     branchAdminData?: {
       branchId: string;
       branchName: string;
@@ -345,46 +343,26 @@ export const authService = {
       adminId: string;
     }
   ) => {
-    const storage = isAutoLogin ? localStorage : sessionStorage;
+    // Auto-login is removed: always persist only in sessionStorage
+    localStorage.removeItem(STORAGE_KEYS.SESSION_ROLE);
+    localStorage.removeItem(STORAGE_KEYS.SESSION_CLIENT_DATA);
+    localStorage.removeItem(STORAGE_KEYS.SESSION_BRANCH_ADMIN_DATA);
+    sessionStorage.removeItem(STORAGE_KEYS.SESSION_ROLE);
+    sessionStorage.removeItem(STORAGE_KEYS.SESSION_CLIENT_DATA);
+    sessionStorage.removeItem(STORAGE_KEYS.SESSION_BRANCH_ADMIN_DATA);
 
-    // Persist auto-login preference so the login screen can restore it
-    if (isAutoLogin) {
-      localStorage.setItem(STORAGE_KEYS.AUTO_LOGIN_PREF, '1');
-    } else {
-      localStorage.removeItem(STORAGE_KEYS.AUTO_LOGIN_PREF);
-    }
-
-    // Clear other storage to avoid conflicts
-    if (isAutoLogin) {
-      sessionStorage.removeItem(STORAGE_KEYS.SESSION_ROLE);
-      sessionStorage.removeItem(STORAGE_KEYS.SESSION_CLIENT_DATA);
-      sessionStorage.removeItem(STORAGE_KEYS.SESSION_BRANCH_ADMIN_DATA);
-    } else {
-      localStorage.removeItem(STORAGE_KEYS.SESSION_ROLE);
-      localStorage.removeItem(STORAGE_KEYS.SESSION_CLIENT_DATA);
-      localStorage.removeItem(STORAGE_KEYS.SESSION_BRANCH_ADMIN_DATA);
-    }
-
-    storage.setItem(STORAGE_KEYS.SESSION_ROLE, role);
+    sessionStorage.setItem(STORAGE_KEYS.SESSION_ROLE, role);
     if (role === 'CLIENT' && clientData) {
-      storage.setItem(
+      sessionStorage.setItem(
         STORAGE_KEYS.SESSION_CLIENT_DATA,
         JSON.stringify(clientData)
       );
     }
     if (role === 'BRANCH_ADMIN' && branchAdminData) {
-      storage.setItem(
+      sessionStorage.setItem(
         STORAGE_KEYS.SESSION_BRANCH_ADMIN_DATA,
         JSON.stringify(branchAdminData)
       );
-    }
-  },
-
-  getAutoLoginPref: (): boolean => {
-    try {
-      return localStorage.getItem(STORAGE_KEYS.AUTO_LOGIN_PREF) === '1';
-    } catch {
-      return false;
     }
   },
 
@@ -398,20 +376,11 @@ export const authService = {
       adminId: string;
     };
   } | null => {
-    // Check localStorage first (Auto Login), then sessionStorage
-    let role = localStorage.getItem(STORAGE_KEYS.SESSION_ROLE);
-    let clientDataStr = localStorage.getItem(STORAGE_KEYS.SESSION_CLIENT_DATA);
-    let branchAdminDataStr = localStorage.getItem(
+    const role = sessionStorage.getItem(STORAGE_KEYS.SESSION_ROLE);
+    const clientDataStr = sessionStorage.getItem(STORAGE_KEYS.SESSION_CLIENT_DATA);
+    const branchAdminDataStr = sessionStorage.getItem(
       STORAGE_KEYS.SESSION_BRANCH_ADMIN_DATA
     );
-
-    if (!role) {
-      role = sessionStorage.getItem(STORAGE_KEYS.SESSION_ROLE);
-      clientDataStr = sessionStorage.getItem(STORAGE_KEYS.SESSION_CLIENT_DATA);
-      branchAdminDataStr = sessionStorage.getItem(
-        STORAGE_KEYS.SESSION_BRANCH_ADMIN_DATA
-      );
-    }
 
     if (role === 'COACH') {
       return { role: 'COACH' };
@@ -440,7 +409,6 @@ export const authService = {
     localStorage.removeItem(STORAGE_KEYS.SESSION_ROLE);
     localStorage.removeItem(STORAGE_KEYS.SESSION_CLIENT_DATA);
     localStorage.removeItem(STORAGE_KEYS.SESSION_BRANCH_ADMIN_DATA);
-    localStorage.removeItem(STORAGE_KEYS.AUTO_LOGIN_PREF);
     sessionStorage.removeItem(STORAGE_KEYS.SESSION_ROLE);
     sessionStorage.removeItem(STORAGE_KEYS.SESSION_CLIENT_DATA);
     sessionStorage.removeItem(STORAGE_KEYS.SESSION_BRANCH_ADMIN_DATA);

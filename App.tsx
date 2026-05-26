@@ -399,8 +399,7 @@ const AppContent: React.FC = () => {
 
   const handleLoginSuccess = async (
     role: 'COACH' | 'CLIENT' | 'ADMIN' | 'BRANCH_ADMIN',
-    data: any,
-    isAutoLogin: boolean
+    data: any
   ) => {
     setUserRole(role);
 
@@ -408,7 +407,7 @@ const AppContent: React.FC = () => {
 
     if (role === 'BRANCH_ADMIN') {
       setBranchAdminData(data);
-      authService.saveSession('BRANCH_ADMIN', undefined, isAutoLogin, data);
+      authService.saveSession('BRANCH_ADMIN', undefined, data);
       return;
     }
 
@@ -433,7 +432,7 @@ const AppContent: React.FC = () => {
       }
     }
 
-    authService.saveSession(role, clientIdentity, isAutoLogin);
+    authService.saveSession(role, clientIdentity);
 
     // Reload data to ensure freshness
     const isFb = apiService.isAvailable() && !!apiService.getToken();

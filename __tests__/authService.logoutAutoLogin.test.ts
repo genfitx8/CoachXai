@@ -33,7 +33,7 @@ vi.mock('../services/apiService', () => ({
   },
 }));
 
-describe('authService logout and auto-login preference', () => {
+describe('authService logout and session persistence', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     localStorage.clear();
@@ -47,57 +47,38 @@ describe('authService logout and auto-login preference', () => {
     sessionStorage.clear();
   });
 
-  it('saveSession with isAutoLogin=true stores AUTO_LOGIN_PREF and session in localStorage', () => {
-    authService.saveSession('COACH', undefined, true);
+  it('saveSession always uses sessionStorage', () => {
+    authService.saveSession('COACH');
 
-    expect(localStorage.getItem('swingnote_auto_login_pref')).toBe('1');
-    expect(localStorage.getItem('swingnote_session_role')).toBe('COACH');
-    expect(sessionStorage.getItem('swingnote_session_role')).toBeNull();
-  });
-
-  it('saveSession with isAutoLogin=false clears AUTO_LOGIN_PREF and uses sessionStorage', () => {
-    // First save with auto-login true
-    authService.saveSession('COACH', undefined, true);
-    expect(localStorage.getItem('swingnote_auto_login_pref')).toBe('1');
-
-    // Now save with auto-login false
-    authService.saveSession('COACH', undefined, false);
-
-    expect(localStorage.getItem('swingnote_auto_login_pref')).toBeNull();
     expect(sessionStorage.getItem('swingnote_session_role')).toBe('COACH');
     expect(localStorage.getItem('swingnote_session_role')).toBeNull();
   });
 
-  it('logout clears AUTO_LOGIN_PREF so auto-login is disabled after logout', () => {
-    authService.saveSession('COACH', undefined, true);
-    expect(localStorage.getItem('swingnote_auto_login_pref')).toBe('1');
+  it('saveSession clears stale localStorage session values', () => {
+    localStorage.setItem('swingnote_session_role', 'COACH');
+    localStorage.setItem(
+      'swingnote_session_client_data',
+      JSON.stringify({ name: 'n', phone: 'p' })
+    );
+
+    authService.saveSession('CLIENT', { name: 'client', phone: '010-1111-2222' });
+
+    expect(localStorage.getItem('swingnote_session_role')).toBeNull();
+    expect(localStorage.getItem('swingnote_session_client_data')).toBeNull();
+    expect(sessionStorage.getItem('swingnote_session_role')).toBe('CLIENT');
+  });
+
+  it('logout clears session so login is not persisted', () => {
+    authService.saveSession('COACH');
 
     authService.logout();
 
-    expect(localStorage.getItem('swingnote_auto_login_pref')).toBeNull();
     expect(localStorage.getItem('swingnote_session_role')).toBeNull();
     expect(sessionStorage.getItem('swingnote_session_role')).toBeNull();
   });
 
-  it('getAutoLoginPref returns true when preference is set', () => {
-    authService.saveSession('COACH', undefined, true);
-    expect(authService.getAutoLoginPref()).toBe(true);
-  });
-
-  it('getAutoLoginPref returns false when preference is not set', () => {
-    expect(authService.getAutoLoginPref()).toBe(false);
-  });
-
-  it('getAutoLoginPref returns false after logout (was true before)', () => {
-    authService.saveSession('COACH', undefined, true);
-    expect(authService.getAutoLoginPref()).toBe(true);
-
-    authService.logout();
-    expect(authService.getAutoLoginPref()).toBe(false);
-  });
-
   it('restoreSession returns null after logout', () => {
-    authService.saveSession('COACH', undefined, true);
+    authService.saveSession('COACH');
     expect(authService.restoreSession()).not.toBeNull();
 
     authService.logout();

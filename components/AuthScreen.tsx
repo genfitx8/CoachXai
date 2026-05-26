@@ -24,19 +24,18 @@ import {
 import { useLanguage } from './LanguageContext';
 import { AUTH_USER_TYPE_STORAGE_KEY } from '../constants/auth';
 
-const SAVED_CREDENTIALS_KEY = 'swingnote_saved_credentials';
+const SAVED_LOGIN_ID_KEY = 'swingnote_saved_login_id';
+const LEGACY_SAVED_CREDENTIALS_KEY = 'swingnote_saved_credentials';
 
 interface SavedCredentials {
   email: string;
-  password: string;
   role: 'COACH' | 'CLIENT';
 }
 
 interface AuthScreenProps {
   onLoginSuccess: (
     role: 'COACH' | 'CLIENT' | 'ADMIN' | 'BRANCH_ADMIN',
-    data: any,
-    isAutoLogin: boolean
+    data: any
   ) => void;
 }
 
@@ -97,10 +96,9 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
   const [branchAdminLoginId, setBranchAdminLoginId] = useState('');
   const [branchAdminPassword, setBranchAdminPassword] = useState('');
 
-  const [isAutoLogin, setIsAutoLogin] = useState(() => authService.getAutoLoginPref());
-  const [isSavePassword, setIsSavePassword] = useState(() => {
+  const [isRememberId, setIsRememberId] = useState(() => {
     try {
-      return !!localStorage.getItem(SAVED_CREDENTIALS_KEY);
+      return !!localStorage.getItem(SAVED_LOGIN_ID_KEY);
     } catch {
       return false;
     }
@@ -122,21 +120,17 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
     setFindResult(null);
   };
 
-  // Load saved credentials on mount and auto-login if both options are enabled
+  // Load saved login id on mount
   useEffect(() => {
     try {
-      const raw = localStorage.getItem(SAVED_CREDENTIALS_KEY);
+      localStorage.removeItem(LEGACY_SAVED_CREDENTIALS_KEY);
+      const raw = localStorage.getItem(SAVED_LOGIN_ID_KEY);
       if (!raw) return;
       const creds: SavedCredentials = JSON.parse(raw);
       setEmail(creds.email);
-      setPassword(creds.password);
       setActiveTab(creds.role);
-      setIsSavePassword(true);
-      if (isAutoLogin) {
-        performLogin(creds.email, creds.password, creds.role);
-      }
+      setIsRememberId(true);
     } catch {}
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleTabChange = (tab: 'COACH' | 'CLIENT') => {
@@ -149,26 +143,15 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
     resetForm();
   };
 
-  const saveCredentials = (e: string, p: string, role: 'COACH' | 'CLIENT') => {
+  const saveCredentials = (e: string, role: 'COACH' | 'CLIENT') => {
     try {
-      localStorage.setItem(SAVED_CREDENTIALS_KEY, JSON.stringify({ email: e, password: p, role }));
+      localStorage.setItem(SAVED_LOGIN_ID_KEY, JSON.stringify({ email: e, role }));
     } catch {}
   };
 
   const clearCredentials = () => {
     try {
-      localStorage.removeItem(SAVED_CREDENTIALS_KEY);
-    } catch {}
-  };
-
-  const autofillPasswordIfSaved = (typedEmail: string) => {
-    try {
-      const raw = localStorage.getItem(SAVED_CREDENTIALS_KEY);
-      if (!raw) return;
-      const creds: SavedCredentials = JSON.parse(raw);
-      if (creds.email.toLowerCase() === typedEmail.toLowerCase()) {
-        setPassword(creds.password);
-      }
+      localStorage.removeItem(SAVED_LOGIN_ID_KEY);
     } catch {}
   };
 
@@ -182,12 +165,12 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
       } else {
         profile = await authService.loginClient(loginEmail, loginPassword);
       }
-      if (isSavePassword) {
-        saveCredentials(loginEmail, loginPassword, role);
+      if (isRememberId) {
+        saveCredentials(loginEmail, role);
       } else {
         clearCredentials();
       }
-      onLoginSuccess(role, profile, isAutoLogin);
+      onLoginSuccess(role, profile);
     } catch (err: any) {
       setError(err as string);
     } finally {
@@ -211,7 +194,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
     setIsLoading(true);
     try {
       await authService.loginAdmin(email, password);
-      onLoginSuccess('ADMIN', {}, false);
+      onLoginSuccess('ADMIN', {});
     } catch (err: any) {
       setError(err as string);
     } finally {
@@ -228,7 +211,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
         branchAdminLoginId,
         branchAdminPassword
       );
-      onLoginSuccess('BRANCH_ADMIN', result, isAutoLogin);
+      onLoginSuccess('BRANCH_ADMIN', result);
     } catch (err: any) {
       setError(err as string);
     } finally {
@@ -292,10 +275,10 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
     try {
       if (activeTab === 'COACH') {
         const coach = await authService.signupCoach(name, email, password, phone);
-        onLoginSuccess('COACH', coach, false);
+        onLoginSuccess('COACH', coach);
       } else {
         const client = await authService.signupClient(name, email, password, phone);
-        onLoginSuccess('CLIENT', client, false);
+        onLoginSuccess('CLIENT', client);
       }
     } catch (err: any) {
       setError(typeof err === 'string' ? err : t('signup_email_exists'));
@@ -450,19 +433,6 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
                 placeholder="••••••••"
                 leading={<Lock className="h-4 w-4" />}
               />
-
-              <button
-                type="button"
-                onClick={() => setIsAutoLogin(!isAutoLogin)}
-                className="flex items-center gap-2 text-sm text-ink-medium hover:text-ink-high transition-colors"
-              >
-                {isAutoLogin ? (
-                  <CheckSquare className="h-5 w-5 text-primary-400" />
-                ) : (
-                  <Square className="h-5 w-5 text-ink-faint" />
-                )}
-                {t('auto_login')}
-              </button>
 
               <Button type="submit" fullWidth size="lg" isLoading={isLoading}>
                 지점 관리자 로그인
@@ -653,7 +623,6 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
                 value={email}
                 onChange={(e) => {
                   setEmail(e.target.value);
-                  autofillPasswordIfSaved(e.target.value);
                 }}
                 placeholder="email@example.com"
                 leading={<Mail className="h-4 w-4" />}
@@ -674,31 +643,19 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
                 <div className="flex items-center gap-3">
                   <button
                     type="button"
-                    onClick={() => setIsAutoLogin(!isAutoLogin)}
-                    className="flex items-center gap-1.5 text-sm text-ink-medium hover:text-ink-high transition-colors"
-                  >
-                    {isAutoLogin ? (
-                      <CheckSquare className="h-5 w-5 text-primary-400" />
-                    ) : (
-                      <Square className="h-5 w-5 text-ink-faint" />
-                    )}
-                    {t('auto_login')}
-                  </button>
-                  <button
-                    type="button"
                     onClick={() => {
-                      const next = !isSavePassword;
-                      setIsSavePassword(next);
+                      const next = !isRememberId;
+                      setIsRememberId(next);
                       if (!next) clearCredentials();
                     }}
                     className="flex items-center gap-1.5 text-sm text-ink-medium hover:text-ink-high transition-colors"
                   >
-                    {isSavePassword ? (
+                    {isRememberId ? (
                       <CheckSquare className="h-5 w-5 text-primary-400" />
                     ) : (
                       <Square className="h-5 w-5 text-ink-faint" />
                     )}
-                    비밀번호 저장
+                    {t('remember_id')}
                   </button>
                 </div>
                 <button
