@@ -131,7 +131,7 @@ describe('authService logout and session persistence', () => {
     expect(apiService.setToken).toHaveBeenCalledWith('jwt-client-token-2');
   });
 
-  it('loginCoach falls back to local storage when API login fails', async () => {
+  it('loginCoach rejects when API login fails even if local profile exists', async () => {
     (apiService.isAvailable as any).mockReturnValue(false);
     (apiService.loginCoach as any).mockRejectedValueOnce(new Error('network down'));
     localStorage.setItem(
@@ -145,13 +145,13 @@ describe('authService logout and session persistence', () => {
       })
     );
 
-    const coach = await authService.loginCoach(' Fallback@Test.com ', 'pw1234');
-
+    await expect(
+      authService.loginCoach(' Fallback@Test.com ', 'pw1234')
+    ).rejects.toBe('로그인을 위해 서버 연결이 필요합니다.');
     expect(apiService.loginCoach).toHaveBeenCalledWith('fallback@test.com', 'pw1234');
-    expect(coach.email).toBe('fallback@test.com');
   });
 
-  it('fallback login keeps working without API mode and does not set JWT token', async () => {
+  it('loginCoach does not allow local fallback auth without API mode', async () => {
     (apiService.isAvailable as any).mockReturnValue(false);
     (apiService.loginCoach as any).mockRejectedValueOnce(new Error('api unavailable'));
     localStorage.setItem(
@@ -165,9 +165,9 @@ describe('authService logout and session persistence', () => {
       })
     );
 
-    const coach = await authService.loginCoach('fallback@test.com', 'pw1234');
-
-    expect(coach.email).toBe('fallback@test.com');
+    await expect(authService.loginCoach('fallback@test.com', 'pw1234')).rejects.toBe(
+      '로그인을 위해 서버 연결이 필요합니다.'
+    );
     expect(apiService.setToken).not.toHaveBeenCalled();
   });
 
