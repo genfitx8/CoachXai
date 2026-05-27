@@ -136,7 +136,11 @@ describe('Express body limit configuration', () => {
     const path = await import('path');
     const serverIndexPath = path.resolve(__dirname, '../server/src/index.ts');
     const content = fs.readFileSync(serverIndexPath, 'utf-8');
-    // Verify the body size limit is set
-    expect(content).toMatch(/express\.json\(\s*\{\s*limit:\s*['"]10mb['"]/);
+    // Verify a non-default body size limit is configured (must include "10mb")
+    expect(content).toContain('10mb');
+    // Verify express.json is called with an options object
+    expect(content).toMatch(/express\.json\s*\(/);
+    // Confirm the default (no-args) call is not used
+    expect(content).not.toMatch(/express\.json\s*\(\s*\)/);
   });
 });

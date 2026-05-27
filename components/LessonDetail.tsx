@@ -1050,8 +1050,8 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
               <div className="bg-gray-100 rounded-xl aspect-[9/16] max-w-md mx-auto flex items-center justify-center">
                 <div className="text-center text-gray-400">
                   <Video className="w-12 h-12 mx-auto mb-2 opacity-40" />
-                  <p className="text-sm">영상이 없습니다</p>
-                  {canEdit && <p className="text-xs mt-1">아래 추가 버튼으로 영상을 업로드하세요</p>}
+                  <p className="text-sm">{t('lesson_no_video')}</p>
+                  {canEdit && <p className="text-xs mt-1">{t('lesson_upload_hint')}</p>}
                 </div>
               </div>
               )}
