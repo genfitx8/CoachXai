@@ -235,8 +235,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
       document.body.appendChild(form);
       const credential = new PasswordCredential(form);
       await credentialsApi.store(credential);
-    } catch {}
-    finally {
+    } catch {} finally {
       if (form.isConnected) {
         form.remove();
       }
