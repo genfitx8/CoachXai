@@ -35,11 +35,15 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
   const { t } = useLanguage();
   const mainMediaSource = lesson.videoUrl || (lesson.videoKey ? `/api/files/${lesson.videoKey}` : '');
   const mainMediaUrl = resolveMediaUrl(mainMediaSource);
-  const [activeMedia, setActiveMedia] = useState<MediaItem>({
-    id: 'main',
-    url: mainMediaUrl,
-    type: lesson.mediaType,
-    createdAt: lesson.createdAt
+  const [activeMedia, setActiveMedia] = useState<MediaItem>(() => {
+    if (mainMediaUrl) {
+      return { id: 'main', url: mainMediaUrl, type: lesson.mediaType, createdAt: lesson.createdAt };
+    }
+    // If no main video, use the first additional media item (if any)
+    if (lesson.additionalMedia && lesson.additionalMedia.length > 0) {
+      return lesson.additionalMedia[0];
+    }
+    return { id: 'main', url: '', type: lesson.mediaType, createdAt: lesson.createdAt };
   });
   
   const [isAddingMedia, setIsAddingMedia] = useState(false);
@@ -123,12 +127,12 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
   const isSwingRecord = lesson.recordType !== 'SCORE';
 
   useEffect(() => {
-    setActiveMedia({
-      id: 'main',
-      url: mainMediaUrl,
-      type: lesson.mediaType,
-      createdAt: lesson.createdAt
-    });
+    const defaultMedia = mainMediaUrl
+      ? { id: 'main', url: mainMediaUrl, type: lesson.mediaType, createdAt: lesson.createdAt }
+      : (lesson.additionalMedia && lesson.additionalMedia.length > 0
+          ? lesson.additionalMedia[0]
+          : { id: 'main', url: '', type: lesson.mediaType, createdAt: lesson.createdAt });
+    setActiveMedia(defaultMedia);
     resetPlayerState();
     setClientNoteText(lesson.clientFeedback?.text || '');
     setClientVoicePreviewUrl(lesson.clientFeedback?.voiceUrl || null);
@@ -690,6 +694,7 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
           };
           
           onUpdate(updatedLesson);
+          setActiveMedia(newItems[0]);
           closeAddModal();
           alert(t('lesson_media_added').replace('{count}', String(newItems.length)));
       }
@@ -713,6 +718,7 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
           additionalMedia: [...(lesson.additionalMedia || []), newItem]
       };
       
+      setActiveMedia(newItem);
       onUpdate(updatedLesson);
       setPendingRole(undefined);
       closeAddModal();
@@ -945,9 +951,10 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
             </div>
           </div>
 
-          {/* Media Player Section - Only if URL exists */}
-          {mainMediaUrl ? (
+          {/* Media Player Section - show when main video exists, or additional media exists, or user can add media */}
+          {(mainMediaUrl || (lesson.additionalMedia && lesson.additionalMedia.length > 0) || canEdit) ? (
              <div className="space-y-3">
+              {activeMedia.url ? (
               <div className="bg-black rounded-xl overflow-hidden shadow-2xl relative aspect-[9/16] group max-w-md mx-auto">
                     <div 
                         className="relative w-full h-full bg-black flex items-center justify-center cursor-pointer group"
@@ -1039,9 +1046,19 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
                       </div>
                     )}
               </div>
+              ) : (
+              <div className="bg-gray-100 rounded-xl aspect-[9/16] max-w-md mx-auto flex items-center justify-center">
+                <div className="text-center text-gray-400">
+                  <Video className="w-12 h-12 mx-auto mb-2 opacity-40" />
+                  <p className="text-sm">{t('lesson_no_video')}</p>
+                  {canEdit && <p className="text-xs mt-1">{t('lesson_upload_hint')}</p>}
+                </div>
+              </div>
+              )}
 
               {/* Media Thumbnails */}
               <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide px-1">
+                  {mainMediaUrl && (
                   <button
                     onClick={() => setActiveMedia({ id: 'main', url: mainMediaUrl, type: lesson.mediaType, createdAt: lesson.createdAt })}
                     className={`relative w-16 h-16 flex-shrink-0 rounded-lg overflow-hidden border-2 transition-all ${activeMedia.id === 'main' ? 'border-emerald-700 ring-2 ring-emerald-200' : 'border-transparent opacity-70 hover:opacity-100'}`}
@@ -1052,7 +1069,7 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
                          <Mic className="w-6 h-6 text-white" />}
                       </div>
                   </button>
-
+                  )}
                   {/* Edited Video Thumbnail */}
                   {lesson.editedVideoUrl && (
                       <button

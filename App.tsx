@@ -526,7 +526,6 @@ const AppContent: React.FC = () => {
       await handleUpdateLesson(newLesson);
       setIsEditingLesson(false);
       setCoachView('DETAIL');
-      setSelectedLesson(newLesson);
       return;
     }
 
