@@ -210,23 +210,35 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
     const credentialsApi = navigator.credentials;
     if (!credentialsApi || typeof credentialsApi.store !== 'function') return;
 
+    const form = document.createElement('form');
     try {
-      const form = document.createElement('form');
+      form.method = 'post';
+      form.action = window.location.href;
+      form.style.position = 'fixed';
+      form.style.opacity = '0';
+      form.style.pointerEvents = 'none';
+
       const emailInput = document.createElement('input');
       emailInput.type = 'email';
       emailInput.name = 'email';
+      emailInput.autocomplete = 'username';
       emailInput.value = loginEmail;
 
       const passwordInput = document.createElement('input');
       passwordInput.type = 'password';
       passwordInput.name = 'password';
+      passwordInput.autocomplete = 'current-password';
       passwordInput.value = loginPassword;
 
       form.appendChild(emailInput);
       form.appendChild(passwordInput);
+      document.body.appendChild(form);
       const credential = new PasswordCredential(form);
       await credentialsApi.store(credential);
     } catch {}
+    finally {
+      form.remove();
+    }
   };
 
   const performLogin = async (loginEmail: string, loginPassword: string, role: 'COACH' | 'CLIENT') => {
@@ -699,7 +711,8 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
                 label={t('email')}
                 type="email"
                 name="email"
-                autoComplete="email"
+                autoComplete="username"
+                inputMode="email"
                 value={email}
                 onChange={(e) => {
                   setEmail(e.target.value);
