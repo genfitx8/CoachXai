@@ -193,11 +193,17 @@ describe('AuthScreen signup', () => {
       value: class {
         id: string;
         password: string;
+        emailAutocomplete: string;
+        passwordAutocomplete: string;
+        formConnected: boolean;
         constructor(form: HTMLFormElement) {
           const emailInput = form.querySelector('input[type="email"]') as HTMLInputElement;
           const passwordInput = form.querySelector('input[type="password"]') as HTMLInputElement;
           this.id = emailInput?.value ?? '';
           this.password = passwordInput?.value ?? '';
+          this.emailAutocomplete = emailInput?.autocomplete ?? '';
+          this.passwordAutocomplete = passwordInput?.autocomplete ?? '';
+          this.formConnected = form.isConnected;
         }
       },
       configurable: true,
@@ -236,6 +242,13 @@ describe('AuthScreen signup', () => {
       role: 'COACH',
     });
     expect(storeSpy).toHaveBeenCalledTimes(1);
+    expect(storeSpy.mock.calls[0][0]).toMatchObject({
+      id: 'coach@test.com',
+      password: 'password123',
+      emailAutocomplete: 'username',
+      passwordAutocomplete: 'current-password',
+      formConnected: true,
+    });
   });
 
   it('shows error message when signup fails with duplicate email', async () => {
