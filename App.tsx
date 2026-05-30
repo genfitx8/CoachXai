@@ -606,8 +606,11 @@ const AppContent: React.FC = () => {
           lessonForStorage = { ...lessonForStorage, additionalMedia: persistedMedia };
         }
 
-        const updatedLessons = [lessonForStorage, ...lessons];
+        // Filter out any pre-existing entry with the same id before prepending,
+        // so localStorage never ends up with duplicate entries.
+        const updatedLessons = [lessonForStorage, ...lessons.filter((l) => l.id !== lessonForStorage.id)];
         storageService.saveLessons(updatedLessons);
+        // Replace the optimistic entry in React state with the idb:// version.
         setLessons((prev) =>
           prev.map((l) => (l.id === lessonToSave.id ? lessonForStorage : l))
         );
