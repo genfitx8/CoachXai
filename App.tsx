@@ -93,6 +93,7 @@ const isClientSessionProfile = (
 
 const AppContent: React.FC = () => {
   const { t, language, setLanguage } = useLanguage();
+  const isAutomatedVideoEditingEnabled = false;
 
   // Session State
   const [userRole, setUserRole] = useState<'COACH' | 'CLIENT' | 'ADMIN' | 'BRANCH_ADMIN' | null>(
@@ -485,6 +486,16 @@ const AppContent: React.FC = () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, [userRole, currentUser, checkAndShowLessonSuggestion]);
+
+  useEffect(() => {
+    if (
+      !isAutomatedVideoEditingEnabled &&
+      (coachView === 'LESSON_UPLOAD' || coachView === 'LESSON_IMPACT')
+    ) {
+      setPendingLessonUpload(null);
+      setCoachView('LIST');
+    }
+  }, [coachView, isAutomatedVideoEditingEnabled]);
 
   const handleLogout = () => {
     authService.logout();
@@ -1531,14 +1542,16 @@ const AppContent: React.FC = () => {
                   Student
                 </Button>
 
-                <Button
-                  onClick={() => setCoachView('LESSON_UPLOAD')}
-                  data-testid="lesson-upload-entry-btn"
-                  className="w-full py-4 text-base rounded-2xl border border-violet-500/30 shadow-lg shadow-slate-900/40 bg-gradient-to-r from-slate-900 to-slate-800 hover:from-slate-800 hover:to-slate-700 justify-center"
-                  icon={<Play className="w-5 h-5" />}
-                >
-                  자동 영상 편집
-                </Button>
+                {isAutomatedVideoEditingEnabled && (
+                  <Button
+                    onClick={() => setCoachView('LESSON_UPLOAD')}
+                    data-testid="lesson-upload-entry-btn"
+                    className="w-full py-4 text-base rounded-2xl border border-violet-500/30 shadow-lg shadow-slate-900/40 bg-gradient-to-r from-slate-900 to-slate-800 hover:from-slate-800 hover:to-slate-700 justify-center"
+                    icon={<Play className="w-5 h-5" />}
+                  >
+                    자동 영상 편집
+                  </Button>
+                )}
 
                 <Button
                   onClick={() => setCoachView('COACHX')}
@@ -1891,7 +1904,7 @@ const AppContent: React.FC = () => {
           />
         )}
 
-        {coachView === 'LESSON_UPLOAD' && (
+        {isAutomatedVideoEditingEnabled && coachView === 'LESSON_UPLOAD' && (
           <LessonUploadPage
             students={lessonUploadStudents}
             onBack={() => setCoachView('LIST')}
@@ -1903,7 +1916,7 @@ const AppContent: React.FC = () => {
           />
         )}
 
-        {coachView === 'LESSON_IMPACT' && pendingLessonUpload && (
+        {isAutomatedVideoEditingEnabled && coachView === 'LESSON_IMPACT' && pendingLessonUpload && (
           <ImpactSelectionPage
             lessonUpload={pendingLessonUpload}
             onBack={() => setCoachView('LESSON_UPLOAD')}
