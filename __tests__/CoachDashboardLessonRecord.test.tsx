@@ -118,11 +118,11 @@ describe('Coach dashboard – lesson-first MVP home', () => {
     expect(screen.queryByTestId('coachx-attention-card')).toBeNull();
   });
 
-  it('shows lesson upload entry as 자동 영상 편집', async () => {
+  it('hides lesson upload entry from coach home', async () => {
     await renderCoachApp();
 
-    expect(screen.getByTestId('lesson-upload-entry-btn')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: '자동 영상 편집' })).toBeInTheDocument();
+    expect(screen.queryByTestId('lesson-upload-entry-btn')).toBeNull();
+    expect(screen.queryByRole('button', { name: '자동 영상 편집' })).toBeNull();
   });
 
   it('does not show separate album entry on coach home', async () => {
