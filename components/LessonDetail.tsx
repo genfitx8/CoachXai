@@ -1,5 +1,5 @@
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useLanguage } from './LanguageContext';
 import { Lesson, MediaItem, SwingSequenceItem, HoleRecord, ScorecardDetail, VideoEditMetadata, CompareVideoMetadata } from '../types';
 import { Button } from './Button';
@@ -194,6 +194,19 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
     }
     return resolveMediaUrl(activeMedia.url);
   })();
+  const safeActiveMediaUrl =
+    activeMediaUrl.startsWith('blob:') ||
+    activeMediaUrl.startsWith('http://') ||
+    activeMediaUrl.startsWith('https://') ||
+    activeMediaUrl.startsWith('/')
+      ? activeMediaUrl
+      : '';
+  const additionalMediaResolutionKey = useMemo(
+    () => (lesson.additionalMedia || [])
+      .map((media) => `${media.id}:${media.url}`)
+      .join('|'),
+    [lesson.additionalMedia]
+  );
 
   const handleSpeakAnalysis = () => {
     if (!lesson.aiAnalysis || typeof window === 'undefined') return;
@@ -308,6 +321,7 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
       const beforeUrl = getAdditionalMediaUrl(beforeItem);
       const afterUrl = getAdditionalMediaUrl(afterItem);
       if (!beforeUrl || !afterUrl) {
+        console.warn('[LessonDetail] Compare media is not ready for playback', { beforeId: beforeItem.id, afterId: afterItem.id });
         alert(t('lesson_compare_save_error'));
         return;
       }
@@ -939,6 +953,12 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
         if (objUrl) {
           next[media.id] = objUrl;
           additionalObjUrls.push(objUrl);
+        } else {
+          console.warn('[LessonDetail] Failed to resolve offline additional media', {
+            mediaId: media.id,
+            mediaType: media.type,
+            mediaUrl: media.url,
+          });
         }
       }));
 
@@ -956,7 +976,7 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
       disposed = true;
       additionalObjUrls.forEach((url) => URL.revokeObjectURL(url));
     };
-  }, [lesson.additionalMedia]);
+  }, [additionalMediaResolutionKey]);
 
   // Resolve idb:// URLs to fresh blob URLs whenever the lesson changes
   useEffect(() => {
@@ -1039,23 +1059,23 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
           {/* Media Player Section - show when main video exists, or additional media exists, or user can add media */}
           {(mainMediaUrl || (lesson.additionalMedia && lesson.additionalMedia.length > 0) || canEdit) ? (
              <div className="space-y-3">
-              {activeMediaUrl ? (
+              {safeActiveMediaUrl ? (
               <div className="bg-black rounded-xl overflow-hidden shadow-2xl relative aspect-[9/16] group max-w-md mx-auto">
                     <div 
                         className="relative w-full h-full bg-black flex items-center justify-center cursor-pointer group"
                         onClick={togglePlay}
                     >
                         {activeMedia.type === 'video' ? (
-                            activeMediaUrl ? (
+                            safeActiveMediaUrl ? (
                             <video
                                 ref={mediaElementRef as React.RefObject<HTMLVideoElement>}
-                                src={activeMediaUrl}
+                                src={safeActiveMediaUrl}
                                 className="w-full h-full object-contain bg-black"
                                 playsInline
                                 onTimeUpdate={handleTimeUpdate}
                                 onLoadedMetadata={handleLoadedMetadata}
                                 onEnded={() => setIsPlaying(false)}
-                                key={activeMediaUrl}
+                                key={safeActiveMediaUrl}
                                 crossOrigin="anonymous" 
                                 onPlay={() => setIsPlaying(true)}
                                 onPause={() => setIsPlaying(false)}
@@ -1067,19 +1087,19 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
                                 </div>
                             )
                         ) : activeMedia.type === 'image' ? (
-                            <img src={activeMediaUrl} className="w-full h-full object-contain" alt="Lesson Media" />
+                            <img src={safeActiveMediaUrl} className="w-full h-full object-contain" alt="Lesson Media" />
                         ) : (
                             <div className="text-center p-8">
                                 <div className="w-20 h-20 bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-4 animate-pulse">
                                     <Mic className="w-10 h-10 text-emerald-400" />
                                 </div>
                                 <h3 className="text-white font-bold mb-2">음성 녹음</h3>
-                                <audio src={activeMediaUrl} controls className="mt-4" />
+                                <audio src={safeActiveMediaUrl} controls className="mt-4" />
                             </div>
                         )}
                         
                         {/* Play Overlay */}
-                        {activeMedia.type === 'video' && activeMediaUrl && !isPlaying && (
+                        {activeMedia.type === 'video' && safeActiveMediaUrl && !isPlaying && (
                             <div className="absolute inset-0 flex items-center justify-center bg-black/20 z-10 pointer-events-none">
                                 <PlayCircle className="w-16 h-16 text-white opacity-80" />
                             </div>
@@ -1087,7 +1107,7 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
                     </div>
 
                     {/* Custom Video Controls */}
-                    {activeMedia.type === 'video' && activeMediaUrl && (
+                    {activeMedia.type === 'video' && safeActiveMediaUrl && (
                         <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/95 via-black/60 to-transparent p-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300 backdrop-blur-sm">
                              <div className="flex items-center gap-3">
                                  <button onClick={togglePlay} className="text-white hover:text-emerald-400 transition-all duration-200 hover:scale-110 transform">
@@ -1314,7 +1334,7 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
                )}
 
                {/* Manual Capture Toolbar - Restrict to Swing Videos */}
-               {activeMedia.type === 'video' && activeMediaUrl && canEdit && isSwingRecord && (
+               {activeMedia.type === 'video' && safeActiveMediaUrl && canEdit && isSwingRecord && (
                     <div className="flex flex-wrap gap-2 justify-center pt-2 animate-fade-in">
                         {SEQUENCE_LABELS.map((phase) => (
                             <button
