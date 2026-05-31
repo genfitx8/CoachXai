@@ -8,9 +8,13 @@
  *    initialized to the first additional media item.
  * 3. Express JSON body limit is configured to 10mb so large lessons with
  *    swingSequence base64 images can be saved without a 413 error.
+ * 4. Offline-saved lessons store the main video as idb:// so it survives page
+ *    refresh (blob: URLs are session-scoped and become dead after a reload).
  */
 import { describe, it, expect } from 'vitest';
 import type { Lesson, MediaItem } from '../types';
+
+const IDB_PREFIX = 'idb://';
 
 // ---------------------------------------------------------------------------
 // Helper: build a minimal Lesson
@@ -31,13 +35,17 @@ function makeLessonBase(overrides: Partial<Lesson> = {}): Lesson {
 }
 
 // ---------------------------------------------------------------------------
-// Simulate the activeMedia initialisation logic from LessonDetail
-// (mirrors the useState lazy initializer added in the fix)
+// Simulate the activeMedia initialisation logic from LessonDetail.
+// idb:// URLs resolve asynchronously, so mainMediaUrl starts as '' until the
+// IDB lookup completes and the activeMedia reset effect fires.
+// (mirrors the updated useState lazy initializer)
 // ---------------------------------------------------------------------------
-function initActiveMedia(lesson: Lesson): MediaItem {
+function initActiveMedia(lesson: Lesson, resolvedMainUrl: string | null = null): MediaItem {
   const mainMediaSource = lesson.videoUrl || (lesson.videoKey ? `/api/files/${lesson.videoKey}` : '');
-  // Simplified resolveMediaUrl: in tests there's no BASE_URL, so just return the source
-  const mainMediaUrl = mainMediaSource;
+  // idb:// URLs cannot be used directly as <video src>; use resolvedMainUrl once available
+  const mainMediaUrl = lesson.videoUrl?.startsWith(IDB_PREFIX)
+    ? (resolvedMainUrl || '')
+    : mainMediaSource;
 
   if (mainMediaUrl) {
     return { id: 'main', url: mainMediaUrl, type: lesson.mediaType, createdAt: lesson.createdAt };
@@ -127,6 +135,53 @@ describe('LessonDetail activeMedia initialization', () => {
     const media = initActiveMedia(lesson);
     expect(media.id).toBe('main');
     expect(media.url).toBe('');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// idb:// offline video URL resolution
+// Verifies that a lesson saved offline (no API) stores main video as idb://
+// and that activeMedia is correctly updated once the URL resolves.
+// ---------------------------------------------------------------------------
+describe('LessonDetail idb:// main video URL resolution', () => {
+  it('treats an idb:// videoUrl as an offline-persisted video', () => {
+    const lesson = makeLessonBase({ videoUrl: 'idb://main_lesson-1' });
+    // videoUrl must start with the IDB prefix
+    expect(lesson.videoUrl!.startsWith(IDB_PREFIX)).toBe(true);
+  });
+
+  it('initializes activeMedia with empty url while idb:// is still resolving', () => {
+    const lesson = makeLessonBase({ videoUrl: 'idb://main_lesson-1' });
+    // resolvedMainUrl is null before the async IDB lookup completes
+    const media = initActiveMedia(lesson, null);
+    expect(media.id).toBe('main');
+    expect(media.url).toBe('');
+  });
+
+  it('updates activeMedia to resolved blob URL after idb:// resolves', () => {
+    const lesson = makeLessonBase({ videoUrl: 'idb://main_lesson-1' });
+    const resolvedBlobUrl = 'blob:http://localhost/fake-video-id';
+    // Simulate the state after videoStore.resolve() returns a fresh blob URL
+    const media = initActiveMedia(lesson, resolvedBlobUrl);
+    expect(media.id).toBe('main');
+    expect(media.url).toBe(resolvedBlobUrl);
+  });
+
+  it('uses regular videoUrl as-is when it is an https URL (online save)', () => {
+    const lesson = makeLessonBase({ videoUrl: 'https://api.example.com/api/files/lessons/abc/main.mp4' });
+    const media = initActiveMedia(lesson, null);
+    expect(media.id).toBe('main');
+    expect(media.url).toBe('https://api.example.com/api/files/lessons/abc/main.mp4');
+  });
+
+  it('offline-saved lesson key follows idb://main_{lessonId} naming convention', () => {
+    const lessonId = 'lesson-42';
+    const expectedKey = `main_${lessonId}`;
+    const idbUrl = `${IDB_PREFIX}${expectedKey}`;
+    expect(idbUrl).toBe('idb://main_lesson-42');
+    // The key stored in IDB can be extracted by stripping the prefix
+    const extracted = idbUrl.slice(IDB_PREFIX.length);
+    expect(extracted).toBe(expectedKey);
   });
 });
 

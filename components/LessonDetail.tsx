@@ -33,8 +33,14 @@ const SEQUENCE_LABELS = [
 
 export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons = [], role = 'COACH', onBack, onUpdate, onDelete, onEdit }) => {
   const { t } = useLanguage();
+  // resolvedMainUrl must be declared before mainMediaUrl is computed below
+  const [resolvedMainUrl, setResolvedMainUrl] = useState<string | null>(null);
   const mainMediaSource = lesson.videoUrl || (lesson.videoKey ? `/api/files/${lesson.videoKey}` : '');
-  const mainMediaUrl = resolveMediaUrl(mainMediaSource);
+  // For idb:// URLs, use the asynchronously-resolved blob URL; fall back to empty
+  // while the IDB lookup is in flight (the useEffect below will update activeMedia).
+  const mainMediaUrl = lesson.videoUrl?.startsWith(IDB_PREFIX)
+    ? (resolvedMainUrl || '')
+    : resolveMediaUrl(mainMediaSource);
   const [activeMedia, setActiveMedia] = useState<MediaItem>(() => {
     if (mainMediaUrl) {
       return { id: 'main', url: mainMediaUrl, type: lesson.mediaType, createdAt: lesson.createdAt };
@@ -143,7 +149,7 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
       setEditingHoles(JSON.parse(JSON.stringify(lesson.scorecardDetail.holes)));
     }
     setIsEditingScorecardDetail(false);
-  }, [lesson.id, lesson.clientFeedback, lesson.scorecardDetail, lesson.mediaType, lesson.createdAt, lesson.videoUrl, lesson.videoKey]);
+  }, [lesson.id, lesson.clientFeedback, lesson.scorecardDetail, lesson.mediaType, lesson.createdAt, lesson.videoUrl, lesson.videoKey, resolvedMainUrl]);
 
   useEffect(() => {
       setMediaError(false);
@@ -872,6 +878,26 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
           document.body.style.overflow = 'unset';
       }
   }, [isAddingMedia, isCommentaryMode, isSequenceMode, selectedSequenceImage]);
+
+  // Resolve idb:// main video URL to a fresh blob URL whenever the lesson changes
+  useEffect(() => {
+    let objUrl: string | null = null;
+
+    const resolve = async () => {
+      if (lesson.videoUrl?.startsWith(IDB_PREFIX)) {
+        objUrl = await videoStore.resolve(lesson.videoUrl);
+        setResolvedMainUrl(objUrl);
+      } else {
+        setResolvedMainUrl(null);
+      }
+    };
+
+    resolve();
+
+    return () => {
+      if (objUrl) URL.revokeObjectURL(objUrl);
+    };
+  }, [lesson.videoUrl]);
 
   // Resolve idb:// URLs to fresh blob URLs whenever the lesson changes
   useEffect(() => {

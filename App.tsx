@@ -40,6 +40,7 @@ import { storageService } from './services/storage';
 import { authService } from './services/authService';
 import { firebaseService } from './services/firebase';
 import { apiService } from './services/apiService';
+import { videoStore, IDB_PREFIX } from './services/videoStore';
 import {
   getUnreadReservationNotificationsForCoach,
   markNotificationsAsRead,
@@ -574,8 +575,45 @@ const AppContent: React.FC = () => {
           }
         }
       } else {
-        const updatedLessons = [lessonToSave, ...lessons];
+        // Convert any blob: URLs to IndexedDB so they survive page refresh
+        let lessonForStorage = lessonToSave;
+        if (lessonForStorage.videoUrl?.startsWith('blob:')) {
+          try {
+            const res = await fetch(lessonForStorage.videoUrl);
+            const blob = await res.blob();
+            const idbUrl = await videoStore.save(`main_${lessonForStorage.id}`, blob);
+            lessonForStorage = { ...lessonForStorage, videoUrl: idbUrl };
+          } catch (e) {
+            console.warn('[handleSaveLesson] Failed to persist main video to IDB', e);
+          }
+        }
+        if (lessonForStorage.additionalMedia?.length) {
+          const persistedMedia = await Promise.all(
+            lessonForStorage.additionalMedia.map(async (item, idx) => {
+              if (item.url?.startsWith('blob:')) {
+                try {
+                  const res = await fetch(item.url);
+                  const blob = await res.blob();
+                  const idbUrl = await videoStore.save(`additional_${lessonForStorage.id}_${idx}`, blob);
+                  return { ...item, url: idbUrl };
+                } catch {
+                  return item;
+                }
+              }
+              return item;
+            })
+          );
+          lessonForStorage = { ...lessonForStorage, additionalMedia: persistedMedia };
+        }
+
+        // Filter out any pre-existing entry with the same id before prepending,
+        // so localStorage never ends up with duplicate entries.
+        const updatedLessons = [lessonForStorage, ...lessons.filter((l) => l.id !== lessonForStorage.id)];
         storageService.saveLessons(updatedLessons);
+        // Replace the optimistic entry in React state with the idb:// version.
+        setLessons((prev) =>
+          prev.map((l) => (l.id === lessonToSave.id ? lessonForStorage : l))
+        );
 
         if (userRole === 'COACH') {
           if (pendingPackageSession) {
@@ -583,7 +621,7 @@ const AppContent: React.FC = () => {
             setCoachView('LESSON_PACKAGE');
           } else {
             setCoachView('DETAIL');
-            setSelectedLesson(lessonToSave);
+            setSelectedLesson(lessonForStorage);
           }
         }
       }
@@ -629,10 +667,47 @@ const AppContent: React.FC = () => {
         alert('저장에 실패했습니다.');
       }
     } else {
+      // Convert any blob: URLs to IndexedDB so they survive page refresh
+      let lessonForStorage = updatedLesson;
+      if (lessonForStorage.videoUrl?.startsWith('blob:')) {
+        try {
+          const res = await fetch(lessonForStorage.videoUrl);
+          const blob = await res.blob();
+          const idbUrl = await videoStore.save(`main_${lessonForStorage.id}`, blob);
+          lessonForStorage = { ...lessonForStorage, videoUrl: idbUrl };
+        } catch (e) {
+          console.warn('[handleUpdateLesson] Failed to persist main video to IDB', e);
+        }
+      }
+      if (lessonForStorage.additionalMedia?.length) {
+        const persistedMedia = await Promise.all(
+          lessonForStorage.additionalMedia.map(async (item, idx) => {
+            if (item.url?.startsWith('blob:')) {
+              try {
+                const res = await fetch(item.url);
+                const blob = await res.blob();
+                const idbUrl = await videoStore.save(`additional_${lessonForStorage.id}_${idx}`, blob);
+                return { ...item, url: idbUrl };
+              } catch {
+                return item;
+              }
+            }
+            return item;
+          })
+        );
+        lessonForStorage = { ...lessonForStorage, additionalMedia: persistedMedia };
+      }
+
       const updatedList = lessons.map((l) =>
-        l.id === updatedLesson.id ? updatedLesson : l
+        l.id === lessonForStorage.id ? lessonForStorage : l
       );
       storageService.saveLessons(updatedList);
+      setLessons((prev) =>
+        prev.map((l) => (l.id === lessonForStorage.id ? lessonForStorage : l))
+      );
+      if (selectedLesson?.id === lessonForStorage.id) {
+        setSelectedLesson(lessonForStorage);
+      }
     }
   };
 
