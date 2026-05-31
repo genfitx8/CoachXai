@@ -56,6 +56,24 @@ function initActiveMedia(lesson: Lesson, resolvedMainUrl: string | null = null):
   return { id: 'main', url: '', type: lesson.mediaType, createdAt: lesson.createdAt };
 }
 
+function resolveActiveMediaUrl(
+  media: MediaItem,
+  resolvedMainUrl: string | null = null,
+  resolvedAdditionalUrls: Record<string, string> = {}
+): string {
+  if (!media.url) return '';
+  if (media.id === 'main') {
+    const mainMediaUrl = media.url.startsWith(IDB_PREFIX)
+      ? (resolvedMainUrl || '')
+      : media.url;
+    return mainMediaUrl || '';
+  }
+  if (media.url.startsWith(IDB_PREFIX)) {
+    return resolvedAdditionalUrls[media.id] || '';
+  }
+  return media.url;
+}
+
 // ---------------------------------------------------------------------------
 // Simulate the media section visibility condition from LessonDetail
 // (mirrors the JSX condition added in the fix)
@@ -148,6 +166,29 @@ describe('LessonDetail idb:// main video URL resolution', () => {
     const lesson = makeLessonBase({ videoUrl: 'idb://main_lesson-1' });
     // videoUrl must start with the IDB prefix
     expect(lesson.videoUrl!.startsWith(IDB_PREFIX)).toBe(true);
+  });
+
+  describe('LessonDetail idb:// additional media URL resolution', () => {
+    it('keeps additional idb:// media non-playable until resolved blob URL is ready', () => {
+      const media: MediaItem = {
+        id: 'extra-1',
+        url: 'idb://additional_lesson-1_0',
+        type: 'video',
+        createdAt: Date.now(),
+      };
+      expect(resolveActiveMediaUrl(media, null, {})).toBe('');
+    });
+
+    it('uses resolved blob URL for additional idb:// media after IDB lookup', () => {
+      const media: MediaItem = {
+        id: 'extra-1',
+        url: 'idb://additional_lesson-1_0',
+        type: 'video',
+        createdAt: Date.now(),
+      };
+      const resolved = { 'extra-1': 'blob:http://localhost/additional-video' };
+      expect(resolveActiveMediaUrl(media, null, resolved)).toBe('blob:http://localhost/additional-video');
+    });
   });
 
   it('initializes activeMedia with empty url while idb:// is still resolving', () => {
