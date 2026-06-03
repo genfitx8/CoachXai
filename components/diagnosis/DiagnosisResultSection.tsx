@@ -119,7 +119,7 @@ export const DiagnosisResultSection: React.FC<DiagnosisResultSectionProps> = ({
               >
                 <img
                   src={asset.url}
-                  alt={asset.label}
+                  alt={`${asset.label} - 진단 자료`}
                   className="w-full h-40 object-cover bg-slate-800"
                   loading="lazy"
                 />

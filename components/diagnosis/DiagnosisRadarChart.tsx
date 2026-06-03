@@ -43,7 +43,8 @@ export const DiagnosisRadarChart: React.FC<DiagnosisRadarChartProps> = ({ data, 
         width={size}
         height={size}
         viewBox={`0 0 ${size} ${size}`}
-        aria-label="진단 레이더 차트"
+        role="img"
+        aria-label={`진단 레이더 차트: ${data.map((d) => `${d.label} ${d.value}점`).join(', ')}`}
         className="overflow-visible"
       >
         {/* Grid polygons */}
@@ -131,12 +132,31 @@ export const DiagnosisRadarChart: React.FC<DiagnosisRadarChartProps> = ({ data, 
       <div className="flex flex-wrap justify-center gap-x-4 gap-y-1">
         {data.map((d) => (
           <div key={d.partType} className="flex items-center gap-1.5 text-xs text-slate-400">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0" />
+            <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0" aria-hidden="true" />
             <span>{d.label}</span>
             <span className="font-bold text-emerald-300">{d.value}</span>
           </div>
         ))}
       </div>
+
+      {/* Screen-reader accessible data table */}
+      <table className="sr-only">
+        <caption>진단 레이더 차트 데이터</caption>
+        <thead>
+          <tr>
+            <th scope="col">영역</th>
+            <th scope="col">점수 (%)</th>
+          </tr>
+        </thead>
+        <tbody>
+          {data.map((d) => (
+            <tr key={d.partType}>
+              <td>{d.label}</td>
+              <td>{d.value}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 };

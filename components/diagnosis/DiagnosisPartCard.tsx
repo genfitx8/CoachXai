@@ -49,7 +49,7 @@ export const DiagnosisPartCard: React.FC<DiagnosisPartCardProps> = ({ partScore 
             />
           </div>
 
-          <p className="text-xs text-slate-400 leading-snug line-clamp-2">{partScore.summary}</p>
+          <p className="text-xs text-slate-400 leading-snug line-clamp-2" title={partScore.summary}>{partScore.summary}</p>
         </div>
 
         <div className={`text-slate-500 transition-transform duration-200 shrink-0 mt-1 ${expanded ? 'rotate-180' : ''}`}>

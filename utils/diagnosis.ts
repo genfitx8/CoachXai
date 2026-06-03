@@ -24,7 +24,7 @@ export function getDiagnosisGrade(totalScore: number, maxTotalScore: number): Di
 
 /** Returns the GradeDefinition for a given grade key. */
 export function getGradeDefinition(grade: DiagnosisGrade) {
-  return GRADE_DEFINITIONS.find((g) => g.grade === grade) ?? GRADE_DEFINITIONS[GRADE_DEFINITIONS.length - 1];
+  return GRADE_DEFINITIONS.find((g) => g.grade === grade) ?? GRADE_DEFINITIONS.at(-1) ?? GRADE_DEFINITIONS[GRADE_DEFINITIONS.length - 1];
 }
 
 /** Returns the DiagnosisLevel for a score percentage. */
@@ -36,7 +36,9 @@ export function getDiagnosisLevel(totalScore: number, maxTotalScore: number): Di
 
 /** Returns the DiagnosisPartDefinition for a given part type. */
 export function getPartDefinition(partType: DiagnosisPartType): DiagnosisPartDefinition {
-  return DIAGNOSIS_PARTS.find((p) => p.type === partType) ?? DIAGNOSIS_PARTS[0];
+  const found = DIAGNOSIS_PARTS.find((p) => p.type === partType);
+  if (!found) throw new Error(`Unknown diagnosis part type: ${partType}`);
+  return found;
 }
 
 /** Returns the Korean title for a part type. */

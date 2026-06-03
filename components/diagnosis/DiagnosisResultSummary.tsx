@@ -24,7 +24,8 @@ export const DiagnosisResultSummary: React.FC<DiagnosisResultSummaryProps> = ({ 
               {session.clientName}님의 정밀 진단 결과
             </h2>
             <p className="text-xs text-slate-400">
-              담당 코치: <span className="text-slate-200 font-medium">{session.coachName}</span>
+              <span id="coach-label">담당 코치:</span>{' '}
+              <span aria-labelledby="coach-label" className="text-slate-200 font-medium">{session.coachName}</span>
             </p>
           </div>
 
