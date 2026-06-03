@@ -158,6 +158,19 @@ describe('Coach dashboard – lesson-first MVP home', () => {
     expect(screen.queryByRole('button', { name: /훈련 프로그램 생성|create training program/i })).toBeNull();
   });
 
+  it('opens diagnosis program member-selection mode from diagnosis entry', async () => {
+    await renderCoachApp();
+    fireEvent.click(screen.getByTestId('diagnosis-program-entry-btn'));
+
+    await waitFor(() => {
+      expect(screen.getByText('정밀진단 프로그램')).toBeInTheDocument();
+    });
+    expect(screen.queryByText('회원 관리')).toBeNull();
+    expect(screen.getByRole('button', { name: /훈련 프로그램 생성|create training program/i })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /레슨 기록|lessons/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /레슨 패키지 관리|lesson package management/i })).toBeNull();
+  });
+
   it('moves direct member registration entry into Lesson start flow', async () => {
     await renderCoachApp();
 
