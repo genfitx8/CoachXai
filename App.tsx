@@ -84,6 +84,9 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { LanguageProvider, useLanguage } from './components/LanguageContext';
+import { DiagnosisProgramSection } from './components/diagnosis/DiagnosisProgramSection';
+import { DiagnosisResultSection } from './components/diagnosis/DiagnosisResultSection';
+import { mockDiagnosisSession } from './mock/diagnosisMock';
 
 const isClientSessionProfile = (
   role: 'COACH' | 'CLIENT' | 'ADMIN' | 'BRANCH_ADMIN' | null,
@@ -1571,6 +1574,15 @@ const AppContent: React.FC = () => {
                   예약 관리
                 </Button>
 
+                <Button
+                  onClick={() => setCoachView('DIAGNOSIS_PROGRAM')}
+                  data-testid="diagnosis-program-entry-btn"
+                  className="w-full py-4 text-base rounded-2xl border border-emerald-600/40 shadow-lg shadow-emerald-900/20 bg-gradient-to-r from-emerald-950 to-slate-900 hover:from-emerald-900 hover:to-slate-800 justify-center"
+                  icon={<Target className="w-5 h-5 text-emerald-400" />}
+                >
+                  정밀 진단 프로그램
+                </Button>
+
               </div>
             </section>
           </div>
@@ -1901,6 +1913,21 @@ const AppContent: React.FC = () => {
               setCoachView('COACHX');
             }}
             initialQuery={coachXChatInitialQuery}
+          />
+        )}
+
+        {coachView === 'DIAGNOSIS_PROGRAM' && (
+          <DiagnosisProgramSection
+            onBack={() => setCoachView('LIST')}
+            onStartDiagnosis={() => alert('진단 신청 기능은 준비 중입니다.')}
+            onViewSample={() => setCoachView('DIAGNOSIS_RESULT')}
+          />
+        )}
+
+        {coachView === 'DIAGNOSIS_RESULT' && (
+          <DiagnosisResultSection
+            session={mockDiagnosisSession}
+            onBack={() => setCoachView('DIAGNOSIS_PROGRAM')}
           />
         )}
 
