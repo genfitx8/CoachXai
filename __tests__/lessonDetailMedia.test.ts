@@ -11,8 +11,9 @@
  * 4. Offline-saved lessons store the main video as idb:// so it survives page
  *    refresh (blob: URLs are session-scoped and become dead after a reload).
  */
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import type { Lesson, MediaItem } from '../types';
+import { buildAdditionalMediaStorageKey, persistAdditionalMediaSourceForOffline } from '../components/LessonDetail';
 
 const IDB_PREFIX = 'idb://';
 
@@ -166,6 +167,47 @@ describe('LessonDetail idb:// main video URL resolution', () => {
     const lesson = makeLessonBase({ videoUrl: 'idb://main_lesson-1' });
     // videoUrl must start with the IDB prefix
     expect(lesson.videoUrl!.startsWith(IDB_PREFIX)).toBe(true);
+  });
+
+  describe('LessonDetail additional media offline persistence', () => {
+    it('persists uploaded additional media as idb:// when offline mode is enabled', async () => {
+      const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+        blob: async () => new Blob(['video-bytes'], { type: 'video/mp4' }),
+      } as Response);
+      const saveToStore = vi.fn().mockResolvedValue('idb://additional_lesson-1_media-1');
+
+      const url = await persistAdditionalMediaSourceForOffline({
+        lessonId: 'lesson-1',
+        mediaId: 'media-1',
+        mediaUrl: 'blob:http://localhost/new-upload',
+        shouldPersistOffline: true,
+        saveToStore,
+      });
+
+      expect(url).toBe('idb://additional_lesson-1_media-1');
+      expect(saveToStore).toHaveBeenCalledTimes(1);
+      expect(saveToStore.mock.calls[0][0]).toBe(buildAdditionalMediaStorageKey('lesson-1', 'media-1'));
+      fetchSpy.mockRestore();
+    });
+
+    it('keeps blob URL unchanged when offline persistence is disabled', async () => {
+      const fetchSpy = vi.spyOn(globalThis, 'fetch');
+      const saveToStore = vi.fn().mockResolvedValue('idb://unused');
+      const mediaUrl = 'blob:http://localhost/new-upload';
+
+      const url = await persistAdditionalMediaSourceForOffline({
+        lessonId: 'lesson-1',
+        mediaId: 'media-1',
+        mediaUrl,
+        shouldPersistOffline: false,
+        saveToStore,
+      });
+
+      expect(url).toBe(mediaUrl);
+      expect(saveToStore).not.toHaveBeenCalled();
+      expect(fetchSpy).not.toHaveBeenCalled();
+      fetchSpy.mockRestore();
+    });
   });
 
   describe('LessonDetail idb:// additional media URL resolution', () => {
