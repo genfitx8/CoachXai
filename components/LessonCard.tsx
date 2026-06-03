@@ -4,6 +4,7 @@ import { Lesson } from '../types';
 import { Calendar, PlayCircle, ChevronRight, Image as ImageIcon, Mic, User, Send, Target, Award, AlertCircle, MessageCircle, CheckCircle, Trash2, Flag, BookOpen, Trophy } from 'lucide-react';
 import { useLanguage } from './LanguageContext';
 import { resolveMediaUrl } from '../services/apiService';
+import { videoStore, IDB_PREFIX } from '../services/videoStore';
 
 interface LessonCardProps {
   lesson: Lesson;
@@ -15,11 +16,36 @@ interface LessonCardProps {
 
 export const LessonCard: React.FC<LessonCardProps> = ({ lesson, onClick, onShare, onDelete, showMedia = true }) => {
   const [mediaError, setMediaError] = useState(false);
+  const [resolvedIdbUrl, setResolvedIdbUrl] = useState<string | null>(null);
   const { t } = useLanguage();
-  const lessonMediaUrl = useMemo(
+  const rawMediaUrl = useMemo(
     () => resolveMediaUrl(lesson.videoUrl || (lesson.videoKey ? `/api/files/${lesson.videoKey}` : '')),
     [lesson.videoUrl, lesson.videoKey]
   );
+
+  // Resolve idb:// URLs to playable blob: URLs
+  useEffect(() => {
+    let objUrl: string | null = null;
+    let disposed = false;
+
+    const resolve = async () => {
+      if (rawMediaUrl?.startsWith(IDB_PREFIX)) {
+        objUrl = await videoStore.resolve(rawMediaUrl);
+        if (!disposed) setResolvedIdbUrl(objUrl);
+      } else {
+        setResolvedIdbUrl(null);
+      }
+    };
+
+    resolve();
+
+    return () => {
+      disposed = true;
+      if (objUrl) URL.revokeObjectURL(objUrl);
+    };
+  }, [rawMediaUrl]);
+
+  const lessonMediaUrl = rawMediaUrl?.startsWith(IDB_PREFIX) ? (resolvedIdbUrl || '') : rawMediaUrl;
 
   useEffect(() => {
     setMediaError(false);
