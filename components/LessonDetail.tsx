@@ -50,7 +50,7 @@ export async function persistAdditionalMediaSourceForOffline(params: {
     const blob = mediaBlob ?? await (await fetch(mediaUrl)).blob();
     return await saveToStore(buildAdditionalMediaStorageKey(lessonId, mediaId), blob);
   } catch (e) {
-    console.warn('[LessonDetail] Failed to persist additional media to IDB', e);
+    console.warn('[LessonDetail] Failed to persist additional media to IDB', { lessonId, mediaId, error: e });
     return mediaUrl;
   }
 }
@@ -745,11 +745,12 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
           setAddMode('PREVIEW');
       } else {
           const newItems: MediaItem[] = await Promise.all(Array.from(files).map(async (file: File) => {
-             const previewUrl = URL.createObjectURL(file);
              let type: 'video'|'image'|'audio' = 'video';
              if (file.type.startsWith('image/')) type = 'image';
              else if (file.type.startsWith('audio/')) type = 'audio';
              const id = crypto.randomUUID();
+             const hasPreviewUrl = !shouldPersistOffline;
+             const previewUrl = hasPreviewUrl ? URL.createObjectURL(file) : '';
              const url = await persistAdditionalMediaSourceForOffline({
                lessonId: lesson.id,
                mediaId: id,
@@ -757,7 +758,8 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
                mediaBlob: file,
                shouldPersistOffline,
              });
-             if (url !== previewUrl) {
+             // Revoke only when a temporary object URL was created for online mode.
+             if (hasPreviewUrl && url !== previewUrl) {
                URL.revokeObjectURL(previewUrl);
              }
              return {
