@@ -524,6 +524,7 @@ const translations: Translations = {
     branch_holiday_save_error: "휴무일 저장 중 오류가 발생했습니다.",
     // CoachClientManager
     coach_client_title: "회원 관리",
+    diagnosis_program_select_member: "정밀진단 프로그램",
     coach_client_back: "돌아가기",
     coach_client_search: "이름 또는 전화번호 검색",
     coach_client_add_btn: "회원 직접 등록",
@@ -1248,6 +1249,7 @@ const translations: Translations = {
     branch_holiday_save_error: "Error saving holidays.",
     // CoachClientManager
     coach_client_title: "Member Management",
+    diagnosis_program_select_member: "Precision Diagnosis Program",
     coach_client_back: "Back",
     coach_client_search: "Search by name or phone",
     coach_client_add_btn: "Add Member",
@@ -1972,6 +1974,7 @@ const translations: Translations = {
     branch_holiday_save_error: "休業日の保存中にエラーが発生しました。",
     // CoachClientManager
     coach_client_title: "会員管理",
+    diagnosis_program_select_member: "精密診断プログラム",
     coach_client_back: "戻る",
     coach_client_search: "名前または電話番号で検索",
     coach_client_add_btn: "会員を直接登録",
@@ -2696,6 +2699,7 @@ const translations: Translations = {
     branch_holiday_save_error: "เกิดข้อผิดพลาดในการบันทึกวันหยุด",
     // CoachClientManager
     coach_client_title: "จัดการสมาชิก",
+    diagnosis_program_select_member: "โปรแกรมวินิจฉัยแม่นยำ",
     coach_client_back: "กลับ",
     coach_client_search: "ค้นหาด้วยชื่อหรือเบอร์โทร",
     coach_client_add_btn: "เพิ่มสมาชิก",

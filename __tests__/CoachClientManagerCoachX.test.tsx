@@ -179,3 +179,37 @@ describe('CoachClientManager – CoachX integration', () => {
     expect(screen.queryByText('정체 구간')).toBeNull();
   });
 });
+
+describe('CoachClientManager – pageTitle prop', () => {
+  it('shows default coach_client_title when pageTitle is not provided', () => {
+    render(<CoachClientManager {...DEFAULT_PROPS} />);
+    expect(screen.getByText('coach_client_title')).toBeTruthy();
+  });
+
+  it('shows custom pageTitle instead of default title when pageTitle is provided', () => {
+    render(
+      <CoachClientManager
+        {...DEFAULT_PROPS}
+        pageTitle="정밀진단 프로그램"
+      />
+    );
+    expect(screen.getByText('정밀진단 프로그램')).toBeTruthy();
+    expect(screen.queryByText('coach_client_title')).toBeNull();
+  });
+
+  it('shows training program generate button per client when onGenerateProgram is provided', () => {
+    const onGenerateProgram = vi.fn();
+    render(
+      <CoachClientManager
+        {...DEFAULT_PROPS}
+        pageTitle="정밀진단 프로그램"
+        onGenerateProgram={onGenerateProgram}
+      />
+    );
+    // The generate-program button key falls back to the translation key in this mock
+    const btns = screen.getAllByText('coach_client_training_create');
+    expect(btns.length).toBeGreaterThan(0);
+    fireEvent.click(btns[0]);
+    expect(onGenerateProgram).toHaveBeenCalled();
+  });
+});

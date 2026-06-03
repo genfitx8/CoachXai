@@ -1816,6 +1816,7 @@ const AppContent: React.FC = () => {
               setCoachView('LESSON_LIST');
             }}
             onGenerateProgram={clientsOpenedForDiagnosis ? handleGenerateProgramForClient : undefined}
+            pageTitle={clientsOpenedForDiagnosis ? t('diagnosis_program_select_member') : undefined}
             memberReports={coachXMemberReports}
             onOpenCoachX={(query) => {
               setCoachXChatInitialQuery(query);
