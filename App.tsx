@@ -137,6 +137,7 @@ const AppContent: React.FC = () => {
   // Training Program State
   const [trainingPrograms, setTrainingPrograms] = useState<TrainingProgram[]>([]);
   const [selectedClientForTraining, setSelectedClientForTraining] = useState<ClientProfile | null>(null);
+  const [trainingProgramReturnView, setTrainingProgramReturnView] = useState<ViewState>('CLIENTS');
 
   // Lesson Upload / Impact Selection State (golf video editing MVP)
   const [pendingLessonUpload, setPendingLessonUpload] = useState<LessonUpload | null>(null);
@@ -1177,6 +1178,7 @@ const AppContent: React.FC = () => {
 
   const handleGenerateProgramForClient = (client: ClientProfile) => {
     setSelectedClientForTraining(client);
+    setTrainingProgramReturnView(coachView === 'DIAGNOSIS_PROGRAM' ? 'DIAGNOSIS_PROGRAM' : 'CLIENTS');
     setCoachView('TRAINING_PROGRAM');
   };
 
@@ -1587,7 +1589,7 @@ const AppContent: React.FC = () => {
                   className="w-full py-4 text-base rounded-2xl border border-violet-500/30 shadow-lg shadow-slate-900/40 bg-gradient-to-r from-slate-900 to-slate-800 hover:from-slate-800 hover:to-slate-700 justify-center"
                   icon={<Dumbbell className="w-5 h-5 text-violet-400" />}
                 >
-                  정밀진단프로그램
+                  정밀진단 프로그램
                 </Button>
 
               </div>
@@ -1891,7 +1893,7 @@ const AppContent: React.FC = () => {
             coachId={(currentUser as CoachProfile).id}
             programs={trainingPrograms}
             onBack={() => {
-              setCoachView('CLIENTS');
+              setCoachView(trainingProgramReturnView);
               setSelectedClientForTraining(null);
             }}
             onSaveProgram={handleSaveTrainingProgram}
