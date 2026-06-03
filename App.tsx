@@ -160,7 +160,6 @@ const AppContent: React.FC = () => {
   const [prefilledSuggestionClient, setPrefilledSuggestionClient] = useState<ClientProfile | null>(null);
   const [autoOpenAddMemberFromLessonStart, setAutoOpenAddMemberFromLessonStart] = useState(false);
   const [clientsOpenedFromLessonStart, setClientsOpenedFromLessonStart] = useState(false);
-  const [clientsOpenedForDiagnosis, setClientsOpenedForDiagnosis] = useState(false);
 
   // Modals
   const [showHomeworkModal, setShowHomeworkModal] = useState(false);
@@ -1173,13 +1172,11 @@ const AppContent: React.FC = () => {
   };
 
   const handleDiagnosisProgramClick = () => {
-    setClientsOpenedForDiagnosis(true);
-    setCoachView('CLIENTS');
+    setCoachView('DIAGNOSIS_PROGRAM');
   };
 
   const handleGenerateProgramForClient = (client: ClientProfile) => {
     setSelectedClientForTraining(client);
-    setClientsOpenedForDiagnosis(false);
     setCoachView('TRAINING_PROGRAM');
   };
 
@@ -1785,7 +1782,7 @@ const AppContent: React.FC = () => {
           />
         )}
 
-        {coachView === 'CLIENTS' && (
+        {(coachView === 'CLIENTS' || coachView === 'DIAGNOSIS_PROGRAM') && (
           <CoachClientManager
             clients={clients}
             onAdd={handleAddClient}
@@ -1798,7 +1795,6 @@ const AppContent: React.FC = () => {
                 setCoachView('NEW');
                 return;
               }
-              setClientsOpenedForDiagnosis(false);
               setCoachView('LIST');
             }}
             showAddButton={false}
@@ -1807,16 +1803,16 @@ const AppContent: React.FC = () => {
             coachId={
               currentUser && 'id' in currentUser ? currentUser.id : undefined
             }
-            onManagePackages={(client) => {
+            onManagePackages={coachView === 'DIAGNOSIS_PROGRAM' ? undefined : (client) => {
               setSelectedClientForPackage(client);
               setCoachView('LESSON_PACKAGE');
             }}
-            onViewLessons={(client) => {
+            onViewLessons={coachView === 'DIAGNOSIS_PROGRAM' ? undefined : (client) => {
               setSelectedClientFilter(client.name);
               setCoachView('LESSON_LIST');
             }}
-            onGenerateProgram={clientsOpenedForDiagnosis ? handleGenerateProgramForClient : undefined}
-            pageTitle={clientsOpenedForDiagnosis ? t('diagnosis_program_select_member') : undefined}
+            onGenerateProgram={coachView === 'DIAGNOSIS_PROGRAM' ? handleGenerateProgramForClient : undefined}
+            pageTitle={coachView === 'DIAGNOSIS_PROGRAM' ? t('diagnosis_program_select_member') : undefined}
             memberReports={coachXMemberReports}
             onOpenCoachX={(query) => {
               setCoachXChatInitialQuery(query);
