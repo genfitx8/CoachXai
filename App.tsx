@@ -82,6 +82,7 @@ import {
   ChevronRight,
   TrendingUp,
   Sparkles,
+  Dumbbell,
 } from 'lucide-react';
 import { LanguageProvider, useLanguage } from './components/LanguageContext';
 
@@ -159,6 +160,7 @@ const AppContent: React.FC = () => {
   const [prefilledSuggestionClient, setPrefilledSuggestionClient] = useState<ClientProfile | null>(null);
   const [autoOpenAddMemberFromLessonStart, setAutoOpenAddMemberFromLessonStart] = useState(false);
   const [clientsOpenedFromLessonStart, setClientsOpenedFromLessonStart] = useState(false);
+  const [clientsOpenedForDiagnosis, setClientsOpenedForDiagnosis] = useState(false);
 
   // Modals
   const [showHomeworkModal, setShowHomeworkModal] = useState(false);
@@ -1170,6 +1172,17 @@ const AppContent: React.FC = () => {
     }
   };
 
+  const handleDiagnosisProgramClick = () => {
+    setClientsOpenedForDiagnosis(true);
+    setCoachView('CLIENTS');
+  };
+
+  const handleGenerateProgramForClient = (client: ClientProfile) => {
+    setSelectedClientForTraining(client);
+    setClientsOpenedForDiagnosis(false);
+    setCoachView('TRAINING_PROGRAM');
+  };
+
   const handleResetSystem = () => {
     storageService.clearAllData();
     window.location.reload();
@@ -1571,6 +1584,15 @@ const AppContent: React.FC = () => {
                   예약 관리
                 </Button>
 
+                <Button
+                  onClick={handleDiagnosisProgramClick}
+                  data-testid="diagnosis-program-entry-btn"
+                  className="w-full py-4 text-base rounded-2xl border border-violet-500/30 shadow-lg shadow-slate-900/40 bg-gradient-to-r from-slate-900 to-slate-800 hover:from-slate-800 hover:to-slate-700 justify-center"
+                  icon={<Dumbbell className="w-5 h-5 text-violet-400" />}
+                >
+                  정밀진단프로그램
+                </Button>
+
               </div>
             </section>
           </div>
@@ -1776,6 +1798,7 @@ const AppContent: React.FC = () => {
                 setCoachView('NEW');
                 return;
               }
+              setClientsOpenedForDiagnosis(false);
               setCoachView('LIST');
             }}
             showAddButton={false}
@@ -1792,6 +1815,7 @@ const AppContent: React.FC = () => {
               setSelectedClientFilter(client.name);
               setCoachView('LESSON_LIST');
             }}
+            onGenerateProgram={clientsOpenedForDiagnosis ? handleGenerateProgramForClient : undefined}
             memberReports={coachXMemberReports}
             onOpenCoachX={(query) => {
               setCoachXChatInitialQuery(query);
