@@ -46,6 +46,8 @@ interface CoachClientManagerProps {
   autoOpenAddModal?: boolean;
   /** Callback fired after auto-open has been handled. */
   onAutoOpenAddModalHandled?: () => void;
+  /** Overrides the default page title. */
+  pageTitle?: string;
 }
 
 const clientManagerPanelClass = 'bg-slate-900/70 border border-slate-800/80 rounded-2xl shadow-lg shadow-black/20';
@@ -69,6 +71,7 @@ export const CoachClientManager: React.FC<CoachClientManagerProps> = ({
   showAddButton = true,
   autoOpenAddModal = false,
   onAutoOpenAddModalHandled,
+  pageTitle,
 }) => {
   const { t } = useLanguage();
   const [searchTerm, setSearchTerm] = useState('');
@@ -270,7 +273,7 @@ export const CoachClientManager: React.FC<CoachClientManagerProps> = ({
         <Button variant="ghost" onClick={onBack} className="pl-0">
           <ArrowLeft className="w-5 h-5 mr-1" /> {t('coach_client_back')}
         </Button>
-        <h2 className="text-xl font-bold text-slate-100">{t('coach_client_title')}</h2>
+        <h2 className="text-xl font-bold text-slate-100">{pageTitle ?? t('coach_client_title')}</h2>
       </div>
 
       {/* Toolbar */}
