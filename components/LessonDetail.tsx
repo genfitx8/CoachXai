@@ -31,6 +31,30 @@ const SEQUENCE_LABELS = [
     "다운스윙", "임팩트", "팔로우스루", "피니쉬"
 ];
 
+export const buildAdditionalMediaStorageKey = (lessonId: string, mediaId: string) =>
+  `additional_${lessonId}_${mediaId}`;
+
+export async function persistAdditionalMediaSourceForOffline(params: {
+  lessonId: string;
+  mediaId: string;
+  mediaUrl: string;
+  shouldPersistOffline: boolean;
+  mediaBlob?: Blob;
+  saveToStore?: (key: string, blob: Blob) => Promise<string>;
+}): Promise<string> {
+  const { lessonId, mediaId, mediaUrl, shouldPersistOffline, mediaBlob } = params;
+  const saveToStore = params.saveToStore ?? videoStore.save;
+  if (!shouldPersistOffline) return mediaUrl;
+  if (!mediaUrl?.startsWith('blob:') && !mediaBlob) return mediaUrl;
+  try {
+    const blob = mediaBlob ?? await (await fetch(mediaUrl)).blob();
+    return await saveToStore(buildAdditionalMediaStorageKey(lessonId, mediaId), blob);
+  } catch (e) {
+    console.warn('[LessonDetail] Failed to persist additional media to IDB', { lessonId, mediaId, error: e });
+    return mediaUrl;
+  }
+}
+
 export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons = [], role = 'COACH', onBack, onUpdate, onDelete, onEdit }) => {
   const { t } = useLanguage();
   // resolvedMainUrl must be declared before mainMediaUrl is computed below
@@ -705,9 +729,10 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
       }
   };
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
       const files = e.target.files;
       if (!files || files.length === 0) return;
+      const shouldPersistOffline = !apiService.isAvailable();
 
       if (files.length === 1) {
           const file = files[0];
@@ -719,19 +744,31 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
           setCapturedMedia({ url, type });
           setAddMode('PREVIEW');
       } else {
-          const newItems: MediaItem[] = Array.from(files).map((file: File) => {
-             const url = URL.createObjectURL(file);
+          const newItems: MediaItem[] = await Promise.all(Array.from(files).map(async (file: File) => {
              let type: 'video'|'image'|'audio' = 'video';
              if (file.type.startsWith('image/')) type = 'image';
              else if (file.type.startsWith('audio/')) type = 'audio';
-             
+             const id = crypto.randomUUID();
+             const hasPreviewUrl = !shouldPersistOffline;
+             const previewUrl = hasPreviewUrl ? URL.createObjectURL(file) : '';
+             const url = await persistAdditionalMediaSourceForOffline({
+               lessonId: lesson.id,
+               mediaId: id,
+               mediaUrl: previewUrl,
+               mediaBlob: file,
+               shouldPersistOffline,
+             });
+             // Revoke only when a temporary object URL was created for online mode.
+             if (hasPreviewUrl && url !== previewUrl) {
+               URL.revokeObjectURL(previewUrl);
+             }
              return {
-                 id: crypto.randomUUID(),
+                 id,
                  url,
                  type,
                  createdAt: Date.now()
              };
-          });
+          }));
 
           const updatedLesson: Lesson = {
               ...lesson,
@@ -747,12 +784,18 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
       e.target.value = '';
   };
 
-  const saveAdditionalMedia = () => {
+  const saveAdditionalMedia = async () => {
       if (!capturedMedia) return;
-      
+      const id = crypto.randomUUID();
+      const url = await persistAdditionalMediaSourceForOffline({
+        lessonId: lesson.id,
+        mediaId: id,
+        mediaUrl: capturedMedia.url,
+        shouldPersistOffline: !apiService.isAvailable(),
+      });
       const newItem: MediaItem = {
-          id: crypto.randomUUID(),
-          url: capturedMedia.url,
+          id,
+          url,
           type: capturedMedia.type,
           role: capturedMedia.type === 'video' ? pendingRole : undefined,
           createdAt: Date.now()
