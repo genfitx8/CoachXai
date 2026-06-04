@@ -12,7 +12,7 @@ export const DiagnosisPartCard: React.FC<DiagnosisPartCardProps> = ({ part }) =>
       <p className="mt-1 text-sm text-slate-300">{part.summary}</p>
       <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-slate-300">
         {part.details.map((detail, index) => (
-          <li key={`${part.id}-${index}`}>{detail}</li>
+          <li key={`${part.id}-${detail}-${index}`}>{detail}</li>
         ))}
       </ul>
     </article>

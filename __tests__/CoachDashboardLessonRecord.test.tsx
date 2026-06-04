@@ -166,6 +166,8 @@ describe('Coach dashboard – lesson-first MVP home', () => {
       expect(screen.getByTestId('diagnosis-program-section')).toBeInTheDocument();
     });
     expect(screen.getByText('진행 프로세스')).toBeInTheDocument();
+    expect(screen.getByText('셋업')).toBeInTheDocument();
+    expect(screen.getByText('사전 인터뷰')).toBeInTheDocument();
     expect(screen.getByTestId('diagnosis-view-result-btn')).toBeInTheDocument();
     expect(screen.queryByText('회원 관리')).toBeNull();
   });
