@@ -11,8 +11,8 @@ export const DiagnosisPartCard: React.FC<DiagnosisPartCardProps> = ({ part }) =>
       <h4 className="font-semibold text-slate-100">{part.title}</h4>
       <p className="mt-1 text-sm text-slate-300">{part.summary}</p>
       <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-slate-300">
-        {part.details.map((detail) => (
-          <li key={detail}>{detail}</li>
+        {part.details.map((detail, index) => (
+          <li key={`${part.id}-${index}`}>{detail}</li>
         ))}
       </ul>
     </article>
