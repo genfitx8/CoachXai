@@ -158,39 +158,38 @@ describe('Coach dashboard – lesson-first MVP home', () => {
     expect(screen.queryByRole('button', { name: /훈련 프로그램 생성|create training program/i })).toBeNull();
   });
 
-  it('opens diagnosis program member-selection mode from diagnosis entry', async () => {
+  it('opens diagnosis program intro section from diagnosis entry', async () => {
     await renderCoachApp();
     fireEvent.click(screen.getByTestId('diagnosis-program-entry-btn'));
 
     await waitFor(() => {
-      expect(screen.getByText('정밀진단 프로그램')).toBeInTheDocument();
+      expect(screen.getByTestId('diagnosis-program-section')).toBeInTheDocument();
     });
+    expect(screen.getByText('진행 프로세스')).toBeInTheDocument();
+    expect(screen.getByTestId('diagnosis-view-result-btn')).toBeInTheDocument();
     expect(screen.queryByText('회원 관리')).toBeNull();
-    expect(screen.getByRole('button', { name: /훈련 프로그램 생성|create training program/i })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /레슨 기록|lessons/i })).toBeNull();
-    expect(screen.queryByRole('button', { name: /레슨 패키지 관리|lesson package management/i })).toBeNull();
   });
 
-  it('returns to diagnosis member-selection when pressing back from training program in diagnosis flow', async () => {
+  it('moves to diagnosis result and returns to diagnosis intro', async () => {
     await renderCoachApp();
     fireEvent.click(screen.getByTestId('diagnosis-program-entry-btn'));
 
     await waitFor(() => {
-      expect(screen.getByText('정밀진단 프로그램')).toBeInTheDocument();
+      expect(screen.getByTestId('diagnosis-program-section')).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole('button', { name: /훈련 프로그램 생성|create training program/i }));
+    fireEvent.click(screen.getByTestId('diagnosis-view-result-btn'));
 
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: '뒤로가기' })).toBeInTheDocument();
+      expect(screen.getByTestId('diagnosis-result-section')).toBeInTheDocument();
     });
+    expect(screen.getByText('정밀진단 결과')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: '뒤로가기' }));
+    fireEvent.click(screen.getByTestId('diagnosis-back-to-program-btn'));
 
     await waitFor(() => {
-      expect(screen.getByText('정밀진단 프로그램')).toBeInTheDocument();
+      expect(screen.getByTestId('diagnosis-program-section')).toBeInTheDocument();
     });
-    expect(screen.queryByText('회원 관리')).toBeNull();
   });
 
   it('moves direct member registration entry into Lesson start flow', async () => {
