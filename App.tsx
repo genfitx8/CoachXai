@@ -36,6 +36,8 @@ import { CoachLessonReservationModal } from './components/CoachLessonReservation
 import { LessonPackageManager } from './components/LessonPackageManager';
 import { TrainingProgramGenerator } from './components/TrainingProgramGenerator';
 import { LessonStartPromptModal } from './components/LessonStartPromptModal';
+import { DiagnosisProgramSection } from './components/diagnosis/DiagnosisProgramSection';
+import { DiagnosisResultSection } from './components/diagnosis/DiagnosisResultSection';
 import { storageService } from './services/storage';
 import { authService } from './services/authService';
 import { firebaseService } from './services/firebase';
@@ -57,6 +59,7 @@ import { Button } from './components/Button';
 import { CoachXHub } from './components/CoachXHub';
 import { CoachXChat } from './components/CoachXChat';
 import { buildMemberGrowthReports } from './services/coachXService';
+import { mockDiagnosisSession } from './mock/diagnosisMock';
 import {
   Plus,
   Search,
@@ -1176,6 +1179,10 @@ const AppContent: React.FC = () => {
     setCoachView('DIAGNOSIS_PROGRAM');
   };
 
+  const handleDiagnosisResultClick = () => {
+    setCoachView('DIAGNOSIS_RESULT');
+  };
+
   const handleGenerateProgramForClient = (client: ClientProfile) => {
     setSelectedClientForTraining(client);
     setTrainingProgramReturnView(coachView === 'DIAGNOSIS_PROGRAM' ? 'DIAGNOSIS_PROGRAM' : 'CLIENTS');
@@ -1784,7 +1791,23 @@ const AppContent: React.FC = () => {
           />
         )}
 
-        {(coachView === 'CLIENTS' || coachView === 'DIAGNOSIS_PROGRAM') && (
+        {coachView === 'DIAGNOSIS_PROGRAM' && (
+          <DiagnosisProgramSection
+            program={mockDiagnosisSession.program}
+            onBack={() => setCoachView('LIST')}
+            onViewResult={handleDiagnosisResultClick}
+          />
+        )}
+
+        {coachView === 'DIAGNOSIS_RESULT' && (
+          <DiagnosisResultSection
+            result={mockDiagnosisSession.result}
+            onBack={() => setCoachView('LIST')}
+            onBackToProgram={() => setCoachView('DIAGNOSIS_PROGRAM')}
+          />
+        )}
+
+        {coachView === 'CLIENTS' && (
           <CoachClientManager
             clients={clients}
             onAdd={handleAddClient}
@@ -1805,16 +1828,16 @@ const AppContent: React.FC = () => {
             coachId={
               currentUser && 'id' in currentUser ? currentUser.id : undefined
             }
-            onManagePackages={coachView === 'DIAGNOSIS_PROGRAM' ? undefined : (client) => {
+            onManagePackages={(client) => {
               setSelectedClientForPackage(client);
               setCoachView('LESSON_PACKAGE');
             }}
-            onViewLessons={coachView === 'DIAGNOSIS_PROGRAM' ? undefined : (client) => {
+            onViewLessons={(client) => {
               setSelectedClientFilter(client.name);
               setCoachView('LESSON_LIST');
             }}
-            onGenerateProgram={coachView === 'DIAGNOSIS_PROGRAM' ? handleGenerateProgramForClient : undefined}
-            pageTitle={coachView === 'DIAGNOSIS_PROGRAM' ? t('diagnosis_program_select_member') : undefined}
+            onGenerateProgram={undefined}
+            pageTitle={undefined}
             memberReports={coachXMemberReports}
             onOpenCoachX={(query) => {
               setCoachXChatInitialQuery(query);
