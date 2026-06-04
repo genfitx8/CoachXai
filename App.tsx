@@ -98,9 +98,9 @@ const isClientSessionProfile = (
   role === 'CLIENT' && !!user && typeof user.phone === 'string';
 
 const diagnosisProgram: DiagnosisProgram = {
-  title: '정밀진단 프로그램',
-  subtitle: '스윙 5요소 분석 기반',
-  description: '입력된 5요소 점수를 기반으로 회원별 진단 결과와 우선 개선 권장안을 생성합니다.',
+  title: 'coachxai 정밀진단 프로그램',
+  subtitle: '골퍼의 플레이를 3개 핵심 영역에서 진단하고, 모든 분석 결과를 통합 리포트로 제공하는 골프 퍼포먼스 진단 프로그램',
+  description: '신체, 장비, 기술을 종합적으로 분석해 현재 상태를 정확히 파악하고 개선 방향 수립의 기초 데이터를 제공합니다',
   factors: DIAGNOSIS_FACTORS,
   steps: DIAGNOSIS_PROCESS,
 };

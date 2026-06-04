@@ -10,31 +10,28 @@ describe('diagnosisService', () => {
     const result = diagnosisService.createResult({
       memberName: '테스트회원',
       factorScores: {
-        setup: 90,
-        backswing: 80,
-        impact: 70,
-        tempo: 60,
-        balance: 50,
+        body: 90,
+        equipment: 80,
+        skill: 50,
       },
     });
 
     expect(result.memberName).toBe('테스트회원');
-    expect(result.overallScore).toBe(70);
+    expect(result.overallScore).toBe(73);
     expect(result.grade).toBe('C');
-    expect(result.factors).toHaveLength(5);
+    expect(result.factors).toHaveLength(3);
+    expect(result.partResults).toHaveLength(3);
     expect(result.recommendations).toHaveLength(3);
-    expect(result.summary).toContain('밸런스');
+    expect(result.summary).toContain('기술 진단');
   });
 
   it('persists and returns latest diagnosis session', () => {
     const saved = diagnosisService.saveResult({
       memberName: '회원A',
       factorScores: {
-        setup: 70,
-        backswing: 71,
-        impact: 72,
-        tempo: 73,
-        balance: 74,
+        body: 70,
+        equipment: 71,
+        skill: 72,
       },
     });
 

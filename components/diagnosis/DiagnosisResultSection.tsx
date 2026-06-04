@@ -20,7 +20,7 @@ export const DiagnosisResultSection: React.FC<DiagnosisResultSectionProps> = ({
   return (
     <div className="space-y-6 animate-fade-in" data-testid="diagnosis-result-section">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold text-slate-100">정밀진단 결과</h1>
+        <h1 className="text-2xl font-bold text-slate-100">정밀진단 통합 리포트</h1>
         <div className="flex items-center gap-2">
           <Button variant="ghost" onClick={onBackToProgram} data-testid="diagnosis-back-to-program-btn">
             프로그램 소개로
@@ -41,7 +41,7 @@ export const DiagnosisResultSection: React.FC<DiagnosisResultSectionProps> = ({
       <DiagnosisRadarChart factors={result.factors} />
 
       <section className="rounded-2xl border border-slate-700 bg-slate-900/70 p-6">
-        <h3 className="text-lg font-semibold text-slate-100">파트별 분석</h3>
+        <h3 className="text-lg font-semibold text-slate-100">3개 영역별 결과</h3>
         <div className="mt-4 grid gap-3 md:grid-cols-2">
           {result.partResults.map((part) => (
             <DiagnosisPartCard key={part.id} part={part} />

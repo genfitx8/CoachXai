@@ -52,7 +52,7 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
   return (
     <div className="space-y-6 animate-fade-in" data-testid="diagnosis-program-section">
       <div className="flex items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold text-slate-100">정밀진단 프로그램</h1>
+        <h1 className="text-2xl font-bold text-slate-100">{program.title}</h1>
         <Button variant="ghost" onClick={onBack}>
           대시보드로 돌아가기
         </Button>

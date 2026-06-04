@@ -15,37 +15,27 @@ const STORAGE_KEY = 'swingnote_diagnosis_sessions';
 const DEFAULT_MEMBER_NAME = '회원';
 
 const FACTOR_RECOMMENDATION_MAP: Record<DiagnosisFactorKey, { title: string; low: string; high: string }> = {
-  setup: {
-    title: '셋업 루틴 안정화',
-    low: '거울 앞 어드레스 체크를 10회 반복해 체중 배분과 정렬을 고정하세요.',
-    high: '현재 셋업 안정성이 좋습니다. 루틴 시간을 일정하게 유지해 재현성을 높이세요.',
+  body: {
+    title: '체형 정렬 및 움직임 보완',
+    low: '자세 촬영 기반 스켈레톤 결과에서 확인된 기울기와 길이 편차를 중심으로 정렬 보완 훈련을 우선 진행하세요.',
+    high: '체형 정렬이 안정적입니다. 현재 패턴을 유지하며 가동성과 밸런스 루틴을 병행해 주세요.',
   },
-  backswing: {
-    title: '백스윙 궤도 훈련',
-    low: '백스윙 탑에서 클럽 헤드 경로를 점검하는 슬로우 모션 드릴을 주 3회 진행하세요.',
-    high: '백스윙 궤도가 안정적입니다. 현재 리듬을 유지하며 정확도 중심 훈련을 이어가세요.',
+  equipment: {
+    title: '장비 데이터 최적화',
+    low: '드라이버와 6번 아이언의 트랙맨 측정값을 최적화 기준 데이터와 재비교해 스핀/발사각 편차를 우선 보정하세요.',
+    high: '장비 성능 차이가 작습니다. 현재 세팅을 유지하면서 샷 일관성 모니터링을 이어가세요.',
   },
-  impact: {
-    title: '임팩트 컨택 개선',
-    low: '임팩트 백 또는 하프 스윙 드릴로 손목 릴리즈 타이밍을 반복 점검하세요.',
-    high: '임팩트 품질이 우수합니다. 거리와 방향성 밸런스 훈련으로 퍼포먼스를 확장하세요.',
-  },
-  tempo: {
-    title: '템포 일관성 강화',
-    low: '3:1 카운트 리듬 스윙으로 전환 구간 속도를 일정하게 맞추세요.',
-    high: '템포 유지력이 좋습니다. 클럽별 스윙에서도 동일한 리듬을 유지해 보세요.',
-  },
-  balance: {
-    title: '피니시 밸런스 강화',
-    low: '피니시 2초 정지 드릴로 하체 축과 상체 균형을 동시에 훈련하세요.',
-    high: '밸런스가 안정적입니다. 스윙 속도를 높여도 피니시 축이 유지되는지 확인하세요.',
+  skill: {
+    title: '거리 제어 및 공략 기술 강화',
+    low: '중·장거리(130~210m)와 숏게임(30~100m) 목표 샷의 캐리·탄착군·스핀 편차를 줄이는 거리 제어 훈련을 우선 적용하세요.',
+    high: '기술 수행이 안정적입니다. 핀 위치별 공략 시나리오 훈련으로 실전 재현성을 높이세요.',
   },
 };
 
 const getScoreDescription = (factor: DiagnosisFactor, score: number): string => {
-  if (score >= 85) return `${factor.label} 구간이 매우 안정적이며 현재 패턴을 유지하면 좋습니다.`;
-  if (score >= 70) return `${factor.label} 구간은 양호하지만 일관성 보강 시 성능 향상이 기대됩니다.`;
-  return `${factor.label} 구간은 보완이 필요하며 반복 드릴을 통한 패턴 교정이 우선입니다.`;
+  if (score >= 85) return `${factor.label} 영역이 안정적이며 통합 리포트 기준 강점으로 분류됩니다.`;
+  if (score >= 70) return `${factor.label} 영역은 양호하나 세부 지표 일관성 보강 시 성능 향상이 기대됩니다.`;
+  return `${factor.label} 영역은 우선 개선이 필요한 병목 구간으로 분류됩니다.`;
 };
 
 const toFactorScores = (factorScores: Record<DiagnosisFactorKey, number>): DiagnosisFactor[] =>
@@ -63,36 +53,42 @@ const getPartResults = (factors: DiagnosisFactor[]): DiagnosisResult['partResult
     DiagnosisFactorKey,
     DiagnosisFactor
   >;
-  const upperBodyAverage = getDiagnosisAverageScore([byKey.backswing, byKey.impact, byKey.tempo]);
-  const lowerBodyAverage = getDiagnosisAverageScore([byKey.setup, byKey.balance]);
 
   return [
     {
-      id: 'upper-body',
-      title: '상체·클럽 제어',
+      id: 'body',
+      title: byKey.body.label,
       summary:
-        upperBodyAverage >= 75
-          ? '상체 회전과 클럽 제어가 비교적 안정적입니다.'
-          : '상체 회전과 클럽 제어 구간의 리듬 보강이 필요합니다.',
+        byKey.body.score >= 75
+          ? '자세 촬영 기반 정렬 분석 결과가 비교적 안정적입니다.'
+          : '자세 촬영 기반 정렬 분석에서 우선 보완이 필요한 구간이 확인됩니다.',
       details: [
-        `백스윙 ${byKey.backswing.score}점 / 임팩트 ${byKey.impact.score}점 / 템포 ${byKey.tempo.score}점`,
-        upperBodyAverage >= 75
-          ? '현재 스윙 리듬을 유지하면서 정확도 중심 훈련을 권장합니다.'
-          : '슬로우 모션 백스윙과 카운트 템포 드릴로 전환 구간을 교정하세요.',
+        `영역 점수 ${byKey.body.score}점`,
+        '자세 촬영·스켈레톤 분석으로 측정한 키 기준 신체 길이/기울기 데이터를 통합 리포트에 반영합니다.',
       ],
     },
     {
-      id: 'lower-body',
-      title: '하체 안정성',
+      id: 'equipment',
+      title: byKey.equipment.label,
       summary:
-        lowerBodyAverage >= 75
-          ? '하체 지지와 피니시 밸런스가 안정적으로 유지됩니다.'
-          : '체중 이동과 피니시 균형 구간 보강이 필요합니다.',
+        byKey.equipment.score >= 75
+          ? '드라이버/6번 아이언 장비 데이터가 최적화 기준에 근접합니다.'
+          : '드라이버/6번 아이언 장비 데이터에서 기준 대비 편차 보완이 필요합니다.',
       details: [
-        `셋업 ${byKey.setup.score}점 / 밸런스 ${byKey.balance.score}점`,
-        lowerBodyAverage >= 75
-          ? '속도를 높여도 하체 축이 유지되는지 확인해 보세요.'
-          : '셋업 루틴 체크와 피니시 정지 드릴을 우선 수행하세요.',
+        `영역 점수 ${byKey.equipment.score}점`,
+        '트랙맨 화면 캡처로 수집한 드라이버·6번 아이언 데이터를 클럽별 최적화 기준과 비교합니다.',
+      ],
+    },
+    {
+      id: 'skill',
+      title: byKey.skill.label,
+      summary:
+        byKey.skill.score >= 75
+          ? '거리 제어와 핀 위치 공략 기술이 비교적 안정적으로 확인됩니다.'
+          : '중·장거리 및 숏게임 목표 샷의 거리 제어 보강이 필요합니다.',
+      details: [
+        `영역 점수 ${byKey.skill.score}점`,
+        '130~210m 목표 샷과 30~100m 숏게임 샷의 캐리·토탈 거리·탄착군·발사각·최고점·스핀을 종합 분석합니다.',
       ],
     },
   ];
@@ -142,7 +138,7 @@ export const diagnosisService = {
       memberName: input.memberName.trim() || DEFAULT_MEMBER_NAME,
       overallScore,
       grade: getDiagnosisGrade(overallScore),
-      summary: `강점은 ${strongestFactor.label}(${strongestFactor.score}점)이며, 우선 보완 영역은 ${weakestFactor.label}(${weakestFactor.score}점)입니다.`,
+      summary: `종합 분석 점수는 ${overallScore}점이며, 강점 영역은 ${strongestFactor.label}(${strongestFactor.score}점), 현재 가장 큰 병목은 ${weakestFactor.label}(${weakestFactor.score}점)입니다. 통합 리포트에서 우선 개선 방향을 확인하세요.`,
       factors,
       partResults: getPartResults(factors),
       recommendations: getRecommendations(factors),

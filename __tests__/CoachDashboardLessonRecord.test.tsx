@@ -166,14 +166,15 @@ describe('Coach dashboard – lesson-first MVP home', () => {
       expect(screen.getByTestId('diagnosis-program-section')).toBeInTheDocument();
     });
     expect(screen.getByText('진행 프로세스')).toBeInTheDocument();
-    expect(screen.getByText('셋업')).toBeInTheDocument();
-    expect(screen.getByText('사전 인터뷰')).toBeInTheDocument();
+    expect(screen.getByText('3개 핵심 진단 영역')).toBeInTheDocument();
+    expect(screen.getByText('골프 체형 분석 및 능력 진단')).toBeInTheDocument();
+    expect(screen.getByText('기본 정보 및 플레이 목표 확인')).toBeInTheDocument();
     expect(screen.getByTestId('diagnosis-view-result-btn')).toBeInTheDocument();
     expect(screen.queryByText('회원 관리')).toBeNull();
   });
 
   it('moves to diagnosis result and returns to diagnosis intro', async () => {
-    const expectedOverallScore = Math.round((90 + 85 + 80 + 85 + 80) / 5);
+    const expectedOverallScore = Math.round((90 + 85 + 80) / 3);
 
     await renderCoachApp();
     fireEvent.click(screen.getByTestId('diagnosis-program-entry-btn'));
@@ -185,19 +186,13 @@ describe('Coach dashboard – lesson-first MVP home', () => {
     fireEvent.change(screen.getByTestId('diagnosis-member-name-input'), {
       target: { value: '홍길동' },
     });
-    fireEvent.change(screen.getByTestId('diagnosis-score-input-setup'), {
+    fireEvent.change(screen.getByTestId('diagnosis-score-input-body'), {
       target: { value: '90' },
     });
-    fireEvent.change(screen.getByTestId('diagnosis-score-input-backswing'), {
+    fireEvent.change(screen.getByTestId('diagnosis-score-input-equipment'), {
       target: { value: '85' },
     });
-    fireEvent.change(screen.getByTestId('diagnosis-score-input-impact'), {
-      target: { value: '80' },
-    });
-    fireEvent.change(screen.getByTestId('diagnosis-score-input-tempo'), {
-      target: { value: '85' },
-    });
-    fireEvent.change(screen.getByTestId('diagnosis-score-input-balance'), {
+    fireEvent.change(screen.getByTestId('diagnosis-score-input-skill'), {
       target: { value: '80' },
     });
 
@@ -206,9 +201,9 @@ describe('Coach dashboard – lesson-first MVP home', () => {
     await waitFor(() => {
       expect(screen.getByTestId('diagnosis-result-section')).toBeInTheDocument();
     });
-    expect(screen.getByText('정밀진단 결과')).toBeInTheDocument();
+    expect(screen.getByText('정밀진단 통합 리포트')).toBeInTheDocument();
     expect(screen.getByText(/홍길동.*진단 요약/)).toBeInTheDocument();
-    expect(screen.getByText(new RegExp(`점수\\s*${expectedOverallScore}`))).toBeInTheDocument();
+    expect(screen.getByText(`점수 ${expectedOverallScore}`)).toBeInTheDocument();
 
     fireEvent.click(screen.getByTestId('diagnosis-back-to-program-btn'));
 
