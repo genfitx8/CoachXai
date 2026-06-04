@@ -209,7 +209,9 @@ describe('Coach dashboard – lesson-first MVP home', () => {
     });
     expect(screen.getByText('정밀진단 결과')).toBeInTheDocument();
     expect(screen.getByText(/홍길동.*진단 요약/)).toBeInTheDocument();
-    expect(screen.getByText(new RegExp(`점수\\s*${expectedOverallScore}`))).toBeInTheDocument();
+    expect(
+      screen.getByText((_, element) => element?.textContent?.replace(/\s+/g, ' ').trim() === `점수 ${expectedOverallScore}`)
+    ).toBeInTheDocument();
 
     fireEvent.click(screen.getByTestId('diagnosis-back-to-program-btn'));
 

@@ -137,7 +137,7 @@ export const diagnosisService = {
       memberName: input.memberName.trim() || DEFAULT_MEMBER_NAME,
       overallScore,
       grade: getDiagnosisGrade(overallScore),
-      summary: `종합 분석 결과 ${strongestFactor.label}(${strongestFactor.score}점)이 강점이며, 현재 가장 큰 병목은 ${weakestFactor.label}(${weakestFactor.score}점)입니다. 우선 개선 영역 중심의 맞춤형 개선 로드맵을 권장합니다.`,
+      summary: `종합 분석 결과 ${strongestFactor.label}(${strongestFactor.score}점)이 강점이며, 현재 가장 큰 병목은 ${weakestFactor.label}(${weakestFactor.score}점)입니다. 병목 영역 중심의 맞춤형 개선 로드맵을 권장합니다.`,
       factors,
       partResults: getPartResults(factors),
       recommendations: getRecommendations(factors),
