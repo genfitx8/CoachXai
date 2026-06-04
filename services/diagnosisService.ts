@@ -7,11 +7,13 @@ import {
   DiagnosisResult,
   DiagnosisSavedSession,
 } from '../types/diagnosis';
-import { getDiagnosisAverageScore, getDiagnosisGrade } from '../utils/diagnosis';
+import { clampDiagnosisScore, getDiagnosisAverageScore, getDiagnosisGrade } from '../utils/diagnosis';
 import { createLogger } from '../utils/logger';
 
 const log = createLogger('diagnosisService');
 const STORAGE_KEY = 'swingnote_diagnosis_sessions';
+const DEFAULT_MEMBER_NAME = '회원';
+let fallbackSessionCounter = 0;
 
 const FACTOR_RECOMMENDATION_MAP: Record<DiagnosisFactorKey, { title: string; low: string; high: string }> = {
   setup: {
@@ -41,8 +43,6 @@ const FACTOR_RECOMMENDATION_MAP: Record<DiagnosisFactorKey, { title: string; low
   },
 };
 
-const clampScore = (score: number): number => Math.max(0, Math.min(100, Math.round(score)));
-
 const getScoreDescription = (factor: DiagnosisFactor, score: number): string => {
   if (score >= 85) return `${factor.label} 구간이 매우 안정적이며 현재 패턴을 유지하면 좋습니다.`;
   if (score >= 70) return `${factor.label} 구간은 양호하지만 일관성 보강 시 성능 향상이 기대됩니다.`;
@@ -51,7 +51,7 @@ const getScoreDescription = (factor: DiagnosisFactor, score: number): string => 
 
 const toFactorScores = (factorScores: Record<DiagnosisFactorKey, number>): DiagnosisFactor[] =>
   DIAGNOSIS_FACTORS.map((factor) => {
-    const score = clampScore(factorScores[factor.key] ?? factor.score);
+    const score = clampDiagnosisScore(factorScores[factor.key] ?? factor.score);
     return {
       ...factor,
       score,
@@ -140,7 +140,7 @@ export const diagnosisService = {
     const strongestFactor = [...factors].sort((a, b) => b.score - a.score)[0];
 
     return {
-      memberName: input.memberName.trim() || '회원',
+      memberName: input.memberName.trim() || DEFAULT_MEMBER_NAME,
       overallScore,
       grade: getDiagnosisGrade(overallScore),
       summary: `강점은 ${strongestFactor.label}(${strongestFactor.score}점)이며, 우선 보완 영역은 ${weakestFactor.label}(${weakestFactor.score}점)입니다.`,
@@ -151,7 +151,7 @@ export const diagnosisService = {
   },
 
   saveResult(input: DiagnosisInput): DiagnosisSavedSession {
-    const fallbackId = `diagnosis-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const fallbackId = `diagnosis-${Date.now()}-${fallbackSessionCounter++}`;
     const session: DiagnosisSavedSession = {
       id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : fallbackId,
       createdAt: new Date().toISOString(),

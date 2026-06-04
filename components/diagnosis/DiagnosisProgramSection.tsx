@@ -4,6 +4,7 @@ import { DiagnosisHero } from './DiagnosisHero';
 import { DiagnosisFiveFactors } from './DiagnosisFiveFactors';
 import { DiagnosisProcess } from './DiagnosisProcess';
 import { Button } from '../Button';
+import { clampDiagnosisScore } from '../../utils/diagnosis';
 
 interface DiagnosisProgramSectionProps {
   program: DiagnosisProgram;
@@ -38,7 +39,7 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
   const handleScoreChange = (key: DiagnosisFactorKey, value: string) => {
     const parsed = Number(value);
     const normalizedScore = Number.isNaN(parsed) ? 0 : parsed;
-    setFactorScores((prev) => ({ ...prev, [key]: Math.max(0, Math.min(100, normalizedScore)) }));
+    setFactorScores((prev) => ({ ...prev, [key]: clampDiagnosisScore(normalizedScore) }));
   };
 
   const handleCreateResult = () => {
