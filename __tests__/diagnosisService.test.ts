@@ -10,11 +10,11 @@ describe('diagnosisService', () => {
     const result = diagnosisService.createResult({
       memberName: '테스트회원',
       factorScores: {
-        setup: 90,
-        backswing: 80,
-        impact: 70,
-        tempo: 60,
-        balance: 50,
+        body: 90,
+        equipment: 80,
+        skill: 70,
+        courseManagement: 60,
+        mental: 50,
       },
     });
 
@@ -23,18 +23,19 @@ describe('diagnosisService', () => {
     expect(result.grade).toBe('C');
     expect(result.factors).toHaveLength(5);
     expect(result.recommendations).toHaveLength(3);
-    expect(result.summary).toContain('밸런스');
+    expect(result.summary).toContain('멘탈 진단');
+    expect(result.partResults[0].title).toBe('통합 분석 개요');
   });
 
   it('persists and returns latest diagnosis session', () => {
     const saved = diagnosisService.saveResult({
       memberName: '회원A',
       factorScores: {
-        setup: 70,
-        backswing: 71,
-        impact: 72,
-        tempo: 73,
-        balance: 74,
+        body: 70,
+        equipment: 71,
+        skill: 72,
+        courseManagement: 73,
+        mental: 74,
       },
     });
 

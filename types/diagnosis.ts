@@ -1,9 +1,9 @@
 export type DiagnosisFactorKey =
-  | 'setup'
-  | 'backswing'
-  | 'impact'
-  | 'tempo'
-  | 'balance';
+  | 'body'
+  | 'equipment'
+  | 'skill'
+  | 'courseManagement'
+  | 'mental';
 
 export interface DiagnosisFactor {
   key: DiagnosisFactorKey;
