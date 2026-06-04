@@ -37,8 +37,8 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
 
   const handleScoreChange = (key: DiagnosisFactorKey, value: string) => {
     const parsed = Number(value);
-    if (Number.isNaN(parsed)) return;
-    setFactorScores((prev) => ({ ...prev, [key]: Math.max(0, Math.min(100, parsed)) }));
+    const normalizedScore = Number.isNaN(parsed) ? 0 : parsed;
+    setFactorScores((prev) => ({ ...prev, [key]: Math.max(0, Math.min(100, normalizedScore)) }));
   };
 
   const handleCreateResult = () => {
@@ -82,6 +82,7 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
                   type="number"
                   min={0}
                   max={100}
+                  step={1}
                   value={entry.score}
                   onChange={(event) => handleScoreChange(entry.key, event.target.value)}
                   className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none focus:border-violet-500"

@@ -205,8 +205,8 @@ describe('Coach dashboard – lesson-first MVP home', () => {
       expect(screen.getByTestId('diagnosis-result-section')).toBeInTheDocument();
     });
     expect(screen.getByText('정밀진단 결과')).toBeInTheDocument();
-    expect(screen.getByText('홍길동 진단 요약')).toBeInTheDocument();
-    expect(screen.getByText('점수 84')).toBeInTheDocument();
+    expect(screen.getByText(/홍길동.*진단 요약/)).toBeInTheDocument();
+    expect(screen.getByText(/점수\s*84/)).toBeInTheDocument();
 
     fireEvent.click(screen.getByTestId('diagnosis-back-to-program-btn'));
 

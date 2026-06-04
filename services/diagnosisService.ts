@@ -151,8 +151,9 @@ export const diagnosisService = {
   },
 
   saveResult(input: DiagnosisInput): DiagnosisSavedSession {
+    const fallbackId = `diagnosis-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const session: DiagnosisSavedSession = {
-      id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `diagnosis-${Date.now()}`,
+      id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : fallbackId,
       createdAt: new Date().toISOString(),
       input,
       result: this.createResult(input),
