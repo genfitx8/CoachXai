@@ -41,7 +41,7 @@ export const DiagnosisResultSection: React.FC<DiagnosisResultSectionProps> = ({
       <DiagnosisRadarChart factors={result.factors} />
 
       <section className="rounded-2xl border border-slate-700 bg-slate-900/70 p-6">
-        <h3 className="text-lg font-semibold text-slate-100">파트별 분석</h3>
+        <h3 className="text-lg font-semibold text-slate-100">5개 영역별 결과</h3>
         <div className="mt-4 grid gap-3 md:grid-cols-2">
           {result.partResults.map((part) => (
             <DiagnosisPartCard key={part.id} part={part} />

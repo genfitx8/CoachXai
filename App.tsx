@@ -98,9 +98,10 @@ const isClientSessionProfile = (
   role === 'CLIENT' && !!user && typeof user.phone === 'string';
 
 const diagnosisProgram: DiagnosisProgram = {
-  title: '정밀진단 프로그램',
-  subtitle: '스윙 5요소 분석 기반',
-  description: '입력된 5요소 점수를 기반으로 회원별 진단 결과와 우선 개선 권장안을 생성합니다.',
+  title: 'coachxai 정밀진단 프로그램',
+  subtitle: '골퍼의 플레이를 5개 핵심 영역에서 진단하고, 맞춤형 개선 로드맵을 제공하는 통합 분석 서비스',
+  description:
+    '신체, 장비, 기술, 코스 매니지먼트, 멘탈을 종합 분석해 실질적인 스코어 개선 방향을 제시합니다. 단순 점수화가 아닌 통합 진단 기반의 개인 맞춤 개선 로드맵을 제공합니다.',
   factors: DIAGNOSIS_FACTORS,
   steps: DIAGNOSIS_PROCESS,
 };
@@ -1618,7 +1619,7 @@ const AppContent: React.FC = () => {
                   className="w-full py-4 text-base rounded-2xl border border-violet-500/30 shadow-lg shadow-slate-900/40 bg-gradient-to-r from-slate-900 to-slate-800 hover:from-slate-800 hover:to-slate-700 justify-center"
                   icon={<Dumbbell className="w-5 h-5 text-violet-400" />}
                 >
-                  정밀진단 프로그램
+                  coachxai 정밀진단 프로그램
                 </Button>
 
               </div>

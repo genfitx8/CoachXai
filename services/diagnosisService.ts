@@ -15,37 +15,37 @@ const STORAGE_KEY = 'swingnote_diagnosis_sessions';
 const DEFAULT_MEMBER_NAME = '회원';
 
 const FACTOR_RECOMMENDATION_MAP: Record<DiagnosisFactorKey, { title: string; low: string; high: string }> = {
-  setup: {
-    title: '셋업 루틴 안정화',
-    low: '거울 앞 어드레스 체크를 10회 반복해 체중 배분과 정렬을 고정하세요.',
-    high: '현재 셋업 안정성이 좋습니다. 루틴 시간을 일정하게 유지해 재현성을 높이세요.',
+  body: {
+    title: '체형·능력 개선 과제',
+    low: '가동성·안정성 점검 루틴과 하체 밸런스 훈련을 주 3회 이상 배치해 기본 움직임을 보완하세요.',
+    high: '신체 조건이 안정적입니다. 경기 전 워밍업 루틴을 고정해 컨디션 편차를 최소화하세요.',
   },
-  backswing: {
-    title: '백스윙 궤도 훈련',
-    low: '백스윙 탑에서 클럽 헤드 경로를 점검하는 슬로우 모션 드릴을 주 3회 진행하세요.',
-    high: '백스윙 궤도가 안정적입니다. 현재 리듬을 유지하며 정확도 중심 훈련을 이어가세요.',
+  equipment: {
+    title: '장비 적합성 점검',
+    low: '현재 구질과 미스 패턴 기준으로 클럽 스펙을 재점검하고, 우선순위 장비부터 피팅을 진행하세요.',
+    high: '장비 적합성이 양호합니다. 시즌 중에는 그립·로프트·라이각 등 유지 점검 중심으로 관리하세요.',
   },
-  impact: {
-    title: '임팩트 컨택 개선',
-    low: '임팩트 백 또는 하프 스윙 드릴로 손목 릴리즈 타이밍을 반복 점검하세요.',
-    high: '임팩트 품질이 우수합니다. 거리와 방향성 밸런스 훈련으로 퍼포먼스를 확장하세요.',
+  skill: {
+    title: '기술 완성도 향상',
+    low: '미스 패턴을 기준으로 핵심 기술 1~2개를 선정해 드릴 루틴을 고정하고 반복 훈련하세요.',
+    high: '기술 완성도가 좋습니다. 실전 상황별 샷 선택과 거리 컨트롤 훈련으로 정확도를 높이세요.',
   },
-  tempo: {
-    title: '템포 일관성 강화',
-    low: '3:1 카운트 리듬 스윙으로 전환 구간 속도를 일정하게 맞추세요.',
-    high: '템포 유지력이 좋습니다. 클럽별 스윙에서도 동일한 리듬을 유지해 보세요.',
+  courseManagement: {
+    title: '코스 운영 전략 보강',
+    low: '라운드 복기에서 손실이 큰 상황을 2개 선정하고, 클럽 선택·공략 루틴을 시나리오로 연습하세요.',
+    high: '코스 운영 역량이 좋습니다. 위험 관리와 기대타수 기반 의사결정 루틴을 계속 유지하세요.',
   },
-  balance: {
-    title: '피니시 밸런스 강화',
-    low: '피니시 2초 정지 드릴로 하체 축과 상체 균형을 동시에 훈련하세요.',
-    high: '밸런스가 안정적입니다. 스윙 속도를 높여도 피니시 축이 유지되는지 확인하세요.',
+  mental: {
+    title: '멘탈 루틴 설계',
+    low: '실수 후 리셋 루틴(호흡·키워드·프리샷)을 만들어 매 샷 전 동일하게 실행하세요.',
+    high: '멘탈 안정성이 좋습니다. 압박 상황에서도 루틴이 유지되도록 경기 시뮬레이션을 병행하세요.',
   },
 };
 
 const getScoreDescription = (factor: DiagnosisFactor, score: number): string => {
-  if (score >= 85) return `${factor.label} 구간이 매우 안정적이며 현재 패턴을 유지하면 좋습니다.`;
-  if (score >= 70) return `${factor.label} 구간은 양호하지만 일관성 보강 시 성능 향상이 기대됩니다.`;
-  return `${factor.label} 구간은 보완이 필요하며 반복 드릴을 통한 패턴 교정이 우선입니다.`;
+  if (score >= 85) return `${factor.label}이 강점입니다. 현재 패턴을 유지하며 실전 적용 범위를 확장하세요.`;
+  if (score >= 70) return `${factor.label}은 양호하지만, 세부 보완을 통해 스코어 개선 여지가 있습니다.`;
+  return `${factor.label}은 우선 개선이 필요합니다. 병목 원인을 중심으로 단계별 보완을 진행하세요.`;
 };
 
 const toFactorScores = (factorScores: Record<DiagnosisFactorKey, number>): DiagnosisFactor[] =>
@@ -63,36 +63,31 @@ const getPartResults = (factors: DiagnosisFactor[]): DiagnosisResult['partResult
     DiagnosisFactorKey,
     DiagnosisFactor
   >;
-  const upperBodyAverage = getDiagnosisAverageScore([byKey.backswing, byKey.impact, byKey.tempo]);
-  const lowerBodyAverage = getDiagnosisAverageScore([byKey.setup, byKey.balance]);
+  const integratedScore = getDiagnosisAverageScore(factors);
+  const weakestFactor = [...factors].sort((a, b) => a.score - b.score)[0];
 
   return [
     {
-      id: 'upper-body',
-      title: '상체·클럽 제어',
+      id: 'integrated-overview',
+      title: '통합 분석 개요',
       summary:
-        upperBodyAverage >= 75
-          ? '상체 회전과 클럽 제어가 비교적 안정적입니다.'
-          : '상체 회전과 클럽 제어 구간의 리듬 보강이 필요합니다.',
+        integratedScore >= 75
+          ? '5개 핵심 영역의 균형이 비교적 안정적이며 실전 성과 연결 가능성이 높습니다.'
+          : '핵심 영역 간 편차가 있어 우선 개선 영역을 중심으로 로드맵 실행이 필요합니다.',
       details: [
-        `백스윙 ${byKey.backswing.score}점 / 임팩트 ${byKey.impact.score}점 / 템포 ${byKey.tempo.score}점`,
-        upperBodyAverage >= 75
-          ? '현재 스윙 리듬을 유지하면서 정확도 중심 훈련을 권장합니다.'
-          : '슬로우 모션 백스윙과 카운트 템포 드릴로 전환 구간을 교정하세요.',
+        `종합 분석 점수 ${integratedScore}점 / 우선 개선 영역 ${weakestFactor.label} (${weakestFactor.score}점)`,
+        integratedScore >= 75
+          ? '현재 강점을 유지하면서 약점 영역의 미세 조정 중심으로 개선하세요.'
+          : '우선 개선 영역 1~2개에 집중해 단계별 실행 계획을 수립하세요.',
       ],
     },
     {
-      id: 'lower-body',
-      title: '하체 안정성',
-      summary:
-        lowerBodyAverage >= 75
-          ? '하체 지지와 피니시 밸런스가 안정적으로 유지됩니다.'
-          : '체중 이동과 피니시 균형 구간 보강이 필요합니다.',
+      id: 'domain-breakdown',
+      title: '5개 영역별 결과',
+      summary: '신체·장비·기술·코스 매니지먼트·멘탈 영역의 현재 수준과 개선 우선순위를 제공합니다.',
       details: [
-        `셋업 ${byKey.setup.score}점 / 밸런스 ${byKey.balance.score}점`,
-        lowerBodyAverage >= 75
-          ? '속도를 높여도 하체 축이 유지되는지 확인해 보세요.'
-          : '셋업 루틴 체크와 피니시 정지 드릴을 우선 수행하세요.',
+        `신체 ${byKey.body.score}점 / 장비 ${byKey.equipment.score}점 / 기술 ${byKey.skill.score}점`,
+        `코스 매니지먼트 ${byKey.courseManagement.score}점 / 멘탈 ${byKey.mental.score}점`,
       ],
     },
   ];
@@ -142,7 +137,7 @@ export const diagnosisService = {
       memberName: input.memberName.trim() || DEFAULT_MEMBER_NAME,
       overallScore,
       grade: getDiagnosisGrade(overallScore),
-      summary: `강점은 ${strongestFactor.label}(${strongestFactor.score}점)이며, 우선 보완 영역은 ${weakestFactor.label}(${weakestFactor.score}점)입니다.`,
+      summary: `종합 분석 결과 ${strongestFactor.label}(${strongestFactor.score}점)이 강점이며, 현재 가장 큰 병목은 ${weakestFactor.label}(${weakestFactor.score}점)입니다. 병목 영역 중심의 맞춤형 개선 로드맵을 권장합니다.`,
       factors,
       partResults: getPartResults(factors),
       recommendations: getRecommendations(factors),
