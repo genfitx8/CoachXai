@@ -1,5 +1,8 @@
 import { DiagnosisFactor } from '../types/diagnosis';
 
+export const clampDiagnosisScore = (score: number): number =>
+  Math.max(0, Math.min(100, Math.round(score)));
+
 export const getDiagnosisAverageScore = (factors: DiagnosisFactor[]): number => {
   if (!factors.length) return 0;
   const total = factors.reduce((sum, factor) => sum + factor.score, 0);

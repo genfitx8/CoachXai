@@ -173,11 +173,32 @@ describe('Coach dashboard – lesson-first MVP home', () => {
   });
 
   it('moves to diagnosis result and returns to diagnosis intro', async () => {
+    const expectedOverallScore = Math.round((90 + 85 + 80 + 85 + 80) / 5);
+
     await renderCoachApp();
     fireEvent.click(screen.getByTestId('diagnosis-program-entry-btn'));
 
     await waitFor(() => {
       expect(screen.getByTestId('diagnosis-program-section')).toBeInTheDocument();
+    });
+
+    fireEvent.change(screen.getByTestId('diagnosis-member-name-input'), {
+      target: { value: '홍길동' },
+    });
+    fireEvent.change(screen.getByTestId('diagnosis-score-input-setup'), {
+      target: { value: '90' },
+    });
+    fireEvent.change(screen.getByTestId('diagnosis-score-input-backswing'), {
+      target: { value: '85' },
+    });
+    fireEvent.change(screen.getByTestId('diagnosis-score-input-impact'), {
+      target: { value: '80' },
+    });
+    fireEvent.change(screen.getByTestId('diagnosis-score-input-tempo'), {
+      target: { value: '85' },
+    });
+    fireEvent.change(screen.getByTestId('diagnosis-score-input-balance'), {
+      target: { value: '80' },
     });
 
     fireEvent.click(screen.getByTestId('diagnosis-view-result-btn'));
@@ -186,6 +207,8 @@ describe('Coach dashboard – lesson-first MVP home', () => {
       expect(screen.getByTestId('diagnosis-result-section')).toBeInTheDocument();
     });
     expect(screen.getByText('정밀진단 결과')).toBeInTheDocument();
+    expect(screen.getByText(/홍길동.*진단 요약/)).toBeInTheDocument();
+    expect(screen.getByText(new RegExp(`점수\\s*${expectedOverallScore}`))).toBeInTheDocument();
 
     fireEvent.click(screen.getByTestId('diagnosis-back-to-program-btn'));
 

@@ -59,7 +59,9 @@ import { Button } from './components/Button';
 import { CoachXHub } from './components/CoachXHub';
 import { CoachXChat } from './components/CoachXChat';
 import { buildMemberGrowthReports } from './services/coachXService';
-import { mockDiagnosisSession } from './mock/diagnosisMock';
+import { DIAGNOSIS_FACTORS, DIAGNOSIS_PROCESS } from './constants/diagnosis';
+import { diagnosisService } from './services/diagnosisService';
+import { DiagnosisInput, DiagnosisProgram, DiagnosisSavedSession } from './types/diagnosis';
 import {
   Plus,
   Search,
@@ -94,6 +96,14 @@ const isClientSessionProfile = (
   user: CoachProfile | ClientProfile | null
 ): user is ClientProfile =>
   role === 'CLIENT' && !!user && typeof user.phone === 'string';
+
+const diagnosisProgram: DiagnosisProgram = {
+  title: '정밀진단 프로그램',
+  subtitle: '스윙 5요소 분석 기반',
+  description: '입력된 5요소 점수를 기반으로 회원별 진단 결과와 우선 개선 권장안을 생성합니다.',
+  factors: DIAGNOSIS_FACTORS,
+  steps: DIAGNOSIS_PROCESS,
+};
 
 const AppContent: React.FC = () => {
   const { t, language, setLanguage } = useLanguage();
@@ -141,6 +151,7 @@ const AppContent: React.FC = () => {
   const [trainingPrograms, setTrainingPrograms] = useState<TrainingProgram[]>([]);
   const [selectedClientForTraining, setSelectedClientForTraining] = useState<ClientProfile | null>(null);
   const [trainingProgramReturnView, setTrainingProgramReturnView] = useState<ViewState>('CLIENTS');
+  const [selectedDiagnosisSession, setSelectedDiagnosisSession] = useState<DiagnosisSavedSession | null>(null);
 
   // Lesson Upload / Impact Selection State (golf video editing MVP)
   const [pendingLessonUpload, setPendingLessonUpload] = useState<LessonUpload | null>(null);
@@ -1176,10 +1187,21 @@ const AppContent: React.FC = () => {
   };
 
   const handleDiagnosisProgramClick = () => {
+    const latestSession = diagnosisService.getLatestSession();
+    setSelectedDiagnosisSession(latestSession);
     setCoachView('DIAGNOSIS_PROGRAM');
   };
 
+  const handleDiagnosisCreateResult = (input: DiagnosisInput) => {
+    const savedSession = diagnosisService.saveResult(input);
+    setSelectedDiagnosisSession(savedSession);
+    setCoachView('DIAGNOSIS_RESULT');
+  };
+
   const handleDiagnosisResultClick = () => {
+    const latestSession = diagnosisService.getLatestSession();
+    if (!latestSession) return;
+    setSelectedDiagnosisSession(latestSession);
     setCoachView('DIAGNOSIS_RESULT');
   };
 
@@ -1793,15 +1815,18 @@ const AppContent: React.FC = () => {
 
         {coachView === 'DIAGNOSIS_PROGRAM' && (
           <DiagnosisProgramSection
-            program={mockDiagnosisSession.program}
+            program={diagnosisProgram}
             onBack={() => setCoachView('LIST')}
+            onCreateResult={handleDiagnosisCreateResult}
             onViewResult={handleDiagnosisResultClick}
+            canViewResult={!!selectedDiagnosisSession}
+            initialMemberName={selectedClientFilter}
           />
         )}
 
-        {coachView === 'DIAGNOSIS_RESULT' && (
+        {coachView === 'DIAGNOSIS_RESULT' && selectedDiagnosisSession && (
           <DiagnosisResultSection
-            result={mockDiagnosisSession.result}
+            result={selectedDiagnosisSession.result}
             onBack={() => setCoachView('LIST')}
             onBackToProgram={() => setCoachView('DIAGNOSIS_PROGRAM')}
           />

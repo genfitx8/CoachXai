@@ -50,6 +50,18 @@ export interface DiagnosisResult {
   recommendations: DiagnosisRecommendation[];
 }
 
+export interface DiagnosisInput {
+  memberName: string;
+  factorScores: Record<DiagnosisFactorKey, number>;
+}
+
+export interface DiagnosisSavedSession {
+  id: string;
+  createdAt: string;
+  input: DiagnosisInput;
+  result: DiagnosisResult;
+}
+
 export interface DiagnosisSession {
   program: DiagnosisProgram;
   result: DiagnosisResult;
