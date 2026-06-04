@@ -173,6 +173,8 @@ describe('Coach dashboard – lesson-first MVP home', () => {
   });
 
   it('moves to diagnosis result and returns to diagnosis intro', async () => {
+    const expectedOverallScore = Math.round((90 + 85 + 80 + 85 + 80) / 5);
+
     await renderCoachApp();
     fireEvent.click(screen.getByTestId('diagnosis-program-entry-btn'));
 
@@ -206,7 +208,7 @@ describe('Coach dashboard – lesson-first MVP home', () => {
     });
     expect(screen.getByText('정밀진단 결과')).toBeInTheDocument();
     expect(screen.getByText(/홍길동.*진단 요약/)).toBeInTheDocument();
-    expect(screen.getByText(/점수\s*84/)).toBeInTheDocument();
+    expect(screen.getByText(new RegExp(`점수\\s*${expectedOverallScore}`))).toBeInTheDocument();
 
     fireEvent.click(screen.getByTestId('diagnosis-back-to-program-btn'));
 

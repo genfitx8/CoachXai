@@ -13,7 +13,6 @@ import { createLogger } from '../utils/logger';
 const log = createLogger('diagnosisService');
 const STORAGE_KEY = 'swingnote_diagnosis_sessions';
 const DEFAULT_MEMBER_NAME = '회원';
-let fallbackSessionCounter = 0;
 
 const FACTOR_RECOMMENDATION_MAP: Record<DiagnosisFactorKey, { title: string; low: string; high: string }> = {
   setup: {
@@ -151,7 +150,7 @@ export const diagnosisService = {
   },
 
   saveResult(input: DiagnosisInput): DiagnosisSavedSession {
-    const fallbackId = `diagnosis-${Date.now()}-${fallbackSessionCounter++}`;
+    const fallbackId = `diagnosis-${Date.now()}-${Math.floor(performance.now() * 1000)}`;
     const session: DiagnosisSavedSession = {
       id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : fallbackId,
       createdAt: new Date().toISOString(),

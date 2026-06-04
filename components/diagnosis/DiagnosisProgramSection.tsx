@@ -92,6 +92,7 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
               </label>
             ))}
           </div>
+          <p className="text-xs text-slate-400">점수는 0~100 범위로 자동 보정됩니다.</p>
         </div>
       </section>
 
