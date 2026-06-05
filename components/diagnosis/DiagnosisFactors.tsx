@@ -1,14 +1,14 @@
 import React from 'react';
 import { DiagnosisFactor } from '../../types/diagnosis';
 
-interface DiagnosisFiveFactorsProps {
+interface DiagnosisFactorsProps {
   factors: DiagnosisFactor[];
 }
 
-export const DiagnosisFiveFactors: React.FC<DiagnosisFiveFactorsProps> = ({ factors }) => {
+export const DiagnosisFactors: React.FC<DiagnosisFactorsProps> = ({ factors }) => {
   return (
     <section className="rounded-2xl border border-slate-700 bg-slate-900/70 p-6">
-      <h3 className="text-lg font-semibold text-slate-100">5개 핵심 진단 영역</h3>
+      <h3 className="text-lg font-semibold text-slate-100">3개 핵심 진단 영역</h3>
       <div className="mt-4 grid gap-3 md:grid-cols-2">
         {factors.map((factor) => (
           <article key={factor.key} className="rounded-xl border border-slate-700 bg-slate-900 p-4">

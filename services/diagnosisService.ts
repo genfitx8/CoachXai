@@ -17,28 +17,18 @@ const DEFAULT_MEMBER_NAME = '회원';
 const FACTOR_RECOMMENDATION_MAP: Record<DiagnosisFactorKey, { title: string; low: string; high: string }> = {
   body: {
     title: '체형·능력 개선 과제',
-    low: '가동성·안정성 점검 루틴과 하체 밸런스 훈련을 주 3회 이상 배치해 기본 움직임을 보완하세요.',
-    high: '신체 조건이 안정적입니다. 경기 전 워밍업 루틴을 고정해 컨디션 편차를 최소화하세요.',
+    low: '촬영·스켈레톤 분석에서 편차가 큰 정렬 포인트를 우선순위로 정해 자세 교정 루틴을 반복하세요.',
+    high: '체형 정렬과 움직임 특성이 안정적입니다. 워밍업 루틴을 고정해 재현성을 유지하세요.',
   },
   equipment: {
     title: '장비 적합성 점검',
-    low: '현재 구질과 미스 패턴 기준으로 클럽 스펙을 재점검하고, 우선순위 장비부터 피팅을 진행하세요.',
-    high: '장비 적합성이 양호합니다. 시즌 중에는 그립·로프트·라이각 등 유지 점검 중심으로 관리하세요.',
+    low: '드라이버·6번 아이언의 트랙맨 측정값과 최적화 기준값 차이가 큰 항목부터 장비 보완 계획을 수립하세요.',
+    high: '장비 적합성이 양호합니다. 트랙맨 기준값 대비 편차를 정기 점검해 성능을 유지하세요.',
   },
   skill: {
-    title: '기술 완성도 향상',
-    low: '미스 패턴을 기준으로 핵심 기술 1~2개를 선정해 드릴 루틴을 고정하고 반복 훈련하세요.',
-    high: '기술 완성도가 좋습니다. 실전 상황별 샷 선택과 거리 컨트롤 훈련으로 정확도를 높이세요.',
-  },
-  courseManagement: {
-    title: '코스 운영 전략 보강',
-    low: '라운드 복기에서 손실이 큰 상황을 2개 선정하고, 클럽 선택·공략 루틴을 시나리오로 연습하세요.',
-    high: '코스 운영 역량이 좋습니다. 위험 관리와 기대타수 기반 의사결정 루틴을 계속 유지하세요.',
-  },
-  mental: {
-    title: '멘탈 루틴 설계',
-    low: '실수 후 리셋 루틴(호흡·키워드·프리샷)을 만들어 매 샷 전 동일하게 실행하세요.',
-    high: '멘탈 안정성이 좋습니다. 압박 상황에서도 루틴이 유지되도록 경기 시뮬레이션을 병행하세요.',
+    title: '기술 수행 보완 과제',
+    low: '130~210m와 30~100m 구간 중 편차가 큰 거리대를 중심으로 캐리·스핀·탄착군 제어 훈련을 강화하세요.',
+    high: '기술 수행이 안정적입니다. 핀 위치별 샷 전략을 구체화해 실전 공략 정확도를 높이세요.',
   },
 };
 
@@ -72,7 +62,7 @@ const getPartResults = (factors: DiagnosisFactor[]): DiagnosisResult['partResult
       title: '통합 분석 개요',
       summary:
         integratedScore >= 75
-          ? '5개 핵심 영역의 균형이 비교적 안정적이며 실전 성과 연결 가능성이 높습니다.'
+          ? '3개 핵심 영역의 균형이 비교적 안정적이며 실전 성과 연결 가능성이 높습니다.'
           : '핵심 영역 간 편차가 있어 우선 개선 영역을 중심으로 로드맵 실행이 필요합니다.',
       details: [
         `종합 분석 점수 ${integratedScore}점 / 우선 개선 영역 ${weakestFactor.label} (${weakestFactor.score}점)`,
@@ -83,11 +73,10 @@ const getPartResults = (factors: DiagnosisFactor[]): DiagnosisResult['partResult
     },
     {
       id: 'domain-breakdown',
-      title: '5개 영역별 결과',
-      summary: '신체·장비·기술·코스 매니지먼트·멘탈 영역의 현재 수준과 개선 우선순위를 제공합니다.',
+      title: '3개 영역별 결과',
+      summary: '신체·장비·기술 영역의 현재 수준과 개선 우선순위를 제공합니다.',
       details: [
         `신체 ${byKey.body.score}점 / 장비 ${byKey.equipment.score}점 / 기술 ${byKey.skill.score}점`,
-        `코스 매니지먼트 ${byKey.courseManagement.score}점 / 멘탈 ${byKey.mental.score}점`,
       ],
     },
   ];

@@ -13,17 +13,15 @@ describe('diagnosisService', () => {
         body: 90,
         equipment: 80,
         skill: 70,
-        courseManagement: 60,
-        mental: 50,
       },
     });
 
     expect(result.memberName).toBe('테스트회원');
-    expect(result.overallScore).toBe(70);
-    expect(result.grade).toBe('C');
-    expect(result.factors).toHaveLength(5);
+    expect(result.overallScore).toBe(80);
+    expect(result.grade).toBe('B');
+    expect(result.factors).toHaveLength(3);
     expect(result.recommendations).toHaveLength(3);
-    expect(result.summary).toContain('멘탈 진단');
+    expect(result.summary).toContain('기술 진단');
     expect(result.partResults[0].title).toBe('통합 분석 개요');
   });
 
@@ -34,8 +32,6 @@ describe('diagnosisService', () => {
         body: 70,
         equipment: 71,
         skill: 72,
-        courseManagement: 73,
-        mental: 74,
       },
     });
 
