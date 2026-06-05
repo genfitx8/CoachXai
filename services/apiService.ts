@@ -303,6 +303,12 @@ export const apiService = {
 
   async getCoaches(): Promise<CoachProfile[]> {
     try {
+      const data = await req<{ coaches: CoachProfile[] }>('GET', '/api/coaches');
+      return data.coaches;
+    } catch {
+      // Backward compatibility: some environments may only expose /me.
+    }
+    try {
       const data = await req<{ coach: CoachProfile }>('GET', '/api/coaches/me');
       return [data.coach];
     } catch {

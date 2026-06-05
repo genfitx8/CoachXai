@@ -226,11 +226,15 @@ const AppContent: React.FC = () => {
     const initApp = async () => {
       // 1. Check API availability
       const hasApi = apiService.isAvailable();
-      const canUseProtectedApi = hasApi && !!apiService.getToken();
+      const token = apiService.getToken();
+      const canUseProtectedApi = hasApi && !!token;
+      let restoredRole: 'COACH' | 'CLIENT' | 'ADMIN' | 'BRANCH_ADMIN' | null =
+        null;
 
       // 2. Restore Session
       const session = authService.restoreSession();
       if (session) {
+        restoredRole = session.role;
         setUserRole(session.role);
         if (session.role === 'CLIENT' && session.clientData) {
           // Determine identifying info
@@ -296,14 +300,17 @@ const AppContent: React.FC = () => {
       }
 
       // 3. Load Data
-      await loadData(canUseProtectedApi);
+      await loadData(canUseProtectedApi, restoredRole);
       setIsLoading(false);
     };
 
     initApp();
   }, []);
 
-  const loadData = async (useFirebase: boolean) => {
+  const loadData = async (
+    useFirebase: boolean,
+    roleForLoad: 'COACH' | 'CLIENT' | 'ADMIN' | 'BRANCH_ADMIN' | null = userRole
+  ) => {
     let fetchedClients: ClientProfile[] = [];
     let fetchedCoaches: CoachProfile[] = [];
 
@@ -329,6 +336,19 @@ const AppContent: React.FC = () => {
       setLessons(storageService.getLessons());
       fetchedClients = storageService.getClients();
       fetchedCoaches = storageService.getCoaches();
+      if (roleForLoad === 'ADMIN' && apiService.isAvailable()) {
+        try {
+          const apiCoaches = await apiService.getCoaches();
+          if (apiCoaches.length > 0) {
+            fetchedCoaches = apiCoaches;
+          }
+        } catch (e) {
+          console.warn(
+            '[App] Failed to load coaches from API for admin mode, using local storage:',
+            e
+          );
+        }
+      }
       setCoaches(fetchedCoaches);
     }
 
@@ -461,7 +481,7 @@ const AppContent: React.FC = () => {
 
     // Reload data to ensure freshness
     const isFb = apiService.isAvailable() && !!apiService.getToken();
-    await loadData(isFb);
+    await loadData(isFb, role);
   };
 
   // Deep-link: when the URL contains #lesson=<id> (e.g. from a KakaoTalk share),

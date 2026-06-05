@@ -21,6 +21,19 @@ function mapCoach(row: Record<string, unknown>) {
   };
 }
 
+// GET /api/coaches
+router.get('/', async (_req: Request, res: Response) => {
+  try {
+    const result = await pool.query(
+      'SELECT * FROM coaches ORDER BY created_at DESC'
+    );
+    res.json({ coaches: result.rows.map(mapCoach) });
+  } catch (err) {
+    console.error('[coaches] GET / error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // GET /api/coaches/me
 router.get('/me', authMiddleware, async (req: Request, res: Response) => {
   try {
