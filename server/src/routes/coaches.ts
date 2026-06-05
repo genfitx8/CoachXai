@@ -1,8 +1,34 @@
 import { Router, Request, Response } from 'express';
+import { rateLimit } from 'express-rate-limit';
 import pool from '../services/db';
 import { authMiddleware } from '../middleware/auth';
 
 const router = Router();
+const listCoachesLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 120,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+const coachSelfLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 180,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+const COACH_COLUMNS = `
+  id, name, email, phone,
+  is_subscribed, subscription_plan, subscription_end_date,
+  current_points, push_token, working_schedule,
+  created_at, updated_at
+`;
+const requireCoachRole = (req: Request, res: Response, next: () => void) => {
+  if (req.user?.role !== 'coach') {
+    res.status(403).json({ error: 'Forbidden' });
+    return;
+  }
+  next();
+};
 
 function mapCoach(row: Record<string, unknown>) {
   return {
@@ -21,12 +47,25 @@ function mapCoach(row: Record<string, unknown>) {
   };
 }
 
+// GET /api/coaches
+router.get('/', listCoachesLimiter, authMiddleware, requireCoachRole, async (_req: Request, res: Response) => {
+  try {
+    const result = await pool.query(
+      `SELECT ${COACH_COLUMNS} FROM coaches ORDER BY created_at DESC`
+    );
+    res.json({ coaches: result.rows.map(mapCoach) });
+  } catch (err) {
+    console.error('[coaches] GET / error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // GET /api/coaches/me
-router.get('/me', authMiddleware, async (req: Request, res: Response) => {
+router.get('/me', coachSelfLimiter, authMiddleware, requireCoachRole, async (req: Request, res: Response) => {
   try {
     const coachId = req.user!.id;
     const result = await pool.query(
-      'SELECT * FROM coaches WHERE id = $1',
+      `SELECT ${COACH_COLUMNS} FROM coaches WHERE id = $1`,
       [coachId]
     );
 
@@ -43,7 +82,7 @@ router.get('/me', authMiddleware, async (req: Request, res: Response) => {
 });
 
 // PUT /api/coaches/me
-router.put('/me', authMiddleware, async (req: Request, res: Response) => {
+router.put('/me', coachSelfLimiter, authMiddleware, requireCoachRole, async (req: Request, res: Response) => {
   try {
     const coachId = req.user!.id;
     const {
@@ -69,7 +108,7 @@ router.put('/me', authMiddleware, async (req: Request, res: Response) => {
         working_schedule = COALESCE($7, working_schedule),
         updated_at = $8
       WHERE id = $9
-      RETURNING *`,
+      RETURNING ${COACH_COLUMNS}`,
       [
         name ?? null,
         phone ?? null,

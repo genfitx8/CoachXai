@@ -303,6 +303,15 @@ export const apiService = {
 
   async getCoaches(): Promise<CoachProfile[]> {
     try {
+      const data = await req<{ coaches: CoachProfile[] }>('GET', '/api/coaches');
+      return data.coaches;
+    } catch (error) {
+      console.warn(
+        '[apiService] Failed to load coaches from /api/coaches, falling back to /api/coaches/me:',
+        error
+      );
+    }
+    try {
       const data = await req<{ coach: CoachProfile }>('GET', '/api/coaches/me');
       return [data.coach];
     } catch {
