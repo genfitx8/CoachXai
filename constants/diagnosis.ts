@@ -29,23 +29,33 @@ export const DIAGNOSIS_FACTORS: DiagnosisFactor[] = [
 
 export const DIAGNOSIS_PROCESS: DiagnosisProcessStep[] = [
   {
-    id: 'profile',
-    title: '기본 정보 및 플레이 목표 확인',
-    description: '구력, 평균 스코어, 연습 패턴, 개선 목표를 확인해 진단 기준을 설정합니다.',
+    id: 'golfer-profile',
+    title: '골퍼 기본정보 입력',
+    description: '골퍼 기본정보를 입력하고 진단 기준을 설정합니다.',
   },
   {
-    id: 'domain-assessment',
-    title: '3개 핵심 진단 영역',
-    description: '골프 체형 분석 및 능력 진단, 장비 진단, 기술 진단 영역을 데이터 기반으로 분석합니다.',
+    id: 'body-diagnosis',
+    title: '신체 체형 진단',
+    description: '신체 체형 데이터를 입력해 정렬과 움직임 특성을 확인합니다.',
   },
   {
-    id: 'integrated-analysis',
-    title: '통합 분석 및 결과 리포트',
-    description: '3개 영역 결과를 통합해 현재 병목과 스코어 손실 요인을 도출합니다.',
+    id: 'equipment-diagnosis',
+    title: '장비 진단',
+    description: '클럽과 측정값을 기준으로 장비 적합성을 확인합니다.',
   },
   {
-    id: 'roadmap',
-    title: '맞춤형 개선 로드맵 제안',
-    description: '우선순위 기반으로 개인 맞춤 실행 과제와 개선 순서를 제안합니다.',
+    id: 'skill-diagnosis',
+    title: '기술 진단',
+    description: '거리대별 샷 데이터를 바탕으로 기술 수행 수준을 확인합니다.',
+  },
+  {
+    id: 'course-mental',
+    title: '코스메니지먼트 & 멘탈',
+    description: '코스 운영과 멘탈 루틴 관점의 진단 의견을 입력합니다.',
+  },
+  {
+    id: 'integrated-report',
+    title: '통합 데이터 분석 리포트',
+    description: '입력된 전체 진단 정보를 통합해 결과 리포트를 생성합니다.',
   },
 ];
