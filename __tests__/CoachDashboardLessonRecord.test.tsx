@@ -166,7 +166,7 @@ describe('Coach dashboard – lesson-first MVP home', () => {
       expect(screen.getByTestId('diagnosis-program-section')).toBeInTheDocument();
     });
     expect(screen.getByText('진행 프로세스')).toBeInTheDocument();
-    expect(screen.getByText('3개 핵심 진단 영역')).toBeInTheDocument();
+    expect(screen.getAllByText('3개 핵심 진단 영역').length).toBeGreaterThan(0);
     expect(screen.getByText('골프 체형 분석 및 능력 진단')).toBeInTheDocument();
     expect(screen.getByText('기본 정보 및 플레이 목표 확인')).toBeInTheDocument();
     expect(screen.getByTestId('diagnosis-view-result-btn')).toBeInTheDocument();

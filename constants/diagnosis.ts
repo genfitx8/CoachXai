@@ -35,7 +35,7 @@ export const DIAGNOSIS_PROCESS: DiagnosisProcessStep[] = [
   },
   {
     id: 'domain-assessment',
-    title: '3개 핵심 진단 영역 진단',
+    title: '3개 핵심 진단 영역',
     description: '골프 체형 분석 및 능력 진단, 장비 진단, 기술 진단 영역을 데이터 기반으로 분석합니다.',
   },
   {
