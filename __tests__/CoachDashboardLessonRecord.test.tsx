@@ -166,7 +166,7 @@ describe('Coach dashboard – lesson-first MVP home', () => {
       expect(screen.getByTestId('diagnosis-program-section')).toBeInTheDocument();
     });
     expect(screen.getByText('진행 프로세스')).toBeInTheDocument();
-    expect(screen.getByText('5개 핵심 진단 영역')).toBeInTheDocument();
+    expect(screen.getByText('3개 핵심 진단 영역')).toBeInTheDocument();
     expect(screen.getByText('골프 체형 분석 및 능력 진단')).toBeInTheDocument();
     expect(screen.getByText('기본 정보 및 플레이 목표 확인')).toBeInTheDocument();
     expect(screen.getByTestId('diagnosis-view-result-btn')).toBeInTheDocument();
@@ -174,7 +174,7 @@ describe('Coach dashboard – lesson-first MVP home', () => {
   });
 
   it('moves to diagnosis result and returns to diagnosis intro', async () => {
-    const expectedOverallScore = Math.round((90 + 85 + 80 + 85 + 80) / 5);
+    const expectedOverallScore = Math.round((90 + 85 + 80) / 3);
 
     await renderCoachApp();
     fireEvent.click(screen.getByTestId('diagnosis-program-entry-btn'));
@@ -193,12 +193,6 @@ describe('Coach dashboard – lesson-first MVP home', () => {
       target: { value: '85' },
     });
     fireEvent.change(screen.getByTestId('diagnosis-score-input-skill'), {
-      target: { value: '80' },
-    });
-    fireEvent.change(screen.getByTestId('diagnosis-score-input-courseManagement'), {
-      target: { value: '85' },
-    });
-    fireEvent.change(screen.getByTestId('diagnosis-score-input-mental'), {
       target: { value: '80' },
     });
 

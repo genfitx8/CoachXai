@@ -1,9 +1,7 @@
 export type DiagnosisFactorKey =
   | 'body'
   | 'equipment'
-  | 'skill'
-  | 'courseManagement'
-  | 'mental';
+  | 'skill';
 
 export interface DiagnosisFactor {
   key: DiagnosisFactorKey;

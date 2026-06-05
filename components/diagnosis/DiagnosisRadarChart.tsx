@@ -11,7 +11,7 @@ export const DiagnosisRadarChart: React.FC<DiagnosisRadarChartProps> = ({ factor
 
   return (
     <section className="rounded-2xl border border-slate-700 bg-slate-900/70 p-6">
-      <h3 className="text-lg font-semibold text-slate-100">5개 영역별 점수 분포</h3>
+      <h3 className="text-lg font-semibold text-slate-100">3개 영역별 점수 분포</h3>
       <div className="mt-4 space-y-3">
         {points.map((point) => (
           <div key={point.label}>
