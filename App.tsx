@@ -228,13 +228,13 @@ const AppContent: React.FC = () => {
       const hasApi = apiService.isAvailable();
       const token = apiService.getToken();
       const canUseProtectedApi = hasApi && !!token;
-      let restoredRole: 'COACH' | 'CLIENT' | 'ADMIN' | 'BRANCH_ADMIN' | null =
+      let sessionRole: 'COACH' | 'CLIENT' | 'ADMIN' | 'BRANCH_ADMIN' | null =
         null;
 
       // 2. Restore Session
       const session = authService.restoreSession();
       if (session) {
-        restoredRole = session.role;
+        sessionRole = session.role;
         setUserRole(session.role);
         if (session.role === 'CLIENT' && session.clientData) {
           // Determine identifying info
@@ -300,7 +300,7 @@ const AppContent: React.FC = () => {
       }
 
       // 3. Load Data
-      await loadData(canUseProtectedApi, restoredRole);
+      await loadData(canUseProtectedApi, sessionRole);
       setIsLoading(false);
     };
 
@@ -309,7 +309,7 @@ const AppContent: React.FC = () => {
 
   const loadData = async (
     useFirebase: boolean,
-    roleForLoad: 'COACH' | 'CLIENT' | 'ADMIN' | 'BRANCH_ADMIN' | null = userRole
+    role: 'COACH' | 'CLIENT' | 'ADMIN' | 'BRANCH_ADMIN' | null = userRole
   ) => {
     let fetchedClients: ClientProfile[] = [];
     let fetchedCoaches: CoachProfile[] = [];
@@ -336,7 +336,7 @@ const AppContent: React.FC = () => {
       setLessons(storageService.getLessons());
       fetchedClients = storageService.getClients();
       fetchedCoaches = storageService.getCoaches();
-      if (roleForLoad === 'ADMIN' && apiService.isAvailable()) {
+      if (role === 'ADMIN' && apiService.isAvailable()) {
         try {
           const apiCoaches = await apiService.getCoaches();
           if (apiCoaches.length > 0) {
