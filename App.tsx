@@ -99,9 +99,9 @@ const isClientSessionProfile = (
 
 const diagnosisProgram: DiagnosisProgram = {
   title: 'coachxai 정밀진단 프로그램',
-  subtitle: '골퍼의 플레이를 3개 핵심 영역에서 진단하고, 모든 분석 결과를 통합 리포트로 제공하는 골프 퍼포먼스 진단 프로그램',
+  subtitle: '골퍼 기본정보부터 통합 리포트까지 6단계 프로세스로 진행하는 골프 퍼포먼스 정밀진단 프로그램',
   description:
-    '신체, 장비, 기술을 종합적으로 분석해 현재 상태를 정확히 파악하고 개선 방향 수립의 기초 데이터를 제공합니다.',
+    '신체, 장비, 기술 진단과 코스메니지먼트·멘탈 입력을 순차적으로 진행해 통합 분석 결과를 제공합니다.',
   factors: DIAGNOSIS_FACTORS,
   steps: DIAGNOSIS_PROCESS,
 };

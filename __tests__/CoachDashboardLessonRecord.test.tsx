@@ -166,9 +166,10 @@ describe('Coach dashboard – lesson-first MVP home', () => {
       expect(screen.getByTestId('diagnosis-program-section')).toBeInTheDocument();
     });
     expect(screen.getByText('진행 프로세스')).toBeInTheDocument();
-    expect(screen.getAllByText('3개 핵심 진단 영역').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('골퍼 기본정보 입력').length).toBeGreaterThan(0);
+    expect(screen.getByText('코스메니지먼트 & 멘탈')).toBeInTheDocument();
     expect(screen.getByText('골프 체형 분석 및 능력 진단')).toBeInTheDocument();
-    expect(screen.getByText('기본 정보 및 플레이 목표 확인')).toBeInTheDocument();
+    expect(screen.getByText('프로세스 1 / 6')).toBeInTheDocument();
     expect(screen.getByTestId('diagnosis-view-result-btn')).toBeInTheDocument();
     expect(screen.queryByText('회원 관리')).toBeNull();
   });
@@ -186,15 +187,23 @@ describe('Coach dashboard – lesson-first MVP home', () => {
     fireEvent.change(screen.getByTestId('diagnosis-member-name-input'), {
       target: { value: '홍길동' },
     });
+    fireEvent.click(screen.getByTestId('diagnosis-next-step-btn'));
     fireEvent.change(screen.getByTestId('diagnosis-score-input-body'), {
       target: { value: '90' },
     });
+    fireEvent.click(screen.getByTestId('diagnosis-next-step-btn'));
     fireEvent.change(screen.getByTestId('diagnosis-score-input-equipment'), {
       target: { value: '85' },
     });
+    fireEvent.click(screen.getByTestId('diagnosis-next-step-btn'));
     fireEvent.change(screen.getByTestId('diagnosis-score-input-skill'), {
       target: { value: '80' },
     });
+    fireEvent.click(screen.getByTestId('diagnosis-next-step-btn'));
+    fireEvent.change(screen.getByTestId('diagnosis-course-mental-input'), {
+      target: { value: '멘탈 루틴 안정적' },
+    });
+    fireEvent.click(screen.getByTestId('diagnosis-next-step-btn'));
 
     fireEvent.click(screen.getByTestId('diagnosis-view-result-btn'));
 
