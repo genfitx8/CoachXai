@@ -48,9 +48,7 @@ function computeActivityData(
   lessons: Lesson[],
   clients: ClientProfile[]
 ): CoachActivityData {
-  const coachLessons = lessons.filter(
-    (l) => l.coachId === coach.id && l.createdBy === 'COACH'
-  );
+  const coachLessons = lessons.filter((l) => l.coachId === coach.id);
 
   const totalLessons = coachLessons.length;
   const lessonsLast7Days = coachLessons.filter((l) => NOW - l.createdAt <= MS_7D).length;
