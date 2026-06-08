@@ -22,7 +22,7 @@ export const mockDiagnosisSession: DiagnosisSession = {
       contact: '010-1111-0001',
       heightCm: 175,
       weightKg: 72,
-      golfStartDate: '2019-03-01',
+      yearsOfExperience: 6,
       handicap: 14,
       averageScore: 88,
       bestScore: 79,
