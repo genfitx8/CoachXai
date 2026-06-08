@@ -54,6 +54,15 @@ const parseNullableNumber = (value: string): number | null => {
   return Number.isNaN(parsed) ? null : parsed;
 };
 
+const buildInitialFactorScores = (program: DiagnosisProgram): Record<DiagnosisFactorKey, number> =>
+  program.factors.reduce(
+    (acc, factor) => ({
+      ...acc,
+      [factor.key]: factor.key === 'body' ? 0 : factor.score,
+    }),
+    {} as Record<DiagnosisFactorKey, number>
+  );
+
 export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = ({
   program,
   onBack,
@@ -70,12 +79,7 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
     diagnosisGoals: initialGolferProfile?.diagnosisGoals ?? DEFAULT_GOLFER_PROFILE.diagnosisGoals,
     name: initialGolferProfile?.name ?? initialMemberName ?? '',
   }));
-  const [factorScores, setFactorScores] = useState<Record<DiagnosisFactorKey, number>>(() =>
-    program.factors.reduce(
-      (acc, factor) => ({ ...acc, [factor.key]: factor.key === 'body' ? 0 : factor.score }),
-      {} as Record<DiagnosisFactorKey, number>
-    )
-  );
+  const [factorScores, setFactorScores] = useState<Record<DiagnosisFactorKey, number>>(() => buildInitialFactorScores(program));
   const [bodyScoreSource, setBodyScoreSource] = useState<'unset' | 'manual' | 'analysis'>('unset');
   const [courseMentalNote, setCourseMentalNote] = useState('');
   const [activeStepIndex, setActiveStepIndex] = useState(0);
@@ -166,6 +170,11 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
     const bodyScore = Math.round(result.balance.overallScore);
     setBodyScoreSource('analysis');
     setFactorScores((prev) => ({ ...prev, body: clampDiagnosisScore(bodyScore) }));
+  };
+
+  const handleBodyScoreChange = (value: string) => {
+    setBodyScoreSource(value.trim() ? 'manual' : 'unset');
+    handleScoreChange('body', value);
   };
 
   const handleStartPostureAnalysis = () => {
@@ -642,11 +651,8 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
                 min={0}
                 max={100}
                 step={1}
-                value={bodyScoreSource === 'unset' ? '' : factorScores[factorKey]}
-                onChange={(event) => {
-                  setBodyScoreSource(event.target.value.trim() ? 'manual' : 'unset');
-                  handleScoreChange(factorKey, event.target.value);
-                }}
+                value={bodyScoreSource === 'unset' ? '' : factorScores.body}
+                onChange={(event) => handleBodyScoreChange(event.target.value)}
                 placeholder="스켈레톤 분석 후 자동 입력"
                 className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none focus:border-violet-500"
                 data-testid={`diagnosis-score-input-${factorKey}`}

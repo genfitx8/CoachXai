@@ -110,7 +110,7 @@ describe('DiagnosisProgramSection golfer profile', () => {
     fireEvent.click(screen.getByTestId('diagnosis-golfer-goal-score-improvement'));
     fireEvent.click(screen.getByTestId('diagnosis-next-step-btn'));
 
-    expect(screen.getByTestId('diagnosis-score-input-body')).toHaveValue(null);
+    expect((screen.getByTestId('diagnosis-score-input-body') as HTMLInputElement).value).toBe('');
 
     fireEvent.click(screen.getByTestId('start-posture-analysis-btn'));
     fireEvent.click(screen.getByTestId('mock-posture-analysis-complete-btn'));
