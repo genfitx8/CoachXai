@@ -91,6 +91,19 @@ describe('DiagnosisProgramSection golfer profile', () => {
     expect(screen.getByText('신체 체형 진단')).toBeInTheDocument();
   });
 
+  it('keeps final result creation disabled until golfer profile required fields are filled', () => {
+    renderSection();
+
+    for (let index = 0; index < DIAGNOSIS_PROCESS.length - 1; index += 1) {
+      const nextButton = screen.queryByTestId('diagnosis-next-step-btn');
+      if (!nextButton) break;
+      fireEvent.click(nextButton);
+    }
+
+    expect(screen.getByTestId('diagnosis-view-result-btn')).toBeDisabled();
+    expect(screen.getByTestId('diagnosis-generate-required-hint')).toBeInTheDocument();
+  });
+
   it('auto fills the body score after skeleton analysis completes', () => {
     renderSection();
 

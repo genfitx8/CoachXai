@@ -146,6 +146,7 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
   const currentStep = program.steps[activeStepIndex];
   const isFirstStep = activeStepIndex === 0;
   const isFinalStep = activeStepIndex === program.steps.length - 1;
+  const isMissingRequiredProfileInfo = requiredMissingFields.length > 0;
 
   const toggleGoal = (goal: string) => {
     setGolferProfile((prev) => ({
@@ -884,6 +885,11 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
                   진단 결과 생성은 마지막 프로세스에서 가능합니다.
                 </p>
               )}
+              {isFinalStep && isMissingRequiredProfileInfo && (
+                <p id="diagnosis-generate-required-hint" className="text-xs text-amber-300" data-testid="diagnosis-generate-required-hint">
+                  {t('diagnosis_golfer_required_help')}: {requiredMissingFields.join(', ')}
+                </p>
+              )}
               <div className="flex flex-wrap justify-end gap-2">
                 <Button
                   variant="ghost"
@@ -909,8 +915,14 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
             <Button
               onClick={handleCreateResult}
               data-testid="diagnosis-view-result-btn"
-              disabled={!isFinalStep}
-              aria-describedby={!isFinalStep ? 'diagnosis-generate-hint' : undefined}
+              disabled={!isFinalStep || isMissingRequiredProfileInfo}
+              aria-describedby={
+                !isFinalStep
+                  ? 'diagnosis-generate-hint'
+                  : isMissingRequiredProfileInfo
+                    ? 'diagnosis-generate-required-hint'
+                    : undefined
+              }
             >
               진단 결과 생성
             </Button>
