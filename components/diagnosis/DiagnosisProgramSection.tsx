@@ -146,7 +146,7 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
   const currentStep = program.steps[activeStepIndex];
   const isFirstStep = activeStepIndex === 0;
   const isFinalStep = activeStepIndex === program.steps.length - 1;
-  const hasRequiredProfileInfo = requiredMissingFields.length === 0;
+  const isProfileComplete = requiredMissingFields.length === 0;
 
   const toggleGoal = (goal: string) => {
     setGolferProfile((prev) => ({
@@ -885,7 +885,7 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
                   진단 결과 생성은 마지막 프로세스에서 가능합니다.
                 </p>
               )}
-              {isFinalStep && !hasRequiredProfileInfo && (
+              {isFinalStep && !isProfileComplete && (
                 <p id="diagnosis-generate-required-hint" className="text-xs text-amber-300" data-testid="diagnosis-generate-required-hint">
                   {t('diagnosis_golfer_required_help')}: {requiredMissingFields.join(', ')}
                 </p>
@@ -915,11 +915,11 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
             <Button
               onClick={handleCreateResult}
               data-testid="diagnosis-view-result-btn"
-              disabled={!isFinalStep || !hasRequiredProfileInfo}
+              disabled={!isFinalStep || !isProfileComplete}
               aria-describedby={
                 !isFinalStep
                   ? 'diagnosis-generate-hint'
-                  : !hasRequiredProfileInfo
+                  : !isProfileComplete
                     ? 'diagnosis-generate-required-hint'
                     : undefined
               }
