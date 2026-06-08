@@ -4,6 +4,7 @@ import { DiagnosisHero } from './DiagnosisHero';
 import { Button } from '../Button';
 import { clampDiagnosisScore } from '../../utils/diagnosis';
 import { useLanguage } from '../LanguageContext';
+import { ChevronDown, ChevronUp } from 'lucide-react';
 
 interface DiagnosisProgramSectionProps {
   program: DiagnosisProgram;
@@ -73,6 +74,13 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
   );
   const [courseMentalNote, setCourseMentalNote] = useState('');
   const [activeStepIndex, setActiveStepIndex] = useState(0);
+  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
+    basic: true,
+    history: true,
+    physical: true,
+    equipment: true,
+    goals: true,
+  });
 
   const memberName = golferProfile.name;
 
@@ -134,6 +142,13 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
     }));
   };
 
+  const toggleSection = (section: string) => {
+    setExpandedSections((prev) => ({
+      ...prev,
+      [section]: !prev[section],
+    }));
+  };
+
   const renderStepInput = () => {
     if (!currentStep) return null;
 
@@ -141,7 +156,19 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
       return (
         <div className="space-y-5">
           <div className="space-y-3 rounded-xl border border-slate-700 bg-slate-900 p-4">
-            <h4 className="text-sm font-semibold text-violet-300">{t('diagnosis_golfer_section_basic')}</h4>
+            <button
+              type="button"
+              onClick={() => toggleSection('basic')}
+              className="w-full flex items-center justify-between text-left hover:opacity-80 transition-opacity"
+            >
+              <h4 className="text-sm font-semibold text-violet-300">{t('diagnosis_golfer_section_basic')}</h4>
+              {expandedSections.basic ? (
+                <ChevronUp className="w-4 h-4 text-violet-300" />
+              ) : (
+                <ChevronDown className="w-4 h-4 text-violet-300" />
+              )}
+            </button>
+            {expandedSections.basic && (
             <div className="grid gap-3 md:grid-cols-2">
               <label className="space-y-2">
                 <span className="text-sm text-slate-300">{t('diagnosis_golfer_name')}</span>
@@ -212,10 +239,23 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
                 />
               </label>
             </div>
+            )}
           </div>
 
           <div className="space-y-3 rounded-xl border border-slate-700 bg-slate-900 p-4">
-            <h4 className="text-sm font-semibold text-violet-300">{t('diagnosis_golfer_section_history')}</h4>
+            <button
+              type="button"
+              onClick={() => toggleSection('history')}
+              className="w-full flex items-center justify-between text-left hover:opacity-80 transition-opacity"
+            >
+              <h4 className="text-sm font-semibold text-violet-300">{t('diagnosis_golfer_section_history')}</h4>
+              {expandedSections.history ? (
+                <ChevronUp className="w-4 h-4 text-violet-300" />
+              ) : (
+                <ChevronDown className="w-4 h-4 text-violet-300" />
+              )}
+            </button>
+            {expandedSections.history && (
             <div className="grid gap-3 md:grid-cols-2">
               <label className="space-y-2">
                 <span className="text-sm text-slate-300">{t('diagnosis_golfer_golf_start_date')}</span>
@@ -296,10 +336,23 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
                 />
               </label>
             </div>
+            )}
           </div>
 
           <div className="space-y-3 rounded-xl border border-slate-700 bg-slate-900 p-4">
-            <h4 className="text-sm font-semibold text-violet-300">{t('diagnosis_golfer_section_physical')}</h4>
+            <button
+              type="button"
+              onClick={() => toggleSection('physical')}
+              className="w-full flex items-center justify-between text-left hover:opacity-80 transition-opacity"
+            >
+              <h4 className="text-sm font-semibold text-violet-300">{t('diagnosis_golfer_section_physical')}</h4>
+              {expandedSections.physical ? (
+                <ChevronUp className="w-4 h-4 text-violet-300" />
+              ) : (
+                <ChevronDown className="w-4 h-4 text-violet-300" />
+              )}
+            </button>
+            {expandedSections.physical && (
             <div className="grid gap-3 md:grid-cols-2">
               <label className="space-y-2 md:col-span-2">
                 <span className="text-sm text-slate-300">{t('diagnosis_golfer_injury_history')}</span>
@@ -352,10 +405,23 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
                 />
               </label>
             </div>
+            )}
           </div>
 
           <div className="space-y-3 rounded-xl border border-slate-700 bg-slate-900 p-4">
-            <h4 className="text-sm font-semibold text-violet-300">{t('diagnosis_golfer_section_equipment')}</h4>
+            <button
+              type="button"
+              onClick={() => toggleSection('equipment')}
+              className="w-full flex items-center justify-between text-left hover:opacity-80 transition-opacity"
+            >
+              <h4 className="text-sm font-semibold text-violet-300">{t('diagnosis_golfer_section_equipment')}</h4>
+              {expandedSections.equipment ? (
+                <ChevronUp className="w-4 h-4 text-violet-300" />
+              ) : (
+                <ChevronDown className="w-4 h-4 text-violet-300" />
+              )}
+            </button>
+            {expandedSections.equipment && (
             <div className="grid gap-3 md:grid-cols-2">
               <label className="space-y-2">
                 <span className="text-sm text-slate-300">{t('diagnosis_golfer_driver_model')}</span>
@@ -394,10 +460,24 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
                 />
               </label>
             </div>
+            )}
           </div>
 
           <div className="space-y-3 rounded-xl border border-slate-700 bg-slate-900 p-4">
-            <h4 className="text-sm font-semibold text-violet-300">{t('diagnosis_golfer_section_goals')}</h4>
+            <button
+              type="button"
+              onClick={() => toggleSection('goals')}
+              className="w-full flex items-center justify-between text-left hover:opacity-80 transition-opacity"
+            >
+              <h4 className="text-sm font-semibold text-violet-300">{t('diagnosis_golfer_section_goals')}</h4>
+              {expandedSections.goals ? (
+                <ChevronUp className="w-4 h-4 text-violet-300" />
+              ) : (
+                <ChevronDown className="w-4 h-4 text-violet-300" />
+              )}
+            </button>
+            {expandedSections.goals && (
+            <>
             <div className="space-y-2">
               <p className="text-sm text-slate-300">{t('diagnosis_golfer_diagnosis_goals')}</p>
               <div className="grid gap-2 md:grid-cols-2">
@@ -438,6 +518,8 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
                 data-testid="diagnosis-golfer-target-handicap-input"
               />
             </label>
+            </>
+            )}
           </div>
 
           {requiredMissingFields.length > 0 && (
