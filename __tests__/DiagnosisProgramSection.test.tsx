@@ -59,7 +59,6 @@ describe('DiagnosisProgramSection golfer profile', () => {
     fireEvent.change(screen.getByTestId('diagnosis-member-name-input'), { target: { value: '홍길동' } });
     fireEvent.change(screen.getByTestId('diagnosis-golfer-gender-select'), { target: { value: 'male' } });
     fireEvent.change(screen.getByTestId('diagnosis-golfer-birth-date-input'), { target: { value: '1993-07-01' } });
-    fireEvent.change(screen.getByTestId('diagnosis-golfer-height-input'), { target: { value: '176' } });
     fireEvent.change(screen.getByTestId('diagnosis-golfer-golf-start-date-input'), { target: { value: '2019-04-01' } });
     fireEvent.change(screen.getByTestId('diagnosis-golfer-average-score-input'), { target: { value: '90' } });
     fireEvent.change(screen.getByTestId('diagnosis-golfer-dominant-hand-select'), { target: { value: 'right' } });
