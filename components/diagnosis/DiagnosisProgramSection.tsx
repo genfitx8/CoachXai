@@ -78,7 +78,6 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
     basic: true,
     history: true,
     physical: true,
-    equipment: true,
     goals: true,
   });
 
@@ -411,61 +410,6 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
           <div className="space-y-3 rounded-xl border border-slate-700 bg-slate-900 p-4">
             <button
               type="button"
-              onClick={() => toggleSection('equipment')}
-              className="w-full flex items-center justify-between text-left hover:opacity-80 transition-opacity"
-            >
-              <h4 className="text-sm font-semibold text-violet-300">{t('diagnosis_golfer_section_equipment')}</h4>
-              {expandedSections.equipment ? (
-                <ChevronUp className="w-4 h-4 text-violet-300" />
-              ) : (
-                <ChevronDown className="w-4 h-4 text-violet-300" />
-              )}
-            </button>
-            {expandedSections.equipment && (
-            <div className="grid gap-3 md:grid-cols-2">
-              <label className="space-y-2">
-                <span className="text-sm text-slate-300">{t('diagnosis_golfer_driver_model')}</span>
-                <input
-                  value={golferProfile.driverModel}
-                  onChange={(event) => setGolferProfile((prev) => ({ ...prev, driverModel: event.target.value }))}
-                  className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none focus:border-violet-500"
-                  data-testid="diagnosis-golfer-driver-model-input"
-                />
-              </label>
-              <label className="space-y-2">
-                <span className="text-sm text-slate-300">{t('diagnosis_golfer_iron_model')}</span>
-                <input
-                  value={golferProfile.ironModel}
-                  onChange={(event) => setGolferProfile((prev) => ({ ...prev, ironModel: event.target.value }))}
-                  className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none focus:border-violet-500"
-                  data-testid="diagnosis-golfer-iron-model-input"
-                />
-              </label>
-              <label className="space-y-2">
-                <span className="text-sm text-slate-300">{t('diagnosis_golfer_shaft_flex')}</span>
-                <input
-                  value={golferProfile.shaftFlex}
-                  onChange={(event) => setGolferProfile((prev) => ({ ...prev, shaftFlex: event.target.value }))}
-                  className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none focus:border-violet-500"
-                  data-testid="diagnosis-golfer-shaft-flex-input"
-                />
-              </label>
-              <label className="space-y-2">
-                <span className="text-sm text-slate-300">{t('diagnosis_golfer_ball_brand')}</span>
-                <input
-                  value={golferProfile.ballBrand}
-                  onChange={(event) => setGolferProfile((prev) => ({ ...prev, ballBrand: event.target.value }))}
-                  className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none focus:border-violet-500"
-                  data-testid="diagnosis-golfer-ball-brand-input"
-                />
-              </label>
-            </div>
-            )}
-          </div>
-
-          <div className="space-y-3 rounded-xl border border-slate-700 bg-slate-900 p-4">
-            <button
-              type="button"
               onClick={() => toggleSection('goals')}
               className="w-full flex items-center justify-between text-left hover:opacity-80 transition-opacity"
             >
@@ -540,6 +484,70 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
       const factorKey = stepFactorMap[currentStep.id];
       const factor = program.factors.find((item) => item.key === factorKey);
       if (!factor) return null;
+
+      // Equipment diagnosis step includes equipment information inputs
+      if (currentStep.id === 'equipment-diagnosis') {
+        return (
+          <div className="space-y-4">
+            <div className="space-y-3 rounded-xl border border-slate-700 bg-slate-900 p-4">
+              <h4 className="text-sm font-semibold text-violet-300">{t('diagnosis_golfer_section_equipment')}</h4>
+              <div className="grid gap-3 md:grid-cols-2">
+                <label className="space-y-2">
+                  <span className="text-sm text-slate-300">{t('diagnosis_golfer_driver_model')}</span>
+                  <input
+                    value={golferProfile.driverModel}
+                    onChange={(event) => setGolferProfile((prev) => ({ ...prev, driverModel: event.target.value }))}
+                    className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none focus:border-violet-500"
+                    data-testid="diagnosis-golfer-driver-model-input"
+                  />
+                </label>
+                <label className="space-y-2">
+                  <span className="text-sm text-slate-300">{t('diagnosis_golfer_iron_model')}</span>
+                  <input
+                    value={golferProfile.ironModel}
+                    onChange={(event) => setGolferProfile((prev) => ({ ...prev, ironModel: event.target.value }))}
+                    className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none focus:border-violet-500"
+                    data-testid="diagnosis-golfer-iron-model-input"
+                  />
+                </label>
+                <label className="space-y-2">
+                  <span className="text-sm text-slate-300">{t('diagnosis_golfer_shaft_flex')}</span>
+                  <input
+                    value={golferProfile.shaftFlex}
+                    onChange={(event) => setGolferProfile((prev) => ({ ...prev, shaftFlex: event.target.value }))}
+                    className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none focus:border-violet-500"
+                    data-testid="diagnosis-golfer-shaft-flex-input"
+                  />
+                </label>
+                <label className="space-y-2">
+                  <span className="text-sm text-slate-300">{t('diagnosis_golfer_ball_brand')}</span>
+                  <input
+                    value={golferProfile.ballBrand}
+                    onChange={(event) => setGolferProfile((prev) => ({ ...prev, ballBrand: event.target.value }))}
+                    className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none focus:border-violet-500"
+                    data-testid="diagnosis-golfer-ball-brand-input"
+                  />
+                </label>
+              </div>
+            </div>
+
+            <label className="block space-y-2 rounded-xl border border-slate-700 bg-slate-900 p-3">
+              <span className="text-sm text-slate-300">{factor.label} 점수</span>
+              <input
+                type="number"
+                min={0}
+                max={100}
+                step={1}
+                value={factorScores[factorKey] ?? 0}
+                onChange={(event) => handleScoreChange(factorKey, event.target.value)}
+                className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none focus:border-violet-500"
+                data-testid={`diagnosis-score-input-${factorKey}`}
+              />
+              <p className="text-xs text-slate-400">점수는 0~100 범위로 자동 보정됩니다.</p>
+            </label>
+          </div>
+        );
+      }
 
       return (
         <label className="block space-y-2 rounded-xl border border-slate-700 bg-slate-900 p-3">
