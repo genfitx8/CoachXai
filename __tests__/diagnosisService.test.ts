@@ -12,7 +12,7 @@ describe('diagnosisService', () => {
       golferProfile: {
         name: '테스트회원',
         gender: 'male',
-        birthDate: '1990-01-01',
+        age: 36,
         contact: '010-0000-0000',
         heightCm: 175,
         weightKg: 72,
@@ -59,7 +59,7 @@ describe('diagnosisService', () => {
       golferProfile: {
         name: '다른이름',
         gender: 'female',
-        birthDate: '1991-06-01',
+        age: 35,
         contact: '010-2222-3333',
         heightCm: 165,
         weightKg: null,

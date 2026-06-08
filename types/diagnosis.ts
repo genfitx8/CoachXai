@@ -52,7 +52,8 @@ export interface DiagnosisResult {
 export interface GolferProfile {
   name: string;
   gender: '' | 'male' | 'female';
-  birthDate: string;
+  age: number | null;
+  birthDate?: string;
   contact: string;
   heightCm: number | null;
   weightKg: number | null;

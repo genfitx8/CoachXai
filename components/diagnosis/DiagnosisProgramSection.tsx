@@ -21,7 +21,7 @@ interface DiagnosisProgramSectionProps {
 const DEFAULT_GOLFER_PROFILE: GolferProfile = {
   name: '',
   gender: '',
-  birthDate: '',
+  age: null,
   contact: '',
   heightCm: null,
   weightKg: null,
@@ -101,7 +101,7 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
     const missing: string[] = [];
     if (!golferProfile.name.trim()) missing.push(t('diagnosis_golfer_name'));
     if (!golferProfile.gender) missing.push(t('diagnosis_golfer_gender'));
-    if (!golferProfile.birthDate) missing.push(t('diagnosis_golfer_birth_date'));
+    if (golferProfile.age === null) missing.push(t('diagnosis_golfer_age'));
     if (golferProfile.heightCm === null) missing.push(t('diagnosis_golfer_height_cm'));
     if (golferProfile.yearsOfExperience === null) missing.push(t('diagnosis_golfer_years_of_experience'));
     if (golferProfile.averageScore === null) missing.push(t('diagnosis_golfer_average_score'));
@@ -216,13 +216,16 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
                 </select>
               </label>
               <label className="space-y-2">
-                <span className="text-sm text-slate-300">{t('diagnosis_golfer_birth_date')}</span>
+                <span className="text-sm text-slate-300">{t('diagnosis_golfer_age')}</span>
                 <input
-                  type="date"
-                  value={golferProfile.birthDate}
-                  onChange={(event) => setGolferProfile((prev) => ({ ...prev, birthDate: event.target.value }))}
+                  type="number"
+                  min={0}
+                  max={120}
+                  value={golferProfile.age ?? ''}
+                  onChange={(event) => setGolferProfile((prev) => ({ ...prev, age: parseNullableNumber(event.target.value) }))}
+                  placeholder={t('diagnosis_golfer_age_placeholder')}
                   className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none focus:border-violet-500"
-                  data-testid="diagnosis-golfer-birth-date-input"
+                  data-testid="diagnosis-golfer-age-input"
                 />
               </label>
               <label className="space-y-2">
