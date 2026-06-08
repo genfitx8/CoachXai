@@ -190,9 +190,6 @@ describe('Coach dashboard – lesson-first MVP home', () => {
     fireEvent.change(screen.getByTestId('diagnosis-golfer-birth-date-input'), {
       target: { value: '1990-02-14' },
     });
-    fireEvent.change(screen.getByTestId('diagnosis-golfer-height-input'), {
-      target: { value: '178' },
-    });
     fireEvent.change(screen.getByTestId('diagnosis-golfer-golf-start-date-input'), {
       target: { value: '2020-01-10' },
     });
@@ -204,6 +201,11 @@ describe('Coach dashboard – lesson-first MVP home', () => {
     });
     fireEvent.click(screen.getByTestId('diagnosis-golfer-goal-score-improvement'));
     fireEvent.click(screen.getByTestId('diagnosis-next-step-btn'));
+
+    // Step 2: Body diagnosis - fill height (required) and body score
+    fireEvent.change(screen.getByTestId('diagnosis-golfer-height-input'), {
+      target: { value: '178' },
+    });
     fireEvent.change(screen.getByTestId('diagnosis-score-input-body'), {
       target: { value: '90' },
     });
@@ -260,9 +262,6 @@ describe('Coach dashboard – lesson-first MVP home', () => {
     });
     fireEvent.change(screen.getByTestId('diagnosis-golfer-birth-date-input'), {
       target: { value: '1994-05-13' },
-    });
-    fireEvent.change(screen.getByTestId('diagnosis-golfer-height-input'), {
-      target: { value: '177' },
     });
     fireEvent.change(screen.getByTestId('diagnosis-golfer-golf-start-date-input'), {
       target: { value: '2021-03-01' },
