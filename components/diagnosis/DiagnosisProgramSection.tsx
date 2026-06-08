@@ -290,17 +290,6 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
                 />
               </label>
               <label className="space-y-2">
-                <span className="text-sm text-slate-300">{t('diagnosis_golfer_handicap')}</span>
-                <input
-                  type="number"
-                  min={0}
-                  value={golferProfile.handicap ?? ''}
-                  onChange={(event) => setGolferProfile((prev) => ({ ...prev, handicap: parseNullableNumber(event.target.value) }))}
-                  className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none focus:border-violet-500"
-                  data-testid="diagnosis-golfer-handicap-input"
-                />
-              </label>
-              <label className="space-y-2">
                 <span className="text-sm text-slate-300">{t('diagnosis_golfer_average_score')}</span>
                 <input
                   type="number"
@@ -658,7 +647,6 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
         <ul className="space-y-2 text-sm text-slate-300">
           <li>{t('diagnosis_golfer_name')}: {memberName || '-'}</li>
           <li>{t('diagnosis_golfer_contact')}: {golferProfile.contact || '-'}</li>
-          <li>{t('diagnosis_golfer_handicap')}: {golferProfile.handicap ?? '-'}</li>
           <li>{t('diagnosis_golfer_best_score')}: {golferProfile.bestScore ?? '-'}</li>
           <li>{t('diagnosis_golfer_years_of_experience')}: {golferProfile.yearsOfExperience !== null ? `${golferProfile.yearsOfExperience}년` : '-'}</li>
           {scoreEntries.map((entry) => (
