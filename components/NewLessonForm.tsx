@@ -70,7 +70,7 @@ interface NewLessonFormProps {
   packages?: LessonPackage[];
   /** All lessons – used to determine which sessions are already recorded. */
   lessons?: Lesson[];
-  onSave: (lesson: Lesson, homeworkBatch?: Homework[]) => void;
+  onSave: (lesson: Lesson, homeworkBatch?: Homework[]) => Promise<void> | void;
   onCancel: () => void;
   userRole?: 'COACH' | 'CLIENT'; // Identify who is creating the lesson
   currentUser?: ClientProfile | CoachProfile;
@@ -1242,7 +1242,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
         });
       }
 
-      onSave(
+      await onSave(
         newLesson,
         pendingHomeworkBatch.length > 0 ? pendingHomeworkBatch : undefined
       );
