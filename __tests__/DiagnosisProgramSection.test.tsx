@@ -37,7 +37,6 @@ describe('DiagnosisProgramSection golfer profile', () => {
       initialGolferProfile: {
         name: '김회원',
         contact: '010-1234-5678',
-        handicap: 14,
         bestScore: 79,
         golfStartDate: '2020-02-20',
       },
@@ -45,7 +44,6 @@ describe('DiagnosisProgramSection golfer profile', () => {
 
     expect(screen.getByTestId('diagnosis-member-name-input')).toHaveValue('김회원');
     expect(screen.getByTestId('diagnosis-golfer-contact-input')).toHaveValue('010-1234-5678');
-    expect(screen.getByTestId('diagnosis-golfer-handicap-input')).toHaveValue(14);
     expect(screen.getByTestId('diagnosis-golfer-best-score-input')).toHaveValue(79);
     expect(screen.getByTestId('diagnosis-golfer-golf-start-date-input')).toHaveValue('2020-02-20');
   });
