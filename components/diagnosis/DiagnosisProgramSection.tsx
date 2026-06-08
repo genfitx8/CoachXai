@@ -1,10 +1,12 @@
 import React, { useMemo, useState } from 'react';
 import { DiagnosisFactorKey, DiagnosisInput, DiagnosisProgram, GolferProfile } from '../../types/diagnosis';
+import { PostureAnalysisResult } from '../../types/postureAnalysis';
 import { DiagnosisHero } from './DiagnosisHero';
 import { Button } from '../Button';
 import { clampDiagnosisScore } from '../../utils/diagnosis';
 import { useLanguage } from '../LanguageContext';
 import { ChevronDown, ChevronUp } from 'lucide-react';
+import { PostureAnalysisDashboard } from '../posture/PostureAnalysisDashboard';
 
 interface DiagnosisProgramSectionProps {
   program: DiagnosisProgram;
@@ -81,6 +83,8 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
     equipment: true,
     goals: true,
   });
+  const [postureAnalysisResult, setPostureAnalysisResult] = useState<PostureAnalysisResult | null>(null);
+  const [showPostureAnalysis, setShowPostureAnalysis] = useState(false);
 
   const memberName = golferProfile.name;
 
@@ -147,6 +151,22 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
       ...prev,
       [section]: !prev[section],
     }));
+  };
+
+  const handlePostureAnalysisComplete = (result: PostureAnalysisResult) => {
+    setPostureAnalysisResult(result);
+    setShowPostureAnalysis(false);
+    // Automatically set body score based on posture analysis overall score
+    const bodyScore = Math.round(result.balance.overallScore);
+    setFactorScores((prev) => ({ ...prev, body: clampDiagnosisScore(bodyScore) }));
+  };
+
+  const handleStartPostureAnalysis = () => {
+    setShowPostureAnalysis(true);
+  };
+
+  const handleCancelPostureAnalysis = () => {
+    setShowPostureAnalysis(false);
   };
 
   const renderStepInput = () => {
@@ -541,6 +561,61 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
       const factor = program.factors.find((item) => item.key === factorKey);
       if (!factor) return null;
 
+      // Special handling for body-diagnosis to integrate posture analysis
+      if (currentStep.id === 'body-diagnosis') {
+        return (
+          <div className="space-y-4">
+            <div className="rounded-xl border border-slate-700 bg-slate-900 p-4">
+              <h4 className="text-sm font-semibold text-violet-300 mb-3">신체 체형 진단 (스켈레톤 분석)</h4>
+              <p className="text-xs text-slate-400 mb-4">
+                스켈레톤 분석을 통해 신체 정렬과 체형 밸런스를 자동으로 측정하거나, 수동으로 점수를 입력할 수 있습니다.
+              </p>
+
+              {postureAnalysisResult && (
+                <div className="mb-4 p-3 bg-emerald-900/30 border border-emerald-700/50 rounded-lg">
+                  <p className="text-sm text-emerald-300 font-medium mb-2">✓ 스켈레톤 분석 완료</p>
+                  <div className="text-xs text-slate-300 space-y-1">
+                    <p>• 전체 밸런스 점수: {Math.round(postureAnalysisResult.balance.overallScore)}점</p>
+                    <p>• 어깨 정렬: {Math.round(postureAnalysisResult.balance.shoulderAlignment)}점</p>
+                    <p>• 골반 정렬: {Math.round(postureAnalysisResult.balance.hipAlignment)}점</p>
+                    <p>• 척추 각도: {postureAnalysisResult.balance.spineAngle.toFixed(1)}°</p>
+                  </div>
+                </div>
+              )}
+
+              <Button
+                onClick={handleStartPostureAnalysis}
+                variant="outline"
+                className="w-full mb-3"
+                data-testid="start-posture-analysis-btn"
+              >
+                {postureAnalysisResult ? '스켈레톤 분석 다시 하기' : '스켈레톤 분석 시작하기'}
+              </Button>
+            </div>
+
+            <label className="block space-y-2 rounded-xl border border-slate-700 bg-slate-900 p-3">
+              <span className="text-sm text-slate-300">{factor.label} 점수</span>
+              <input
+                type="number"
+                min={0}
+                max={100}
+                step={1}
+                value={factorScores[factorKey] ?? 0}
+                onChange={(event) => handleScoreChange(factorKey, event.target.value)}
+                className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none focus:border-violet-500"
+                data-testid={`diagnosis-score-input-${factorKey}`}
+              />
+              <p className="text-xs text-slate-400">
+                {postureAnalysisResult
+                  ? '스켈레톤 분석 결과로 자동 설정되었습니다. 필요시 수동으로 조정 가능합니다.'
+                  : '점수는 0~100 범위로 자동 보정됩니다.'}
+              </p>
+            </label>
+          </div>
+        );
+      }
+
+      // For equipment-diagnosis and skill-diagnosis, use the original simple input
       return (
         <label className="block space-y-2 rounded-xl border border-slate-700 bg-slate-900 p-3">
           <span className="text-sm text-slate-300">{factor.label} 점수</span>
@@ -597,81 +672,91 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
 
   return (
     <div className="space-y-6 animate-fade-in" data-testid="diagnosis-program-section">
-      <div className="flex items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold text-slate-100">coachxai 정밀진단 프로그램</h1>
-        <Button variant="ghost" onClick={onBack}>
-          대시보드로 돌아가기
-        </Button>
-      </div>
-
-      <DiagnosisHero title={program.title} subtitle={program.subtitle} description={program.description} />
-
-      <section className="rounded-2xl border border-slate-700 bg-slate-900/70 p-6">
-        <h3 className="text-lg font-semibold text-slate-100">진단 입력</h3>
-        <div className="mt-4 space-y-4" data-testid="diagnosis-step-panel">
-          <div>
-            <nav aria-label="진단 진행 상태">
-              <ol className="flex flex-wrap gap-2 text-xs font-semibold text-slate-300">
-                {program.steps.map((step, index) => (
-                  <li
-                    key={step.id}
-                    aria-current={index === activeStepIndex ? 'step' : undefined}
-                    className={`rounded-full border px-2 py-1 ${
-                      index === activeStepIndex
-                        ? 'border-violet-500 bg-violet-500/20 text-violet-200'
-                        : 'border-slate-700 bg-slate-900 text-slate-400'
-                    }`}
-                  >
-                    {index + 1}
-                  </li>
-                ))}
-              </ol>
-            </nav>
-            <p className="mt-2 text-sm font-semibold text-violet-300">프로세스 {activeStepIndex + 1} / {program.steps.length}</p>
-            <p className="mt-1 font-medium text-slate-100">{currentStep?.title}</p>
-            <p className="mt-1 text-sm text-slate-300">{currentStep?.description}</p>
+      {showPostureAnalysis ? (
+        <PostureAnalysisDashboard
+          memberName={memberName || '회원'}
+          onBack={handleCancelPostureAnalysis}
+          onComplete={handlePostureAnalysisComplete}
+        />
+      ) : (
+        <>
+          <div className="flex items-center justify-between gap-3">
+            <h1 className="text-2xl font-bold text-slate-100">coachxai 정밀진단 프로그램</h1>
+            <Button variant="ghost" onClick={onBack}>
+              대시보드로 돌아가기
+            </Button>
           </div>
-          {renderStepInput()}
-          {!isFinalStep && (
-            <p id="diagnosis-generate-hint" className="text-xs text-slate-400">
-              진단 결과 생성은 마지막 프로세스에서 가능합니다.
-            </p>
-          )}
+
+          <DiagnosisHero title={program.title} subtitle={program.subtitle} description={program.description} />
+
+          <section className="rounded-2xl border border-slate-700 bg-slate-900/70 p-6">
+            <h3 className="text-lg font-semibold text-slate-100">진단 입력</h3>
+            <div className="mt-4 space-y-4" data-testid="diagnosis-step-panel">
+              <div>
+                <nav aria-label="진단 진행 상태">
+                  <ol className="flex flex-wrap gap-2 text-xs font-semibold text-slate-300">
+                    {program.steps.map((step, index) => (
+                      <li
+                        key={step.id}
+                        aria-current={index === activeStepIndex ? 'step' : undefined}
+                        className={`rounded-full border px-2 py-1 ${
+                          index === activeStepIndex
+                            ? 'border-violet-500 bg-violet-500/20 text-violet-200'
+                            : 'border-slate-700 bg-slate-900 text-slate-400'
+                        }`}
+                      >
+                        {index + 1}
+                      </li>
+                    ))}
+                  </ol>
+                </nav>
+                <p className="mt-2 text-sm font-semibold text-violet-300">프로세스 {activeStepIndex + 1} / {program.steps.length}</p>
+                <p className="mt-1 font-medium text-slate-100">{currentStep?.title}</p>
+                <p className="mt-1 text-sm text-slate-300">{currentStep?.description}</p>
+              </div>
+              {renderStepInput()}
+              {!isFinalStep && (
+                <p id="diagnosis-generate-hint" className="text-xs text-slate-400">
+                  진단 결과 생성은 마지막 프로세스에서 가능합니다.
+                </p>
+              )}
+              <div className="flex flex-wrap justify-end gap-2">
+                <Button
+                  variant="ghost"
+                  onClick={() => setActiveStepIndex((prev) => Math.max(prev - 1, 0))}
+                  disabled={isFirstStep}
+                  data-testid="diagnosis-prev-step-btn"
+                >
+                  이전 프로세스
+                </Button>
+                {!isFinalStep && (
+                  <Button
+                    onClick={() => setActiveStepIndex((prev) => Math.min(prev + 1, program.steps.length - 1))}
+                    disabled={!isCurrentStepValid}
+                    data-testid="diagnosis-next-step-btn"
+                  >
+                    다음 프로세스
+                  </Button>
+                )}
+              </div>
+            </div>
+          </section>
+
           <div className="flex flex-wrap justify-end gap-2">
             <Button
-              variant="ghost"
-              onClick={() => setActiveStepIndex((prev) => Math.max(prev - 1, 0))}
-              disabled={isFirstStep}
-              data-testid="diagnosis-prev-step-btn"
+              onClick={handleCreateResult}
+              data-testid="diagnosis-view-result-btn"
+              disabled={!isFinalStep}
+              aria-describedby={!isFinalStep ? 'diagnosis-generate-hint' : undefined}
             >
-              이전 프로세스
+              진단 결과 생성
             </Button>
-            {!isFinalStep && (
-              <Button
-                onClick={() => setActiveStepIndex((prev) => Math.min(prev + 1, program.steps.length - 1))}
-                disabled={!isCurrentStepValid}
-                data-testid="diagnosis-next-step-btn"
-              >
-                다음 프로세스
-              </Button>
-            )}
+            <Button variant="ghost" onClick={onViewResult} disabled={!canViewResult} data-testid="diagnosis-view-latest-result-btn">
+              최근 결과 보기
+            </Button>
           </div>
-        </div>
-      </section>
-
-      <div className="flex flex-wrap justify-end gap-2">
-        <Button
-          onClick={handleCreateResult}
-          data-testid="diagnosis-view-result-btn"
-          disabled={!isFinalStep}
-          aria-describedby={!isFinalStep ? 'diagnosis-generate-hint' : undefined}
-        >
-          진단 결과 생성
-        </Button>
-        <Button variant="ghost" onClick={onViewResult} disabled={!canViewResult} data-testid="diagnosis-view-latest-result-btn">
-          최근 결과 보기
-        </Button>
-      </div>
+        </>
+      )}
     </div>
   );
 };
