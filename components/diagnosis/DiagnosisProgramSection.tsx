@@ -3,7 +3,7 @@ import { DiagnosisFactorKey, DiagnosisInput, DiagnosisProgram, GolferProfile } f
 import { PostureAnalysisResult } from '../../types/postureAnalysis';
 import { DiagnosisHero } from './DiagnosisHero';
 import { Button } from '../Button';
-import { clampDiagnosisScore } from '../../utils/diagnosis';
+import { clampDiagnosisScore, getAgeFromBirthDate } from '../../utils/diagnosis';
 import { useLanguage } from '../LanguageContext';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import { PostureAnalysisDashboard } from '../posture/PostureAnalysisDashboard';
@@ -65,6 +65,7 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
   const [golferProfile, setGolferProfile] = useState<GolferProfile>(() => ({
     ...DEFAULT_GOLFER_PROFILE,
     ...initialGolferProfile,
+    age: initialGolferProfile?.age ?? getAgeFromBirthDate(initialGolferProfile?.birthDate),
     diagnosisGoals: initialGolferProfile?.diagnosisGoals ?? DEFAULT_GOLFER_PROFILE.diagnosisGoals,
     name: initialGolferProfile?.name ?? initialMemberName ?? '',
   }));

@@ -7,7 +7,7 @@ import {
   DiagnosisResult,
   DiagnosisSavedSession,
 } from '../types/diagnosis';
-import { clampDiagnosisScore, getDiagnosisAverageScore, getDiagnosisGrade } from '../utils/diagnosis';
+import { clampDiagnosisScore, getAgeFromBirthDate, getDiagnosisAverageScore, getDiagnosisGrade } from '../utils/diagnosis';
 import { createLogger } from '../utils/logger';
 
 const log = createLogger('diagnosisService');
@@ -28,6 +28,7 @@ const normalizeInput = (input: DiagnosisInput): DiagnosisInput => {
     memberName: fallbackName,
     golferProfile: {
       ...input.golferProfile,
+      age: input.golferProfile.age ?? getAgeFromBirthDate(input.golferProfile.birthDate),
       name: fallbackName,
     },
   };

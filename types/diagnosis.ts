@@ -53,7 +53,7 @@ export interface GolferProfile {
   name: string;
   gender: '' | 'male' | 'female';
   age: number | null;
-  birthDate?: string;
+  birthDate?: string; // Legacy saved sessions may still contain birth date data
   contact: string;
   heightCm: number | null;
   weightKg: number | null;
