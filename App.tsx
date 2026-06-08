@@ -628,11 +628,20 @@ const AppContent: React.FC = () => {
         if (lessonForStorage.videoUrl?.startsWith('blob:')) {
           try {
             const res = await fetch(lessonForStorage.videoUrl);
+            if (!res.ok) {
+              throw new Error(`Failed to fetch blob: ${res.status} ${res.statusText}`);
+            }
             const blob = await res.blob();
+            if (!blob || blob.size === 0) {
+              throw new Error('Fetched blob is empty or invalid');
+            }
             const idbUrl = await videoStore.save(`main_${lessonForStorage.id}`, blob);
             lessonForStorage = { ...lessonForStorage, videoUrl: idbUrl };
+            console.log('[handleSaveLesson] Successfully persisted main video to IDB', { lessonId: lessonForStorage.id, blobSize: blob.size, idbUrl });
           } catch (e) {
-            console.warn('[handleSaveLesson] Failed to persist main video to IDB', e);
+            console.error('[handleSaveLesson] Failed to persist main video to IDB', e);
+            // Keep the blob URL if IDB save fails - better than having no video at all
+            // The blob URL will work for the current session
           }
         }
         if (lessonForStorage.additionalMedia?.length) {
@@ -641,10 +650,19 @@ const AppContent: React.FC = () => {
               if (item.url?.startsWith('blob:')) {
                 try {
                   const res = await fetch(item.url);
+                  if (!res.ok) {
+                    throw new Error(`Failed to fetch additional media blob: ${res.status} ${res.statusText}`);
+                  }
                   const blob = await res.blob();
+                  if (!blob || blob.size === 0) {
+                    throw new Error('Fetched additional media blob is empty or invalid');
+                  }
                   const idbUrl = await videoStore.save(`additional_${lessonForStorage.id}_${idx}`, blob);
+                  console.log('[handleSaveLesson] Successfully persisted additional media to IDB', { lessonId: lessonForStorage.id, mediaId: item.id, idx, blobSize: blob.size, idbUrl });
                   return { ...item, url: idbUrl };
-                } catch {
+                } catch (e) {
+                  console.error('[handleSaveLesson] Failed to persist additional media to IDB', { mediaId: item.id, error: e });
+                  // Keep the blob URL if IDB save fails
                   return item;
                 }
               }
@@ -720,11 +738,19 @@ const AppContent: React.FC = () => {
       if (lessonForStorage.videoUrl?.startsWith('blob:')) {
         try {
           const res = await fetch(lessonForStorage.videoUrl);
+          if (!res.ok) {
+            throw new Error(`Failed to fetch blob: ${res.status} ${res.statusText}`);
+          }
           const blob = await res.blob();
+          if (!blob || blob.size === 0) {
+            throw new Error('Fetched blob is empty or invalid');
+          }
           const idbUrl = await videoStore.save(`main_${lessonForStorage.id}`, blob);
           lessonForStorage = { ...lessonForStorage, videoUrl: idbUrl };
+          console.log('[handleUpdateLesson] Successfully persisted main video to IDB', { lessonId: lessonForStorage.id, blobSize: blob.size, idbUrl });
         } catch (e) {
-          console.warn('[handleUpdateLesson] Failed to persist main video to IDB', e);
+          console.error('[handleUpdateLesson] Failed to persist main video to IDB', e);
+          // Keep the blob URL if IDB save fails
         }
       }
       if (lessonForStorage.additionalMedia?.length) {
@@ -733,10 +759,19 @@ const AppContent: React.FC = () => {
             if (item.url?.startsWith('blob:')) {
               try {
                 const res = await fetch(item.url);
+                if (!res.ok) {
+                  throw new Error(`Failed to fetch additional media blob: ${res.status} ${res.statusText}`);
+                }
                 const blob = await res.blob();
+                if (!blob || blob.size === 0) {
+                  throw new Error('Fetched additional media blob is empty or invalid');
+                }
                 const idbUrl = await videoStore.save(`additional_${lessonForStorage.id}_${idx}`, blob);
+                console.log('[handleUpdateLesson] Successfully persisted additional media to IDB', { lessonId: lessonForStorage.id, mediaId: item.id, idx, blobSize: blob.size, idbUrl });
                 return { ...item, url: idbUrl };
-              } catch {
+              } catch (e) {
+                console.error('[handleUpdateLesson] Failed to persist additional media to IDB', { mediaId: item.id, error: e });
+                // Keep the blob URL if IDB save fails
                 return item;
               }
             }
