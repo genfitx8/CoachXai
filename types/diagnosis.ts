@@ -49,6 +49,19 @@ export interface DiagnosisResult {
   recommendations: DiagnosisRecommendation[];
 }
 
+export interface TrackmanData {
+  clubType: string;
+  capturedImageUrl?: string;
+  ballSpeed?: number;
+  clubSpeed?: number;
+  launchAngle?: number;
+  spinRate?: number;
+  carryDistance?: number;
+  totalDistance?: number;
+  smashFactor?: number;
+  notes?: string;
+}
+
 export interface GolferProfile {
   name: string;
   gender: '' | 'male' | 'female';
@@ -75,6 +88,7 @@ export interface GolferProfile {
   diagnosisGoals: string[];
   primaryConcern: string;
   targetHandicap: number | null;
+  trackmanData?: TrackmanData[];
 }
 
 export interface DiagnosisInput {

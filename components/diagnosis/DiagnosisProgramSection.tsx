@@ -1,12 +1,13 @@
 import React, { useMemo, useState } from 'react';
-import { DiagnosisFactorKey, DiagnosisInput, DiagnosisProgram, GolferProfile } from '../../types/diagnosis';
+import { DiagnosisFactorKey, DiagnosisInput, DiagnosisProgram, GolferProfile, TrackmanData } from '../../types/diagnosis';
 import { PostureAnalysisResult } from '../../types/postureAnalysis';
 import { DiagnosisHero } from './DiagnosisHero';
 import { Button } from '../Button';
 import { clampDiagnosisScore } from '../../utils/diagnosis';
 import { useLanguage } from '../LanguageContext';
-import { ChevronDown, ChevronUp } from 'lucide-react';
+import { ChevronDown, ChevronUp, Plus, Trash2, Monitor } from 'lucide-react';
 import { PostureAnalysisDashboard } from '../posture/PostureAnalysisDashboard';
+import { ScreenCaptureDialog } from './ScreenCaptureDialog';
 
 interface DiagnosisProgramSectionProps {
   program: DiagnosisProgram;
@@ -44,6 +45,7 @@ const DEFAULT_GOLFER_PROFILE: GolferProfile = {
   diagnosisGoals: [],
   primaryConcern: '',
   targetHandicap: null,
+  trackmanData: [],
 };
 
 const parseNullableNumber = (value: string): number | null => {
@@ -85,6 +87,9 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
   });
   const [postureAnalysisResult, setPostureAnalysisResult] = useState<PostureAnalysisResult | null>(null);
   const [showPostureAnalysis, setShowPostureAnalysis] = useState(false);
+  const [showScreenCapture, setShowScreenCapture] = useState(false);
+  const [selectedClubForCapture, setSelectedClubForCapture] = useState<string>('');
+  const [selectedClub, setSelectedClub] = useState('');
 
   const memberName = golferProfile.name;
 
@@ -167,6 +172,50 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
 
   const handleCancelPostureAnalysis = () => {
     setShowPostureAnalysis(false);
+  };
+
+  const clubOptions = [
+    { value: 'driver', label: t('equipment_club_driver') || '드라이버' },
+    { value: '3-wood', label: t('equipment_club_3wood') || '3번 우드' },
+    { value: '5-wood', label: t('equipment_club_5wood') || '5번 우드' },
+    { value: 'hybrid', label: t('equipment_club_hybrid') || '하이브리드' },
+    { value: '3-iron', label: t('equipment_club_3iron') || '3번 아이언' },
+    { value: '4-iron', label: t('equipment_club_4iron') || '4번 아이언' },
+    { value: '5-iron', label: t('equipment_club_5iron') || '5번 아이언' },
+    { value: '6-iron', label: t('equipment_club_6iron') || '6번 아이언' },
+    { value: '7-iron', label: t('equipment_club_7iron') || '7번 아이언' },
+    { value: '8-iron', label: t('equipment_club_8iron') || '8번 아이언' },
+    { value: '9-iron', label: t('equipment_club_9iron') || '9번 아이언' },
+    { value: 'pw', label: t('equipment_club_pw') || 'PW' },
+    { value: 'sw', label: t('equipment_club_sw') || 'SW' },
+  ];
+
+  const handleAddTrackmanData = (clubType: string) => {
+    if (!clubType.trim()) return;
+    setSelectedClubForCapture(clubType);
+    setShowScreenCapture(true);
+  };
+
+  const handleScreenCapture = (imageDataUrl: string) => {
+    const newTrackmanData: TrackmanData = {
+      clubType: selectedClubForCapture,
+      capturedImageUrl: imageDataUrl,
+    };
+
+    setGolferProfile((prev) => ({
+      ...prev,
+      trackmanData: [...(prev.trackmanData || []), newTrackmanData],
+    }));
+
+    setShowScreenCapture(false);
+    setSelectedClubForCapture('');
+  };
+
+  const handleRemoveTrackmanData = (index: number) => {
+    setGolferProfile((prev) => ({
+      ...prev,
+      trackmanData: (prev.trackmanData || []).filter((_, i) => i !== index),
+    }));
   };
 
   const renderStepInput = () => {
@@ -615,7 +664,109 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
         );
       }
 
-      // For equipment-diagnosis and skill-diagnosis, use the original simple input
+      // Special handling for equipment-diagnosis to integrate club selection and screen capture
+      if (currentStep.id === 'equipment-diagnosis') {
+        return (
+          <div className="space-y-4">
+            <div className="rounded-xl border border-slate-700 bg-slate-900 p-4">
+              <h4 className="text-sm font-semibold text-violet-300 mb-3">
+                {t('equipment_diagnosis_title') || '장비 진단 (트랙맨 데이터)'}
+              </h4>
+              <p className="text-xs text-slate-400 mb-4">
+                {t('equipment_diagnosis_desc') || '클럽을 선택하고 트랙맨 화면을 캡처하여 데이터를 수집합니다.'}
+              </p>
+
+              <div className="space-y-3 mb-4">
+                <label className="space-y-2">
+                  <span className="text-sm text-slate-300">
+                    {t('equipment_select_club') || '클럽 선택'}
+                  </span>
+                  <div className="flex gap-2">
+                    <select
+                      value={selectedClub}
+                      onChange={(e) => setSelectedClub(e.target.value)}
+                      className="flex-1 rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none focus:border-violet-500"
+                      data-testid="equipment-club-select"
+                    >
+                      <option value="">{t('equipment_select_club_placeholder') || '클럽을 선택하세요'}</option>
+                      {clubOptions.map((club) => (
+                        <option key={club.value} value={club.value}>
+                          {club.label}
+                        </option>
+                      ))}
+                    </select>
+                    <Button
+                      onClick={() => handleAddTrackmanData(selectedClub)}
+                      disabled={!selectedClub}
+                      className="flex items-center gap-2 whitespace-nowrap"
+                      data-testid="add-trackman-data-btn"
+                    >
+                      <Monitor className="w-4 h-4" />
+                      {t('equipment_capture_screen') || '화면 캡처'}
+                    </Button>
+                  </div>
+                </label>
+              </div>
+
+              {(golferProfile.trackmanData && golferProfile.trackmanData.length > 0) && (
+                <div className="space-y-2">
+                  <h5 className="text-xs font-medium text-slate-300">
+                    {t('equipment_captured_data') || '캡처된 데이터'}
+                  </h5>
+                  {golferProfile.trackmanData.map((data, index) => (
+                    <div
+                      key={index}
+                      className="flex items-start gap-3 p-3 bg-slate-950 border border-slate-700 rounded-lg"
+                    >
+                      {data.capturedImageUrl && (
+                        <img
+                          src={data.capturedImageUrl}
+                          alt={`Trackman ${data.clubType}`}
+                          className="w-24 h-16 object-cover rounded border border-slate-600"
+                        />
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-slate-200">
+                          {clubOptions.find((c) => c.value === data.clubType)?.label || data.clubType}
+                        </p>
+                        <p className="text-xs text-slate-400 mt-1">
+                          {t('equipment_data_captured') || '트랙맨 데이터 캡처 완료'}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => handleRemoveTrackmanData(index)}
+                        className="text-red-400 hover:text-red-300 p-1"
+                        data-testid={`remove-trackman-data-${index}`}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <label className="block space-y-2 rounded-xl border border-slate-700 bg-slate-900 p-3">
+              <span className="text-sm text-slate-300">{factor.label} 점수</span>
+              <input
+                type="number"
+                min={0}
+                max={100}
+                step={1}
+                value={factorScores[factorKey] ?? 0}
+                onChange={(event) => handleScoreChange(factorKey, event.target.value)}
+                className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none focus:border-violet-500"
+                data-testid={`diagnosis-score-input-${factorKey}`}
+              />
+              <p className="text-xs text-slate-400">
+                {t('equipment_score_help') || '점수는 0~100 범위로 자동 보정됩니다. 트랙맨 데이터를 참고하여 입력하세요.'}
+              </p>
+            </label>
+          </div>
+        );
+      }
+
+      // For skill-diagnosis, use the original simple input
       return (
         <label className="block space-y-2 rounded-xl border border-slate-700 bg-slate-900 p-3">
           <span className="text-sm text-slate-300">{factor.label} 점수</span>
@@ -756,6 +907,13 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
             </Button>
           </div>
         </>
+      )}
+
+      {showScreenCapture && (
+        <ScreenCaptureDialog
+          onCapture={handleScreenCapture}
+          onClose={() => setShowScreenCapture(false)}
+        />
       )}
     </div>
   );
