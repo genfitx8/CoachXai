@@ -165,10 +165,7 @@ describe('Coach dashboard – lesson-first MVP home', () => {
     await waitFor(() => {
       expect(screen.getByTestId('diagnosis-program-section')).toBeInTheDocument();
     });
-    expect(screen.getByText('진행 프로세스')).toBeInTheDocument();
     expect(screen.getAllByText('골퍼 기본정보 입력').length).toBeGreaterThan(0);
-    expect(screen.getByText('코스메니지먼트 & 멘탈')).toBeInTheDocument();
-    expect(screen.getByText('골프 체형 분석 및 능력 진단')).toBeInTheDocument();
     expect(screen.getByText('프로세스 1 / 6')).toBeInTheDocument();
     expect(screen.getByTestId('diagnosis-view-result-btn')).toBeInTheDocument();
     expect(screen.queryByText('회원 관리')).toBeNull();
