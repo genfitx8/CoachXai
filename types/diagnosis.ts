@@ -56,7 +56,7 @@ export interface GolferProfile {
   contact: string;
   heightCm: number | null;
   weightKg: number | null;
-  golfStartDate: string;
+  yearsOfExperience: number | null;
   handicap: number | null;
   averageScore: number | null;
   bestScore: number | null;

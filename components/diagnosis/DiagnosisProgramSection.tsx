@@ -25,7 +25,7 @@ const DEFAULT_GOLFER_PROFILE: GolferProfile = {
   contact: '',
   heightCm: null,
   weightKg: null,
-  golfStartDate: '',
+  yearsOfExperience: null,
   handicap: null,
   averageScore: null,
   bestScore: null,
@@ -104,16 +104,14 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
   const requiredMissingFields = useMemo(() => {
     const missing: string[] = [];
     if (currentStep?.id === 'golfer-profile') {
-      // Step 1: Basic information only
       if (!golferProfile.name.trim()) missing.push(t('diagnosis_golfer_name'));
       if (!golferProfile.gender) missing.push(t('diagnosis_golfer_gender'));
       if (!golferProfile.birthDate) missing.push(t('diagnosis_golfer_birth_date'));
-      if (!golferProfile.golfStartDate) missing.push(t('diagnosis_golfer_golf_start_date'));
+      if (golferProfile.yearsOfExperience === null) missing.push(t('diagnosis_golfer_years_of_experience'));
       if (golferProfile.averageScore === null) missing.push(t('diagnosis_golfer_average_score'));
       if (!golferProfile.dominantHand) missing.push(t('diagnosis_golfer_dominant_hand'));
       if (golferProfile.diagnosisGoals.length < 1) missing.push(t('diagnosis_golfer_diagnosis_goals'));
     } else if (currentStep?.id === 'body-diagnosis') {
-      // Step 2: Physical/health information
       if (golferProfile.heightCm === null) missing.push(t('diagnosis_golfer_height_cm'));
     }
     return missing;
@@ -264,24 +262,15 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
             {expandedSections.history && (
             <div className="grid gap-3 md:grid-cols-2">
               <label className="space-y-2">
-                <span className="text-sm text-slate-300">{t('diagnosis_golfer_golf_start_date')}</span>
-                <input
-                  type="date"
-                  value={golferProfile.golfStartDate}
-                  onChange={(event) => setGolferProfile((prev) => ({ ...prev, golfStartDate: event.target.value }))}
-                  className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none focus:border-violet-500"
-                  data-testid="diagnosis-golfer-golf-start-date-input"
-                />
-              </label>
-              <label className="space-y-2">
-                <span className="text-sm text-slate-300">{t('diagnosis_golfer_handicap')}</span>
+                <span className="text-sm text-slate-300">{t('diagnosis_golfer_years_of_experience')}</span>
                 <input
                   type="number"
                   min={0}
-                  value={golferProfile.handicap ?? ''}
-                  onChange={(event) => setGolferProfile((prev) => ({ ...prev, handicap: parseNullableNumber(event.target.value) }))}
+                  value={golferProfile.yearsOfExperience ?? ''}
+                  onChange={(event) => setGolferProfile((prev) => ({ ...prev, yearsOfExperience: parseNullableNumber(event.target.value) }))}
+                  placeholder="0"
                   className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none focus:border-violet-500"
-                  data-testid="diagnosis-golfer-handicap-input"
+                  data-testid="diagnosis-golfer-years-of-experience-input"
                 />
               </label>
               <label className="space-y-2">
@@ -658,9 +647,8 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
         <ul className="space-y-2 text-sm text-slate-300">
           <li>{t('diagnosis_golfer_name')}: {memberName || '-'}</li>
           <li>{t('diagnosis_golfer_contact')}: {golferProfile.contact || '-'}</li>
-          <li>{t('diagnosis_golfer_handicap')}: {golferProfile.handicap ?? '-'}</li>
           <li>{t('diagnosis_golfer_best_score')}: {golferProfile.bestScore ?? '-'}</li>
-          <li>{t('diagnosis_golfer_golf_start_date')}: {golferProfile.golfStartDate || '-'}</li>
+          <li>{t('diagnosis_golfer_years_of_experience')}: {golferProfile.yearsOfExperience !== null ? `${golferProfile.yearsOfExperience}년` : '-'}</li>
           {scoreEntries.map((entry) => (
             <li key={entry.key}>
               {entry.label}: {entry.score}점
