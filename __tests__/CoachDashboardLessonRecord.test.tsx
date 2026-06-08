@@ -184,10 +184,30 @@ describe('Coach dashboard – lesson-first MVP home', () => {
     fireEvent.change(screen.getByTestId('diagnosis-member-name-input'), {
       target: { value: '홍길동' },
     });
+    fireEvent.change(screen.getByTestId('diagnosis-golfer-gender-select'), {
+      target: { value: 'male' },
+    });
+    fireEvent.change(screen.getByTestId('diagnosis-golfer-birth-date-input'), {
+      target: { value: '1990-02-14' },
+    });
+    fireEvent.change(screen.getByTestId('diagnosis-golfer-height-input'), {
+      target: { value: '178' },
+    });
+    fireEvent.change(screen.getByTestId('diagnosis-golfer-golf-start-date-input'), {
+      target: { value: '2020-01-10' },
+    });
+    fireEvent.change(screen.getByTestId('diagnosis-golfer-average-score-input'), {
+      target: { value: '92' },
+    });
+    fireEvent.change(screen.getByTestId('diagnosis-golfer-dominant-hand-select'), {
+      target: { value: 'right' },
+    });
+    fireEvent.click(screen.getByTestId('diagnosis-golfer-goal-score-improvement'));
     fireEvent.click(screen.getByTestId('diagnosis-next-step-btn'));
     fireEvent.change(screen.getByTestId('diagnosis-score-input-body'), {
       target: { value: '90' },
     });
+
     fireEvent.click(screen.getByTestId('diagnosis-next-step-btn'));
     fireEvent.change(screen.getByTestId('diagnosis-score-input-equipment'), {
       target: { value: '85' },
@@ -218,6 +238,44 @@ describe('Coach dashboard – lesson-first MVP home', () => {
     await waitFor(() => {
       expect(screen.getByTestId('diagnosis-program-section')).toBeInTheDocument();
     });
+  });
+
+  it('requires golfer profile mandatory inputs before moving to next step', async () => {
+    await renderCoachApp();
+    fireEvent.click(screen.getByTestId('diagnosis-program-entry-btn'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('diagnosis-program-section')).toBeInTheDocument();
+    });
+
+    const nextButton = screen.getByTestId('diagnosis-next-step-btn');
+    expect(nextButton).toBeDisabled();
+    expect(screen.getByTestId('diagnosis-golfer-required-hint')).toBeInTheDocument();
+
+    fireEvent.change(screen.getByTestId('diagnosis-member-name-input'), {
+      target: { value: '홍길동' },
+    });
+    fireEvent.change(screen.getByTestId('diagnosis-golfer-gender-select'), {
+      target: { value: 'male' },
+    });
+    fireEvent.change(screen.getByTestId('diagnosis-golfer-birth-date-input'), {
+      target: { value: '1994-05-13' },
+    });
+    fireEvent.change(screen.getByTestId('diagnosis-golfer-height-input'), {
+      target: { value: '177' },
+    });
+    fireEvent.change(screen.getByTestId('diagnosis-golfer-golf-start-date-input'), {
+      target: { value: '2021-03-01' },
+    });
+    fireEvent.change(screen.getByTestId('diagnosis-golfer-average-score-input'), {
+      target: { value: '88' },
+    });
+    fireEvent.change(screen.getByTestId('diagnosis-golfer-dominant-hand-select'), {
+      target: { value: 'right' },
+    });
+    fireEvent.click(screen.getByTestId('diagnosis-golfer-goal-score-improvement'));
+
+    expect(nextButton).not.toBeDisabled();
   });
 
   it('moves direct member registration entry into Lesson start flow', async () => {

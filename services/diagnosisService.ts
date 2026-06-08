@@ -14,6 +14,25 @@ const log = createLogger('diagnosisService');
 const STORAGE_KEY = 'swingnote_diagnosis_sessions';
 const DEFAULT_MEMBER_NAME = '회원';
 
+const normalizeInput = (input: DiagnosisInput): DiagnosisInput => {
+  const fallbackName = input.memberName.trim() || input.golferProfile?.name?.trim() || DEFAULT_MEMBER_NAME;
+  if (!input.golferProfile) {
+    return {
+      ...input,
+      memberName: fallbackName,
+    };
+  }
+
+  return {
+    ...input,
+    memberName: fallbackName,
+    golferProfile: {
+      ...input.golferProfile,
+      name: fallbackName,
+    },
+  };
+};
+
 const FACTOR_RECOMMENDATION_MAP: Record<DiagnosisFactorKey, { title: string; low: string; high: string }> = {
   body: {
     title: '체형·능력 개선 과제',
@@ -117,13 +136,15 @@ const writeSessions = (sessions: DiagnosisSavedSession[]) => {
 
 export const diagnosisService = {
   createResult(input: DiagnosisInput): DiagnosisResult {
-    const factors = toFactorScores(input.factorScores);
+    const normalizedInput = normalizeInput(input);
+    const factors = toFactorScores(normalizedInput.factorScores);
     const overallScore = getDiagnosisAverageScore(factors);
     const weakestFactor = [...factors].sort((a, b) => a.score - b.score)[0];
     const strongestFactor = [...factors].sort((a, b) => b.score - a.score)[0];
 
     return {
-      memberName: input.memberName.trim() || DEFAULT_MEMBER_NAME,
+      memberName: normalizedInput.memberName,
+      golferProfile: normalizedInput.golferProfile,
       overallScore,
       grade: getDiagnosisGrade(overallScore),
       summary: `종합 분석 결과 ${strongestFactor.label}(${strongestFactor.score}점)이 강점이며, 현재 가장 큰 병목은 ${weakestFactor.label}(${weakestFactor.score}점)입니다. 병목 영역 중심의 맞춤형 개선 로드맵을 권장합니다.`,
@@ -134,12 +155,13 @@ export const diagnosisService = {
   },
 
   saveResult(input: DiagnosisInput): DiagnosisSavedSession {
+    const normalizedInput = normalizeInput(input);
     const fallbackId = `diagnosis-${Date.now()}-${Math.floor(performance.now() * 1000)}`;
     const session: DiagnosisSavedSession = {
       id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : fallbackId,
       createdAt: new Date().toISOString(),
-      input,
-      result: this.createResult(input),
+      input: normalizedInput,
+      result: this.createResult(normalizedInput),
     };
     const all = [session, ...readSessions()];
     writeSessions(all);

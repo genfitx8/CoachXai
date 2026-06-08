@@ -40,6 +40,7 @@ export interface DiagnosisRecommendation {
 
 export interface DiagnosisResult {
   memberName: string;
+  golferProfile?: GolferProfile;
   overallScore: number;
   grade: string;
   summary: string;
@@ -48,8 +49,37 @@ export interface DiagnosisResult {
   recommendations: DiagnosisRecommendation[];
 }
 
+export interface GolferProfile {
+  name: string;
+  gender: '' | 'male' | 'female';
+  birthDate: string;
+  contact: string;
+  heightCm: number | null;
+  weightKg: number | null;
+  golfStartDate: string;
+  handicap: number | null;
+  averageScore: number | null;
+  bestScore: number | null;
+  dominantHand: '' | 'right' | 'left';
+  roundFrequency: string;
+  practiceFrequency: string;
+  injuryHistory: string;
+  injuryMemo: string;
+  currentPainAreas: string;
+  otherSportsExperience: string;
+  flexibilitySelfAssessment: number | null;
+  driverModel: string;
+  ironModel: string;
+  shaftFlex: string;
+  ballBrand: string;
+  diagnosisGoals: string[];
+  primaryConcern: string;
+  targetHandicap: number | null;
+}
+
 export interface DiagnosisInput {
   memberName: string;
+  golferProfile?: GolferProfile;
   factorScores: Record<DiagnosisFactorKey, number>;
 }
 
