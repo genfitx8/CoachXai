@@ -146,7 +146,6 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
   const currentStep = program.steps[activeStepIndex];
   const isFirstStep = activeStepIndex === 0;
   const isFinalStep = activeStepIndex === program.steps.length - 1;
-  const isCurrentStepValid = currentStep?.id !== 'golfer-profile' || requiredMissingFields.length === 0;
 
   const toggleGoal = (goal: string) => {
     setGolferProfile((prev) => ({
@@ -897,7 +896,6 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
                 {!isFinalStep && (
                   <Button
                     onClick={() => setActiveStepIndex((prev) => Math.min(prev + 1, program.steps.length - 1))}
-                    disabled={!isCurrentStepValid}
                     data-testid="diagnosis-next-step-btn"
                   >
                     다음 프로세스
