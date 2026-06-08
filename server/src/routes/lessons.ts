@@ -55,11 +55,41 @@ function mapLesson(row: Record<string, unknown>) {
 // GET /api/lessons
 router.get('/', async (req: Request, res: Response) => {
   try {
-    const coachId = req.user!.id;
-    const result = await pool.query(
-      'SELECT * FROM lessons WHERE coach_id = $1 ORDER BY created_at DESC',
-      [coachId]
-    );
+    const userId = req.user!.id;
+    const userRole = req.user!.role;
+
+    let result;
+    if (userRole === 'coach') {
+      // Coach: fetch all lessons assigned to this coach
+      result = await pool.query(
+        'SELECT * FROM lessons WHERE coach_id = $1 ORDER BY created_at DESC',
+        [userId]
+      );
+    } else if (userRole === 'client') {
+      // Client: first get the client's name and phone to construct the composite key
+      const clientResult = await pool.query(
+        'SELECT name, phone FROM clients WHERE id = $1',
+        [userId]
+      );
+
+      if (clientResult.rows.length === 0) {
+        res.status(404).json({ error: 'Client not found' });
+        return;
+      }
+
+      const client = clientResult.rows[0];
+      const clientCompositeId = `${client.name}_${client.phone}`;
+
+      // Fetch lessons using the composite key
+      result = await pool.query(
+        'SELECT * FROM lessons WHERE client_id = $1 ORDER BY created_at DESC',
+        [clientCompositeId]
+      );
+    } else {
+      res.status(403).json({ error: 'Invalid user role' });
+      return;
+    }
+
     res.json({ lessons: result.rows.map(mapLesson) });
   } catch (err) {
     console.error('[lessons] GET / error:', err);
