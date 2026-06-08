@@ -110,12 +110,11 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
   };
 
   const handleCreateResult = () => {
-    const normalizedName = memberName.trim();
     onCreateResult({
-      memberName: normalizedName,
+      memberName,
       golferProfile: {
         ...golferProfile,
-        name: normalizedName,
+        name: memberName,
       },
       factorScores,
     });
