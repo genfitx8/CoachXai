@@ -193,8 +193,8 @@ describe('Coach dashboard – lesson-first MVP home', () => {
     fireEvent.change(screen.getByTestId('diagnosis-golfer-height-input'), {
       target: { value: '178' },
     });
-    fireEvent.change(screen.getByTestId('diagnosis-golfer-golf-start-date-input'), {
-      target: { value: '2020-01-10' },
+    fireEvent.change(screen.getByTestId('diagnosis-golfer-years-of-experience-input'), {
+      target: { value: '5' },
     });
     fireEvent.change(screen.getByTestId('diagnosis-golfer-average-score-input'), {
       target: { value: '92' },
@@ -264,8 +264,8 @@ describe('Coach dashboard – lesson-first MVP home', () => {
     fireEvent.change(screen.getByTestId('diagnosis-golfer-height-input'), {
       target: { value: '177' },
     });
-    fireEvent.change(screen.getByTestId('diagnosis-golfer-golf-start-date-input'), {
-      target: { value: '2021-03-01' },
+    fireEvent.change(screen.getByTestId('diagnosis-golfer-years-of-experience-input'), {
+      target: { value: '4' },
     });
     fireEvent.change(screen.getByTestId('diagnosis-golfer-average-score-input'), {
       target: { value: '88' },

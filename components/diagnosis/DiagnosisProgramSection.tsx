@@ -25,7 +25,7 @@ const DEFAULT_GOLFER_PROFILE: GolferProfile = {
   contact: '',
   heightCm: null,
   weightKg: null,
-  golfStartDate: '',
+  yearsOfExperience: null,
   handicap: null,
   averageScore: null,
   bestScore: null,
@@ -103,7 +103,7 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
     if (!golferProfile.gender) missing.push(t('diagnosis_golfer_gender'));
     if (!golferProfile.birthDate) missing.push(t('diagnosis_golfer_birth_date'));
     if (golferProfile.heightCm === null) missing.push(t('diagnosis_golfer_height_cm'));
-    if (!golferProfile.golfStartDate) missing.push(t('diagnosis_golfer_golf_start_date'));
+    if (golferProfile.yearsOfExperience === null) missing.push(t('diagnosis_golfer_years_of_experience'));
     if (golferProfile.averageScore === null) missing.push(t('diagnosis_golfer_average_score'));
     if (!golferProfile.dominantHand) missing.push(t('diagnosis_golfer_dominant_hand'));
     if (golferProfile.diagnosisGoals.length < 1) missing.push(t('diagnosis_golfer_diagnosis_goals'));
@@ -278,13 +278,15 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
             {expandedSections.history && (
             <div className="grid gap-3 md:grid-cols-2">
               <label className="space-y-2">
-                <span className="text-sm text-slate-300">{t('diagnosis_golfer_golf_start_date')}</span>
+                <span className="text-sm text-slate-300">{t('diagnosis_golfer_years_of_experience')}</span>
                 <input
-                  type="date"
-                  value={golferProfile.golfStartDate}
-                  onChange={(event) => setGolferProfile((prev) => ({ ...prev, golfStartDate: event.target.value }))}
+                  type="number"
+                  min={0}
+                  value={golferProfile.yearsOfExperience ?? ''}
+                  onChange={(event) => setGolferProfile((prev) => ({ ...prev, yearsOfExperience: parseNullableNumber(event.target.value) }))}
+                  placeholder="0"
                   className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none focus:border-violet-500"
-                  data-testid="diagnosis-golfer-golf-start-date-input"
+                  data-testid="diagnosis-golfer-years-of-experience-input"
                 />
               </label>
               <label className="space-y-2">
@@ -658,7 +660,7 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
           <li>{t('diagnosis_golfer_contact')}: {golferProfile.contact || '-'}</li>
           <li>{t('diagnosis_golfer_handicap')}: {golferProfile.handicap ?? '-'}</li>
           <li>{t('diagnosis_golfer_best_score')}: {golferProfile.bestScore ?? '-'}</li>
-          <li>{t('diagnosis_golfer_golf_start_date')}: {golferProfile.golfStartDate || '-'}</li>
+          <li>{t('diagnosis_golfer_years_of_experience')}: {golferProfile.yearsOfExperience !== null ? `${golferProfile.yearsOfExperience}년` : '-'}</li>
           {scoreEntries.map((entry) => (
             <li key={entry.key}>
               {entry.label}: {entry.score}점
