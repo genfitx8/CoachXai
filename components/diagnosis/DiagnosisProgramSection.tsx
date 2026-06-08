@@ -1,8 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { DiagnosisFactorKey, DiagnosisInput, DiagnosisProgram } from '../../types/diagnosis';
 import { DiagnosisHero } from './DiagnosisHero';
-import { DiagnosisFactors } from './DiagnosisFactors';
-import { DiagnosisProcess } from './DiagnosisProcess';
 import { Button } from '../Button';
 import { clampDiagnosisScore } from '../../utils/diagnosis';
 
@@ -143,8 +141,6 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
       </div>
 
       <DiagnosisHero title={program.title} subtitle={program.subtitle} description={program.description} />
-      <DiagnosisFactors factors={program.factors} />
-      <DiagnosisProcess steps={program.steps} />
 
       <section className="rounded-2xl border border-slate-700 bg-slate-900/70 p-6">
         <h3 className="text-lg font-semibold text-slate-100">진단 입력</h3>
