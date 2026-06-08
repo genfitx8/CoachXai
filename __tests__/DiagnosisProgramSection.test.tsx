@@ -5,6 +5,37 @@ import { DiagnosisProgramSection } from '../components/diagnosis/DiagnosisProgra
 import { DIAGNOSIS_FACTORS, DIAGNOSIS_PROCESS } from '../constants/diagnosis';
 import { LanguageProvider } from '../components/LanguageContext';
 
+vi.mock('../components/posture/PostureAnalysisDashboard', () => ({
+  PostureAnalysisDashboard: ({ onComplete }: { onComplete?: (result: any) => void }) => (
+    <div data-testid="mock-posture-analysis-dashboard">
+      <button
+        type="button"
+        data-testid="mock-posture-analysis-complete-btn"
+        onClick={() =>
+          onComplete?.({
+            id: 'posture-test',
+            frontCapture: {},
+            sideCapture: {},
+            frontSkeleton: [],
+            sideSkeleton: [],
+            balance: {
+              overallScore: 88.4,
+              shoulderAlignment: 91.2,
+              hipAlignment: 85.8,
+              spineAngle: 3.4,
+            },
+            problemAreas: [],
+            recommendations: [],
+            createdAt: new Date().toISOString(),
+          })
+        }
+      >
+        posture complete
+      </button>
+    </div>
+  ),
+}));
+
 const renderSection = (props?: Partial<React.ComponentProps<typeof DiagnosisProgramSection>>) => {
   const onCreateResult = vi.fn();
 
@@ -64,5 +95,27 @@ describe('DiagnosisProgramSection golfer profile', () => {
     fireEvent.click(screen.getByTestId('diagnosis-golfer-goal-score-improvement'));
 
     expect(nextButton).not.toBeDisabled();
+  });
+
+  it('auto fills the body score after skeleton analysis completes', () => {
+    renderSection();
+
+    fireEvent.change(screen.getByTestId('diagnosis-member-name-input'), { target: { value: '홍길동' } });
+    fireEvent.change(screen.getByTestId('diagnosis-golfer-gender-select'), { target: { value: 'male' } });
+    fireEvent.change(screen.getByTestId('diagnosis-golfer-birth-date-input'), { target: { value: '1993-07-01' } });
+    fireEvent.change(screen.getByTestId('diagnosis-golfer-height-input'), { target: { value: '176' } });
+    fireEvent.change(screen.getByTestId('diagnosis-golfer-years-of-experience-input'), { target: { value: '3' } });
+    fireEvent.change(screen.getByTestId('diagnosis-golfer-average-score-input'), { target: { value: '90' } });
+    fireEvent.change(screen.getByTestId('diagnosis-golfer-dominant-hand-select'), { target: { value: 'right' } });
+    fireEvent.click(screen.getByTestId('diagnosis-golfer-goal-score-improvement'));
+    fireEvent.click(screen.getByTestId('diagnosis-next-step-btn'));
+
+    expect(screen.getByTestId('diagnosis-score-input-body')).toHaveValue(null);
+
+    fireEvent.click(screen.getByTestId('start-posture-analysis-btn'));
+    fireEvent.click(screen.getByTestId('mock-posture-analysis-complete-btn'));
+
+    expect(screen.getByTestId('diagnosis-score-input-body')).toHaveValue(88);
+    expect(screen.getByText('스켈레톤 분석 결과로 자동 설정되었습니다. 필요시 수동으로 조정 가능합니다.')).toBeInTheDocument();
   });
 });

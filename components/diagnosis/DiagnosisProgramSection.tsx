@@ -72,10 +72,11 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
   }));
   const [factorScores, setFactorScores] = useState<Record<DiagnosisFactorKey, number>>(() =>
     program.factors.reduce(
-      (acc, factor) => ({ ...acc, [factor.key]: factor.score }),
+      (acc, factor) => ({ ...acc, [factor.key]: factor.key === 'body' ? 0 : factor.score }),
       {} as Record<DiagnosisFactorKey, number>
     )
   );
+  const [bodyScoreSource, setBodyScoreSource] = useState<'unset' | 'manual' | 'analysis'>('unset');
   const [courseMentalNote, setCourseMentalNote] = useState('');
   const [activeStepIndex, setActiveStepIndex] = useState(0);
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
@@ -163,6 +164,7 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
     setShowPostureAnalysis(false);
     // Automatically set body score based on posture analysis overall score
     const bodyScore = Math.round(result.balance.overallScore);
+    setBodyScoreSource('analysis');
     setFactorScores((prev) => ({ ...prev, body: clampDiagnosisScore(bodyScore) }));
   };
 
@@ -640,8 +642,12 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
                 min={0}
                 max={100}
                 step={1}
-                value={factorScores[factorKey] ?? 0}
-                onChange={(event) => handleScoreChange(factorKey, event.target.value)}
+                value={bodyScoreSource === 'unset' ? '' : factorScores[factorKey]}
+                onChange={(event) => {
+                  setBodyScoreSource(event.target.value.trim() ? 'manual' : 'unset');
+                  handleScoreChange(factorKey, event.target.value);
+                }}
+                placeholder="스켈레톤 분석 후 자동 입력"
                 className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none focus:border-violet-500"
                 data-testid={`diagnosis-score-input-${factorKey}`}
               />
