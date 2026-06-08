@@ -61,7 +61,7 @@ import { CoachXChat } from './components/CoachXChat';
 import { buildMemberGrowthReports } from './services/coachXService';
 import { DIAGNOSIS_FACTORS, DIAGNOSIS_PROCESS } from './constants/diagnosis';
 import { diagnosisService } from './services/diagnosisService';
-import { DiagnosisInput, DiagnosisProgram, DiagnosisSavedSession } from './types/diagnosis';
+import { DiagnosisInput, DiagnosisProgram, DiagnosisSavedSession, GolferProfile } from './types/diagnosis';
 import {
   Plus,
   Search,
@@ -153,6 +153,20 @@ const AppContent: React.FC = () => {
   const [selectedClientForTraining, setSelectedClientForTraining] = useState<ClientProfile | null>(null);
   const [trainingProgramReturnView, setTrainingProgramReturnView] = useState<ViewState>('CLIENTS');
   const [selectedDiagnosisSession, setSelectedDiagnosisSession] = useState<DiagnosisSavedSession | null>(null);
+  const selectedDiagnosisClient = useMemo(
+    () => clients.find((client) => client.name === selectedClientFilter) ?? null,
+    [clients, selectedClientFilter]
+  );
+  const initialDiagnosisGolferProfile = useMemo<Partial<GolferProfile> | undefined>(() => {
+    if (!selectedDiagnosisClient) return undefined;
+    return {
+      name: selectedDiagnosisClient.name,
+      contact: selectedDiagnosisClient.phone,
+      handicap: selectedDiagnosisClient.handicap ?? null,
+      bestScore: selectedDiagnosisClient.bestScore ?? null,
+      golfStartDate: selectedDiagnosisClient.golfStartDate ?? '',
+    };
+  }, [selectedDiagnosisClient]);
 
   // Lesson Upload / Impact Selection State (golf video editing MVP)
   const [pendingLessonUpload, setPendingLessonUpload] = useState<LessonUpload | null>(null);
@@ -1877,6 +1891,7 @@ const AppContent: React.FC = () => {
             onViewResult={handleDiagnosisResultClick}
             canViewResult={!!selectedDiagnosisSession}
             initialMemberName={selectedClientFilter}
+            initialGolferProfile={initialDiagnosisGolferProfile}
           />
         )}
 

@@ -1,8 +1,9 @@
 import React, { useMemo, useState } from 'react';
-import { DiagnosisFactorKey, DiagnosisInput, DiagnosisProgram } from '../../types/diagnosis';
+import { DiagnosisFactorKey, DiagnosisInput, DiagnosisProgram, GolferProfile } from '../../types/diagnosis';
 import { DiagnosisHero } from './DiagnosisHero';
 import { Button } from '../Button';
 import { clampDiagnosisScore } from '../../utils/diagnosis';
+import { useLanguage } from '../LanguageContext';
 
 interface DiagnosisProgramSectionProps {
   program: DiagnosisProgram;
@@ -11,7 +12,42 @@ interface DiagnosisProgramSectionProps {
   onViewResult: () => void;
   canViewResult: boolean;
   initialMemberName?: string;
+  initialGolferProfile?: Partial<GolferProfile>;
 }
+
+const DEFAULT_GOLFER_PROFILE: GolferProfile = {
+  name: '',
+  gender: '',
+  birthDate: '',
+  contact: '',
+  heightCm: null,
+  weightKg: null,
+  golfStartDate: '',
+  handicap: null,
+  averageScore: null,
+  bestScore: null,
+  dominantHand: '',
+  roundFrequency: '',
+  practiceFrequency: '',
+  injuryHistory: '',
+  injuryMemo: '',
+  currentPainAreas: '',
+  otherSportsExperience: '',
+  flexibilitySelfAssessment: null,
+  driverModel: '',
+  ironModel: '',
+  shaftFlex: '',
+  ballBrand: '',
+  diagnosisGoals: [],
+  primaryConcern: '',
+  targetHandicap: null,
+};
+
+const parseNullableNumber = (value: string): number | null => {
+  if (!value.trim()) return null;
+  const parsed = Number(value);
+  return Number.isNaN(parsed) ? null : parsed;
+};
 
 export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = ({
   program,
@@ -20,8 +56,15 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
   onViewResult,
   canViewResult,
   initialMemberName,
+  initialGolferProfile,
 }) => {
-  const [memberName, setMemberName] = useState(initialMemberName ?? '');
+  const { t } = useLanguage();
+  const [golferProfile, setGolferProfile] = useState<GolferProfile>(() => ({
+    ...DEFAULT_GOLFER_PROFILE,
+    ...initialGolferProfile,
+    diagnosisGoals: initialGolferProfile?.diagnosisGoals ?? DEFAULT_GOLFER_PROFILE.diagnosisGoals,
+    name: initialGolferProfile?.name ?? initialMemberName ?? '',
+  }));
   const [factorScores, setFactorScores] = useState<Record<DiagnosisFactorKey, number>>(() =>
     program.factors.reduce(
       (acc, factor) => ({ ...acc, [factor.key]: factor.score }),
@@ -30,6 +73,30 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
   );
   const [courseMentalNote, setCourseMentalNote] = useState('');
   const [activeStepIndex, setActiveStepIndex] = useState(0);
+
+  const memberName = golferProfile.name;
+
+  const diagnosisGoalOptions = [
+    { key: 'score-improvement', label: t('diagnosis_golfer_goal_score_improvement') },
+    { key: 'distance', label: t('diagnosis_golfer_goal_distance') },
+    { key: 'accuracy', label: t('diagnosis_golfer_goal_accuracy') },
+    { key: 'consistency', label: t('diagnosis_golfer_goal_consistency') },
+    { key: 'injury-prevention', label: t('diagnosis_golfer_goal_injury_prevention') },
+    { key: 'mental', label: t('diagnosis_golfer_goal_mental') },
+  ];
+
+  const requiredMissingFields = useMemo(() => {
+    const missing: string[] = [];
+    if (!golferProfile.name.trim()) missing.push(t('diagnosis_golfer_name'));
+    if (!golferProfile.gender) missing.push(t('diagnosis_golfer_gender'));
+    if (!golferProfile.birthDate) missing.push(t('diagnosis_golfer_birth_date'));
+    if (golferProfile.heightCm === null) missing.push(t('diagnosis_golfer_height_cm'));
+    if (!golferProfile.golfStartDate) missing.push(t('diagnosis_golfer_golf_start_date'));
+    if (golferProfile.averageScore === null) missing.push(t('diagnosis_golfer_average_score'));
+    if (!golferProfile.dominantHand) missing.push(t('diagnosis_golfer_dominant_hand'));
+    if (golferProfile.diagnosisGoals.length < 1) missing.push(t('diagnosis_golfer_diagnosis_goals'));
+    return missing;
+  }, [golferProfile, t]);
 
   const scoreEntries = useMemo(
     () => program.factors.map((factor) => ({ key: factor.key, label: factor.label, score: factorScores[factor.key] ?? 0 })),
@@ -45,6 +112,10 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
   const handleCreateResult = () => {
     onCreateResult({
       memberName,
+      golferProfile: {
+        ...golferProfile,
+        name: memberName,
+      },
       factorScores,
     });
   };
@@ -52,22 +123,329 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
   const currentStep = program.steps[activeStepIndex];
   const isFirstStep = activeStepIndex === 0;
   const isFinalStep = activeStepIndex === program.steps.length - 1;
+  const isCurrentStepValid = currentStep?.id !== 'golfer-profile' || requiredMissingFields.length === 0;
+
+  const toggleGoal = (goal: string) => {
+    setGolferProfile((prev) => ({
+      ...prev,
+      diagnosisGoals: prev.diagnosisGoals.includes(goal)
+        ? prev.diagnosisGoals.filter((item) => item !== goal)
+        : [...prev.diagnosisGoals, goal],
+    }));
+  };
 
   const renderStepInput = () => {
     if (!currentStep) return null;
 
     if (currentStep.id === 'golfer-profile') {
       return (
-        <label className="block space-y-2">
-          <span className="text-sm text-slate-300">회원명</span>
-          <input
-            value={memberName}
-            onChange={(event) => setMemberName(event.target.value)}
-            placeholder="회원명을 입력하세요"
-            className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none focus:border-violet-500"
-            data-testid="diagnosis-member-name-input"
-          />
-        </label>
+        <div className="space-y-5">
+          <div className="space-y-3 rounded-xl border border-slate-700 bg-slate-900 p-4">
+            <h4 className="text-sm font-semibold text-violet-300">{t('diagnosis_golfer_section_basic')}</h4>
+            <div className="grid gap-3 md:grid-cols-2">
+              <label className="space-y-2">
+                <span className="text-sm text-slate-300">{t('diagnosis_golfer_name')}</span>
+                <input
+                  value={memberName}
+                  onChange={(event) => setGolferProfile((prev) => ({ ...prev, name: event.target.value }))}
+                  placeholder={t('diagnosis_golfer_name_placeholder')}
+                  className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none focus:border-violet-500"
+                  data-testid="diagnosis-member-name-input"
+                />
+              </label>
+              <label className="space-y-2">
+                <span className="text-sm text-slate-300">{t('diagnosis_golfer_gender')}</span>
+                <select
+                  value={golferProfile.gender}
+                  onChange={(event) =>
+                    setGolferProfile((prev) => ({ ...prev, gender: event.target.value as GolferProfile['gender'] }))
+                  }
+                  className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none focus:border-violet-500"
+                  data-testid="diagnosis-golfer-gender-select"
+                >
+                  <option value="">{t('diagnosis_golfer_select_placeholder')}</option>
+                  <option value="male">{t('diagnosis_golfer_gender_male')}</option>
+                  <option value="female">{t('diagnosis_golfer_gender_female')}</option>
+                </select>
+              </label>
+              <label className="space-y-2">
+                <span className="text-sm text-slate-300">{t('diagnosis_golfer_birth_date')}</span>
+                <input
+                  type="date"
+                  value={golferProfile.birthDate}
+                  onChange={(event) => setGolferProfile((prev) => ({ ...prev, birthDate: event.target.value }))}
+                  className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none focus:border-violet-500"
+                  data-testid="diagnosis-golfer-birth-date-input"
+                />
+              </label>
+              <label className="space-y-2">
+                <span className="text-sm text-slate-300">{t('diagnosis_golfer_contact')}</span>
+                <input
+                  type="tel"
+                  value={golferProfile.contact}
+                  onChange={(event) => setGolferProfile((prev) => ({ ...prev, contact: event.target.value }))}
+                  placeholder="010-0000-0000"
+                  className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none focus:border-violet-500"
+                  data-testid="diagnosis-golfer-contact-input"
+                />
+              </label>
+              <label className="space-y-2">
+                <span className="text-sm text-slate-300">{t('diagnosis_golfer_height_cm')}</span>
+                <input
+                  type="number"
+                  min={0}
+                  value={golferProfile.heightCm ?? ''}
+                  onChange={(event) => setGolferProfile((prev) => ({ ...prev, heightCm: parseNullableNumber(event.target.value) }))}
+                  className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none focus:border-violet-500"
+                  data-testid="diagnosis-golfer-height-input"
+                />
+              </label>
+              <label className="space-y-2">
+                <span className="text-sm text-slate-300">{t('diagnosis_golfer_weight_kg')}</span>
+                <input
+                  type="number"
+                  min={0}
+                  value={golferProfile.weightKg ?? ''}
+                  onChange={(event) => setGolferProfile((prev) => ({ ...prev, weightKg: parseNullableNumber(event.target.value) }))}
+                  className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none focus:border-violet-500"
+                  data-testid="diagnosis-golfer-weight-input"
+                />
+              </label>
+            </div>
+          </div>
+
+          <div className="space-y-3 rounded-xl border border-slate-700 bg-slate-900 p-4">
+            <h4 className="text-sm font-semibold text-violet-300">{t('diagnosis_golfer_section_history')}</h4>
+            <div className="grid gap-3 md:grid-cols-2">
+              <label className="space-y-2">
+                <span className="text-sm text-slate-300">{t('diagnosis_golfer_golf_start_date')}</span>
+                <input
+                  type="date"
+                  value={golferProfile.golfStartDate}
+                  onChange={(event) => setGolferProfile((prev) => ({ ...prev, golfStartDate: event.target.value }))}
+                  className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none focus:border-violet-500"
+                  data-testid="diagnosis-golfer-golf-start-date-input"
+                />
+              </label>
+              <label className="space-y-2">
+                <span className="text-sm text-slate-300">{t('diagnosis_golfer_handicap')}</span>
+                <input
+                  type="number"
+                  min={0}
+                  value={golferProfile.handicap ?? ''}
+                  onChange={(event) => setGolferProfile((prev) => ({ ...prev, handicap: parseNullableNumber(event.target.value) }))}
+                  className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none focus:border-violet-500"
+                  data-testid="diagnosis-golfer-handicap-input"
+                />
+              </label>
+              <label className="space-y-2">
+                <span className="text-sm text-slate-300">{t('diagnosis_golfer_average_score')}</span>
+                <input
+                  type="number"
+                  min={0}
+                  value={golferProfile.averageScore ?? ''}
+                  onChange={(event) => setGolferProfile((prev) => ({ ...prev, averageScore: parseNullableNumber(event.target.value) }))}
+                  className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none focus:border-violet-500"
+                  data-testid="diagnosis-golfer-average-score-input"
+                />
+              </label>
+              <label className="space-y-2">
+                <span className="text-sm text-slate-300">{t('diagnosis_golfer_best_score')}</span>
+                <input
+                  type="number"
+                  min={0}
+                  value={golferProfile.bestScore ?? ''}
+                  onChange={(event) => setGolferProfile((prev) => ({ ...prev, bestScore: parseNullableNumber(event.target.value) }))}
+                  className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none focus:border-violet-500"
+                  data-testid="diagnosis-golfer-best-score-input"
+                />
+              </label>
+              <label className="space-y-2">
+                <span className="text-sm text-slate-300">{t('diagnosis_golfer_dominant_hand')}</span>
+                <select
+                  value={golferProfile.dominantHand}
+                  onChange={(event) =>
+                    setGolferProfile((prev) => ({ ...prev, dominantHand: event.target.value as GolferProfile['dominantHand'] }))
+                  }
+                  className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none focus:border-violet-500"
+                  data-testid="diagnosis-golfer-dominant-hand-select"
+                >
+                  <option value="">{t('diagnosis_golfer_select_placeholder')}</option>
+                  <option value="right">{t('diagnosis_golfer_hand_right')}</option>
+                  <option value="left">{t('diagnosis_golfer_hand_left')}</option>
+                </select>
+              </label>
+              <label className="space-y-2">
+                <span className="text-sm text-slate-300">{t('diagnosis_golfer_round_frequency')}</span>
+                <input
+                  value={golferProfile.roundFrequency}
+                  onChange={(event) => setGolferProfile((prev) => ({ ...prev, roundFrequency: event.target.value }))}
+                  placeholder={t('diagnosis_golfer_round_frequency_placeholder')}
+                  className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none focus:border-violet-500"
+                  data-testid="diagnosis-golfer-round-frequency-input"
+                />
+              </label>
+              <label className="space-y-2 md:col-span-2">
+                <span className="text-sm text-slate-300">{t('diagnosis_golfer_practice_frequency')}</span>
+                <input
+                  value={golferProfile.practiceFrequency}
+                  onChange={(event) => setGolferProfile((prev) => ({ ...prev, practiceFrequency: event.target.value }))}
+                  placeholder={t('diagnosis_golfer_practice_frequency_placeholder')}
+                  className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none focus:border-violet-500"
+                  data-testid="diagnosis-golfer-practice-frequency-input"
+                />
+              </label>
+            </div>
+          </div>
+
+          <div className="space-y-3 rounded-xl border border-slate-700 bg-slate-900 p-4">
+            <h4 className="text-sm font-semibold text-violet-300">{t('diagnosis_golfer_section_physical')}</h4>
+            <div className="grid gap-3 md:grid-cols-2">
+              <label className="space-y-2 md:col-span-2">
+                <span className="text-sm text-slate-300">{t('diagnosis_golfer_injury_history')}</span>
+                <input
+                  value={golferProfile.injuryHistory}
+                  onChange={(event) => setGolferProfile((prev) => ({ ...prev, injuryHistory: event.target.value }))}
+                  className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none focus:border-violet-500"
+                  data-testid="diagnosis-golfer-injury-history-input"
+                />
+              </label>
+              <label className="space-y-2 md:col-span-2">
+                <span className="text-sm text-slate-300">{t('diagnosis_golfer_injury_memo')}</span>
+                <textarea
+                  rows={3}
+                  value={golferProfile.injuryMemo}
+                  onChange={(event) => setGolferProfile((prev) => ({ ...prev, injuryMemo: event.target.value }))}
+                  className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none focus:border-violet-500"
+                  data-testid="diagnosis-golfer-injury-memo-input"
+                />
+              </label>
+              <label className="space-y-2 md:col-span-2">
+                <span className="text-sm text-slate-300">{t('diagnosis_golfer_current_pain_areas')}</span>
+                <input
+                  value={golferProfile.currentPainAreas}
+                  onChange={(event) => setGolferProfile((prev) => ({ ...prev, currentPainAreas: event.target.value }))}
+                  className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none focus:border-violet-500"
+                  data-testid="diagnosis-golfer-current-pain-areas-input"
+                />
+              </label>
+              <label className="space-y-2 md:col-span-2">
+                <span className="text-sm text-slate-300">{t('diagnosis_golfer_other_sports_experience')}</span>
+                <textarea
+                  rows={3}
+                  value={golferProfile.otherSportsExperience}
+                  onChange={(event) => setGolferProfile((prev) => ({ ...prev, otherSportsExperience: event.target.value }))}
+                  className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none focus:border-violet-500"
+                  data-testid="diagnosis-golfer-other-sports-input"
+                />
+              </label>
+              <label className="space-y-2">
+                <span className="text-sm text-slate-300">{t('diagnosis_golfer_flexibility_self_assessment')}</span>
+                <input
+                  type="number"
+                  min={1}
+                  max={5}
+                  value={golferProfile.flexibilitySelfAssessment ?? ''}
+                  onChange={(event) => setGolferProfile((prev) => ({ ...prev, flexibilitySelfAssessment: parseNullableNumber(event.target.value) }))}
+                  className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none focus:border-violet-500"
+                  data-testid="diagnosis-golfer-flexibility-input"
+                />
+              </label>
+            </div>
+          </div>
+
+          <div className="space-y-3 rounded-xl border border-slate-700 bg-slate-900 p-4">
+            <h4 className="text-sm font-semibold text-violet-300">{t('diagnosis_golfer_section_equipment')}</h4>
+            <div className="grid gap-3 md:grid-cols-2">
+              <label className="space-y-2">
+                <span className="text-sm text-slate-300">{t('diagnosis_golfer_driver_model')}</span>
+                <input
+                  value={golferProfile.driverModel}
+                  onChange={(event) => setGolferProfile((prev) => ({ ...prev, driverModel: event.target.value }))}
+                  className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none focus:border-violet-500"
+                  data-testid="diagnosis-golfer-driver-model-input"
+                />
+              </label>
+              <label className="space-y-2">
+                <span className="text-sm text-slate-300">{t('diagnosis_golfer_iron_model')}</span>
+                <input
+                  value={golferProfile.ironModel}
+                  onChange={(event) => setGolferProfile((prev) => ({ ...prev, ironModel: event.target.value }))}
+                  className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none focus:border-violet-500"
+                  data-testid="diagnosis-golfer-iron-model-input"
+                />
+              </label>
+              <label className="space-y-2">
+                <span className="text-sm text-slate-300">{t('diagnosis_golfer_shaft_flex')}</span>
+                <input
+                  value={golferProfile.shaftFlex}
+                  onChange={(event) => setGolferProfile((prev) => ({ ...prev, shaftFlex: event.target.value }))}
+                  className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none focus:border-violet-500"
+                  data-testid="diagnosis-golfer-shaft-flex-input"
+                />
+              </label>
+              <label className="space-y-2">
+                <span className="text-sm text-slate-300">{t('diagnosis_golfer_ball_brand')}</span>
+                <input
+                  value={golferProfile.ballBrand}
+                  onChange={(event) => setGolferProfile((prev) => ({ ...prev, ballBrand: event.target.value }))}
+                  className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none focus:border-violet-500"
+                  data-testid="diagnosis-golfer-ball-brand-input"
+                />
+              </label>
+            </div>
+          </div>
+
+          <div className="space-y-3 rounded-xl border border-slate-700 bg-slate-900 p-4">
+            <h4 className="text-sm font-semibold text-violet-300">{t('diagnosis_golfer_section_goals')}</h4>
+            <div className="space-y-2">
+              <p className="text-sm text-slate-300">{t('diagnosis_golfer_diagnosis_goals')}</p>
+              <div className="grid gap-2 md:grid-cols-2">
+                {diagnosisGoalOptions.map((option) => {
+                  const checked = golferProfile.diagnosisGoals.includes(option.key);
+                  return (
+                    <label key={option.key} className="flex items-center gap-2 text-sm text-slate-200">
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => toggleGoal(option.key)}
+                        data-testid={`diagnosis-golfer-goal-${option.key}`}
+                      />
+                      <span>{option.label}</span>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+            <label className="space-y-2">
+              <span className="text-sm text-slate-300">{t('diagnosis_golfer_primary_concern')}</span>
+              <textarea
+                rows={3}
+                value={golferProfile.primaryConcern}
+                onChange={(event) => setGolferProfile((prev) => ({ ...prev, primaryConcern: event.target.value }))}
+                className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none focus:border-violet-500"
+                data-testid="diagnosis-golfer-primary-concern-input"
+              />
+            </label>
+            <label className="space-y-2 md:max-w-sm">
+              <span className="text-sm text-slate-300">{t('diagnosis_golfer_target_handicap')}</span>
+              <input
+                type="number"
+                min={0}
+                value={golferProfile.targetHandicap ?? ''}
+                onChange={(event) => setGolferProfile((prev) => ({ ...prev, targetHandicap: parseNullableNumber(event.target.value) }))}
+                className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none focus:border-violet-500"
+                data-testid="diagnosis-golfer-target-handicap-input"
+              />
+            </label>
+          </div>
+
+          {requiredMissingFields.length > 0 && (
+            <p className="text-xs text-amber-300" data-testid="diagnosis-golfer-required-hint">
+              {t('diagnosis_golfer_required_help')}: {requiredMissingFields.join(', ')}
+            </p>
+          )}
+        </div>
       );
     }
 
@@ -119,7 +497,11 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
       <div className="space-y-3">
         <p className="text-sm text-slate-300">입력된 진단 항목을 확인한 뒤 통합 리포트를 생성하세요.</p>
         <ul className="space-y-2 text-sm text-slate-300">
-          <li>회원명: {memberName || '-'}</li>
+          <li>{t('diagnosis_golfer_name')}: {memberName || '-'}</li>
+          <li>{t('diagnosis_golfer_contact')}: {golferProfile.contact || '-'}</li>
+          <li>{t('diagnosis_golfer_handicap')}: {golferProfile.handicap ?? '-'}</li>
+          <li>{t('diagnosis_golfer_best_score')}: {golferProfile.bestScore ?? '-'}</li>
+          <li>{t('diagnosis_golfer_golf_start_date')}: {golferProfile.golfStartDate || '-'}</li>
           {scoreEntries.map((entry) => (
             <li key={entry.key}>
               {entry.label}: {entry.score}점
@@ -183,7 +565,11 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
               이전 프로세스
             </Button>
             {!isFinalStep && (
-              <Button onClick={() => setActiveStepIndex((prev) => Math.min(prev + 1, program.steps.length - 1))} data-testid="diagnosis-next-step-btn">
+              <Button
+                onClick={() => setActiveStepIndex((prev) => Math.min(prev + 1, program.steps.length - 1))}
+                disabled={!isCurrentStepValid}
+                data-testid="diagnosis-next-step-btn"
+              >
                 다음 프로세스
               </Button>
             )}
