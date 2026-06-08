@@ -240,7 +240,7 @@ describe('Coach dashboard – lesson-first MVP home', () => {
     });
   });
 
-  it('requires golfer profile mandatory inputs before moving to next step', async () => {
+  it('allows moving to the next diagnosis step before golfer profile inputs are complete', async () => {
     await renderCoachApp();
     fireEvent.click(screen.getByTestId('diagnosis-program-entry-btn'));
 
@@ -249,33 +249,12 @@ describe('Coach dashboard – lesson-first MVP home', () => {
     });
 
     const nextButton = screen.getByTestId('diagnosis-next-step-btn');
-    expect(nextButton).toBeDisabled();
+    expect(nextButton).not.toBeDisabled();
     expect(screen.getByTestId('diagnosis-golfer-required-hint')).toBeInTheDocument();
 
-    fireEvent.change(screen.getByTestId('diagnosis-member-name-input'), {
-      target: { value: '홍길동' },
-    });
-    fireEvent.change(screen.getByTestId('diagnosis-golfer-gender-select'), {
-      target: { value: 'male' },
-    });
-    fireEvent.change(screen.getByTestId('diagnosis-golfer-age-input'), {
-      target: { value: '32' },
-    });
-    fireEvent.change(screen.getByTestId('diagnosis-golfer-height-input'), {
-      target: { value: '177' },
-    });
-    fireEvent.change(screen.getByTestId('diagnosis-golfer-years-of-experience-input'), {
-      target: { value: '4' },
-    });
-    fireEvent.change(screen.getByTestId('diagnosis-golfer-average-score-input'), {
-      target: { value: '88' },
-    });
-    fireEvent.change(screen.getByTestId('diagnosis-golfer-dominant-hand-select'), {
-      target: { value: 'right' },
-    });
-    fireEvent.click(screen.getByTestId('diagnosis-golfer-goal-score-improvement'));
+    fireEvent.click(nextButton);
 
-    expect(nextButton).not.toBeDisabled();
+    expect(screen.getByText('신체 체형 진단')).toBeInTheDocument();
   });
 
   it('moves direct member registration entry into Lesson start flow', async () => {

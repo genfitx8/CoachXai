@@ -146,7 +146,7 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
   const currentStep = program.steps[activeStepIndex];
   const isFirstStep = activeStepIndex === 0;
   const isFinalStep = activeStepIndex === program.steps.length - 1;
-  const isCurrentStepValid = currentStep?.id !== 'golfer-profile' || requiredMissingFields.length === 0;
+  const isProfileComplete = requiredMissingFields.length === 0;
 
   const toggleGoal = (goal: string) => {
     setGolferProfile((prev) => ({
@@ -885,6 +885,11 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
                   진단 결과 생성은 마지막 프로세스에서 가능합니다.
                 </p>
               )}
+              {isFinalStep && !isProfileComplete && (
+                <p id="diagnosis-generate-required-hint" className="text-xs text-amber-300" data-testid="diagnosis-generate-required-hint">
+                  {t('diagnosis_golfer_required_help')}: {requiredMissingFields.join(', ')}
+                </p>
+              )}
               <div className="flex flex-wrap justify-end gap-2">
                 <Button
                   variant="ghost"
@@ -897,7 +902,6 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
                 {!isFinalStep && (
                   <Button
                     onClick={() => setActiveStepIndex((prev) => Math.min(prev + 1, program.steps.length - 1))}
-                    disabled={!isCurrentStepValid}
                     data-testid="diagnosis-next-step-btn"
                   >
                     다음 프로세스
@@ -911,8 +915,14 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
             <Button
               onClick={handleCreateResult}
               data-testid="diagnosis-view-result-btn"
-              disabled={!isFinalStep}
-              aria-describedby={!isFinalStep ? 'diagnosis-generate-hint' : undefined}
+              disabled={!isFinalStep || !isProfileComplete}
+              aria-describedby={
+                !isFinalStep
+                  ? 'diagnosis-generate-hint'
+                  : !isProfileComplete
+                    ? 'diagnosis-generate-required-hint'
+                    : undefined
+              }
             >
               진단 결과 생성
             </Button>

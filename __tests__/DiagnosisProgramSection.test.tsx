@@ -79,22 +79,29 @@ describe('DiagnosisProgramSection golfer profile', () => {
     expect(screen.getByTestId('diagnosis-golfer-years-of-experience-input')).toHaveValue(5);
   });
 
-  it('keeps next step disabled until required golfer profile fields are filled', () => {
+  it('allows moving to the next step even when golfer profile required fields are blank', () => {
     renderSection();
 
     const nextButton = screen.getByTestId('diagnosis-next-step-btn');
-    expect(nextButton).toBeDisabled();
-
-    fireEvent.change(screen.getByTestId('diagnosis-member-name-input'), { target: { value: '홍길동' } });
-    fireEvent.change(screen.getByTestId('diagnosis-golfer-gender-select'), { target: { value: 'male' } });
-    fireEvent.change(screen.getByTestId('diagnosis-golfer-age-input'), { target: { value: '33' } });
-    fireEvent.change(screen.getByTestId('diagnosis-golfer-height-input'), { target: { value: '176' } });
-    fireEvent.change(screen.getByTestId('diagnosis-golfer-years-of-experience-input'), { target: { value: '3' } });
-    fireEvent.change(screen.getByTestId('diagnosis-golfer-average-score-input'), { target: { value: '90' } });
-    fireEvent.change(screen.getByTestId('diagnosis-golfer-dominant-hand-select'), { target: { value: 'right' } });
-    fireEvent.click(screen.getByTestId('diagnosis-golfer-goal-score-improvement'));
-
     expect(nextButton).not.toBeDisabled();
+    expect(screen.getByTestId('diagnosis-golfer-required-hint')).toBeInTheDocument();
+
+    fireEvent.click(nextButton);
+
+    expect(screen.getByText('신체 체형 진단')).toBeInTheDocument();
+  });
+
+  it('keeps final result creation disabled until golfer profile required fields are filled', () => {
+    renderSection();
+
+    for (let index = 0; index < DIAGNOSIS_PROCESS.length - 1; index += 1) {
+      const nextButton = screen.queryByTestId('diagnosis-next-step-btn');
+      if (!nextButton) break;
+      fireEvent.click(nextButton);
+    }
+
+    expect(screen.getByTestId('diagnosis-view-result-btn')).toBeDisabled();
+    expect(screen.getByTestId('diagnosis-generate-required-hint')).toBeInTheDocument();
   });
 
   it('auto fills the body score after skeleton analysis completes', () => {
@@ -102,7 +109,7 @@ describe('DiagnosisProgramSection golfer profile', () => {
 
     fireEvent.change(screen.getByTestId('diagnosis-member-name-input'), { target: { value: '홍길동' } });
     fireEvent.change(screen.getByTestId('diagnosis-golfer-gender-select'), { target: { value: 'male' } });
-    fireEvent.change(screen.getByTestId('diagnosis-golfer-birth-date-input'), { target: { value: '1993-07-01' } });
+    fireEvent.change(screen.getByTestId('diagnosis-golfer-age-input'), { target: { value: '33' } });
     fireEvent.change(screen.getByTestId('diagnosis-golfer-height-input'), { target: { value: '176' } });
     fireEvent.change(screen.getByTestId('diagnosis-golfer-years-of-experience-input'), { target: { value: '3' } });
     fireEvent.change(screen.getByTestId('diagnosis-golfer-average-score-input'), { target: { value: '90' } });
