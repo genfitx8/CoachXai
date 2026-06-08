@@ -16,5 +16,22 @@ export const getDiagnosisGrade = (score: number): string => {
   return 'D';
 };
 
+export const getAgeFromBirthDate = (birthDate?: string): number | null => {
+  if (!birthDate) return null;
+
+  const parsed = new Date(birthDate);
+  if (Number.isNaN(parsed.getTime())) return null;
+
+  const today = new Date();
+  let age = today.getFullYear() - parsed.getFullYear();
+  const hasHadBirthdayThisYear =
+    today.getMonth() > parsed.getMonth() ||
+    (today.getMonth() === parsed.getMonth() && today.getDate() >= parsed.getDate());
+
+  if (!hasHadBirthdayThisYear) age -= 1;
+
+  return age >= 0 ? age : null;
+};
+
 export const getRadarChartPoints = (factors: DiagnosisFactor[]): { label: string; score: number }[] =>
   factors.map((factor) => ({ label: factor.label, score: factor.score }));

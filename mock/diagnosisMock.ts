@@ -18,7 +18,7 @@ export const mockDiagnosisSession: DiagnosisSession = {
     golferProfile: {
       name: '김회원',
       gender: 'male',
-      birthDate: '1990-01-15',
+      age: 35,
       contact: '010-1111-0001',
       heightCm: 175,
       weightKg: 72,

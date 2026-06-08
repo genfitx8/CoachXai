@@ -187,8 +187,8 @@ describe('Coach dashboard – lesson-first MVP home', () => {
     fireEvent.change(screen.getByTestId('diagnosis-golfer-gender-select'), {
       target: { value: 'male' },
     });
-    fireEvent.change(screen.getByTestId('diagnosis-golfer-birth-date-input'), {
-      target: { value: '1990-02-14' },
+    fireEvent.change(screen.getByTestId('diagnosis-golfer-age-input'), {
+      target: { value: '36' },
     });
     fireEvent.change(screen.getByTestId('diagnosis-golfer-height-input'), {
       target: { value: '178' },
@@ -258,8 +258,8 @@ describe('Coach dashboard – lesson-first MVP home', () => {
     fireEvent.change(screen.getByTestId('diagnosis-golfer-gender-select'), {
       target: { value: 'male' },
     });
-    fireEvent.change(screen.getByTestId('diagnosis-golfer-birth-date-input'), {
-      target: { value: '1994-05-13' },
+    fireEvent.change(screen.getByTestId('diagnosis-golfer-age-input'), {
+      target: { value: '32' },
     });
     fireEvent.change(screen.getByTestId('diagnosis-golfer-height-input'), {
       target: { value: '177' },

@@ -1,9 +1,15 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { diagnosisService } from '../services/diagnosisService';
 
 describe('diagnosisService', () => {
   beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-06-08T00:00:00Z'));
     localStorage.clear();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it('creates diagnosis result from input scores', () => {
@@ -12,7 +18,7 @@ describe('diagnosisService', () => {
       golferProfile: {
         name: '테스트회원',
         gender: 'male',
-        birthDate: '1990-01-01',
+        age: 36,
         contact: '010-0000-0000',
         heightCm: 175,
         weightKg: 72,
@@ -59,7 +65,7 @@ describe('diagnosisService', () => {
       golferProfile: {
         name: '다른이름',
         gender: 'female',
-        birthDate: '1991-06-01',
+        age: 35,
         contact: '010-2222-3333',
         heightCm: 165,
         weightKg: null,
@@ -98,5 +104,46 @@ describe('diagnosisService', () => {
     expect(latest?.result.memberName).toBe('회원A');
     expect(latest?.input.golferProfile?.name).toBe('회원A');
     expect(sessions).toHaveLength(1);
+  });
+
+  it('derives age from legacy birth date data when needed', () => {
+    const result = diagnosisService.createResult({
+      memberName: '회원B',
+      golferProfile: {
+        name: '회원B',
+        gender: 'male',
+        birthDate: '1990-07-01',
+        age: null,
+        contact: '010-5555-6666',
+        heightCm: 180,
+        weightKg: null,
+        handicap: null,
+        averageScore: 90,
+        bestScore: null,
+        dominantHand: 'right',
+        roundFrequency: '',
+        practiceFrequency: '',
+        yearsOfExperience: 3,
+        injuryHistory: '',
+        injuryMemo: '',
+        currentPainAreas: '',
+        otherSportsExperience: '',
+        flexibilitySelfAssessment: null,
+        driverModel: '',
+        ironModel: '',
+        shaftFlex: '',
+        ballBrand: '',
+        diagnosisGoals: ['accuracy'],
+        primaryConcern: '',
+        targetHandicap: null,
+      },
+      factorScores: {
+        body: 75,
+        equipment: 80,
+        skill: 85,
+      },
+    });
+
+    expect(result.golferProfile?.age).toBe(35);
   });
 });
