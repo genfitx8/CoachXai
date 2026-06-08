@@ -38,6 +38,7 @@ import { TrainingProgramGenerator } from './components/TrainingProgramGenerator'
 import { LessonStartPromptModal } from './components/LessonStartPromptModal';
 import { DiagnosisProgramSection } from './components/diagnosis/DiagnosisProgramSection';
 import { DiagnosisResultSection } from './components/diagnosis/DiagnosisResultSection';
+import { PostureAnalysisDashboard } from './components/posture/PostureAnalysisDashboard';
 import { storageService } from './services/storage';
 import { authService } from './services/authService';
 import { firebaseService } from './services/firebase';
@@ -1691,6 +1692,15 @@ const AppContent: React.FC = () => {
                   coachxai 정밀진단 프로그램
                 </Button>
 
+                <Button
+                  onClick={() => setCoachView('POSTURE_ANALYSIS')}
+                  data-testid="posture-analysis-entry-btn"
+                  className="w-full py-4 text-base rounded-2xl border border-blue-500/30 shadow-lg shadow-slate-900/40 bg-gradient-to-r from-slate-900 to-slate-800 hover:from-slate-800 hover:to-slate-700 justify-center"
+                  icon={<Target className="w-5 h-5 text-blue-400" />}
+                >
+                  신체 자세 분석 (스켈레톤)
+                </Button>
+
               </div>
             </section>
           </div>
@@ -1900,6 +1910,16 @@ const AppContent: React.FC = () => {
             result={selectedDiagnosisSession.result}
             onBack={() => setCoachView('LIST')}
             onBackToProgram={() => setCoachView('DIAGNOSIS_PROGRAM')}
+          />
+        )}
+
+        {coachView === 'POSTURE_ANALYSIS' && (
+          <PostureAnalysisDashboard
+            memberName={selectedClientFilter || '회원'}
+            onBack={() => setCoachView('LIST')}
+            onComplete={(result) => {
+              console.log('Posture analysis completed:', result);
+            }}
           />
         )}
 
