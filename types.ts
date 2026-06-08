@@ -241,7 +241,7 @@ export interface TrainingProgram {
   updatedAt: number;
 }
 
-export type ViewState = 'LIST' | 'DETAIL' | 'NEW' | 'COMPARE' | 'CLIENTS' | 'DIAGNOSIS_PROGRAM' | 'DIAGNOSIS_RESULT' | 'CLIENT_STATS' | 'LESSON_LIST' | 'LESSON_PACKAGE' | 'TRAINING_PROGRAM' | 'COACHX' | 'COACHX_CHAT' | 'LESSON_UPLOAD' | 'LESSON_IMPACT';
+export type ViewState = 'LIST' | 'DETAIL' | 'NEW' | 'COMPARE' | 'CLIENTS' | 'DIAGNOSIS_PROGRAM' | 'DIAGNOSIS_RESULT' | 'CLIENT_STATS' | 'LESSON_LIST' | 'LESSON_PACKAGE' | 'TRAINING_PROGRAM' | 'COACHX' | 'COACHX_CHAT' | 'LESSON_UPLOAD' | 'LESSON_IMPACT' | 'POSTURE_ANALYSIS';
 
 // Branch / BranchAdmin types (for driving range bay reservation)
 
