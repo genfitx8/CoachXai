@@ -477,6 +477,7 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
               )}
             </button>
             {expandedSections.goals && (
+            <>
             <div className="space-y-2">
               <p className="text-sm text-slate-300">{t('diagnosis_golfer_diagnosis_goals')}</p>
               <div className="grid gap-2 md:grid-cols-2">
@@ -517,7 +518,7 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
                 data-testid="diagnosis-golfer-target-handicap-input"
               />
             </label>
-            </div>
+            </>
             )}
           </div>
 
