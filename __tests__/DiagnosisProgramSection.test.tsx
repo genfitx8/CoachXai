@@ -158,6 +158,10 @@ describe('DiagnosisProgramSection golfer profile', () => {
     });
 
     await waitFor(() => expect(mockAnalyzeEquipmentPhoto).toHaveBeenCalledTimes(1));
+    expect(mockAnalyzeEquipmentPhoto).toHaveBeenCalledWith({
+      data: file,
+      mimeType: 'image/jpeg',
+    });
 
     expect(screen.getByTestId('diagnosis-golfer-driver-model-input')).toHaveValue('TaylorMade Qi10');
     expect(screen.getByTestId('diagnosis-golfer-iron-model-input')).toHaveValue('Mizuno JPX 923');

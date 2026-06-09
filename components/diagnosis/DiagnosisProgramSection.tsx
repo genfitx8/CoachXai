@@ -265,7 +265,8 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
         ballBrand: result.ballBrand ?? prev.ballBrand,
       }));
       setEquipmentPhotoSummary(result.summary);
-    } catch {
+    } catch (error) {
+      console.error('Failed to analyze equipment photo:', error);
       setEquipmentPhotoError(
         t('diagnosis_equipment_photo_analysis_error') ||
           '장비 사진 분석에 실패했습니다. 사진을 다시 촬영하거나 직접 입력해주세요.'
