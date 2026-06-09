@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { DiagnosisFactorKey, DiagnosisInput, DiagnosisProgram, GolferProfile, TrackmanData } from '../../types/diagnosis';
 import { PostureAnalysisResult } from '../../types/postureAnalysis';
 import { DiagnosisHero } from './DiagnosisHero';
@@ -55,14 +55,6 @@ const parseNullableNumber = (value: string): number | null => {
   return Number.isNaN(parsed) ? null : parsed;
 };
 
-const getSafeLocalImageUrl = (url: string): string => {
-  if (url.startsWith('blob:') || url.startsWith('data:image/')) {
-    return url;
-  }
-
-  return '';
-};
-
 const buildInitialFactorScores = (program: DiagnosisProgram): Record<DiagnosisFactorKey, number> =>
   program.factors.reduce(
     (acc, factor) => ({
@@ -105,23 +97,12 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
   const [showScreenCapture, setShowScreenCapture] = useState(false);
   const [selectedClubForCapture, setSelectedClubForCapture] = useState<string>('');
   const [selectedClub, setSelectedClub] = useState('');
-  const [equipmentPhotoPreviewUrl, setEquipmentPhotoPreviewUrl] = useState('');
   const [equipmentPhotoSummary, setEquipmentPhotoSummary] = useState('');
   const [equipmentPhotoError, setEquipmentPhotoError] = useState('');
   const [isAnalyzingEquipmentPhoto, setIsAnalyzingEquipmentPhoto] = useState(false);
   const equipmentPhotoInputRef = useRef<HTMLInputElement>(null);
 
   const memberName = golferProfile.name;
-  const safeEquipmentPhotoPreviewUrl = useMemo(
-    () => getSafeLocalImageUrl(equipmentPhotoPreviewUrl),
-    [equipmentPhotoPreviewUrl]
-  );
-
-  useEffect(() => () => {
-    if (equipmentPhotoPreviewUrl.startsWith('blob:')) {
-      URL.revokeObjectURL(equipmentPhotoPreviewUrl);
-    }
-  }, [equipmentPhotoPreviewUrl]);
 
   const diagnosisGoalOptions = [
     { key: 'score-improvement', label: t('diagnosis_golfer_goal_score_improvement') },
@@ -266,13 +247,6 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
     const file = event.target.files?.[0];
     if (!file) return;
 
-    const previewUrl = URL.createObjectURL(file);
-    setEquipmentPhotoPreviewUrl((prev) => {
-      if (prev.startsWith('blob:')) {
-        URL.revokeObjectURL(prev);
-      }
-      return previewUrl;
-    });
     setEquipmentPhotoError('');
     setEquipmentPhotoSummary('');
     setIsAnalyzingEquipmentPhoto(true);
@@ -607,7 +581,7 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
                         </span>
                       ) : (
                         <span className="flex items-center gap-2">
-                          <Camera className="w-4 h-4" />
+                          <Camera className="h-4 w-4" />
                           {t('diagnosis_equipment_photo_button') || '장비 사진으로 자동 입력'}
                         </span>
                       )}
@@ -615,13 +589,8 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
                   </div>
                 </div>
 
-                {safeEquipmentPhotoPreviewUrl && (
-                  <div className="mt-4 flex items-start gap-3 rounded-lg border border-slate-700 bg-slate-900 p-3">
-                    <img
-                      src={safeEquipmentPhotoPreviewUrl}
-                      alt="Equipment preview"
-                      className="h-20 w-20 rounded-lg object-cover border border-slate-700"
-                    />
+                {(equipmentPhotoSummary || equipmentPhotoError) && (
+                  <div className="mt-4 rounded-lg border border-slate-700 bg-slate-900 p-3">
                     <div className="min-w-0 space-y-1">
                       {equipmentPhotoSummary && (
                         <>

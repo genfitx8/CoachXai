@@ -75,11 +75,6 @@ const renderSection = (props?: Partial<React.ComponentProps<typeof DiagnosisProg
 describe('DiagnosisProgramSection golfer profile', () => {
   beforeEach(() => {
     mockAnalyzeEquipmentPhoto.mockReset();
-    vi.stubGlobal('URL', {
-      ...URL,
-      createObjectURL: vi.fn(() => 'blob:equipment-preview'),
-      revokeObjectURL: vi.fn(),
-    });
   });
 
   it('prefills golfer profile from initial props', () => {
