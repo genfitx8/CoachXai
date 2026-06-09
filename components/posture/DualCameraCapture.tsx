@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { Camera, Upload, Check, X } from 'lucide-react';
 import { PostureCapture } from '../../types/postureAnalysis';
 import { Button } from '../Button';
@@ -17,16 +17,31 @@ export const DualCameraCapture: React.FC<DualCameraCaptureProps> = ({
   const [activeView, setActiveView] = useState<'front' | 'side'>('front');
   const [isUsingCamera, setIsUsingCamera] = useState(false);
   const [stream, setStream] = useState<MediaStream | null>(null);
+  const [cameraError, setCameraError] = useState<string | null>(null);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const frontFileInputRef = useRef<HTMLInputElement>(null);
   const sideFileInputRef = useRef<HTMLInputElement>(null);
 
+  // Bind the stream to the video element after the camera modal renders.
+  // videoRef.current is null until isUsingCamera=true mounts the <video> element,
+  // so srcObject must be assigned in an effect rather than synchronously in startCamera.
+  useEffect(() => {
+    if (isUsingCamera && stream && videoRef.current) {
+      videoRef.current.srcObject = stream;
+      videoRef.current.play().catch((e) => {
+        console.error('Failed to play video:', e);
+        setCameraError('카메라 미리보기를 시작할 수 없습니다. 다시 시도해주세요.');
+      });
+    }
+  }, [isUsingCamera, stream]);
+
   const startCamera = useCallback(async (view?: 'front' | 'side') => {
     if (view) {
       setActiveView(view);
     }
+    setCameraError(null);
     try {
       const mediaStream = await navigator.mediaDevices.getUserMedia({
         video: {
@@ -36,14 +51,23 @@ export const DualCameraCapture: React.FC<DualCameraCaptureProps> = ({
         },
       });
       setStream(mediaStream);
-      if (videoRef.current) {
-        videoRef.current.srcObject = mediaStream;
-        videoRef.current.play();
-      }
       setIsUsingCamera(true);
-    } catch (error) {
+      // srcObject is assigned by the useEffect above once the <video> element mounts
+    } catch (error: unknown) {
       console.error('Failed to start camera:', error);
-      alert('카메라를 시작할 수 없습니다. 파일 업로드를 사용해주세요.');
+      if (error instanceof Error) {
+        if (error.name === 'NotAllowedError') {
+          setCameraError('카메라 접근 권한이 거부되었습니다. 브라우저 설정에서 카메라 권한을 허용해주세요.');
+        } else if (error.name === 'NotFoundError') {
+          setCameraError('카메라 장치를 찾을 수 없습니다. 파일 업로드를 사용해주세요.');
+        } else if (error.name === 'NotReadableError') {
+          setCameraError('카메라가 다른 앱에서 사용 중입니다. 다른 앱을 닫고 다시 시도해주세요.');
+        } else {
+          setCameraError('카메라를 시작할 수 없습니다. 파일 업로드를 사용해주세요.');
+        }
+      } else {
+        setCameraError('카메라를 시작할 수 없습니다. 파일 업로드를 사용해주세요.');
+      }
     }
   }, []);
 
@@ -276,7 +300,15 @@ export const DualCameraCapture: React.FC<DualCameraCaptureProps> = ({
         </div>
       </div>
 
-      {/* Camera Capture (hidden canvas and video) */}
+      {/* Inline camera error message */}
+      {cameraError && (
+        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-start space-x-2">
+          <X size={16} className="text-red-500 mt-0.5 flex-shrink-0" />
+          <p className="text-sm text-red-700">{cameraError}</p>
+        </div>
+      )}
+
+      {/* Camera Capture modal */}
       {isUsingCamera && (
         <div className="fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-lg p-6 max-w-2xl w-full">
@@ -287,7 +319,8 @@ export const DualCameraCapture: React.FC<DualCameraCaptureProps> = ({
               ref={videoRef}
               autoPlay
               playsInline
-              className="w-full rounded mb-4"
+              muted
+              className="w-full rounded mb-4 bg-black"
             />
             <div className="flex space-x-3">
               <Button onClick={capturePhoto} className="flex-1">
