@@ -1,13 +1,14 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { DiagnosisFactorKey, DiagnosisInput, DiagnosisProgram, GolferProfile, TrackmanData } from '../../types/diagnosis';
 import { PostureAnalysisResult } from '../../types/postureAnalysis';
 import { DiagnosisHero } from './DiagnosisHero';
 import { Button } from '../Button';
 import { clampDiagnosisScore, getAgeFromBirthDate } from '../../utils/diagnosis';
 import { useLanguage } from '../LanguageContext';
-import { ChevronDown, ChevronUp, Plus, Trash2, Monitor } from 'lucide-react';
+import { ChevronDown, ChevronUp, Plus, Trash2, Monitor, Camera, Loader2 } from 'lucide-react';
 import { PostureAnalysisDashboard } from '../posture/PostureAnalysisDashboard';
 import { ScreenCaptureDialog } from './ScreenCaptureDialog';
+import { analyzeEquipmentPhoto } from '../../services/geminiService';
 
 interface DiagnosisProgramSectionProps {
   program: DiagnosisProgram;
@@ -96,8 +97,19 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
   const [showScreenCapture, setShowScreenCapture] = useState(false);
   const [selectedClubForCapture, setSelectedClubForCapture] = useState<string>('');
   const [selectedClub, setSelectedClub] = useState('');
+  const [equipmentPhotoPreviewUrl, setEquipmentPhotoPreviewUrl] = useState('');
+  const [equipmentPhotoSummary, setEquipmentPhotoSummary] = useState('');
+  const [equipmentPhotoError, setEquipmentPhotoError] = useState('');
+  const [isAnalyzingEquipmentPhoto, setIsAnalyzingEquipmentPhoto] = useState(false);
+  const equipmentPhotoInputRef = useRef<HTMLInputElement>(null);
 
   const memberName = golferProfile.name;
+
+  useEffect(() => () => {
+    if (equipmentPhotoPreviewUrl.startsWith('blob:')) {
+      URL.revokeObjectURL(equipmentPhotoPreviewUrl);
+    }
+  }, [equipmentPhotoPreviewUrl]);
 
   const diagnosisGoalOptions = [
     { key: 'score-improvement', label: t('diagnosis_golfer_goal_score_improvement') },
@@ -236,6 +248,48 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
       ...prev,
       trackmanData: (prev.trackmanData || []).filter((_, i) => i !== index),
     }));
+  };
+
+  const handleEquipmentPhotoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const previewUrl = URL.createObjectURL(file);
+    setEquipmentPhotoPreviewUrl((prev) => {
+      if (prev.startsWith('blob:')) {
+        URL.revokeObjectURL(prev);
+      }
+      return previewUrl;
+    });
+    setEquipmentPhotoError('');
+    setEquipmentPhotoSummary('');
+    setIsAnalyzingEquipmentPhoto(true);
+
+    try {
+      const result = await analyzeEquipmentPhoto({
+        data: file,
+        mimeType: file.type || 'image/jpeg',
+      });
+
+      setGolferProfile((prev) => ({
+        ...prev,
+        driverModel: result.driverModel ?? prev.driverModel,
+        ironModel: result.ironModel ?? prev.ironModel,
+        shaftFlex: result.shaftFlex ?? prev.shaftFlex,
+        ballBrand: result.ballBrand ?? prev.ballBrand,
+      }));
+      setEquipmentPhotoSummary(result.summary);
+    } catch {
+      setEquipmentPhotoError(
+        t('diagnosis_equipment_photo_analysis_error') ||
+          '장비 사진 분석에 실패했습니다. 사진을 다시 촬영하거나 직접 입력해주세요.'
+      );
+    } finally {
+      setIsAnalyzingEquipmentPhoto(false);
+      if (equipmentPhotoInputRef.current) {
+        equipmentPhotoInputRef.current.value = '';
+      }
+    }
   };
 
   const renderStepInput = () => {
@@ -505,43 +559,114 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
               )}
             </button>
             {expandedSections.equipment && (
-            <div className="grid gap-3 md:grid-cols-2">
-              <label className="space-y-2">
-                <span className="text-sm text-slate-300">{t('diagnosis_golfer_driver_model')}</span>
-                <input
-                  value={golferProfile.driverModel}
-                  onChange={(event) => setGolferProfile((prev) => ({ ...prev, driverModel: event.target.value }))}
-                  className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none focus:border-violet-500"
-                  data-testid="diagnosis-golfer-driver-model-input"
-                />
-              </label>
-              <label className="space-y-2">
-                <span className="text-sm text-slate-300">{t('diagnosis_golfer_iron_model')}</span>
-                <input
-                  value={golferProfile.ironModel}
-                  onChange={(event) => setGolferProfile((prev) => ({ ...prev, ironModel: event.target.value }))}
-                  className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none focus:border-violet-500"
-                  data-testid="diagnosis-golfer-iron-model-input"
-                />
-              </label>
-              <label className="space-y-2">
-                <span className="text-sm text-slate-300">{t('diagnosis_golfer_shaft_flex')}</span>
-                <input
-                  value={golferProfile.shaftFlex}
-                  onChange={(event) => setGolferProfile((prev) => ({ ...prev, shaftFlex: event.target.value }))}
-                  className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none focus:border-violet-500"
-                  data-testid="diagnosis-golfer-shaft-flex-input"
-                />
-              </label>
-              <label className="space-y-2">
-                <span className="text-sm text-slate-300">{t('diagnosis_golfer_ball_brand')}</span>
-                <input
-                  value={golferProfile.ballBrand}
-                  onChange={(event) => setGolferProfile((prev) => ({ ...prev, ballBrand: event.target.value }))}
-                  className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none focus:border-violet-500"
-                  data-testid="diagnosis-golfer-ball-brand-input"
-                />
-              </label>
+            <div className="space-y-4">
+              <div className="rounded-xl border border-slate-700 bg-slate-950/70 p-4">
+                <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium text-slate-200">
+                      {t('diagnosis_equipment_photo_button') || '장비 사진으로 자동 입력'}
+                    </p>
+                    <p className="text-xs text-slate-400">
+                      {t('diagnosis_equipment_photo_help') || '장비 사진을 촬영하거나 업로드하면 AI가 모델명과 샤프트 정보를 분석해 입력합니다.'}
+                    </p>
+                  </div>
+                  <div className="shrink-0">
+                    <input
+                      ref={equipmentPhotoInputRef}
+                      type="file"
+                      accept="image/*"
+                      capture="environment"
+                      onChange={handleEquipmentPhotoUpload}
+                      className="hidden"
+                      data-testid="diagnosis-equipment-photo-input"
+                    />
+                    <Button
+                      type="button"
+                      onClick={() => equipmentPhotoInputRef.current?.click()}
+                      variant="outline"
+                      className="w-full md:w-auto"
+                      disabled={isAnalyzingEquipmentPhoto}
+                      data-testid="diagnosis-equipment-photo-btn"
+                    >
+                      {isAnalyzingEquipmentPhoto ? (
+                        <span className="flex items-center gap-2">
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          {t('diagnosis_equipment_photo_analyzing') || 'AI 분석 중...'}
+                        </span>
+                      ) : (
+                        <span className="flex items-center gap-2">
+                          <Camera className="w-4 h-4" />
+                          {t('diagnosis_equipment_photo_button') || '장비 사진으로 자동 입력'}
+                        </span>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+
+                {equipmentPhotoPreviewUrl && (
+                  <div className="mt-4 flex items-start gap-3 rounded-lg border border-slate-700 bg-slate-900 p-3">
+                    <img
+                      src={equipmentPhotoPreviewUrl}
+                      alt="Equipment preview"
+                      className="h-20 w-20 rounded-lg object-cover border border-slate-700"
+                    />
+                    <div className="min-w-0 space-y-1">
+                      {equipmentPhotoSummary && (
+                        <>
+                          <p className="text-xs font-medium text-emerald-300">
+                            {t('diagnosis_equipment_photo_summary') || 'AI 분석 결과'}
+                          </p>
+                          <p className="text-xs text-slate-300">{equipmentPhotoSummary}</p>
+                        </>
+                      )}
+                      {equipmentPhotoError && (
+                        <p className="text-xs text-rose-300" data-testid="diagnosis-equipment-photo-error">
+                          {equipmentPhotoError}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="grid gap-3 md:grid-cols-2">
+                <label className="space-y-2">
+                  <span className="text-sm text-slate-300">{t('diagnosis_golfer_driver_model')}</span>
+                  <input
+                    value={golferProfile.driverModel}
+                    onChange={(event) => setGolferProfile((prev) => ({ ...prev, driverModel: event.target.value }))}
+                    className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none focus:border-violet-500"
+                    data-testid="diagnosis-golfer-driver-model-input"
+                  />
+                </label>
+                <label className="space-y-2">
+                  <span className="text-sm text-slate-300">{t('diagnosis_golfer_iron_model')}</span>
+                  <input
+                    value={golferProfile.ironModel}
+                    onChange={(event) => setGolferProfile((prev) => ({ ...prev, ironModel: event.target.value }))}
+                    className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none focus:border-violet-500"
+                    data-testid="diagnosis-golfer-iron-model-input"
+                  />
+                </label>
+                <label className="space-y-2">
+                  <span className="text-sm text-slate-300">{t('diagnosis_golfer_shaft_flex')}</span>
+                  <input
+                    value={golferProfile.shaftFlex}
+                    onChange={(event) => setGolferProfile((prev) => ({ ...prev, shaftFlex: event.target.value }))}
+                    className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none focus:border-violet-500"
+                    data-testid="diagnosis-golfer-shaft-flex-input"
+                  />
+                </label>
+                <label className="space-y-2">
+                  <span className="text-sm text-slate-300">{t('diagnosis_golfer_ball_brand')}</span>
+                  <input
+                    value={golferProfile.ballBrand}
+                    onChange={(event) => setGolferProfile((prev) => ({ ...prev, ballBrand: event.target.value }))}
+                    className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none focus:border-violet-500"
+                    data-testid="diagnosis-golfer-ball-brand-input"
+                  />
+                </label>
+              </div>
             </div>
             )}
           </div>
