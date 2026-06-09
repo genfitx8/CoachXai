@@ -55,6 +55,14 @@ const parseNullableNumber = (value: string): number | null => {
   return Number.isNaN(parsed) ? null : parsed;
 };
 
+const getSafeLocalImageUrl = (url: string): string => {
+  if (url.startsWith('blob:') || url.startsWith('data:image/')) {
+    return url;
+  }
+
+  return '';
+};
+
 const buildInitialFactorScores = (program: DiagnosisProgram): Record<DiagnosisFactorKey, number> =>
   program.factors.reduce(
     (acc, factor) => ({
@@ -104,6 +112,10 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
   const equipmentPhotoInputRef = useRef<HTMLInputElement>(null);
 
   const memberName = golferProfile.name;
+  const safeEquipmentPhotoPreviewUrl = useMemo(
+    () => getSafeLocalImageUrl(equipmentPhotoPreviewUrl),
+    [equipmentPhotoPreviewUrl]
+  );
 
   useEffect(() => () => {
     if (equipmentPhotoPreviewUrl.startsWith('blob:')) {
@@ -590,7 +602,7 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
                     >
                       {isAnalyzingEquipmentPhoto ? (
                         <span className="flex items-center gap-2">
-                          <Loader2 className="w-4 h-4 animate-spin" />
+                          <Loader2 className="h-4 w-4 animate-spin" />
                           {t('diagnosis_equipment_photo_analyzing') || 'AI 분석 중...'}
                         </span>
                       ) : (
@@ -603,10 +615,10 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
                   </div>
                 </div>
 
-                {equipmentPhotoPreviewUrl && (
+                {safeEquipmentPhotoPreviewUrl && (
                   <div className="mt-4 flex items-start gap-3 rounded-lg border border-slate-700 bg-slate-900 p-3">
                     <img
-                      src={equipmentPhotoPreviewUrl}
+                      src={safeEquipmentPhotoPreviewUrl}
                       alt="Equipment preview"
                       className="h-20 w-20 rounded-lg object-cover border border-slate-700"
                     />
