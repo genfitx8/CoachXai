@@ -23,7 +23,10 @@ export const DualCameraCapture: React.FC<DualCameraCaptureProps> = ({
   const frontFileInputRef = useRef<HTMLInputElement>(null);
   const sideFileInputRef = useRef<HTMLInputElement>(null);
 
-  const startCamera = useCallback(async () => {
+  const startCamera = useCallback(async (view?: 'front' | 'side') => {
+    if (view) {
+      setActiveView(view);
+    }
     try {
       const mediaStream = await navigator.mediaDevices.getUserMedia({
         video: {
@@ -193,6 +196,13 @@ export const DualCameraCapture: React.FC<DualCameraCaptureProps> = ({
               <div className="w-full h-64 bg-gray-100 rounded flex items-center justify-center">
                 <Camera size={48} className="text-gray-400" />
               </div>
+              <button
+                onClick={() => startCamera('front')}
+                className="w-full py-2 px-4 bg-green-600 text-white rounded hover:bg-green-700 flex items-center justify-center"
+              >
+                <Camera size={20} className="mr-2" />
+                실시간 촬영
+              </button>
               <input
                 ref={frontFileInputRef}
                 type="file"
@@ -237,6 +247,14 @@ export const DualCameraCapture: React.FC<DualCameraCaptureProps> = ({
               <div className="w-full h-64 bg-gray-100 rounded flex items-center justify-center">
                 <Camera size={48} className="text-gray-400" />
               </div>
+              <button
+                onClick={() => startCamera('side')}
+                disabled={!frontCapture}
+                className="w-full py-2 px-4 bg-green-600 text-white rounded hover:bg-green-700 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Camera size={20} className="mr-2" />
+                실시간 촬영
+              </button>
               <input
                 ref={sideFileInputRef}
                 type="file"

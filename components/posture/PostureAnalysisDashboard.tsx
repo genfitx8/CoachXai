@@ -117,8 +117,8 @@ export const PostureAnalysisDashboard: React.FC<PostureAnalysisDashboardProps> =
                   1
                 </div>
                 <div>
-                  <h3 className="font-semibold">정면 촬영/업로드</h3>
-                  <p className="text-sm text-gray-600">전신이 보이는 정면 사진을 촬영하거나 업로드합니다.</p>
+                  <h3 className="font-semibold">정면 실시간 촬영 또는 업로드</h3>
+                  <p className="text-sm text-gray-600">전신이 보이는 정면 사진을 실시간으로 촬영하거나 파일을 업로드합니다.</p>
                 </div>
               </div>
               <div className="flex items-start">
@@ -126,8 +126,8 @@ export const PostureAnalysisDashboard: React.FC<PostureAnalysisDashboardProps> =
                   2
                 </div>
                 <div>
-                  <h3 className="font-semibold">측면 촬영/업로드</h3>
-                  <p className="text-sm text-gray-600">측면 전신 사진을 촬영하거나 업로드합니다.</p>
+                  <h3 className="font-semibold">측면 실시간 촬영 또는 업로드</h3>
+                  <p className="text-sm text-gray-600">측면 전신 사진을 실시간으로 촬영하거나 파일을 업로드합니다.</p>
                 </div>
               </div>
               <div className="flex items-start">
