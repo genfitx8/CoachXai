@@ -167,6 +167,14 @@ export interface BodyPhotoAnalysisResult {
   coachComment: string;
 }
 
+export interface EquipmentPhotoAnalysisResult {
+  driverModel?: string;
+  ironModel?: string;
+  shaftFlex?: string;
+  ballBrand?: string;
+  summary: string;
+}
+
 const LESSON_BODY_TYPES: BodyPhotoAnalysisResult['bodyType'][] = [
   '이상체형',
   '삼각체형',
@@ -181,6 +189,12 @@ const LESSON_BODY_TYPES: BodyPhotoAnalysisResult['bodyType'][] = [
 const toOptionalNumber = (value: unknown): number | undefined => {
   if (typeof value !== 'number' || !Number.isFinite(value)) return undefined;
   return Number(value.toFixed(1));
+};
+
+const toOptionalTrimmedString = (value: unknown): string | undefined => {
+  if (typeof value !== 'string') return undefined;
+  const trimmed = value.trim();
+  return trimmed ? trimmed : undefined;
 };
 
 const parsePatternScores = (value: unknown): BodyShapePatternScores | undefined => {
@@ -228,6 +242,22 @@ export const parseBodyPhotoAnalysisResponse = (
       typeof parsed?.coachComment === 'string' && parsed.coachComment.trim()
         ? parsed.coachComment.trim()
         : '정면/측면 전신 사진 기반 자동 분석 결과입니다.',
+  };
+};
+
+export const parseEquipmentPhotoAnalysisResponse = (
+  text: string
+): EquipmentPhotoAnalysisResult => {
+  const parsed = JSON.parse(text);
+
+  return {
+    driverModel: toOptionalTrimmedString(parsed?.driverModel),
+    ironModel: toOptionalTrimmedString(parsed?.ironModel),
+    shaftFlex: toOptionalTrimmedString(parsed?.shaftFlex),
+    ballBrand: toOptionalTrimmedString(parsed?.ballBrand),
+    summary:
+      toOptionalTrimmedString(parsed?.summary) ??
+      '장비 사진 기반 자동 분석 결과입니다.',
   };
 };
 
@@ -624,6 +654,57 @@ export const analyzeBodyPhotos = async (params: {
     return parseBodyPhotoAnalysisResponse(text);
   } catch (error) {
     log.error('AI body photo analysis failed:', error);
+    throw error;
+  }
+};
+
+export const analyzeEquipmentPhoto = async (
+  imageInput: AnalysisInput
+): Promise<EquipmentPhotoAnalysisResult> => {
+  try {
+    const blob =
+      typeof imageInput.data === 'string'
+        ? await getBlobFromUrl(imageInput.data)
+        : imageInput.data;
+    const mediaPart = await fileToGenerativePart(blob, imageInput.mimeType);
+
+    const prompt = `
+      너는 골프 장비 식별 보조 AI다.
+      입력된 이미지는 골퍼의 장비 사진이다.
+
+      이미지에서 확인 가능한 정보만 바탕으로 아래 JSON만 출력해라.
+      {
+        "driverModel": string | null,
+        "ironModel": string | null,
+        "shaftFlex": string | null,
+        "ballBrand": string | null,
+        "summary": string
+      }
+
+      규칙:
+      - driverModel: 드라이버 헤드/커버/라벨에서 식별 가능한 모델명
+      - ironModel: 아이언 세트 또는 아이언 헤드에서 식별 가능한 모델명
+      - shaftFlex: 샤프트 강도 표기 (예: L, A, R, SR, S, X)
+      - ballBrand: 골프공 브랜드/라인명
+      - 식별이 어렵거나 보이지 않으면 null
+      - summary는 한국어 1~2문장으로, 어떤 항목을 식별했는지 간단히 설명
+      - 추정이 불확실하면 단정하지 말고 "확인 필요"처럼 표현
+      - 코드블록 없이 순수 JSON만 반환
+    `;
+
+    const result = await invokeBackendAI<unknown>('analyze_equipment_photo', {
+      prompt,
+      mediaParts: [mediaPart],
+      responseMimeType: 'application/json',
+    });
+    const text = getJsonTextFromResult(result);
+    if (!text) {
+      throw new Error('장비 사진 분석 결과를 생성하지 못했습니다.');
+    }
+
+    return parseEquipmentPhotoAnalysisResponse(text);
+  } catch (error) {
+    log.error('AI equipment photo analysis failed:', error);
     throw error;
   }
 };
