@@ -1,4 +1,4 @@
-import { DiagnosisFactor } from '../types/diagnosis';
+import { DiagnosisFactor, SkillDiagnosisData, SkillShotData } from '../types/diagnosis';
 
 export const clampDiagnosisScore = (score: number): number =>
   Math.max(0, Math.min(100, Math.round(score)));
@@ -35,3 +35,39 @@ export const getAgeFromBirthDate = (birthDate?: string): number | null => {
 
 export const getRadarChartPoints = (factors: DiagnosisFactor[]): { label: string; score: number }[] =>
   factors.map((factor) => ({ label: factor.label, score: factor.score }));
+
+const scoreDistanceAccuracy = (carry: number, target: number): number => {
+  const pct = (Math.abs(carry - target) / target) * 100;
+  if (pct <= 3) return 100;
+  if (pct <= 7) return 85;
+  if (pct <= 12) return 70;
+  if (pct <= 20) return 55;
+  return 35;
+};
+
+const scoreDispersion = (dispersion: number): number => {
+  if (dispersion <= 5) return 100;
+  if (dispersion <= 10) return 80;
+  if (dispersion <= 15) return 65;
+  if (dispersion <= 25) return 50;
+  return 30;
+};
+
+const scoreSingleShot = (shot: SkillShotData, isShortGame = false): number | null => {
+  const distWeight = isShortGame ? 0.5 : 0.6;
+  const dispWeight = isShortGame ? 0.5 : 0.4;
+  const parts: number[] = [];
+  if (shot.carryDistance != null) parts.push(scoreDistanceAccuracy(shot.carryDistance, shot.targetDistance) * distWeight);
+  if (shot.dispersion != null) parts.push(scoreDispersion(shot.dispersion) * dispWeight);
+  return parts.length ? parts.reduce((a, b) => a + b, 0) : null;
+};
+
+export const calculateSkillScore = (data: SkillDiagnosisData): number | null => {
+  const fullScores = data.fullShots.map((s) => scoreSingleShot(s, false)).filter((s): s is number => s !== null);
+  const shortScores = data.shortGameShots.map((s) => scoreSingleShot(s, true)).filter((s): s is number => s !== null);
+  if (!fullScores.length && !shortScores.length) return null;
+  const fullAvg = fullScores.length ? fullScores.reduce((a, b) => a + b, 0) / fullScores.length : null;
+  const shortAvg = shortScores.length ? shortScores.reduce((a, b) => a + b, 0) / shortScores.length : null;
+  if (fullAvg !== null && shortAvg !== null) return Math.round(fullAvg * 0.6 + shortAvg * 0.4);
+  return Math.round((fullAvg ?? shortAvg)!);
+};

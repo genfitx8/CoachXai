@@ -1,9 +1,9 @@
-import React, { useMemo, useRef, useState } from 'react';
-import { DiagnosisFactorKey, DiagnosisInput, DiagnosisProgram, GolferProfile, TrackmanData } from '../../types/diagnosis';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { DiagnosisFactorKey, DiagnosisInput, DiagnosisProgram, GolferProfile, SkillDiagnosisData, SkillShotData, TrackmanData } from '../../types/diagnosis';
 import { PostureAnalysisResult } from '../../types/postureAnalysis';
 import { DiagnosisHero } from './DiagnosisHero';
 import { Button } from '../Button';
-import { clampDiagnosisScore, getAgeFromBirthDate } from '../../utils/diagnosis';
+import { calculateSkillScore, clampDiagnosisScore, getAgeFromBirthDate } from '../../utils/diagnosis';
 import { useLanguage } from '../LanguageContext';
 import { ChevronDown, ChevronUp, Plus, Trash2, Monitor, Camera, Loader2 } from 'lucide-react';
 import { PostureAnalysisDashboard } from '../posture/PostureAnalysisDashboard';
@@ -55,6 +55,24 @@ const parseNullableNumber = (value: string): number | null => {
   return Number.isNaN(parsed) ? null : parsed;
 };
 
+const FULL_SHOT_DISTANCES = [130, 150, 170, 190, 210];
+const SHORT_GAME_DISTANCES = [30, 50, 70, 100];
+
+const createDefaultShot = (distance: number): SkillShotData => ({
+  targetDistance: distance,
+  carryDistance: null,
+  totalDistance: null,
+  dispersion: null,
+  launchAngle: null,
+  apexHeight: null,
+  spinRate: null,
+});
+
+const DEFAULT_SKILL_DIAGNOSIS_DATA: SkillDiagnosisData = {
+  fullShots: FULL_SHOT_DISTANCES.map(createDefaultShot),
+  shortGameShots: SHORT_GAME_DISTANCES.map(createDefaultShot),
+};
+
 const buildInitialFactorScores = (program: DiagnosisProgram): Record<DiagnosisFactorKey, number> =>
   program.factors.reduce(
     (acc, factor) => ({
@@ -92,6 +110,8 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
     equipment: true,
     goals: true,
   });
+  const [skillDiagnosisData, setSkillDiagnosisData] = useState<SkillDiagnosisData>(DEFAULT_SKILL_DIAGNOSIS_DATA);
+  const [expandedSkillRows, setExpandedSkillRows] = useState<Record<string, boolean>>({});
   const [postureAnalysisResult, setPostureAnalysisResult] = useState<PostureAnalysisResult | null>(null);
   const [showPostureAnalysis, setShowPostureAnalysis] = useState(false);
   const [showScreenCapture, setShowScreenCapture] = useState(false);
@@ -101,6 +121,13 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
   const [equipmentPhotoError, setEquipmentPhotoError] = useState('');
   const [isAnalyzingEquipmentPhoto, setIsAnalyzingEquipmentPhoto] = useState(false);
   const equipmentPhotoInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const autoScore = calculateSkillScore(skillDiagnosisData);
+    if (autoScore !== null) {
+      setFactorScores((prev) => ({ ...prev, skill: clampDiagnosisScore(autoScore) }));
+    }
+  }, [skillDiagnosisData]);
 
   const memberName = golferProfile.name;
 
@@ -143,6 +170,7 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
       golferProfile: {
         ...golferProfile,
         name: memberName,
+        skillDiagnosisData,
       },
       factorScores,
     });
@@ -888,22 +916,122 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
         );
       }
 
-      // For skill-diagnosis, use the original simple input
+      // Skill diagnosis — rich shot data input
+      const updateShot = (type: 'fullShots' | 'shortGameShots', idx: number, field: keyof SkillShotData, raw: string) => {
+        const value = field === 'targetDistance' ? Number(raw) : parseNullableNumber(raw);
+        setSkillDiagnosisData((prev) => {
+          const shots = prev[type].map((shot, i) => (i === idx ? { ...shot, [field]: value } : shot));
+          return { ...prev, [type]: shots };
+        });
+      };
+
+      const toggleSkillRow = (key: string) =>
+        setExpandedSkillRows((prev) => ({ ...prev, [key]: !prev[key] }));
+
+      const autoScore = calculateSkillScore(skillDiagnosisData);
+
+      const renderShotRow = (shot: SkillShotData, idx: number, type: 'fullShots' | 'shortGameShots') => {
+        const rowKey = `${type}-${shot.targetDistance}`;
+        const isExpanded = !!expandedSkillRows[rowKey];
+        const hasData = shot.carryDistance != null || shot.dispersion != null;
+        return (
+          <div key={rowKey} className="rounded-lg border border-slate-700 bg-slate-950 overflow-hidden">
+            <button
+              type="button"
+              onClick={() => toggleSkillRow(rowKey)}
+              className="w-full flex items-center justify-between px-4 py-3 hover:bg-slate-800/50 transition-colors"
+            >
+              <div className="flex items-center gap-3">
+                <span className="text-sm font-semibold text-slate-100">{shot.targetDistance}m</span>
+                {hasData ? (
+                  <span className="text-xs text-emerald-400">
+                    {shot.carryDistance != null ? `캐리 ${shot.carryDistance}m` : ''}
+                    {shot.dispersion != null ? ` · 탄착군 ${shot.dispersion}m` : ''}
+                  </span>
+                ) : (
+                  <span className="text-xs text-slate-500">데이터 없음</span>
+                )}
+              </div>
+              {isExpanded ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
+            </button>
+            {isExpanded && (
+              <div className="px-4 pb-4 grid grid-cols-2 gap-3 md:grid-cols-3">
+                {([
+                  { field: 'carryDistance', label: '캐리 (m)' },
+                  { field: 'totalDistance', label: '토탈 (m)' },
+                  { field: 'dispersion', label: '탄착군 (m)' },
+                  { field: 'launchAngle', label: '발사각 (°)' },
+                  { field: 'apexHeight', label: '최고점 (m)' },
+                  { field: 'spinRate', label: '스핀 (rpm)' },
+                ] as { field: keyof SkillShotData; label: string }[]).map(({ field, label }) => (
+                  <label key={field} className="space-y-1">
+                    <span className="text-xs text-slate-400">{label}</span>
+                    <input
+                      type="number"
+                      min={0}
+                      value={shot[field] ?? ''}
+                      onChange={(e) => updateShot(type, idx, field, e.target.value)}
+                      placeholder="—"
+                      className="w-full rounded-lg border border-slate-700 bg-slate-900 px-2 py-1.5 text-sm text-slate-100 outline-none focus:border-violet-500"
+                      data-testid={`skill-${type}-${idx}-${field}`}
+                    />
+                  </label>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      };
+
       return (
-        <label className="block space-y-2 rounded-xl border border-slate-700 bg-slate-900 p-3">
-          <span className="text-sm text-slate-300">{factor.label} 점수</span>
-          <input
-            type="number"
-            min={0}
-            max={100}
-            step={1}
-            value={factorScores[factorKey] ?? 0}
-            onChange={(event) => handleScoreChange(factorKey, event.target.value)}
-            className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none focus:border-violet-500"
-            data-testid={`diagnosis-score-input-${factorKey}`}
-          />
-          <p className="text-xs text-slate-400">점수는 0~100 범위로 자동 보정됩니다.</p>
-        </label>
+        <div className="space-y-4">
+          {/* Full Shot */}
+          <div className="rounded-xl border border-slate-700 bg-slate-900 p-4 space-y-3">
+            <div>
+              <h4 className="text-sm font-semibold text-violet-300">풀샷 진단</h4>
+              <p className="text-xs text-slate-400 mt-1">130m~210m 목표 샷 — 캐리, 토탈, 탄착군, 발사각, 최고점, 스핀을 입력하세요.</p>
+            </div>
+            <div className="space-y-2">
+              {skillDiagnosisData.fullShots.map((shot, idx) => renderShotRow(shot, idx, 'fullShots'))}
+            </div>
+          </div>
+
+          {/* Short Game */}
+          <div className="rounded-xl border border-slate-700 bg-slate-900 p-4 space-y-3">
+            <div>
+              <h4 className="text-sm font-semibold text-violet-300">숏게임 진단</h4>
+              <p className="text-xs text-slate-400 mt-1">30m~100m 숏게임 샷 — 거리 제어 및 핀 공략 정확도를 입력하세요.</p>
+            </div>
+            <div className="space-y-2">
+              {skillDiagnosisData.shortGameShots.map((shot, idx) => renderShotRow(shot, idx, 'shortGameShots'))}
+            </div>
+          </div>
+
+          {/* Score */}
+          <div className="rounded-xl border border-slate-700 bg-slate-900 p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-semibold text-violet-300">{factor.label} 점수</span>
+              {autoScore !== null && (
+                <span className="text-xs text-emerald-400">자동 계산: {autoScore}점</span>
+              )}
+            </div>
+            <input
+              type="number"
+              min={0}
+              max={100}
+              step={1}
+              value={factorScores[factorKey] ?? 0}
+              onChange={(event) => handleScoreChange(factorKey, event.target.value)}
+              className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none focus:border-violet-500"
+              data-testid={`diagnosis-score-input-${factorKey}`}
+            />
+            <p className="text-xs text-slate-400">
+              {autoScore !== null
+                ? '입력 데이터 기반 자동 계산값입니다. 필요 시 수동 조정 가능합니다.'
+                : '샷 데이터 입력 시 점수가 자동 계산됩니다. 직접 입력도 가능합니다.'}
+            </p>
+          </div>
+        </div>
       );
     }
 

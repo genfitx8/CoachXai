@@ -62,6 +62,21 @@ export interface TrackmanData {
   notes?: string;
 }
 
+export interface SkillShotData {
+  targetDistance: number;
+  carryDistance: number | null;
+  totalDistance: number | null;
+  dispersion: number | null;
+  launchAngle: number | null;
+  apexHeight: number | null;
+  spinRate: number | null;
+}
+
+export interface SkillDiagnosisData {
+  fullShots: SkillShotData[];
+  shortGameShots: SkillShotData[];
+}
+
 export interface GolferProfile {
   name: string;
   gender: '' | 'male' | 'female';
@@ -90,6 +105,7 @@ export interface GolferProfile {
   primaryConcern: string;
   targetHandicap: number | null;
   trackmanData?: TrackmanData[];
+  skillDiagnosisData?: SkillDiagnosisData;
 }
 
 export interface DiagnosisInput {
