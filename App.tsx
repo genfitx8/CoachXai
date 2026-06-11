@@ -1900,6 +1900,7 @@ const AppContent: React.FC = () => {
             result={selectedDiagnosisSession.result}
             onBack={() => setCoachView('LIST')}
             onBackToProgram={() => setCoachView('DIAGNOSIS_PROGRAM')}
+            createdAt={selectedDiagnosisSession.createdAt}
           />
         )}
 

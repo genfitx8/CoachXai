@@ -6,6 +6,7 @@ import {
   DiagnosisRecommendation,
   DiagnosisResult,
   DiagnosisSavedSession,
+  GolferProfile,
 } from '../types/diagnosis';
 import { clampDiagnosisScore, getAgeFromBirthDate, getDiagnosisAverageScore, getDiagnosisGrade } from '../utils/diagnosis';
 import { createLogger } from '../utils/logger';
@@ -68,7 +69,7 @@ const toFactorScores = (factorScores: Record<DiagnosisFactorKey, number>): Diagn
     };
   });
 
-const getPartResults = (factors: DiagnosisFactor[]): DiagnosisResult['partResults'] => {
+const getPartResults = (factors: DiagnosisFactor[], profile?: GolferProfile): DiagnosisResult['partResults'] => {
   const byKey = Object.fromEntries(factors.map((factor) => [factor.key, factor])) as Record<
     DiagnosisFactorKey,
     DiagnosisFactor
@@ -76,7 +77,48 @@ const getPartResults = (factors: DiagnosisFactor[]): DiagnosisResult['partResult
   const integratedScore = getDiagnosisAverageScore(factors);
   const weakestFactor = [...factors].sort((a, b) => a.score - b.score)[0];
 
-  return [
+  // Derive specific weak distances from skill data
+  const domainDetails: string[] = [
+    `신체 ${byKey.body.score}점 / 장비 ${byKey.equipment.score}점 / 기술 ${byKey.skill.score}점`,
+  ];
+  if (profile?.skillDiagnosisData) {
+    const allShots = [
+      ...profile.skillDiagnosisData.fullShots,
+      ...profile.skillDiagnosisData.shortGameShots,
+    ].filter((s) => s.carryDistance != null);
+    if (allShots.length > 0) {
+      const sorted = [...allShots].sort((a, b) => {
+        const ea = Math.abs((a.carryDistance ?? 0) - a.targetDistance) / a.targetDistance;
+        const eb = Math.abs((b.carryDistance ?? 0) - b.targetDistance) / b.targetDistance;
+        return eb - ea;
+      });
+      const worstTwo = sorted.slice(0, 2).map((s) => `${s.targetDistance}m`).join(', ');
+      domainDetails.push(`거리 편차 최대 구간: ${worstTwo}`);
+      const bestTwo = [...sorted].reverse().slice(0, 2).map((s) => `${s.targetDistance}m`).join(', ');
+      domainDetails.push(`거리 제어 우수 구간: ${bestTwo}`);
+    }
+  }
+
+  // Course/mental summary
+  const courseMentalDetails: string[] = [];
+  if (profile?.courseMentalData) {
+    const allRated = [...profile.courseMentalData.courseManagement, ...profile.courseMentalData.mental]
+      .filter((i) => i.rating !== null);
+    if (allRated.length > 0) {
+      const avg = allRated.reduce((sum, i) => sum + (i.rating ?? 0), 0) / allRated.length;
+      courseMentalDetails.push(`코스메니지먼트·멘탈 평균 평점: ${avg.toFixed(1)} / 5.0`);
+      const worst = [...allRated].sort((a, b) => (a.rating ?? 0) - (b.rating ?? 0))[0];
+      if (worst && (worst.rating ?? 5) <= 3) {
+        courseMentalDetails.push(`보완 우선 항목: ${worst.label} (${worst.rating}점)`);
+      }
+      const best = [...allRated].sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0))[0];
+      if (best && (best.rating ?? 0) >= 4) {
+        courseMentalDetails.push(`강점 항목: ${best.label} (${best.rating}점)`);
+      }
+    }
+  }
+
+  const parts: DiagnosisResult['partResults'] = [
     {
       id: 'integrated-overview',
       title: '통합 분석 개요',
@@ -85,7 +127,7 @@ const getPartResults = (factors: DiagnosisFactor[]): DiagnosisResult['partResult
           ? '3개 핵심 영역의 균형이 비교적 안정적이며 실전 성과 연결 가능성이 높습니다.'
           : '핵심 영역 간 편차가 있어 우선 개선 영역을 중심으로 로드맵 실행이 필요합니다.',
       details: [
-        `종합 분석 점수 ${integratedScore}점 / 우선 개선 영역 ${weakestFactor.label} (${weakestFactor.score}점)`,
+        `종합 분석 점수 ${integratedScore}점 / 우선 개선 영역: ${weakestFactor.label} (${weakestFactor.score}점)`,
         integratedScore >= 75
           ? '현재 강점을 유지하면서 약점 영역의 미세 조정 중심으로 개선하세요.'
           : '우선 개선 영역 1~2개에 집중해 단계별 실행 계획을 수립하세요.',
@@ -95,11 +137,20 @@ const getPartResults = (factors: DiagnosisFactor[]): DiagnosisResult['partResult
       id: 'domain-breakdown',
       title: '3개 영역별 결과',
       summary: '신체·장비·기술 영역의 현재 수준과 개선 우선순위를 제공합니다.',
-      details: [
-        `신체 ${byKey.body.score}점 / 장비 ${byKey.equipment.score}점 / 기술 ${byKey.skill.score}점`,
-      ],
+      details: domainDetails,
     },
   ];
+
+  if (courseMentalDetails.length > 0) {
+    parts.push({
+      id: 'course-mental-overview',
+      title: '코스메니지먼트 & 멘탈',
+      summary: '코스 운영 전략과 멘탈 역량 종합 평가 결과입니다.',
+      details: courseMentalDetails,
+    });
+  }
+
+  return parts;
 };
 
 const getRecommendations = (factors: DiagnosisFactor[]): DiagnosisRecommendation[] =>
@@ -150,7 +201,7 @@ export const diagnosisService = {
       grade: getDiagnosisGrade(overallScore),
       summary: `종합 분석 결과 ${strongestFactor.label}(${strongestFactor.score}점)이 강점이며, 현재 가장 큰 병목은 ${weakestFactor.label}(${weakestFactor.score}점)입니다. 병목 영역 중심의 맞춤형 개선 로드맵을 권장합니다.`,
       factors,
-      partResults: getPartResults(factors),
+      partResults: getPartResults(factors, normalizedInput.golferProfile),
       recommendations: getRecommendations(factors),
     };
   },
