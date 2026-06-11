@@ -49,6 +49,11 @@ export const DIAGNOSIS_PROCESS: DiagnosisProcessStep[] = [
     description: '거리대별 샷 데이터를 바탕으로 기술 수행 수준을 확인합니다.',
   },
   {
+    id: 'shortgame-performance',
+    title: '숏게임 퍼포먼스 테스트',
+    description: '피치샷·칩샷·퍼팅의 홀 근접도 및 성공률을 입력합니다.',
+  },
+  {
     id: 'course-mental',
     title: '코스메니지먼트 & 멘탈',
     description: '코스 운영과 멘탈 루틴 관점의 진단 의견을 입력합니다.',

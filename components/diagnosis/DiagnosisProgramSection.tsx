@@ -1,13 +1,14 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { CourseMentalData, CourseMentalItem, DiagnosisFactorKey, DiagnosisInput, DiagnosisProgram, GolferProfile, SkillDiagnosisData, SkillShotData, TrackmanData } from '../../types/diagnosis';
+import { ChipShotDistance, CourseMentalData, CourseMentalItem, DiagnosisFactorKey, DiagnosisInput, DiagnosisProgram, GolferProfile, PitchShotDistance, PuttingDistanceFeel, ShortGameDiagnosisData, ShortPuttingRecord, SkillDiagnosisData, SkillShotData, TrackmanData } from '../../types/diagnosis';
 import { PostureAnalysisResult } from '../../types/postureAnalysis';
 import { DiagnosisHero } from './DiagnosisHero';
 import { Button } from '../Button';
-import { calculateCourseMentalScore, calculateSkillScore, clampDiagnosisScore, getAgeFromBirthDate } from '../../utils/diagnosis';
+import { calculateCourseMentalScore, calculateShortGameDiagnosisScore, calculateSkillScore, clampDiagnosisScore, getAgeFromBirthDate } from '../../utils/diagnosis';
 import { useLanguage } from '../LanguageContext';
 import { ChevronDown, ChevronUp, Plus, Trash2, Monitor, Camera, Loader2 } from 'lucide-react';
 import { PostureAnalysisDashboard } from '../posture/PostureAnalysisDashboard';
 import { ScreenCaptureDialog } from './ScreenCaptureDialog';
+import { ShortGameDiagnosisSection } from './ShortGameDiagnosisSection';
 import { analyzeEquipmentPhoto } from '../../services/geminiService';
 
 interface DiagnosisProgramSectionProps {
@@ -57,6 +58,38 @@ const parseNullableNumber = (value: string): number | null => {
 
 const FULL_SHOT_DISTANCES = [130, 150, 170, 190, 210];
 const SHORT_GAME_DISTANCES = [30, 50, 70, 100];
+
+const PITCH_DISTANCES = [10, 15, 20, 25, 30];
+const CHIP_DISTANCES = [10, 15, 20];
+const PUTTING_FEEL_DISTANCES = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+const SHORT_PUTT_DISTANCES = [1, 1.5, 2, 2.5, 3];
+
+const createDefaultPitchDistance = (d: number): PitchShotDistance => ({
+  targetDistance: d,
+  attempts: [{ proximityToHole: null }, { proximityToHole: null }, { proximityToHole: null }],
+});
+
+const createDefaultChipDistance = (d: number): ChipShotDistance => ({
+  targetDistance: d,
+  proximityToHole: null,
+});
+
+const createDefaultPuttingFeel = (d: number): PuttingDistanceFeel => ({
+  targetDistance: d,
+  proximityToHole: null,
+});
+
+const createDefaultShortPutt = (d: number): ShortPuttingRecord => ({
+  targetDistance: d,
+  madeCount: null,
+});
+
+const DEFAULT_SHORT_GAME_DIAGNOSIS_DATA: ShortGameDiagnosisData = {
+  pitchShots: PITCH_DISTANCES.map(createDefaultPitchDistance),
+  chipShots: CHIP_DISTANCES.map(createDefaultChipDistance),
+  puttingDistanceFeel: PUTTING_FEEL_DISTANCES.map(createDefaultPuttingFeel),
+  shortPutting: SHORT_PUTT_DISTANCES.map(createDefaultShortPutt),
+};
 
 const createDefaultShot = (distance: number): SkillShotData => ({
   targetDistance: distance,
@@ -129,6 +162,7 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
     goals: true,
   });
   const [skillDiagnosisData, setSkillDiagnosisData] = useState<SkillDiagnosisData>(DEFAULT_SKILL_DIAGNOSIS_DATA);
+  const [shortGameDiagnosisData, setShortGameDiagnosisData] = useState<ShortGameDiagnosisData>(DEFAULT_SHORT_GAME_DIAGNOSIS_DATA);
   const [expandedSkillRows, setExpandedSkillRows] = useState<Record<string, boolean>>({});
   const [postureAnalysisResult, setPostureAnalysisResult] = useState<PostureAnalysisResult | null>(null);
   const [showPostureAnalysis, setShowPostureAnalysis] = useState(false);
@@ -189,6 +223,7 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
         ...golferProfile,
         name: memberName,
         skillDiagnosisData,
+        shortGameDiagnosisData,
         courseMentalData,
       },
       factorScores,
@@ -1054,6 +1089,23 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
       );
     }
 
+    if (currentStep.id === 'shortgame-performance') {
+      const sgScore = calculateShortGameDiagnosisScore(shortGameDiagnosisData);
+      return (
+        <div className="space-y-4">
+          <ShortGameDiagnosisSection
+            data={shortGameDiagnosisData}
+            onChange={setShortGameDiagnosisData}
+          />
+          {sgScore !== null && (
+            <p className="text-xs text-slate-400">
+              입력 데이터 기반 자동 계산 점수입니다. 데이터를 추가할수록 점수가 정교해집니다.
+            </p>
+          )}
+        </div>
+      );
+    }
+
     if (currentStep.id === 'course-mental') {
       const courseMentalScore = calculateCourseMentalScore(courseMentalData);
 
@@ -1180,6 +1232,17 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
               {entry.label}: {entry.score}점
             </li>
           ))}
+          <li>
+            숏게임 퍼포먼스: {(() => {
+              const sg = shortGameDiagnosisData;
+              const pitchFilled = sg.pitchShots.flatMap(d => d.attempts).filter(a => a.proximityToHole !== null).length;
+              const chipFilled = sg.chipShots.filter(d => d.proximityToHole !== null).length;
+              const feelFilled = sg.puttingDistanceFeel.filter(d => d.proximityToHole !== null).length;
+              const puttFilled = sg.shortPutting.filter(d => d.madeCount !== null).length;
+              const total = pitchFilled + chipFilled + feelFilled + puttFilled;
+              return total > 0 ? `피치 ${pitchFilled}/15 · 칩 ${chipFilled}/3 · 거리감 ${feelFilled}/10 · 숏퍼팅 ${puttFilled}/5` : '-';
+            })()}
+          </li>
           <li>
             코스메니지먼트: {
               courseMentalData.courseManagement.filter((i) => i.rating !== null).length > 0

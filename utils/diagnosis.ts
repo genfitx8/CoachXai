@@ -1,4 +1,4 @@
-import { CourseMentalData, DiagnosisFactor, SkillDiagnosisData, SkillShotData } from '../types/diagnosis';
+import { CourseMentalData, DiagnosisFactor, ShortGameDiagnosisData, SkillDiagnosisData, SkillShotData } from '../types/diagnosis';
 
 export const clampDiagnosisScore = (score: number): number =>
   Math.max(0, Math.min(100, Math.round(score)));
@@ -68,6 +68,45 @@ export const calculateCourseMentalScore = (data: CourseMentalData): number | nul
   if (!rated.length) return null;
   const avg = rated.reduce((sum, item) => sum + (item.rating ?? 0), 0) / rated.length;
   return Math.round(((avg - 1) / 4) * 100);
+};
+
+const scoreProximityShortGame = (cm: number): number => {
+  if (cm <= 30) return 100;
+  if (cm <= 75) return 85;
+  if (cm <= 150) return 70;
+  if (cm <= 300) return 55;
+  return 35;
+};
+
+const scoreProximityPutting = (cm: number): number => {
+  if (cm <= 15) return 100;
+  if (cm <= 30) return 85;
+  if (cm <= 60) return 70;
+  if (cm <= 100) return 55;
+  return 35;
+};
+
+export const calculateShortGameDiagnosisScore = (data: ShortGameDiagnosisData): number | null => {
+  const pitchScores = data.pitchShots
+    .flatMap((d) => d.attempts)
+    .filter((a) => a.proximityToHole !== null)
+    .map((a) => scoreProximityShortGame(a.proximityToHole!));
+
+  const chipScores = data.chipShots
+    .filter((d) => d.proximityToHole !== null)
+    .map((d) => scoreProximityShortGame(d.proximityToHole!));
+
+  const distFeelScores = data.puttingDistanceFeel
+    .filter((d) => d.proximityToHole !== null)
+    .map((d) => scoreProximityPutting(d.proximityToHole!));
+
+  const shortPuttScores = data.shortPutting
+    .filter((d) => d.madeCount !== null)
+    .map((d) => Math.round((d.madeCount! / 12) * 100));
+
+  const allScores = [...pitchScores, ...chipScores, ...distFeelScores, ...shortPuttScores];
+  if (!allScores.length) return null;
+  return Math.round(allScores.reduce((a, b) => a + b, 0) / allScores.length);
 };
 
 export const calculateSkillScore = (data: SkillDiagnosisData): number | null => {
