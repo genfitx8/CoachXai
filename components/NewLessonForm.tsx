@@ -63,6 +63,7 @@ import {
 } from '../types';
 import { firebaseService } from '../services/firebase';
 import { storageService } from '../services/storage';
+import { videoStore, IDB_PREFIX, resolveSync } from '../services/videoStore';
 
 interface NewLessonFormProps {
   existingClients: ClientProfile[];
@@ -358,13 +359,21 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
         }
       }
 
-      // Reconstruct media items
+      // Reconstruct media items, resolving any idb:// URLs to blob: URLs for
+      // playback (browsers cannot load idb:// scheme natively).
+      const resolvePreviewUrl = async (url: string): Promise<string> => {
+        if (!url?.startsWith(IDB_PREFIX)) return url;
+        const sync = resolveSync(url);
+        if (sync) return sync;
+        return (await videoStore.resolve(url)) ?? url;
+      };
+
       const reconstructedMedia: PendingMedia[] = [];
       if (initialData.videoUrl) {
         reconstructedMedia.push({
           id: 'main',
-          file: null, // Remote file
-          previewUrl: initialData.videoUrl,
+          file: null,
+          previewUrl: initialData.videoUrl, // updated below after resolution
           type: initialData.mediaType,
           isRemote: true,
         });
@@ -382,6 +391,20 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
         });
       }
       setMediaItems(reconstructedMedia);
+
+      // Resolve any idb:// preview URLs asynchronously
+      (async () => {
+        let changed = false;
+        const resolved = await Promise.all(
+          reconstructedMedia.map(async (item) => {
+            if (!item.previewUrl?.startsWith(IDB_PREFIX)) return item;
+            const blobUrl = await resolvePreviewUrl(item.previewUrl);
+            if (blobUrl !== item.previewUrl) { changed = true; return { ...item, previewUrl: blobUrl }; }
+            return item;
+          })
+        );
+        if (changed) setMediaItems(resolved);
+      })();
     }
 
     return () => {

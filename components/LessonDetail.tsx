@@ -57,13 +57,12 @@ export async function persistAdditionalMediaSourceForOffline(params: {
 
 export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons = [], role = 'COACH', onBack, onUpdate, onDelete, onEdit }) => {
   const { t } = useLanguage();
-  // resolvedMainUrl must be declared before mainMediaUrl is computed below.
-  // Initialize synchronously from the session blob cache so the video is
-  // playable on the very first render when we just recorded/saved this lesson.
-  // Falls back to null (async IDB resolve via useEffect) on page reload.
-  const [resolvedMainUrl, setResolvedMainUrl] = useState<string | null>(() =>
-    resolveSync(lesson.videoUrl)
-  );
+  // resolvedMainUrl is always null on mount; the IDB effect below resolves it.
+  // Using null here avoids a double-blob-URL problem: if resolveSync() were
+  // called here AND in the effect, two different object URLs would be created
+  // for the same blob, causing the video element's key to change and
+  // unmounting/remounting the <video> right when the user presses play.
+  const [resolvedMainUrl, setResolvedMainUrl] = useState<string | null>(null);
   const mainMediaSource = lesson.videoUrl || (lesson.videoKey ? `/api/files/${lesson.videoKey}` : '');
   // For idb:// URLs, use the asynchronously-resolved blob URL; fall back to empty
   // while the IDB lookup is in flight (the useEffect below will update activeMedia).
@@ -1003,6 +1002,16 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
 
     const resolve = async () => {
       if (lesson.videoUrl?.startsWith(IDB_PREFIX)) {
+        // Fast path: session cache (same-session recording, no async round-trip).
+        // This is the only place we create a blob URL for the main video, so
+        // there is never more than one URL in flight — no key churn on <video>.
+        const syncUrl = resolveSync(lesson.videoUrl);
+        if (syncUrl) {
+          objUrl = syncUrl;
+          if (!disposed) setResolvedMainUrl(syncUrl);
+          return;
+        }
+        // Slow path: IDB lookup (cross-session / page-reload case).
         objUrl = await videoStore.resolve(lesson.videoUrl);
         if (!disposed) setResolvedMainUrl(objUrl);
       } else {
@@ -1014,8 +1023,6 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
 
     return () => {
       disposed = true;
-      // Clear stale URL immediately so the player doesn't briefly render a
-      // revoked blob URL while the next resolve() is in flight.
       setResolvedMainUrl(null);
       if (objUrl) URL.revokeObjectURL(objUrl);
     };
