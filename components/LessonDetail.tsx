@@ -786,18 +786,20 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
 
   const saveAdditionalMedia = async () => {
       if (!capturedMedia) return;
+      const capturedUrl = capturedMedia.url;
+      const capturedType = capturedMedia.type;
       const id = crypto.randomUUID();
       const url = await persistAdditionalMediaSourceForOffline({
         lessonId: lesson.id,
         mediaId: id,
-        mediaUrl: capturedMedia.url,
+        mediaUrl: capturedUrl,
         shouldPersistOffline: !apiService.isAvailable(),
       });
       const newItem: MediaItem = {
           id,
           url,
-          type: capturedMedia.type,
-          role: capturedMedia.type === 'video' ? pendingRole : undefined,
+          type: capturedType,
+          role: capturedType === 'video' ? pendingRole : undefined,
           createdAt: Date.now()
       };
 
@@ -805,8 +807,10 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
           ...lesson,
           additionalMedia: [...(lesson.additionalMedia || []), newItem]
       };
-      
-      setActiveMedia(newItem);
+
+      // idb:// URLs are resolved asynchronously by useEffect; use the in-memory
+      // blob URL for immediate playback so the video is not blank after saving.
+      setActiveMedia(url.startsWith(IDB_PREFIX) ? { ...newItem, url: capturedUrl } : newItem);
       onUpdate(updatedLesson);
       setPendingRole(undefined);
       closeAddModal();
