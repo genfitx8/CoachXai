@@ -77,6 +77,39 @@ export interface SkillDiagnosisData {
   shortGameShots: SkillShotData[];
 }
 
+// ── 숏게임 퍼포먼스 테스트 ────────────────────────────────────────────
+
+export interface PitchShotAttempt {
+  proximityToHole: number | null; // cm
+}
+
+export interface PitchShotDistance {
+  targetDistance: number; // 10, 15, 20, 25, 30
+  attempts: PitchShotAttempt[]; // 3 attempts
+}
+
+export interface ChipShotDistance {
+  targetDistance: number; // 10, 15, 20
+  proximityToHole: number | null; // cm
+}
+
+export interface PuttingDistanceFeel {
+  targetDistance: number; // 1~10m
+  proximityToHole: number | null; // cm
+}
+
+export interface ShortPuttingRecord {
+  targetDistance: number; // 1, 1.5, 2, 2.5, 3
+  madeCount: number | null; // out of 12
+}
+
+export interface ShortGameDiagnosisData {
+  pitchShots: PitchShotDistance[];
+  chipShots: ChipShotDistance[];
+  puttingDistanceFeel: PuttingDistanceFeel[];
+  shortPutting: ShortPuttingRecord[];
+}
+
 export interface CourseMentalItem {
   key: string;
   label: string;
@@ -119,6 +152,7 @@ export interface GolferProfile {
   targetHandicap: number | null;
   trackmanData?: TrackmanData[];
   skillDiagnosisData?: SkillDiagnosisData;
+  shortGameDiagnosisData?: ShortGameDiagnosisData;
   courseMentalData?: CourseMentalData;
 }
 
