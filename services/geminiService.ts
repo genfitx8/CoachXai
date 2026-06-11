@@ -175,6 +175,17 @@ export interface EquipmentPhotoAnalysisResult {
   summary: string;
 }
 
+export interface SkillShotPhotoAnalysisResult {
+  carryDistance: number | null;
+  totalDistance: number | null;
+  dispersion: number | null;
+  launchAngle: number | null;
+  apexHeight: number | null;
+  spinRate: number | null;
+  shotCount: number | null;
+  summary: string;
+}
+
 const LESSON_BODY_TYPES: BodyPhotoAnalysisResult['bodyType'][] = [
   '이상체형',
   '삼각체형',
@@ -705,6 +716,83 @@ export const analyzeEquipmentPhoto = async (
     return parseEquipmentPhotoAnalysisResponse(text);
   } catch (error) {
     log.error('AI equipment photo analysis failed:', error);
+    throw error;
+  }
+};
+
+const toOptionalNumber = (value: unknown): number | null => {
+  if (value === null || value === undefined) return null;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+};
+
+const parseSkillShotPhotoResponse = (text: string): SkillShotPhotoAnalysisResult => {
+  const obj = parseJsonObjectFromText(text) ?? {};
+  return {
+    carryDistance: toOptionalNumber(obj.carryDistance),
+    totalDistance: toOptionalNumber(obj.totalDistance),
+    dispersion: toOptionalNumber(obj.dispersion),
+    launchAngle: toOptionalNumber(obj.launchAngle),
+    apexHeight: toOptionalNumber(obj.apexHeight),
+    spinRate: toOptionalNumber(obj.spinRate),
+    shotCount: toOptionalNumber(obj.shotCount),
+    summary: typeof obj.summary === 'string' && obj.summary.trim() ? obj.summary.trim() : '분석 완료',
+  };
+};
+
+export const analyzeSkillShotPhoto = async (
+  imageInput: AnalysisInput,
+  targetDistance: number
+): Promise<SkillShotPhotoAnalysisResult> => {
+  try {
+    const blob =
+      typeof imageInput.data === 'string'
+        ? await getBlobFromUrl(imageInput.data)
+        : imageInput.data;
+    const mediaPart = await fileToGenerativePart(blob, imageInput.mimeType);
+
+    const prompt = `
+      너는 골프 트랙맨(Trackman) 또는 런치 모니터 데이터 분석 보조 AI다.
+      입력된 이미지는 트랙맨, GCQuad, SkyTrak 등 런치 모니터의 데이터 화면이다.
+      목표 거리: ${targetDistance}m
+
+      화면에 표시된 샷 데이터를 분석하여 아래 JSON만 출력해라.
+      여러 샷이 표시된 경우 모든 샷의 평균값을 계산해서 반환해라.
+
+      {
+        "carryDistance": number | null,
+        "totalDistance": number | null,
+        "dispersion": number | null,
+        "launchAngle": number | null,
+        "apexHeight": number | null,
+        "spinRate": number | null,
+        "shotCount": number | null,
+        "summary": string
+      }
+
+      규칙:
+      - carryDistance: 캐리 거리(m) 평균. 단위가 yards면 0.9144을 곱해 m로 변환
+      - totalDistance: 토탈 거리(m) 평균. 단위가 yards면 m로 변환
+      - dispersion: 탄착군 반경(m) — 좌우(Side) 최대 편차의 절반값. 없으면 null
+      - launchAngle: 발사각(°) 평균
+      - apexHeight: 최고점 높이(m) 평균. Apex 또는 Max Height 항목 사용
+      - spinRate: 백스핀(rpm) 평균. Total Spin 또는 Back Spin 항목 사용
+      - shotCount: 분석에 사용한 샷 수
+      - summary: 한국어 1문장으로 추출된 데이터 핵심 요약
+      - 확인 불가한 값은 null
+      - 코드블록 없이 순수 JSON만 반환
+    `;
+
+    const result = await invokeBackendAI<unknown>('analyze_skill_shot_photo', {
+      prompt,
+      mediaParts: [mediaPart],
+      responseMimeType: 'application/json',
+    });
+    const text = getJsonTextFromResult(result);
+    if (!text) throw new Error('기술 진단 데이터 추출에 실패했습니다.');
+    return parseSkillShotPhotoResponse(text);
+  } catch (error) {
+    log.error('AI skill shot photo analysis failed:', error);
     throw error;
   }
 };

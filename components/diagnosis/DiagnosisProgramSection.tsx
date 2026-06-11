@@ -5,10 +5,10 @@ import { DiagnosisHero } from './DiagnosisHero';
 import { Button } from '../Button';
 import { calculateCourseMentalScore, calculateSkillScore, clampDiagnosisScore, getAgeFromBirthDate } from '../../utils/diagnosis';
 import { useLanguage } from '../LanguageContext';
-import { ChevronDown, ChevronUp, Plus, Trash2, Monitor, Camera, Loader2 } from 'lucide-react';
+import { ChevronDown, ChevronUp, Plus, Trash2, Monitor, Camera, Loader2, Upload } from 'lucide-react';
 import { PostureAnalysisDashboard } from '../posture/PostureAnalysisDashboard';
 import { ScreenCaptureDialog } from './ScreenCaptureDialog';
-import { analyzeEquipmentPhoto } from '../../services/geminiService';
+import { analyzeEquipmentPhoto, analyzeSkillShotPhoto } from '../../services/geminiService';
 
 interface DiagnosisProgramSectionProps {
   program: DiagnosisProgram;
@@ -130,6 +130,11 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
   });
   const [skillDiagnosisData, setSkillDiagnosisData] = useState<SkillDiagnosisData>(DEFAULT_SKILL_DIAGNOSIS_DATA);
   const [expandedSkillRows, setExpandedSkillRows] = useState<Record<string, boolean>>({});
+  const [analyzingSkillRowKey, setAnalyzingSkillRowKey] = useState<string | null>(null);
+  const [skillRowSummaries, setSkillRowSummaries] = useState<Record<string, string>>({});
+  const [pendingSkillRowKey, setPendingSkillRowKey] = useState<string | null>(null);
+  const [showSkillCapture, setShowSkillCapture] = useState(false);
+  const skillFileInputRef = useRef<HTMLInputElement>(null);
   const [postureAnalysisResult, setPostureAnalysisResult] = useState<PostureAnalysisResult | null>(null);
   const [showPostureAnalysis, setShowPostureAnalysis] = useState(false);
   const [showScreenCapture, setShowScreenCapture] = useState(false);
@@ -146,6 +151,70 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
       setFactorScores((prev) => ({ ...prev, skill: clampDiagnosisScore(autoScore) }));
     }
   }, [skillDiagnosisData]);
+
+  const handleSkillShotAnalysis = async (rowKey: string, type: 'fullShots' | 'shortGameShots', idx: number, imageData: string) => {
+    setAnalyzingSkillRowKey(rowKey);
+    setExpandedSkillRows((prev) => ({ ...prev, [rowKey]: true }));
+    const shot = type === 'fullShots' ? skillDiagnosisData.fullShots[idx] : skillDiagnosisData.shortGameShots[idx];
+    try {
+      const result = await analyzeSkillShotPhoto({ data: imageData, mimeType: 'image/png' }, shot.targetDistance);
+      setSkillDiagnosisData((prev) => {
+        const shots = prev[type].map((s, i) =>
+          i === idx
+            ? {
+                ...s,
+                carryDistance: result.carryDistance ?? s.carryDistance,
+                totalDistance: result.totalDistance ?? s.totalDistance,
+                dispersion: result.dispersion ?? s.dispersion,
+                launchAngle: result.launchAngle ?? s.launchAngle,
+                apexHeight: result.apexHeight ?? s.apexHeight,
+                spinRate: result.spinRate ?? s.spinRate,
+              }
+            : s
+        );
+        return { ...prev, [type]: shots };
+      });
+      setSkillRowSummaries((prev) => ({ ...prev, [rowKey]: result.summary }));
+    } catch {
+      setSkillRowSummaries((prev) => ({ ...prev, [rowKey]: '분석에 실패했습니다. 직접 입력해 주세요.' }));
+    } finally {
+      setAnalyzingSkillRowKey(null);
+    }
+  };
+
+  const handleSkillFileInputChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !pendingSkillRowKey) return;
+    if (skillFileInputRef.current) skillFileInputRef.current.value = '';
+
+    const [typeStr, distStr] = pendingSkillRowKey.split('-');
+    const type = typeStr === 'fullShots' ? 'fullShots' : 'shortGameShots';
+    const dist = Number(distStr);
+    const shots = type === 'fullShots' ? skillDiagnosisData.fullShots : skillDiagnosisData.shortGameShots;
+    const idx = shots.findIndex((s) => s.targetDistance === dist);
+    if (idx === -1) return;
+
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      const dataUrl = e.target?.result as string;
+      await handleSkillShotAnalysis(pendingSkillRowKey, type, idx, dataUrl);
+    };
+    reader.readAsDataURL(file);
+    setPendingSkillRowKey(null);
+  };
+
+  const handleSkillScreenCapture = async (imageDataUrl: string) => {
+    setShowSkillCapture(false);
+    if (!pendingSkillRowKey) return;
+    const [typeStr, distStr] = pendingSkillRowKey.split('-');
+    const type = typeStr === 'fullShots' ? 'fullShots' : 'shortGameShots';
+    const dist = Number(distStr);
+    const shots = type === 'fullShots' ? skillDiagnosisData.fullShots : skillDiagnosisData.shortGameShots;
+    const idx = shots.findIndex((s) => s.targetDistance === dist);
+    if (idx === -1) return;
+    await handleSkillShotAnalysis(pendingSkillRowKey, type, idx, imageDataUrl);
+    setPendingSkillRowKey(null);
+  };
 
   const memberName = golferProfile.name;
 
@@ -953,49 +1022,99 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
         const rowKey = `${type}-${shot.targetDistance}`;
         const isExpanded = !!expandedSkillRows[rowKey];
         const hasData = shot.carryDistance != null || shot.dispersion != null;
+        const isAnalyzing = analyzingSkillRowKey === rowKey;
+        const summary = skillRowSummaries[rowKey];
+
         return (
           <div key={rowKey} className="rounded-lg border border-slate-700 bg-slate-950 overflow-hidden">
-            <button
-              type="button"
-              onClick={() => toggleSkillRow(rowKey)}
-              className="w-full flex items-center justify-between px-4 py-3 hover:bg-slate-800/50 transition-colors"
-            >
-              <div className="flex items-center gap-3">
-                <span className="text-sm font-semibold text-slate-100">{shot.targetDistance}m</span>
+            {/* Row header */}
+            <div className="flex items-center gap-2 px-3 py-2.5">
+              <button
+                type="button"
+                onClick={() => toggleSkillRow(rowKey)}
+                className="flex-1 flex items-center gap-2.5 text-left min-w-0"
+              >
+                <span className="text-sm font-semibold text-slate-100 shrink-0">{shot.targetDistance}m</span>
                 {hasData ? (
-                  <span className="text-xs text-emerald-400">
+                  <span className="text-xs text-emerald-400 truncate">
                     {shot.carryDistance != null ? `캐리 ${shot.carryDistance}m` : ''}
                     {shot.dispersion != null ? ` · 탄착군 ${shot.dispersion}m` : ''}
                   </span>
                 ) : (
                   <span className="text-xs text-slate-500">데이터 없음</span>
                 )}
+              </button>
+              <div className="flex items-center gap-1 shrink-0">
+                {isAnalyzing ? (
+                  <Loader2 className="w-4 h-4 animate-spin text-violet-400" />
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      title="파일 업로드"
+                      onClick={() => {
+                        setPendingSkillRowKey(rowKey);
+                        skillFileInputRef.current?.click();
+                      }}
+                      className="p-1.5 rounded-md text-slate-400 hover:text-violet-300 hover:bg-slate-800 transition-colors"
+                      data-testid={`skill-upload-btn-${rowKey}`}
+                    >
+                      <Upload className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      title="화면 캡처"
+                      onClick={() => {
+                        setPendingSkillRowKey(rowKey);
+                        setShowSkillCapture(true);
+                      }}
+                      className="p-1.5 rounded-md text-slate-400 hover:text-violet-300 hover:bg-slate-800 transition-colors"
+                      data-testid={`skill-capture-btn-${rowKey}`}
+                    >
+                      <Monitor className="w-3.5 h-3.5" />
+                    </button>
+                  </>
+                )}
+                <button
+                  type="button"
+                  onClick={() => toggleSkillRow(rowKey)}
+                  className="p-1.5 rounded-md text-slate-400 hover:bg-slate-800 transition-colors"
+                >
+                  {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                </button>
               </div>
-              {isExpanded ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
-            </button>
+            </div>
+
             {isExpanded && (
-              <div className="px-4 pb-4 grid grid-cols-2 gap-3 md:grid-cols-3">
-                {([
-                  { field: 'carryDistance', label: '캐리 (m)' },
-                  { field: 'totalDistance', label: '토탈 (m)' },
-                  { field: 'dispersion', label: '탄착군 (m)' },
-                  { field: 'launchAngle', label: '발사각 (°)' },
-                  { field: 'apexHeight', label: '최고점 (m)' },
-                  { field: 'spinRate', label: '스핀 (rpm)' },
-                ] as { field: keyof SkillShotData; label: string }[]).map(({ field, label }) => (
-                  <label key={field} className="space-y-1">
-                    <span className="text-xs text-slate-400">{label}</span>
-                    <input
-                      type="number"
-                      min={0}
-                      value={shot[field] ?? ''}
-                      onChange={(e) => updateShot(type, idx, field, e.target.value)}
-                      placeholder="—"
-                      className="w-full rounded-lg border border-slate-700 bg-slate-900 px-2 py-1.5 text-sm text-slate-100 outline-none focus:border-violet-500"
-                      data-testid={`skill-${type}-${idx}-${field}`}
-                    />
-                  </label>
-                ))}
+              <div className="px-3 pb-3 space-y-3">
+                <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+                  {([
+                    { field: 'carryDistance', label: '캐리 (m)' },
+                    { field: 'totalDistance', label: '토탈 (m)' },
+                    { field: 'dispersion', label: '탄착군 (m)' },
+                    { field: 'launchAngle', label: '발사각 (°)' },
+                    { field: 'apexHeight', label: '최고점 (m)' },
+                    { field: 'spinRate', label: '스핀 (rpm)' },
+                  ] as { field: keyof SkillShotData; label: string }[]).map(({ field, label }) => (
+                    <label key={field} className="space-y-1">
+                      <span className="text-xs text-slate-400">{label}</span>
+                      <input
+                        type="number"
+                        min={0}
+                        value={shot[field] ?? ''}
+                        onChange={(e) => updateShot(type, idx, field, e.target.value)}
+                        placeholder="—"
+                        className="w-full rounded-lg border border-slate-700 bg-slate-900 px-2 py-1.5 text-sm text-slate-100 outline-none focus:border-violet-500"
+                        data-testid={`skill-${type}-${idx}-${field}`}
+                      />
+                    </label>
+                  ))}
+                </div>
+                {summary && (
+                  <p className={`text-xs px-2 py-1.5 rounded-lg ${summary.includes('실패') ? 'text-rose-300 bg-rose-950/30 border border-rose-800/40' : 'text-emerald-300 bg-emerald-950/30 border border-emerald-800/40'}`}>
+                    {summary}
+                  </p>
+                )}
               </div>
             )}
           </div>
@@ -1047,9 +1166,19 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
             <p className="text-xs text-slate-400">
               {autoScore !== null
                 ? '입력 데이터 기반 자동 계산값입니다. 필요 시 수동 조정 가능합니다.'
-                : '샷 데이터 입력 시 점수가 자동 계산됩니다. 직접 입력도 가능합니다.'}
+                : '각 거리 행의 📁·🖥 버튼으로 트랙맨 화면을 업로드하거나 캡처하면 자동 분석됩니다.'}
             </p>
           </div>
+
+          {/* Hidden file input for skill shot photo upload */}
+          <input
+            ref={skillFileInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={handleSkillFileInputChange}
+            data-testid="skill-shot-file-input"
+          />
         </div>
       );
     }
@@ -1304,6 +1433,13 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
         <ScreenCaptureDialog
           onCapture={handleScreenCapture}
           onClose={() => setShowScreenCapture(false)}
+        />
+      )}
+
+      {showSkillCapture && (
+        <ScreenCaptureDialog
+          onCapture={handleSkillScreenCapture}
+          onClose={() => { setShowSkillCapture(false); setPendingSkillRowKey(null); }}
         />
       )}
     </div>
