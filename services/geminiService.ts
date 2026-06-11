@@ -8,6 +8,7 @@ import {
   TrainingProgramConfig,
   QuickLogEntry,
   WeeklyInsight,
+  MotionCaptureData,
   CoachProfile,
 } from '../types';
 import {
@@ -1381,5 +1382,96 @@ Example format:
   } catch (error) {
     log.error('CoachX runtime growth profile error:', error);
     return fallback();
+  }
+};
+
+/**
+ * Analyzes motion capture screenshots (K-Motion, 3D tracking systems) to extract
+ * body movement measurements and provide golf coaching analysis.
+ */
+export const analyzeMotionCapture = async (
+  imageInputs: AnalysisInput[],
+  coachNotes?: string
+): Promise<MotionCaptureData> => {
+  const mediaParts = await Promise.all(
+    imageInputs.map(async (input) => {
+      const blob = typeof input.data === 'string'
+        ? await getBlobFromUrl(input.data)
+        : input.data;
+      return fileToGenerativePart(blob, input.mimeType);
+    })
+  );
+
+  const prompt = `
+이 이미지들은 골프 스윙 3D 모션 캡처 시스템(K-Motion, Swing Catalyst 등)의 화면 캡처입니다.
+화면 오른쪽 패널에는 스켈레톤 모델과 다음 7가지 측정값이 표시됩니다:
+- 고개가 앞으로 쏠림 (Head forward tilt, cm, 방향: 앞/뒤)
+- 머리 좌우로 흔들림 (Head lateral sway, cm, 방향: 좌/우/정)
+- 상체 상부 밀림 (Upper body forward push, cm, 방향: 앞/뒤/정)
+- 머리 들림 (Head lift/dip, cm, 방향: 상/하)
+- 상체 상부 좌우 이동 (Upper body lateral move, cm, 방향: 좌/우/정)
+- 골반 밀림 (Hip slide, cm, 방향: 앞/뒤/정)
+- 상체 상부 들림 (Upper body rise, cm, 방향: 상/하)
+
+각 이미지의 화면 하단 타임라인에서 현재 시간(초)을 읽을 수 있습니다.
+
+**지시사항:**
+1. 각 이미지에서 위 7가지 측정값과 타임라인 시간을 추출하세요.
+2. 방향 텍스트를 부호로 변환하세요: 앞/우/상 = 양수, 뒤/좌/하/정 = 0 또는 음수 (정은 0).
+3. 스윙 단계는 타임라인 시간을 기준으로 추정하세요 (예: 0초 근처 = 어드레스 또는 임팩트, 음수 = 백스윙).
+4. 측정값을 바탕으로 골프 코칭 분석을 마크다운으로 작성하세요.
+${coachNotes ? `\n코치 메모: "${coachNotes}"` : ''}
+
+**응답은 반드시 아래 JSON 형식으로만 출력하세요 (다른 텍스트 없이):**
+{
+  "measurements": [
+    {
+      "swingPhase": "스윙 단계명",
+      "timeSeconds": 0.0,
+      "headForwardTilt": 0,
+      "headLateralSway": 0,
+      "upperBodyPush": 0,
+      "headLift": 0,
+      "upperBodyLateralMove": 0,
+      "hipSlide": 0,
+      "upperBodyLift": 0
+    }
+  ],
+  "aiAnalysis": "## 모션 데이터 분석\\n\\n[마크다운 형식의 코칭 피드백]"
+}
+
+aiAnalysis에는 다음을 포함하세요:
+- 주요 이슈 (수치가 큰 항목 중심)
+- 스윙 단계별 주목할 패턴
+- 구체적인 교정 방향 및 연습 방법
+- 전반적인 평가 (회원 친화적 톤)
+`;
+
+  try {
+    const result = await invokeBackendAI<unknown>('motion_capture_analysis', {
+      prompt,
+      mediaParts,
+      temperature: 0.3,
+      responseMimeType: 'application/json',
+    });
+
+    const text = getResponseText(result);
+    const parsed = text ? parseJsonObjectFromText(text) : (result as Record<string, unknown> | null);
+
+    if (parsed && Array.isArray(parsed.measurements) && typeof parsed.aiAnalysis === 'string') {
+      return {
+        measurements: parsed.measurements as MotionCaptureData['measurements'],
+        aiAnalysis: parsed.aiAnalysis,
+        analyzedAt: Date.now(),
+      };
+    }
+    throw new Error('Invalid motion capture response format');
+  } catch (error) {
+    log.error('Motion capture analysis error:', error);
+    return {
+      measurements: [],
+      aiAnalysis: '## 모션 데이터 분석\n\n이미지에서 모션 데이터를 추출하지 못했습니다. 이미지가 K-Motion 또는 유사한 3D 모션 캡처 시스템의 화면인지 확인해주세요.',
+      analyzedAt: Date.now(),
+    };
   }
 };

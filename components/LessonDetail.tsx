@@ -1,11 +1,11 @@
 
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useLanguage } from './LanguageContext';
-import { Lesson, MediaItem, SwingSequenceItem, HoleRecord, ScorecardDetail, VideoEditMetadata, CompareVideoMetadata } from '../types';
+import { Lesson, MediaItem, SwingSequenceItem, HoleRecord, ScorecardDetail, VideoEditMetadata, CompareVideoMetadata, MotionCaptureMeasurement } from '../types';
 import { Button } from './Button';
 import { ArrowLeft, Calendar, User, Sparkles, Mic, Plus, Video, Image as ImageIcon, X, Camera, Square, Trash2, Mic2, PlayCircle, Lock, PenTool, Save, Target, AlertTriangle, MessageCircle, CheckCircle, AlertCircle, Clock, Volume2, StopCircle, Copy, Check, Film, ChevronRight, FileText, MonitorPlay, Scissors, GripHorizontal, RefreshCw, Maximize2, Zap, Play, Pause, ListChecks, Trophy, Wand2, MapPin, Edit2, TrendingUp, Send, Download, Loader2 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
-import { analyzeSwingVideo } from '../services/geminiService';
+import { analyzeSwingVideo, analyzeMotionCapture } from '../services/geminiService';
 import { SwingGuideOverlay } from './SwingGuideOverlay';
 import { GolfDataVisualizer } from './GolfDataVisualizer';
 import { VideoEditor } from './VideoEditor';
@@ -93,6 +93,7 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [copied, setCopied] = useState(false);
   const [isGeneratingAnalysis, setIsGeneratingAnalysis] = useState(false);
+  const [isAnalyzingMotion, setIsAnalyzingMotion] = useState(false);
   const [tempNotification, setTempNotification] = useState<string | null>(null);
   
   // Scorecard Edit Mode
@@ -286,6 +287,28 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
           alert(t('lesson_ai_failed'));
       } finally {
           setIsGeneratingAnalysis(false);
+      }
+  };
+
+  const handleAnalyzeMotionCapture = async () => {
+      const imageItems = (lesson.additionalMedia || []).filter(m => m.type === 'image');
+      if (imageItems.length === 0) {
+          alert('분석할 모션 캡처 이미지가 없습니다. 추가 미디어로 이미지를 먼저 업로드해주세요.');
+          return;
+      }
+      setIsAnalyzingMotion(true);
+      try {
+          const inputs = imageItems.map(m => ({
+              data: getAdditionalMediaUrl(m) || m.url,
+              mimeType: 'image/jpeg' as const,
+          }));
+          const result = await analyzeMotionCapture(inputs, lesson.coachNotes);
+          onUpdate({ ...lesson, motionCaptureData: result });
+      } catch (err) {
+          console.error(err);
+          alert('모션 데이터 분석에 실패했습니다. 다시 시도해주세요.');
+      } finally {
+          setIsAnalyzingMotion(false);
       }
   };
 
@@ -1848,7 +1871,7 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
 
           {/* Shot Data Visualizer (Only if Golf Data exists and NOT Score mode) */}
           {hasGolfData && lesson.recordType !== 'SCORE' && lesson.golfData && (
-              <GolfDataVisualizer 
+              <GolfDataVisualizer
                   currentData={lesson.golfData}
                   allLessons={allLessons}
                   clientName={lesson.clientName}
@@ -1857,6 +1880,123 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
                   currentDate={lesson.date}
               />
           )}
+
+          {/* Motion Capture Data Card */}
+          {(() => {
+            const motionImages = (lesson.additionalMedia || []).filter(m => m.type === 'image');
+            const hasMotionImages = motionImages.length > 0;
+            const motionData = lesson.motionCaptureData;
+
+            if (!hasMotionImages && !motionData) return null;
+
+            const metricLabels: { key: keyof MotionCaptureMeasurement; label: string }[] = [
+              { key: 'headForwardTilt',      label: '고개 앞쏠림' },
+              { key: 'headLateralSway',      label: '머리 좌우흔들림' },
+              { key: 'upperBodyPush',        label: '상체 밀림' },
+              { key: 'headLift',             label: '머리 들림' },
+              { key: 'upperBodyLateralMove', label: '상체 좌우이동' },
+              { key: 'hipSlide',             label: '골반 밀림' },
+              { key: 'upperBodyLift',        label: '상체 상부 들림' },
+            ];
+
+            const getCellColor = (val: number | undefined) => {
+              if (val === undefined || val === null) return 'text-gray-300';
+              const abs = Math.abs(val);
+              if (abs === 0) return 'text-gray-400';
+              if (abs <= 2) return 'text-emerald-600 font-medium';
+              if (abs <= 4) return 'text-amber-600 font-semibold';
+              return 'text-red-600 font-bold';
+            };
+
+            return (
+              <div className="bg-white rounded-xl shadow-sm border border-purple-100 overflow-hidden">
+                <div className="bg-purple-50 px-4 py-3 border-b border-purple-100 flex justify-between items-center">
+                  <h3 className="font-bold text-purple-900 flex items-center gap-2">
+                    <TrendingUp className="w-5 h-5 text-purple-600" />
+                    모션 캡처 데이터 분석
+                  </h3>
+                  {canEdit && hasMotionImages && (
+                    <Button
+                      onClick={handleAnalyzeMotionCapture}
+                      isLoading={isAnalyzingMotion}
+                      className="bg-purple-700 hover:bg-purple-800 text-white text-xs py-1.5 px-3 h-auto shadow-sm"
+                      icon={<Wand2 className="w-3.5 h-3.5" />}
+                    >
+                      {motionData ? '재분석' : 'AI 분석 시작'}
+                    </Button>
+                  )}
+                </div>
+
+                {motionData ? (
+                  <div className="p-4 space-y-4">
+                    {/* Measurements Table */}
+                    {motionData.measurements.length > 0 && (
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-xs border-collapse">
+                          <thead>
+                            <tr className="bg-purple-50">
+                              <th className="text-left py-2 px-3 text-purple-700 font-semibold border-b border-purple-100">측정 항목</th>
+                              {motionData.measurements.map((m, i) => (
+                                <th key={i} className="text-center py-2 px-3 text-purple-700 font-semibold border-b border-purple-100 whitespace-nowrap">
+                                  {m.swingPhase || `구간 ${i + 1}`}
+                                  {m.timeSeconds !== undefined && (
+                                    <span className="block text-purple-400 font-normal">{m.timeSeconds}s</span>
+                                  )}
+                                </th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {metricLabels.map(({ key, label }) => (
+                              <tr key={key} className="border-b border-gray-50 hover:bg-gray-50">
+                                <td className="py-2 px-3 text-gray-600 font-medium">{label}</td>
+                                {motionData.measurements.map((m, i) => {
+                                  const val = m[key] as number | undefined;
+                                  return (
+                                    <td key={i} className={`py-2 px-3 text-center ${getCellColor(val)}`}>
+                                      {val !== undefined && val !== null ? `${val > 0 ? '+' : ''}${val}cm` : '-'}
+                                    </td>
+                                  );
+                                })}
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                        <p className="text-[10px] text-gray-400 mt-1 px-1">
+                          색상: <span className="text-emerald-600">●정상(≤2cm)</span> <span className="text-amber-600">●주의(≤4cm)</span> <span className="text-red-600">●교정필요(&gt;4cm)</span>
+                        </p>
+                      </div>
+                    )}
+
+                    {/* AI Analysis Text */}
+                    <div className="prose prose-sm prose-purple text-gray-600 leading-relaxed max-w-none pt-2 border-t border-gray-100">
+                      <ReactMarkdown>{motionData.aiAnalysis}</ReactMarkdown>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <TrendingUp className="w-12 h-12 text-gray-200 mx-auto mb-3" />
+                    <p className="text-gray-500 text-sm mb-2">
+                      {motionImages.length}장의 모션 캡처 이미지가 감지되었습니다.
+                    </p>
+                    <p className="text-gray-400 text-xs mb-4">
+                      K-Motion 등 3D 모션 분석 시스템 화면을 AI가 읽어 측정값과 코칭 피드백을 제공합니다.
+                    </p>
+                    {canEdit && (
+                      <Button
+                        onClick={handleAnalyzeMotionCapture}
+                        isLoading={isAnalyzingMotion}
+                        className="bg-purple-700 hover:bg-purple-800 text-white shadow-lg shadow-slate-200"
+                        icon={<Wand2 className="w-4 h-4" />}
+                      >
+                        모션 데이터 AI 분석
+                      </Button>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
 
           {/* Coach Notes */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
