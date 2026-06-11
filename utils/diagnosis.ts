@@ -1,4 +1,4 @@
-import { DiagnosisFactor, SkillDiagnosisData, SkillShotData } from '../types/diagnosis';
+import { CourseMentalData, DiagnosisFactor, SkillDiagnosisData, SkillShotData } from '../types/diagnosis';
 
 export const clampDiagnosisScore = (score: number): number =>
   Math.max(0, Math.min(100, Math.round(score)));
@@ -60,6 +60,14 @@ const scoreSingleShot = (shot: SkillShotData, isShortGame = false): number | nul
   if (shot.carryDistance != null) parts.push(scoreDistanceAccuracy(shot.carryDistance, shot.targetDistance) * distWeight);
   if (shot.dispersion != null) parts.push(scoreDispersion(shot.dispersion) * dispWeight);
   return parts.length ? parts.reduce((a, b) => a + b, 0) : null;
+};
+
+export const calculateCourseMentalScore = (data: CourseMentalData): number | null => {
+  const all = [...data.courseManagement, ...data.mental];
+  const rated = all.filter((item) => item.rating !== null);
+  if (!rated.length) return null;
+  const avg = rated.reduce((sum, item) => sum + (item.rating ?? 0), 0) / rated.length;
+  return Math.round(((avg - 1) / 4) * 100);
 };
 
 export const calculateSkillScore = (data: SkillDiagnosisData): number | null => {

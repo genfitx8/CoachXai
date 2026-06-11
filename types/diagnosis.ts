@@ -77,6 +77,19 @@ export interface SkillDiagnosisData {
   shortGameShots: SkillShotData[];
 }
 
+export interface CourseMentalItem {
+  key: string;
+  label: string;
+  rating: number | null; // 1–5
+}
+
+export interface CourseMentalData {
+  courseManagement: CourseMentalItem[];
+  mental: CourseMentalItem[];
+  courseNote: string;
+  mentalNote: string;
+}
+
 export interface GolferProfile {
   name: string;
   gender: '' | 'male' | 'female';
@@ -106,6 +119,7 @@ export interface GolferProfile {
   targetHandicap: number | null;
   trackmanData?: TrackmanData[];
   skillDiagnosisData?: SkillDiagnosisData;
+  courseMentalData?: CourseMentalData;
 }
 
 export interface DiagnosisInput {

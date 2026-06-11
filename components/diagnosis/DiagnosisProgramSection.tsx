@@ -1,9 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { DiagnosisFactorKey, DiagnosisInput, DiagnosisProgram, GolferProfile, SkillDiagnosisData, SkillShotData, TrackmanData } from '../../types/diagnosis';
+import { CourseMentalData, CourseMentalItem, DiagnosisFactorKey, DiagnosisInput, DiagnosisProgram, GolferProfile, SkillDiagnosisData, SkillShotData, TrackmanData } from '../../types/diagnosis';
 import { PostureAnalysisResult } from '../../types/postureAnalysis';
 import { DiagnosisHero } from './DiagnosisHero';
 import { Button } from '../Button';
-import { calculateSkillScore, clampDiagnosisScore, getAgeFromBirthDate } from '../../utils/diagnosis';
+import { calculateCourseMentalScore, calculateSkillScore, clampDiagnosisScore, getAgeFromBirthDate } from '../../utils/diagnosis';
 import { useLanguage } from '../LanguageContext';
 import { ChevronDown, ChevronUp, Plus, Trash2, Monitor, Camera, Loader2 } from 'lucide-react';
 import { PostureAnalysisDashboard } from '../posture/PostureAnalysisDashboard';
@@ -73,6 +73,24 @@ const DEFAULT_SKILL_DIAGNOSIS_DATA: SkillDiagnosisData = {
   shortGameShots: SHORT_GAME_DISTANCES.map(createDefaultShot),
 };
 
+const DEFAULT_COURSE_MENTAL_DATA: CourseMentalData = {
+  courseManagement: [
+    { key: 'club-selection', label: '클럽 선택 판단', rating: null },
+    { key: 'attack-route', label: '공략 루트 결정', rating: null },
+    { key: 'risk-management', label: '위험 구역 회피', rating: null },
+    { key: 'score-management', label: '스코어 관리 능력', rating: null },
+  ],
+  mental: [
+    { key: 'pre-routine', label: '프리샷 루틴', rating: null },
+    { key: 'focus', label: '집중력 유지', rating: null },
+    { key: 'pressure-handling', label: '압박 상황 대처', rating: null },
+    { key: 'error-recovery', label: '미스샷 후 회복', rating: null },
+    { key: 'confidence', label: '자신감', rating: null },
+  ],
+  courseNote: '',
+  mentalNote: '',
+};
+
 const buildInitialFactorScores = (program: DiagnosisProgram): Record<DiagnosisFactorKey, number> =>
   program.factors.reduce(
     (acc, factor) => ({
@@ -101,7 +119,7 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
   }));
   const [factorScores, setFactorScores] = useState<Record<DiagnosisFactorKey, number>>(() => buildInitialFactorScores(program));
   const [bodyScoreInput, setBodyScoreInput] = useState<number | ''>('');
-  const [courseMentalNote, setCourseMentalNote] = useState('');
+  const [courseMentalData, setCourseMentalData] = useState<CourseMentalData>(DEFAULT_COURSE_MENTAL_DATA);
   const [activeStepIndex, setActiveStepIndex] = useState(0);
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
     basic: true,
@@ -171,6 +189,7 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
         ...golferProfile,
         name: memberName,
         skillDiagnosisData,
+        courseMentalData,
       },
       factorScores,
     });
@@ -1036,18 +1055,115 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
     }
 
     if (currentStep.id === 'course-mental') {
+      const courseMentalScore = calculateCourseMentalScore(courseMentalData);
+
+      const updateRating = (section: 'courseManagement' | 'mental', key: string, rating: number) => {
+        setCourseMentalData((prev) => ({
+          ...prev,
+          [section]: prev[section].map((item: CourseMentalItem) =>
+            item.key === key ? { ...item, rating: item.rating === rating ? null : rating } : item
+          ),
+        }));
+      };
+
+      const RATING_LABELS = ['', '매우 부족', '부족', '보통', '양호', '우수'];
+
+      const renderRatingRow = (item: CourseMentalItem, section: 'courseManagement' | 'mental') => (
+        <div key={item.key} className="space-y-1.5" data-testid={`course-mental-item-${item.key}`}>
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-slate-200">{item.label}</span>
+            {item.rating !== null && (
+              <span className="text-xs text-violet-300">{RATING_LABELS[item.rating]}</span>
+            )}
+          </div>
+          <div className="flex gap-1.5">
+            {[1, 2, 3, 4, 5].map((n) => (
+              <button
+                key={n}
+                type="button"
+                onClick={() => updateRating(section, item.key, n)}
+                className={`flex-1 rounded-lg py-2 text-xs font-semibold transition-colors ${
+                  item.rating === n
+                    ? 'bg-violet-600 text-white border border-violet-500'
+                    : 'bg-slate-800 text-slate-400 border border-slate-700 hover:bg-slate-700 hover:text-slate-200'
+                }`}
+                data-testid={`course-mental-rating-${item.key}-${n}`}
+              >
+                {n}
+              </button>
+            ))}
+          </div>
+        </div>
+      );
+
+      const ratedCount =
+        courseMentalData.courseManagement.filter((i) => i.rating !== null).length +
+        courseMentalData.mental.filter((i) => i.rating !== null).length;
+      const totalCount = courseMentalData.courseManagement.length + courseMentalData.mental.length;
+
       return (
-        <label className="block space-y-2">
-          <span className="text-sm text-slate-300">코스메니지먼트 & 멘탈 진단 메모</span>
-          <textarea
-            value={courseMentalNote}
-            onChange={(event) => setCourseMentalNote(event.target.value)}
-            placeholder="코스 운영 판단, 루틴, 멘탈 상태를 입력하세요."
-            rows={5}
-            className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none focus:border-violet-500"
-            data-testid="diagnosis-course-mental-input"
-          />
-        </label>
+        <div className="space-y-4">
+          {/* 코스메니지먼트 */}
+          <div className="rounded-xl border border-slate-700 bg-slate-900 p-4 space-y-4">
+            <div>
+              <h4 className="text-sm font-semibold text-violet-300">코스 메니지먼트</h4>
+              <p className="text-xs text-slate-400 mt-1">클럽 선택, 공략 전략, 위험 관리 능력을 1–5점으로 평가하세요.</p>
+            </div>
+            <div className="space-y-4">
+              {courseMentalData.courseManagement.map((item) => renderRatingRow(item, 'courseManagement'))}
+            </div>
+            <label className="block space-y-1.5">
+              <span className="text-xs text-slate-400">코스메니지먼트 코치 메모</span>
+              <textarea
+                rows={3}
+                value={courseMentalData.courseNote}
+                onChange={(e) => setCourseMentalData((prev) => ({ ...prev, courseNote: e.target.value }))}
+                placeholder="클럽 선택 패턴, 공략 루트 결정, 위험 대처 관련 관찰 내용을 입력하세요."
+                className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none focus:border-violet-500"
+                data-testid="diagnosis-course-note-input"
+              />
+            </label>
+          </div>
+
+          {/* 멘탈 */}
+          <div className="rounded-xl border border-slate-700 bg-slate-900 p-4 space-y-4">
+            <div>
+              <h4 className="text-sm font-semibold text-violet-300">멘탈</h4>
+              <p className="text-xs text-slate-400 mt-1">루틴, 집중력, 압박 대처, 회복력 등을 1–5점으로 평가하세요.</p>
+            </div>
+            <div className="space-y-4">
+              {courseMentalData.mental.map((item) => renderRatingRow(item, 'mental'))}
+            </div>
+            <label className="block space-y-1.5">
+              <span className="text-xs text-slate-400">멘탈 코치 메모</span>
+              <textarea
+                rows={3}
+                value={courseMentalData.mentalNote}
+                onChange={(e) => setCourseMentalData((prev) => ({ ...prev, mentalNote: e.target.value }))}
+                placeholder="루틴 일관성, 압박 대처, 미스 후 반응 등 멘탈 관련 관찰 내용을 입력하세요."
+                className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none focus:border-violet-500"
+                data-testid="diagnosis-mental-note-input"
+              />
+            </label>
+          </div>
+
+          {/* 참고 점수 */}
+          <div className="rounded-xl border border-slate-700 bg-slate-900 p-4 flex items-center justify-between">
+            <div>
+              <p className="text-sm font-semibold text-slate-200">코스메니지먼트 &amp; 멘탈 참고 점수</p>
+              <p className="text-xs text-slate-400 mt-0.5">평가 항목에 반영되지 않는 참고용 지표입니다.</p>
+            </div>
+            <div className="text-right">
+              {courseMentalScore !== null ? (
+                <p className="text-2xl font-bold text-violet-300" data-testid="course-mental-score">{courseMentalScore}점</p>
+              ) : (
+                <p className="text-sm text-slate-500" data-testid="course-mental-score-empty">
+                  {ratedCount}/{totalCount} 항목 입력됨
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
       );
     }
 
@@ -1064,7 +1180,23 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
               {entry.label}: {entry.score}점
             </li>
           ))}
-          <li>코스메니지먼트 & 멘탈 메모: {courseMentalNote.trim() || '-'}</li>
+          <li>
+            코스메니지먼트: {
+              courseMentalData.courseManagement.filter((i) => i.rating !== null).length > 0
+                ? `${courseMentalData.courseManagement.filter((i) => i.rating !== null).length}/${courseMentalData.courseManagement.length}항목 입력`
+                : '-'
+            }
+          </li>
+          <li>
+            멘탈: {
+              courseMentalData.mental.filter((i) => i.rating !== null).length > 0
+                ? `${courseMentalData.mental.filter((i) => i.rating !== null).length}/${courseMentalData.mental.length}항목 입력`
+                : '-'
+            }
+          </li>
+          {(courseMentalData.courseNote.trim() || courseMentalData.mentalNote.trim()) && (
+            <li>코치 메모: {[courseMentalData.courseNote, courseMentalData.mentalNote].filter(Boolean).join(' / ')}</li>
+          )}
         </ul>
       </div>
     );
