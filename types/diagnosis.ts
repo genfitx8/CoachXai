@@ -110,6 +110,32 @@ export interface ShortGameDiagnosisData {
   shortPutting: ShortPuttingRecord[];
 }
 
+// ── 스윙 모션 데이터 ──────────────────────────────────────────────────
+
+export interface SwingMotionCapture {
+  id: string;
+  clubType: string;
+  label: string;
+  capturedImageUrl?: string;   // base64 (screen capture or image upload)
+  videoObjectUrl?: string;     // blob URL — session-only, not persisted
+  videoFileName?: string;
+  // Trackman motion metrics
+  swingPath: number | null;         // 클럽 패스 (°)
+  faceAngle: number | null;         // 페이스 앵글 (°)
+  attackAngle: number | null;       // 어택 앵글 (°)
+  dynamicLoft: number | null;       // 다이나믹 로프트 (°)
+  spinLoft: number | null;          // 스핀 로프트 (°)
+  hipRotation: number | null;       // 힙 회전 (°)
+  shoulderRotation: number | null;  // 어깨 회전 (°)
+  swingPlane: number | null;        // 스윙 플레인 (°)
+  tempoRatio: string;               // 템포 비율 e.g. "3:1"
+  coachNote: string;
+}
+
+export interface SwingMotionData {
+  captures: SwingMotionCapture[];
+}
+
 export interface CourseMentalItem {
   key: string;
   label: string;
@@ -153,6 +179,7 @@ export interface GolferProfile {
   trackmanData?: TrackmanData[];
   skillDiagnosisData?: SkillDiagnosisData;
   shortGameDiagnosisData?: ShortGameDiagnosisData;
+  swingMotionData?: SwingMotionData;
   courseMentalData?: CourseMentalData;
 }
 

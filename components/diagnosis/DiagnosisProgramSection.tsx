@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ChipShotDistance, CourseMentalData, CourseMentalItem, DiagnosisFactorKey, DiagnosisInput, DiagnosisProgram, GolferProfile, PitchShotDistance, PuttingDistanceFeel, ShortGameDiagnosisData, ShortPuttingRecord, SkillDiagnosisData, SkillShotData, TrackmanData } from '../../types/diagnosis';
+import { ChipShotDistance, CourseMentalData, CourseMentalItem, DiagnosisFactorKey, DiagnosisInput, DiagnosisProgram, GolferProfile, PitchShotDistance, PuttingDistanceFeel, ShortGameDiagnosisData, ShortPuttingRecord, SkillDiagnosisData, SkillShotData, SwingMotionData, TrackmanData } from '../../types/diagnosis';
 import { PostureAnalysisResult } from '../../types/postureAnalysis';
 import { DiagnosisHero } from './DiagnosisHero';
 import { Button } from '../Button';
@@ -9,6 +9,7 @@ import { ChevronDown, ChevronUp, Plus, Trash2, Monitor, Camera, Loader2 } from '
 import { PostureAnalysisDashboard } from '../posture/PostureAnalysisDashboard';
 import { ScreenCaptureDialog } from './ScreenCaptureDialog';
 import { ShortGameDiagnosisSection } from './ShortGameDiagnosisSection';
+import { SwingMotionSection } from './SwingMotionSection';
 import { analyzeEquipmentPhoto } from '../../services/geminiService';
 
 interface DiagnosisProgramSectionProps {
@@ -163,6 +164,7 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
   });
   const [skillDiagnosisData, setSkillDiagnosisData] = useState<SkillDiagnosisData>(DEFAULT_SKILL_DIAGNOSIS_DATA);
   const [shortGameDiagnosisData, setShortGameDiagnosisData] = useState<ShortGameDiagnosisData>(DEFAULT_SHORT_GAME_DIAGNOSIS_DATA);
+  const [swingMotionData, setSwingMotionData] = useState<SwingMotionData>({ captures: [] });
   const [expandedSkillRows, setExpandedSkillRows] = useState<Record<string, boolean>>({});
   const [postureAnalysisResult, setPostureAnalysisResult] = useState<PostureAnalysisResult | null>(null);
   const [showPostureAnalysis, setShowPostureAnalysis] = useState(false);
@@ -224,6 +226,7 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
         name: memberName,
         skillDiagnosisData,
         shortGameDiagnosisData,
+        swingMotionData,
         courseMentalData,
       },
       factorScores,
@@ -1061,6 +1064,13 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
             </div>
           </div>
 
+          {/* Swing Motion */}
+          <SwingMotionSection
+            data={swingMotionData}
+            onChange={setSwingMotionData}
+            clubOptions={clubOptions}
+          />
+
           {/* Score */}
           <div className="rounded-xl border border-slate-700 bg-slate-900 p-4 space-y-3">
             <div className="flex items-center justify-between">
@@ -1232,6 +1242,11 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
               {entry.label}: {entry.score}점
             </li>
           ))}
+          <li>
+            스윙 모션: {swingMotionData.captures.length > 0
+              ? `${swingMotionData.captures.length}개 기록 (${swingMotionData.captures.filter(c => c.capturedImageUrl || c.videoObjectUrl).length}개 미디어 첨부)`
+              : '-'}
+          </li>
           <li>
             숏게임 퍼포먼스: {(() => {
               const sg = shortGameDiagnosisData;
