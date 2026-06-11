@@ -991,19 +991,24 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
   // Resolve idb:// main video URL to a fresh blob URL whenever the lesson changes
   useEffect(() => {
     let objUrl: string | null = null;
+    let disposed = false;
 
     const resolve = async () => {
       if (lesson.videoUrl?.startsWith(IDB_PREFIX)) {
         objUrl = await videoStore.resolve(lesson.videoUrl);
-        setResolvedMainUrl(objUrl);
+        if (!disposed) setResolvedMainUrl(objUrl);
       } else {
-        setResolvedMainUrl(null);
+        if (!disposed) setResolvedMainUrl(null);
       }
     };
 
     resolve();
 
     return () => {
+      disposed = true;
+      // Clear stale URL immediately so the player doesn't briefly render a
+      // revoked blob URL while the next resolve() is in flight.
+      setResolvedMainUrl(null);
       if (objUrl) URL.revokeObjectURL(objUrl);
     };
   }, [lesson.videoUrl]);
