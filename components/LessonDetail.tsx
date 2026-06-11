@@ -14,7 +14,7 @@ import { apiService, resolveMediaUrl } from '../services/apiService';
 import { storageService } from '../services/storage';
 import { sendLessonNoteViaKakao, buildLessonShareUrl } from '../services/kakaoShareService';
 import { videoEditingService } from '../services/videoEditingService';
-import { videoStore, IDB_PREFIX } from '../services/videoStore';
+import { videoStore, IDB_PREFIX, resolveSync } from '../services/videoStore';
 
 interface LessonDetailProps {
   lesson: Lesson;
@@ -57,8 +57,13 @@ export async function persistAdditionalMediaSourceForOffline(params: {
 
 export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons = [], role = 'COACH', onBack, onUpdate, onDelete, onEdit }) => {
   const { t } = useLanguage();
-  // resolvedMainUrl must be declared before mainMediaUrl is computed below
-  const [resolvedMainUrl, setResolvedMainUrl] = useState<string | null>(null);
+  // resolvedMainUrl must be declared before mainMediaUrl is computed below.
+  // Initialize synchronously from the session blob cache so the video is
+  // playable on the very first render when we just recorded/saved this lesson.
+  // Falls back to null (async IDB resolve via useEffect) on page reload.
+  const [resolvedMainUrl, setResolvedMainUrl] = useState<string | null>(() =>
+    resolveSync(lesson.videoUrl)
+  );
   const mainMediaSource = lesson.videoUrl || (lesson.videoKey ? `/api/files/${lesson.videoKey}` : '');
   // For idb:// URLs, use the asynchronously-resolved blob URL; fall back to empty
   // while the IDB lookup is in flight (the useEffect below will update activeMedia).
@@ -212,8 +217,11 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
   };
 
   const activeMediaUrl = (() => {
-    if (!activeMedia.url) return '';
+    // Check main-slot first: mainMediaUrl is already computed from
+    // lesson.videoUrl + resolvedMainUrl, so we never need activeMedia.url
+    // to be set for the main video to appear.
     if (activeMedia.id === 'main') return mainMediaUrl;
+    if (!activeMedia.url) return '';
     if (activeMedia.url.startsWith(IDB_PREFIX)) {
       return resolvedAdditionalUrls[activeMedia.id] || '';
     }

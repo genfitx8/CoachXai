@@ -1824,6 +1824,7 @@ const AppContent: React.FC = () => {
 
         {coachView === 'DETAIL' && selectedLesson && (
           <LessonDetail
+            key={selectedLesson.id}
             lesson={selectedLesson}
             allLessons={lessons}
             role="COACH"

@@ -21,6 +21,20 @@ async function openDB(): Promise<IDBDatabase> {
   });
 }
 
+/**
+ * Synchronously check the session cache for an idb:// URL.
+ * Returns a fresh object URL if the blob is cached, null otherwise.
+ * Use this to initialize React state synchronously so the video element
+ * renders with a valid src on the very first paint (no async round-trip).
+ */
+export function resolveSync(idbUrl: string | null | undefined): string | null {
+  if (!idbUrl?.startsWith(IDB_PREFIX)) return null;
+  const key = idbUrl.slice(IDB_PREFIX.length);
+  const blob = sessionCache.get(key);
+  if (!blob) return null;
+  return URL.createObjectURL(blob);
+}
+
 export const videoStore = {
   /** Save a blob to IndexedDB and return an idb:// sentinel URL */
   async save(key: string, blob: Blob): Promise<string> {
