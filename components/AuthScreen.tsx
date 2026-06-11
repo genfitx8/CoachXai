@@ -92,6 +92,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
 
   const [signupPasswordConfirm, setSignupPasswordConfirm] = useState('');
   const [signupSuccess, setSignupSuccess] = useState(false);
+  const [isConsentChecked, setIsConsentChecked] = useState(false);
 
   const [branchAdminLoginId, setBranchAdminLoginId] = useState('');
   const [branchAdminPassword, setBranchAdminPassword] = useState('');
@@ -121,6 +122,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
     setPhone('');
     setSignupPasswordConfirm('');
     setSignupSuccess(false);
+    setIsConsentChecked(false);
     setBranchAdminLoginId('');
     setBranchAdminPassword('');
     setError(null);
@@ -363,6 +365,10 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
       setError(t('signup_pw_mismatch'));
       return;
     }
+    if (!isConsentChecked) {
+      setError(t('signup_consent_required'));
+      return;
+    }
 
     setIsLoading(true);
     try {
@@ -470,6 +476,21 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
                 leading={<Lock className="h-4 w-4" />}
                 autoComplete="new-password"
               />
+
+              <button
+                type="button"
+                onClick={() => setIsConsentChecked((v) => !v)}
+                className="flex w-full items-start gap-2.5 rounded-lg border border-line-subtle bg-bg-inset px-3 py-3 text-left transition-colors hover:border-line-default"
+              >
+                {isConsentChecked ? (
+                  <CheckSquare className="mt-0.5 h-4 w-4 shrink-0 text-primary-400" />
+                ) : (
+                  <Square className="mt-0.5 h-4 w-4 shrink-0 text-ink-faint" />
+                )}
+                <span className="text-sm leading-snug text-ink-medium">
+                  {t('signup_consent_label')}
+                </span>
+              </button>
 
               <Button type="submit" fullWidth size="lg" isLoading={isLoading} className="mt-2">
                 {t('signup_btn')}
