@@ -62,6 +62,34 @@ export interface TrackmanData {
   notes?: string;
 }
 
+export interface SkillShotData {
+  targetDistance: number;
+  carryDistance: number | null;
+  totalDistance: number | null;
+  dispersion: number | null;
+  launchAngle: number | null;
+  apexHeight: number | null;
+  spinRate: number | null;
+}
+
+export interface SkillDiagnosisData {
+  fullShots: SkillShotData[];
+  shortGameShots: SkillShotData[];
+}
+
+export interface CourseMentalItem {
+  key: string;
+  label: string;
+  rating: number | null; // 1–5
+}
+
+export interface CourseMentalData {
+  courseManagement: CourseMentalItem[];
+  mental: CourseMentalItem[];
+  courseNote: string;
+  mentalNote: string;
+}
+
 export interface GolferProfile {
   name: string;
   gender: '' | 'male' | 'female';
@@ -90,6 +118,8 @@ export interface GolferProfile {
   primaryConcern: string;
   targetHandicap: number | null;
   trackmanData?: TrackmanData[];
+  skillDiagnosisData?: SkillDiagnosisData;
+  courseMentalData?: CourseMentalData;
 }
 
 export interface DiagnosisInput {

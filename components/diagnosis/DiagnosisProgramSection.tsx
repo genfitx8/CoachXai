@@ -1,9 +1,9 @@
-import React, { useMemo, useRef, useState } from 'react';
-import { DiagnosisFactorKey, DiagnosisInput, DiagnosisProgram, GolferProfile, TrackmanData } from '../../types/diagnosis';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { CourseMentalData, CourseMentalItem, DiagnosisFactorKey, DiagnosisInput, DiagnosisProgram, GolferProfile, SkillDiagnosisData, SkillShotData, TrackmanData } from '../../types/diagnosis';
 import { PostureAnalysisResult } from '../../types/postureAnalysis';
 import { DiagnosisHero } from './DiagnosisHero';
 import { Button } from '../Button';
-import { clampDiagnosisScore, getAgeFromBirthDate } from '../../utils/diagnosis';
+import { calculateCourseMentalScore, calculateSkillScore, clampDiagnosisScore, getAgeFromBirthDate } from '../../utils/diagnosis';
 import { useLanguage } from '../LanguageContext';
 import { ChevronDown, ChevronUp, Plus, Trash2, Monitor, Camera, Loader2 } from 'lucide-react';
 import { PostureAnalysisDashboard } from '../posture/PostureAnalysisDashboard';
@@ -55,6 +55,42 @@ const parseNullableNumber = (value: string): number | null => {
   return Number.isNaN(parsed) ? null : parsed;
 };
 
+const FULL_SHOT_DISTANCES = [130, 150, 170, 190, 210];
+const SHORT_GAME_DISTANCES = [30, 50, 70, 100];
+
+const createDefaultShot = (distance: number): SkillShotData => ({
+  targetDistance: distance,
+  carryDistance: null,
+  totalDistance: null,
+  dispersion: null,
+  launchAngle: null,
+  apexHeight: null,
+  spinRate: null,
+});
+
+const DEFAULT_SKILL_DIAGNOSIS_DATA: SkillDiagnosisData = {
+  fullShots: FULL_SHOT_DISTANCES.map(createDefaultShot),
+  shortGameShots: SHORT_GAME_DISTANCES.map(createDefaultShot),
+};
+
+const DEFAULT_COURSE_MENTAL_DATA: CourseMentalData = {
+  courseManagement: [
+    { key: 'club-selection', label: '클럽 선택 판단', rating: null },
+    { key: 'attack-route', label: '공략 루트 결정', rating: null },
+    { key: 'risk-management', label: '위험 구역 회피', rating: null },
+    { key: 'score-management', label: '스코어 관리 능력', rating: null },
+  ],
+  mental: [
+    { key: 'pre-routine', label: '프리샷 루틴', rating: null },
+    { key: 'focus', label: '집중력 유지', rating: null },
+    { key: 'pressure-handling', label: '압박 상황 대처', rating: null },
+    { key: 'error-recovery', label: '미스샷 후 회복', rating: null },
+    { key: 'confidence', label: '자신감', rating: null },
+  ],
+  courseNote: '',
+  mentalNote: '',
+};
+
 const buildInitialFactorScores = (program: DiagnosisProgram): Record<DiagnosisFactorKey, number> =>
   program.factors.reduce(
     (acc, factor) => ({
@@ -83,7 +119,7 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
   }));
   const [factorScores, setFactorScores] = useState<Record<DiagnosisFactorKey, number>>(() => buildInitialFactorScores(program));
   const [bodyScoreInput, setBodyScoreInput] = useState<number | ''>('');
-  const [courseMentalNote, setCourseMentalNote] = useState('');
+  const [courseMentalData, setCourseMentalData] = useState<CourseMentalData>(DEFAULT_COURSE_MENTAL_DATA);
   const [activeStepIndex, setActiveStepIndex] = useState(0);
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
     basic: true,
@@ -92,6 +128,8 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
     equipment: true,
     goals: true,
   });
+  const [skillDiagnosisData, setSkillDiagnosisData] = useState<SkillDiagnosisData>(DEFAULT_SKILL_DIAGNOSIS_DATA);
+  const [expandedSkillRows, setExpandedSkillRows] = useState<Record<string, boolean>>({});
   const [postureAnalysisResult, setPostureAnalysisResult] = useState<PostureAnalysisResult | null>(null);
   const [showPostureAnalysis, setShowPostureAnalysis] = useState(false);
   const [showScreenCapture, setShowScreenCapture] = useState(false);
@@ -101,6 +139,13 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
   const [equipmentPhotoError, setEquipmentPhotoError] = useState('');
   const [isAnalyzingEquipmentPhoto, setIsAnalyzingEquipmentPhoto] = useState(false);
   const equipmentPhotoInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const autoScore = calculateSkillScore(skillDiagnosisData);
+    if (autoScore !== null) {
+      setFactorScores((prev) => ({ ...prev, skill: clampDiagnosisScore(autoScore) }));
+    }
+  }, [skillDiagnosisData]);
 
   const memberName = golferProfile.name;
 
@@ -143,6 +188,8 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
       golferProfile: {
         ...golferProfile,
         name: memberName,
+        skillDiagnosisData,
+        courseMentalData,
       },
       factorScores,
     });
@@ -888,38 +935,235 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
         );
       }
 
-      // For skill-diagnosis, use the original simple input
+      // Skill diagnosis — rich shot data input
+      const updateShot = (type: 'fullShots' | 'shortGameShots', idx: number, field: keyof SkillShotData, raw: string) => {
+        const value = field === 'targetDistance' ? Number(raw) : parseNullableNumber(raw);
+        setSkillDiagnosisData((prev) => {
+          const shots = prev[type].map((shot, i) => (i === idx ? { ...shot, [field]: value } : shot));
+          return { ...prev, [type]: shots };
+        });
+      };
+
+      const toggleSkillRow = (key: string) =>
+        setExpandedSkillRows((prev) => ({ ...prev, [key]: !prev[key] }));
+
+      const autoScore = calculateSkillScore(skillDiagnosisData);
+
+      const renderShotRow = (shot: SkillShotData, idx: number, type: 'fullShots' | 'shortGameShots') => {
+        const rowKey = `${type}-${shot.targetDistance}`;
+        const isExpanded = !!expandedSkillRows[rowKey];
+        const hasData = shot.carryDistance != null || shot.dispersion != null;
+        return (
+          <div key={rowKey} className="rounded-lg border border-slate-700 bg-slate-950 overflow-hidden">
+            <button
+              type="button"
+              onClick={() => toggleSkillRow(rowKey)}
+              className="w-full flex items-center justify-between px-4 py-3 hover:bg-slate-800/50 transition-colors"
+            >
+              <div className="flex items-center gap-3">
+                <span className="text-sm font-semibold text-slate-100">{shot.targetDistance}m</span>
+                {hasData ? (
+                  <span className="text-xs text-emerald-400">
+                    {shot.carryDistance != null ? `캐리 ${shot.carryDistance}m` : ''}
+                    {shot.dispersion != null ? ` · 탄착군 ${shot.dispersion}m` : ''}
+                  </span>
+                ) : (
+                  <span className="text-xs text-slate-500">데이터 없음</span>
+                )}
+              </div>
+              {isExpanded ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
+            </button>
+            {isExpanded && (
+              <div className="px-4 pb-4 grid grid-cols-2 gap-3 md:grid-cols-3">
+                {([
+                  { field: 'carryDistance', label: '캐리 (m)' },
+                  { field: 'totalDistance', label: '토탈 (m)' },
+                  { field: 'dispersion', label: '탄착군 (m)' },
+                  { field: 'launchAngle', label: '발사각 (°)' },
+                  { field: 'apexHeight', label: '최고점 (m)' },
+                  { field: 'spinRate', label: '스핀 (rpm)' },
+                ] as { field: keyof SkillShotData; label: string }[]).map(({ field, label }) => (
+                  <label key={field} className="space-y-1">
+                    <span className="text-xs text-slate-400">{label}</span>
+                    <input
+                      type="number"
+                      min={0}
+                      value={shot[field] ?? ''}
+                      onChange={(e) => updateShot(type, idx, field, e.target.value)}
+                      placeholder="—"
+                      className="w-full rounded-lg border border-slate-700 bg-slate-900 px-2 py-1.5 text-sm text-slate-100 outline-none focus:border-violet-500"
+                      data-testid={`skill-${type}-${idx}-${field}`}
+                    />
+                  </label>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      };
+
       return (
-        <label className="block space-y-2 rounded-xl border border-slate-700 bg-slate-900 p-3">
-          <span className="text-sm text-slate-300">{factor.label} 점수</span>
-          <input
-            type="number"
-            min={0}
-            max={100}
-            step={1}
-            value={factorScores[factorKey] ?? 0}
-            onChange={(event) => handleScoreChange(factorKey, event.target.value)}
-            className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none focus:border-violet-500"
-            data-testid={`diagnosis-score-input-${factorKey}`}
-          />
-          <p className="text-xs text-slate-400">점수는 0~100 범위로 자동 보정됩니다.</p>
-        </label>
+        <div className="space-y-4">
+          {/* Full Shot */}
+          <div className="rounded-xl border border-slate-700 bg-slate-900 p-4 space-y-3">
+            <div>
+              <h4 className="text-sm font-semibold text-violet-300">풀샷 진단</h4>
+              <p className="text-xs text-slate-400 mt-1">130m~210m 목표 샷 — 캐리, 토탈, 탄착군, 발사각, 최고점, 스핀을 입력하세요.</p>
+            </div>
+            <div className="space-y-2">
+              {skillDiagnosisData.fullShots.map((shot, idx) => renderShotRow(shot, idx, 'fullShots'))}
+            </div>
+          </div>
+
+          {/* Short Game */}
+          <div className="rounded-xl border border-slate-700 bg-slate-900 p-4 space-y-3">
+            <div>
+              <h4 className="text-sm font-semibold text-violet-300">숏게임 진단</h4>
+              <p className="text-xs text-slate-400 mt-1">30m~100m 숏게임 샷 — 거리 제어 및 핀 공략 정확도를 입력하세요.</p>
+            </div>
+            <div className="space-y-2">
+              {skillDiagnosisData.shortGameShots.map((shot, idx) => renderShotRow(shot, idx, 'shortGameShots'))}
+            </div>
+          </div>
+
+          {/* Score */}
+          <div className="rounded-xl border border-slate-700 bg-slate-900 p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-semibold text-violet-300">{factor.label} 점수</span>
+              {autoScore !== null && (
+                <span className="text-xs text-emerald-400">자동 계산: {autoScore}점</span>
+              )}
+            </div>
+            <input
+              type="number"
+              min={0}
+              max={100}
+              step={1}
+              value={factorScores[factorKey] ?? 0}
+              onChange={(event) => handleScoreChange(factorKey, event.target.value)}
+              className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none focus:border-violet-500"
+              data-testid={`diagnosis-score-input-${factorKey}`}
+            />
+            <p className="text-xs text-slate-400">
+              {autoScore !== null
+                ? '입력 데이터 기반 자동 계산값입니다. 필요 시 수동 조정 가능합니다.'
+                : '샷 데이터 입력 시 점수가 자동 계산됩니다. 직접 입력도 가능합니다.'}
+            </p>
+          </div>
+        </div>
       );
     }
 
     if (currentStep.id === 'course-mental') {
+      const courseMentalScore = calculateCourseMentalScore(courseMentalData);
+
+      const updateRating = (section: 'courseManagement' | 'mental', key: string, rating: number) => {
+        setCourseMentalData((prev) => ({
+          ...prev,
+          [section]: prev[section].map((item: CourseMentalItem) =>
+            item.key === key ? { ...item, rating: item.rating === rating ? null : rating } : item
+          ),
+        }));
+      };
+
+      const RATING_LABELS = ['', '매우 부족', '부족', '보통', '양호', '우수'];
+
+      const renderRatingRow = (item: CourseMentalItem, section: 'courseManagement' | 'mental') => (
+        <div key={item.key} className="space-y-1.5" data-testid={`course-mental-item-${item.key}`}>
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-slate-200">{item.label}</span>
+            {item.rating !== null && (
+              <span className="text-xs text-violet-300">{RATING_LABELS[item.rating]}</span>
+            )}
+          </div>
+          <div className="flex gap-1.5">
+            {[1, 2, 3, 4, 5].map((n) => (
+              <button
+                key={n}
+                type="button"
+                onClick={() => updateRating(section, item.key, n)}
+                className={`flex-1 rounded-lg py-2 text-xs font-semibold transition-colors ${
+                  item.rating === n
+                    ? 'bg-violet-600 text-white border border-violet-500'
+                    : 'bg-slate-800 text-slate-400 border border-slate-700 hover:bg-slate-700 hover:text-slate-200'
+                }`}
+                data-testid={`course-mental-rating-${item.key}-${n}`}
+              >
+                {n}
+              </button>
+            ))}
+          </div>
+        </div>
+      );
+
+      const ratedCount =
+        courseMentalData.courseManagement.filter((i) => i.rating !== null).length +
+        courseMentalData.mental.filter((i) => i.rating !== null).length;
+      const totalCount = courseMentalData.courseManagement.length + courseMentalData.mental.length;
+
       return (
-        <label className="block space-y-2">
-          <span className="text-sm text-slate-300">코스메니지먼트 & 멘탈 진단 메모</span>
-          <textarea
-            value={courseMentalNote}
-            onChange={(event) => setCourseMentalNote(event.target.value)}
-            placeholder="코스 운영 판단, 루틴, 멘탈 상태를 입력하세요."
-            rows={5}
-            className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none focus:border-violet-500"
-            data-testid="diagnosis-course-mental-input"
-          />
-        </label>
+        <div className="space-y-4">
+          {/* 코스메니지먼트 */}
+          <div className="rounded-xl border border-slate-700 bg-slate-900 p-4 space-y-4">
+            <div>
+              <h4 className="text-sm font-semibold text-violet-300">코스 메니지먼트</h4>
+              <p className="text-xs text-slate-400 mt-1">클럽 선택, 공략 전략, 위험 관리 능력을 1–5점으로 평가하세요.</p>
+            </div>
+            <div className="space-y-4">
+              {courseMentalData.courseManagement.map((item) => renderRatingRow(item, 'courseManagement'))}
+            </div>
+            <label className="block space-y-1.5">
+              <span className="text-xs text-slate-400">코스메니지먼트 코치 메모</span>
+              <textarea
+                rows={3}
+                value={courseMentalData.courseNote}
+                onChange={(e) => setCourseMentalData((prev) => ({ ...prev, courseNote: e.target.value }))}
+                placeholder="클럽 선택 패턴, 공략 루트 결정, 위험 대처 관련 관찰 내용을 입력하세요."
+                className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none focus:border-violet-500"
+                data-testid="diagnosis-course-note-input"
+              />
+            </label>
+          </div>
+
+          {/* 멘탈 */}
+          <div className="rounded-xl border border-slate-700 bg-slate-900 p-4 space-y-4">
+            <div>
+              <h4 className="text-sm font-semibold text-violet-300">멘탈</h4>
+              <p className="text-xs text-slate-400 mt-1">루틴, 집중력, 압박 대처, 회복력 등을 1–5점으로 평가하세요.</p>
+            </div>
+            <div className="space-y-4">
+              {courseMentalData.mental.map((item) => renderRatingRow(item, 'mental'))}
+            </div>
+            <label className="block space-y-1.5">
+              <span className="text-xs text-slate-400">멘탈 코치 메모</span>
+              <textarea
+                rows={3}
+                value={courseMentalData.mentalNote}
+                onChange={(e) => setCourseMentalData((prev) => ({ ...prev, mentalNote: e.target.value }))}
+                placeholder="루틴 일관성, 압박 대처, 미스 후 반응 등 멘탈 관련 관찰 내용을 입력하세요."
+                className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none focus:border-violet-500"
+                data-testid="diagnosis-mental-note-input"
+              />
+            </label>
+          </div>
+
+          {/* 참고 점수 */}
+          <div className="rounded-xl border border-slate-700 bg-slate-900 p-4 flex items-center justify-between">
+            <div>
+              <p className="text-sm font-semibold text-slate-200">코스메니지먼트 &amp; 멘탈 참고 점수</p>
+              <p className="text-xs text-slate-400 mt-0.5">평가 항목에 반영되지 않는 참고용 지표입니다.</p>
+            </div>
+            <div className="text-right">
+              {courseMentalScore !== null ? (
+                <p className="text-2xl font-bold text-violet-300" data-testid="course-mental-score">{courseMentalScore}점</p>
+              ) : (
+                <p className="text-sm text-slate-500" data-testid="course-mental-score-empty">
+                  {ratedCount}/{totalCount} 항목 입력됨
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
       );
     }
 
@@ -936,7 +1180,23 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
               {entry.label}: {entry.score}점
             </li>
           ))}
-          <li>코스메니지먼트 & 멘탈 메모: {courseMentalNote.trim() || '-'}</li>
+          <li>
+            코스메니지먼트: {
+              courseMentalData.courseManagement.filter((i) => i.rating !== null).length > 0
+                ? `${courseMentalData.courseManagement.filter((i) => i.rating !== null).length}/${courseMentalData.courseManagement.length}항목 입력`
+                : '-'
+            }
+          </li>
+          <li>
+            멘탈: {
+              courseMentalData.mental.filter((i) => i.rating !== null).length > 0
+                ? `${courseMentalData.mental.filter((i) => i.rating !== null).length}/${courseMentalData.mental.length}항목 입력`
+                : '-'
+            }
+          </li>
+          {(courseMentalData.courseNote.trim() || courseMentalData.mentalNote.trim()) && (
+            <li>코치 메모: {[courseMentalData.courseNote, courseMentalData.mentalNote].filter(Boolean).join(' / ')}</li>
+          )}
         </ul>
       </div>
     );
