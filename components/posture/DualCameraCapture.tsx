@@ -1,7 +1,6 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { Camera, Upload, Check, X } from 'lucide-react';
+import { Camera, Upload, Check, X, AlertCircle } from 'lucide-react';
 import { PostureCapture } from '../../types/postureAnalysis';
-import { Button } from '../Button';
 
 interface DualCameraCaptureProps {
   onCapturesComplete: (front: PostureCapture, side: PostureCapture) => void;
@@ -25,8 +24,6 @@ export const DualCameraCapture: React.FC<DualCameraCaptureProps> = ({
   const sideFileInputRef = useRef<HTMLInputElement>(null);
 
   // Bind the stream to the video element after the camera modal renders.
-  // videoRef.current is null until isUsingCamera=true mounts the <video> element,
-  // so srcObject must be assigned in an effect rather than synchronously in startCamera.
   useEffect(() => {
     if (isUsingCamera && stream && videoRef.current) {
       videoRef.current.srcObject = stream;
@@ -38,21 +35,14 @@ export const DualCameraCapture: React.FC<DualCameraCaptureProps> = ({
   }, [isUsingCamera, stream]);
 
   const startCamera = useCallback(async (view?: 'front' | 'side') => {
-    if (view) {
-      setActiveView(view);
-    }
+    if (view) setActiveView(view);
     setCameraError(null);
     try {
       const mediaStream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: 'environment',
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
-        },
+        video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
       });
       setStream(mediaStream);
       setIsUsingCamera(true);
-      // srcObject is assigned by the useEffect above once the <video> element mounts
     } catch (error: unknown) {
       console.error('Failed to start camera:', error);
       if (error instanceof Error) {
@@ -131,12 +121,8 @@ export const DualCameraCapture: React.FC<DualCameraCaptureProps> = ({
             width: img.width,
             height: img.height,
           };
-
-          if (type === 'front') {
-            setFrontCapture(capture);
-          } else {
-            setSideCapture(capture);
-          }
+          if (type === 'front') setFrontCapture(capture);
+          else setSideCapture(capture);
         };
         img.src = imageData;
       };
@@ -151,168 +137,94 @@ export const DualCameraCapture: React.FC<DualCameraCaptureProps> = ({
     }
   }, [frontCapture, sideCapture, onCapturesComplete]);
 
-  const handleReset = useCallback(
-    (type: 'front' | 'side') => {
-      if (type === 'front') {
-        setFrontCapture(null);
-        if (frontFileInputRef.current) frontFileInputRef.current.value = '';
-      } else {
-        setSideCapture(null);
-        if (sideFileInputRef.current) sideFileInputRef.current.value = '';
-      }
-    },
-    []
-  );
+  const handleReset = useCallback((type: 'front' | 'side') => {
+    if (type === 'front') {
+      setFrontCapture(null);
+      if (frontFileInputRef.current) frontFileInputRef.current.value = '';
+    } else {
+      setSideCapture(null);
+      if (sideFileInputRef.current) sideFileInputRef.current.value = '';
+    }
+  }, []);
+
+  const bothDone = frontCapture && sideCapture;
 
   return (
-    <div className="max-w-6xl mx-auto p-6 bg-white rounded-lg shadow-lg">
-      <div className="mb-6">
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">신체 자세 촬영</h2>
-        <p className="text-gray-600">
-          정면과 측면 사진을 촬영하거나 업로드하세요. 스켈레톤 분석을 통해 체형 밸런스를 측정합니다.
-        </p>
-      </div>
+    <div className="min-h-screen bg-slate-950 text-slate-100">
+      <div className="max-w-3xl mx-auto px-4 py-8">
 
-      {/* Progress Indicator */}
-      <div className="flex items-center justify-center mb-8">
-        <div className="flex items-center space-x-4">
-          <div className={`flex items-center justify-center w-10 h-10 rounded-full ${
-            frontCapture ? 'bg-green-500 text-white' : 'bg-blue-500 text-white'
-          }`}>
-            {frontCapture ? <Check size={20} /> : '1'}
-          </div>
-          <div className="w-16 h-1 bg-gray-300">
-            <div className={`h-full transition-all ${frontCapture ? 'bg-green-500 w-full' : 'bg-blue-500 w-0'}`} />
-          </div>
-          <div className={`flex items-center justify-center w-10 h-10 rounded-full ${
-            sideCapture ? 'bg-green-500 text-white' : frontCapture ? 'bg-blue-500 text-white' : 'bg-gray-300 text-gray-600'
-          }`}>
-            {sideCapture ? <Check size={20} /> : '2'}
-          </div>
-        </div>
-      </div>
-
-      {/* Capture Interface */}
-      <div className="grid md:grid-cols-2 gap-6 mb-6">
-        {/* Front View */}
-        <div className="border-2 border-gray-300 rounded-lg p-4">
-          <h3 className="text-lg font-semibold mb-3 flex items-center">
-            정면 촬영
-            {frontCapture && <Check className="ml-2 text-green-500" size={20} />}
-          </h3>
-
-          {frontCapture ? (
-            <div className="relative">
-              <img
-                src={frontCapture.imageData}
-                alt="Front view"
-                className="w-full h-64 object-contain bg-gray-100 rounded"
-              />
-              <button
-                onClick={() => handleReset('front')}
-                className="absolute top-2 right-2 p-2 bg-red-500 text-white rounded-full hover:bg-red-600"
-              >
-                <X size={16} />
-              </button>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              <div className="w-full h-64 bg-gray-100 rounded flex items-center justify-center">
-                <Camera size={48} className="text-gray-400" />
-              </div>
-              <button
-                onClick={() => startCamera('front')}
-                className="w-full py-2 px-4 bg-green-600 text-white rounded hover:bg-green-700 flex items-center justify-center"
-              >
-                <Camera size={20} className="mr-2" />
-                실시간 촬영
-              </button>
-              <input
-                ref={frontFileInputRef}
-                type="file"
-                accept="image/*"
-                onChange={(e) => handleFileUpload(e, 'front')}
-                className="hidden"
-              />
-              <button
-                onClick={() => frontFileInputRef.current?.click()}
-                className="w-full py-2 px-4 bg-blue-600 text-white rounded hover:bg-blue-700 flex items-center justify-center"
-              >
-                <Upload size={20} className="mr-2" />
-                파일 업로드
-              </button>
-            </div>
-          )}
+        {/* Header */}
+        <div className="mb-8">
+          <h2 className="text-2xl font-bold mb-1">신체 자세 촬영</h2>
+          <p className="text-slate-400 text-sm">정면과 측면 사진을 촬영하거나 업로드하세요.</p>
         </div>
 
-        {/* Side View */}
-        <div className="border-2 border-gray-300 rounded-lg p-4">
-          <h3 className="text-lg font-semibold mb-3 flex items-center">
-            측면 촬영
-            {sideCapture && <Check className="ml-2 text-green-500" size={20} />}
-          </h3>
+        {/* Step progress */}
+        <div className="flex items-center justify-center gap-3 mb-8">
+          <StepDot done={!!frontCapture} active={!frontCapture} label="정면" num={1} />
+          <div className={`h-0.5 w-16 rounded transition-colors ${frontCapture ? 'bg-emerald-500' : 'bg-slate-700'}`} />
+          <StepDot done={!!sideCapture} active={!!frontCapture && !sideCapture} label="측면" num={2} />
+          <div className={`h-0.5 w-16 rounded transition-colors ${sideCapture ? 'bg-emerald-500' : 'bg-slate-700'}`} />
+          <StepDot done={false} active={!!bothDone} label="분석" num={3} />
+        </div>
 
-          {sideCapture ? (
-            <div className="relative">
-              <img
-                src={sideCapture.imageData}
-                alt="Side view"
-                className="w-full h-64 object-contain bg-gray-100 rounded"
-              />
-              <button
-                onClick={() => handleReset('side')}
-                className="absolute top-2 right-2 p-2 bg-red-500 text-white rounded-full hover:bg-red-600"
-              >
-                <X size={16} />
-              </button>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              <div className="w-full h-64 bg-gray-100 rounded flex items-center justify-center">
-                <Camera size={48} className="text-gray-400" />
-              </div>
-              <button
-                onClick={() => startCamera('side')}
-                disabled={!frontCapture}
-                className="w-full py-2 px-4 bg-green-600 text-white rounded hover:bg-green-700 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <Camera size={20} className="mr-2" />
-                실시간 촬영
-              </button>
-              <input
-                ref={sideFileInputRef}
-                type="file"
-                accept="image/*"
-                onChange={(e) => handleFileUpload(e, 'side')}
-                className="hidden"
-                disabled={!frontCapture}
-              />
-              <button
-                onClick={() => sideFileInputRef.current?.click()}
-                disabled={!frontCapture}
-                className="w-full py-2 px-4 bg-blue-600 text-white rounded hover:bg-blue-700 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <Upload size={20} className="mr-2" />
-                파일 업로드
-              </button>
-            </div>
-          )}
+        {/* Capture cards */}
+        <div className="grid sm:grid-cols-2 gap-4 mb-6">
+          <CaptureCard
+            type="front"
+            label="정면 촬영"
+            capture={frontCapture}
+            onStartCamera={() => startCamera('front')}
+            onUploadClick={() => frontFileInputRef.current?.click()}
+            onReset={() => handleReset('front')}
+            disabled={false}
+            fileInputRef={frontFileInputRef}
+            onFileChange={(e) => handleFileUpload(e, 'front')}
+          />
+          <CaptureCard
+            type="side"
+            label="측면 촬영"
+            capture={sideCapture}
+            onStartCamera={() => startCamera('side')}
+            onUploadClick={() => sideFileInputRef.current?.click()}
+            onReset={() => handleReset('side')}
+            disabled={!frontCapture}
+            fileInputRef={sideFileInputRef}
+            onFileChange={(e) => handleFileUpload(e, 'side')}
+          />
+        </div>
+
+        {/* Camera error */}
+        {cameraError && (
+          <div className="flex items-start gap-2 mb-4 px-4 py-3 bg-red-900/30 border border-red-700 rounded-xl text-sm text-red-300">
+            <AlertCircle size={16} className="flex-shrink-0 mt-0.5" />
+            {cameraError}
+          </div>
+        )}
+
+        {/* Action buttons */}
+        <div className="flex gap-3">
+          <button
+            onClick={onCancel}
+            className="flex-1 py-3 rounded-xl border border-slate-700 bg-slate-900 hover:bg-slate-800 text-slate-300 font-semibold transition-colors"
+          >
+            취소
+          </button>
+          <button
+            onClick={handleComplete}
+            disabled={!bothDone}
+            className="flex-1 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed shadow-lg shadow-emerald-900/30"
+          >
+            분석 시작
+          </button>
         </div>
       </div>
 
-      {/* Inline camera error message */}
-      {cameraError && (
-        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-start space-x-2">
-          <X size={16} className="text-red-500 mt-0.5 flex-shrink-0" />
-          <p className="text-sm text-red-700">{cameraError}</p>
-        </div>
-      )}
-
-      {/* Camera Capture modal */}
+      {/* Camera modal */}
       {isUsingCamera && (
-        <div className="fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg p-6 max-w-2xl w-full">
-            <h3 className="text-xl font-bold mb-4">
+        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
+          <div className="bg-slate-900 rounded-2xl border border-slate-700 p-5 w-full max-w-xl">
+            <h3 className="text-lg font-bold mb-4 text-slate-100">
               {activeView === 'front' ? '정면' : '측면'} 촬영
             </h3>
             <video
@@ -320,39 +232,123 @@ export const DualCameraCapture: React.FC<DualCameraCaptureProps> = ({
               autoPlay
               playsInline
               muted
-              className="w-full rounded mb-4 bg-black"
+              className="w-full rounded-xl mb-4 bg-black"
             />
-            <div className="flex space-x-3">
-              <Button onClick={capturePhoto} className="flex-1">
-                <Camera size={20} className="mr-2" />
+            <div className="flex gap-3">
+              <button
+                onClick={capturePhoto}
+                className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold transition-colors"
+              >
+                <Camera size={20} />
                 촬영
-              </Button>
-              <Button onClick={stopCamera} variant="secondary">
+              </button>
+              <button
+                onClick={stopCamera}
+                className="px-5 py-3 rounded-xl border border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold transition-colors"
+              >
                 취소
-              </Button>
+              </button>
             </div>
           </div>
         </div>
       )}
-      <canvas ref={canvasRef} className="hidden" />
 
-      {/* Action Buttons */}
-      <div className="flex space-x-3">
-        <Button
-          onClick={onCancel}
-          variant="secondary"
-          className="flex-1"
-        >
-          취소
-        </Button>
-        <Button
-          onClick={handleComplete}
-          disabled={!frontCapture || !sideCapture}
-          className="flex-1"
-        >
-          분석 시작
-        </Button>
-      </div>
+      <canvas ref={canvasRef} className="hidden" />
     </div>
   );
 };
+
+/* ── Sub-components ── */
+
+interface StepDotProps {
+  done: boolean;
+  active: boolean;
+  label: string;
+  num: number;
+}
+
+const StepDot: React.FC<StepDotProps> = ({ done, active, label, num }) => {
+  const bg = done ? 'bg-emerald-500' : active ? 'bg-emerald-600 ring-2 ring-emerald-400/40' : 'bg-slate-700';
+  return (
+    <div className="flex flex-col items-center gap-1">
+      <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold text-white transition-all ${bg}`}>
+        {done ? <Check size={16} /> : num}
+      </div>
+      <span className="text-xs text-slate-500">{label}</span>
+    </div>
+  );
+};
+
+interface CaptureCardProps {
+  type: 'front' | 'side';
+  label: string;
+  capture: PostureCapture | null;
+  onStartCamera: () => void;
+  onUploadClick: () => void;
+  onReset: () => void;
+  disabled: boolean;
+  fileInputRef: React.RefObject<HTMLInputElement | null>;
+  onFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+}
+
+const CaptureCard: React.FC<CaptureCardProps> = ({
+  label, capture, onStartCamera, onUploadClick, onReset, disabled, fileInputRef, onFileChange,
+}) => (
+  <div className={`rounded-xl border ${capture ? 'border-emerald-700' : 'border-slate-700'} bg-slate-900 overflow-hidden`}>
+    <div className="flex items-center justify-between px-4 py-3 border-b border-slate-800">
+      <h3 className="text-sm font-semibold text-slate-200 flex items-center gap-2">
+        {label}
+        {capture && <Check size={14} className="text-emerald-400" />}
+      </h3>
+      {disabled && !capture && (
+        <span className="text-xs text-slate-600">정면 먼저 완료하세요</span>
+      )}
+    </div>
+
+    {capture ? (
+      <div className="relative">
+        <img
+          src={capture.imageData}
+          alt={label}
+          className="w-full h-56 object-contain bg-black"
+        />
+        <button
+          onClick={onReset}
+          className="absolute top-2 right-2 w-7 h-7 rounded-full bg-red-600/90 hover:bg-red-500 flex items-center justify-center transition-colors"
+        >
+          <X size={14} className="text-white" />
+        </button>
+      </div>
+    ) : (
+      <div className="p-4 space-y-3">
+        <div className="w-full h-40 rounded-lg bg-slate-800 flex items-center justify-center">
+          <Camera size={40} className="text-slate-600" />
+        </div>
+        <button
+          onClick={onStartCamera}
+          disabled={disabled}
+          className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg bg-emerald-700 hover:bg-emerald-600 text-white text-sm font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+        >
+          <Camera size={16} />
+          실시간 촬영
+        </button>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          onChange={onFileChange}
+          className="hidden"
+          disabled={disabled}
+        />
+        <button
+          onClick={onUploadClick}
+          disabled={disabled}
+          className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-200 text-sm font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed border border-slate-600"
+        >
+          <Upload size={16} />
+          파일 업로드
+        </button>
+      </div>
+    )}
+  </div>
+);
