@@ -93,6 +93,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
   const [signupPasswordConfirm, setSignupPasswordConfirm] = useState('');
   const [signupSuccess, setSignupSuccess] = useState(false);
   const [isConsentChecked, setIsConsentChecked] = useState(false);
+  const [showConsentModal, setShowConsentModal] = useState(false);
 
   const [branchAdminLoginId, setBranchAdminLoginId] = useState('');
   const [branchAdminPassword, setBranchAdminPassword] = useState('');
@@ -477,20 +478,67 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
                 autoComplete="new-password"
               />
 
-              <button
-                type="button"
-                onClick={() => setIsConsentChecked((v) => !v)}
-                className="flex w-full items-start gap-2.5 rounded-lg border border-line-subtle bg-bg-inset px-3 py-3 text-left transition-colors hover:border-line-default"
+              <div className="rounded-lg border border-line-subtle bg-bg-inset">
+                <button
+                  type="button"
+                  onClick={() => setIsConsentChecked((v) => !v)}
+                  className="flex w-full items-start gap-2.5 px-3 pt-3 pb-2 text-left transition-colors"
+                >
+                  {isConsentChecked ? (
+                    <CheckSquare className="mt-0.5 h-4 w-4 shrink-0 text-primary-400" />
+                  ) : (
+                    <Square className="mt-0.5 h-4 w-4 shrink-0 text-ink-faint" />
+                  )}
+                  <span className="text-sm leading-snug text-ink-medium">
+                    {t('signup_consent_label')}
+                  </span>
+                </button>
+                <div className="px-3 pb-2 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); setShowConsentModal(true); }}
+                    className="text-xs text-primary-400 hover:text-primary-500 underline underline-offset-2 transition-colors"
+                  >
+                    {t('consent_view_detail')}
+                  </button>
+                </div>
+              </div>
+
+              <Modal
+                open={showConsentModal}
+                onClose={() => setShowConsentModal(false)}
+                title={t('consent_modal_title')}
+                size="lg"
+                footer={
+                  <div className="flex gap-3">
+                    <Button variant="ghost" size="sm" onClick={() => setShowConsentModal(false)}>
+                      {t('consent_modal_close')}
+                    </Button>
+                    <Button size="sm" onClick={() => { setIsConsentChecked(true); setShowConsentModal(false); }}>
+                      {t('consent_modal_agree')}
+                    </Button>
+                  </div>
+                }
               >
-                {isConsentChecked ? (
-                  <CheckSquare className="mt-0.5 h-4 w-4 shrink-0 text-primary-400" />
-                ) : (
-                  <Square className="mt-0.5 h-4 w-4 shrink-0 text-ink-faint" />
-                )}
-                <span className="text-sm leading-snug text-ink-medium">
-                  {t('signup_consent_label')}
-                </span>
-              </button>
+                <div className="space-y-5 text-sm text-ink-medium">
+                  <section>
+                    <h3 className="font-semibold text-ink-high mb-1">{t('consent_purpose_title')}</h3>
+                    <p className="leading-relaxed">{t('consent_purpose_body')}</p>
+                  </section>
+                  <section>
+                    <h3 className="font-semibold text-ink-high mb-1">{t('consent_items_title')}</h3>
+                    <p className="leading-relaxed">{t('consent_items_body')}</p>
+                  </section>
+                  <section>
+                    <h3 className="font-semibold text-ink-high mb-1">{t('consent_retention_title')}</h3>
+                    <p className="leading-relaxed">{t('consent_retention_body')}</p>
+                  </section>
+                  <section>
+                    <h3 className="font-semibold text-ink-high mb-1">{t('consent_rights_title')}</h3>
+                    <p className="leading-relaxed">{t('consent_rights_body')}</p>
+                  </section>
+                </div>
+              </Modal>
 
               <Button type="submit" fullWidth size="lg" isLoading={isLoading} className="mt-2">
                 {t('signup_btn')}
