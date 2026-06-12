@@ -467,11 +467,13 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
   const togglePlay = () => {
       if (mediaElementRef.current) {
           if (mediaElementRef.current.paused) {
-              mediaElementRef.current.play();
+              mediaElementRef.current.play().catch((err: unknown) => {
+                  console.error('[LessonDetail] play() rejected:', err);
+                  setMediaError(true);
+              });
           } else {
               mediaElementRef.current.pause();
           }
-          // Note: State update is handled by onPlay/onPause events
       }
   };
 
@@ -1156,18 +1158,19 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
                         onClick={togglePlay}
                     >
                         {activeMedia.type === 'video' ? (
-                            safeActiveMediaUrl ? (
+                            safeActiveMediaUrl && !mediaError ? (
                             <video
                                 ref={mediaElementRef as React.RefObject<HTMLVideoElement>}
                                 src={safeActiveMediaUrl}
                                 className="w-full h-full object-contain bg-black"
                                 playsInline
+                                preload="metadata"
                                 onTimeUpdate={handleTimeUpdate}
                                 onLoadedMetadata={handleLoadedMetadata}
                                 onEnded={() => setIsPlaying(false)}
+                                onError={() => setMediaError(true)}
                                 key={safeActiveMediaUrl}
-                                crossOrigin="anonymous" 
-                                onPlay={() => setIsPlaying(true)}
+                                onPlay={() => { setIsPlaying(true); setMediaError(false); }}
                                 onPause={() => setIsPlaying(false)}
                             />
                             ) : (
@@ -1198,7 +1201,7 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
 
                     {/* Custom Video Controls */}
                     {activeMedia.type === 'video' && safeActiveMediaUrl && (
-                        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/95 via-black/60 to-transparent p-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300 backdrop-blur-sm">
+                        <div className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/95 via-black/60 to-transparent p-4 transition-opacity duration-300 backdrop-blur-sm ${isPlaying ? 'opacity-0 group-hover:opacity-100' : 'opacity-100'}`}>
                              <div className="flex items-center gap-3">
                                  <button onClick={togglePlay} className="text-white hover:text-emerald-400 transition-all duration-200 hover:scale-110 transform">
                                      {isPlaying ? <Pause className="w-6 h-6 fill-current" /> : <Play className="w-6 h-6 fill-current" />}
