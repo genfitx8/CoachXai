@@ -139,12 +139,13 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
 
   const isClientView = role === 'CLIENT';
   // Always show AI lesson summary if it exists
-  const showAiAnalysis = true; 
+  const showAiAnalysis = true;
   const hasGolfData = !!lesson.golfData;
   const getHoleVoiceUrls = (hole: HoleRecord): string[] => {
     if (hole.voiceUrls && hole.voiceUrls.length > 0) return hole.voiceUrls;
     return hole.voiceUrl ? [hole.voiceUrl] : [];
   };
+  const hasScorecardVoice = !!(lesson.scorecardDetail?.holes?.some(h => getHoleVoiceUrls(h).length > 0));
 
   // Permissions: Coach can edit all, Client can edit only their own records
   const canEdit = !isClientView || lesson.createdBy === 'CLIENT';
@@ -265,21 +266,43 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
   const handleGenerateAIAnalysis = async () => {
       setIsGeneratingAnalysis(true);
       try {
-          const allMediaItems = [
-              { url: mainMediaUrl, type: lesson.mediaType },
-              ...(lesson.additionalMedia || []).map(m => ({ url: m.url, type: m.type }))
-          ];
+          const mediaUrlsAndTypes: { url: string; type: string }[] = [];
 
-          const inputs = allMediaItems.map(m => {
-             let mime = 'video/mp4';
-             if (m.type === 'image') mime = 'image/jpeg';
-             if (m.type === 'audio') mime = 'audio/mp4';
-             
-             return { data: m.url, mimeType: mime };
+          if (mainMediaUrl) {
+              mediaUrlsAndTypes.push({ url: mainMediaUrl, type: lesson.mediaType });
+          }
+
+          for (const m of (lesson.additionalMedia || [])) {
+              const resolvedUrl = getAdditionalMediaUrl(m);
+              if (resolvedUrl) {
+                  mediaUrlsAndTypes.push({ url: resolvedUrl, type: m.type });
+              }
+          }
+
+          if (lesson.scorecardDetail?.holes) {
+              for (const hole of lesson.scorecardDetail.holes) {
+                  for (const voiceUrl of getHoleVoiceUrls(hole)) {
+                      if (voiceUrl) mediaUrlsAndTypes.push({ url: voiceUrl, type: 'audio' });
+                  }
+              }
+          }
+
+          if (lesson.clientFeedback?.voiceUrl) {
+              mediaUrlsAndTypes.push({ url: lesson.clientFeedback.voiceUrl, type: 'audio' });
+          }
+
+          const inputs = mediaUrlsAndTypes.map(m => {
+              let mime = 'video/mp4';
+              if (m.type === 'image') mime = 'image/jpeg';
+              if (m.type === 'audio') {
+                  const ext = m.url.split('?')[0].split('.').pop()?.toLowerCase();
+                  mime = ext === 'webm' ? 'audio/webm' : 'audio/mp4';
+              }
+              return { data: m.url, mimeType: mime };
           });
 
           const result = await analyzeSwingVideo(inputs, lesson.coachNotes || "", lesson.swingAngle);
-          
+
           onUpdate({ ...lesson, aiAnalysis: result });
       } catch (err) {
           console.error(err);
@@ -1779,14 +1802,35 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
           )}
           
           {/* Round Report Summary Card (Detailed Scorecard Mode) */}
-          {lesson.scorecardDetail && lesson.aiAnalysis && (
+          {lesson.scorecardDetail && (lesson.aiAnalysis || hasScorecardVoice) && (
               <div className="bg-white rounded-xl shadow-sm border border-blue-100 overflow-hidden">
-                   <div className="bg-blue-50 px-4 py-3 border-b border-blue-100 flex items-center gap-2">
-                        <Sparkles className="w-5 h-5 text-blue-500" /> 
-                        <h3 className="font-bold text-blue-800">라운드 리포트 요약</h3>
+                   <div className="bg-blue-50 px-4 py-3 border-b border-blue-100 flex justify-between items-center">
+                        <h3 className="font-bold text-blue-800 flex items-center gap-2">
+                            <Sparkles className="w-5 h-5 text-blue-500" />
+                            라운드 리포트 요약
+                        </h3>
                    </div>
-                   <div className="p-5 prose prose-sm prose-blue text-gray-600 leading-relaxed max-w-none">
-                        <ReactMarkdown>{lesson.aiAnalysis}</ReactMarkdown>
+                   <div className="p-5">
+                       {lesson.aiAnalysis ? (
+                           <div className="prose prose-sm prose-blue text-gray-600 leading-relaxed max-w-none">
+                               <ReactMarkdown>{lesson.aiAnalysis}</ReactMarkdown>
+                           </div>
+                       ) : (
+                           <div className="text-center py-8">
+                               <Sparkles className="w-12 h-12 text-gray-200 mx-auto mb-3" />
+                               <p className="text-gray-500 text-sm mb-4">홀별 음성 기록을 바탕으로 AI 요약 리포트를 생성할 수 있습니다.</p>
+                               {canEdit && (
+                                   <Button
+                                       onClick={handleGenerateAIAnalysis}
+                                       isLoading={isGeneratingAnalysis}
+                                       className="bg-blue-700 hover:bg-blue-800 text-white shadow-lg shadow-slate-200"
+                                       icon={<Wand2 className="w-4 h-4" />}
+                                   >
+                                       라운드 요약 리포트 생성하기
+                                   </Button>
+                               )}
+                           </div>
+                       )}
                    </div>
               </div>
           )}
