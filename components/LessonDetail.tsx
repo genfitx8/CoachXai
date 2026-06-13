@@ -468,8 +468,14 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
       if (mediaElementRef.current) {
           if (mediaElementRef.current.paused) {
               mediaElementRef.current.play().catch((err: unknown) => {
-                  console.error('[LessonDetail] play() rejected:', err);
-                  setMediaError(true);
+                  // AbortError fires when play() is interrupted by buffering — not fatal
+                  const name = err instanceof Error ? err.name : '';
+                  if (name !== 'AbortError' && name !== 'NotAllowedError') {
+                      console.error('[LessonDetail] play() rejected:', err);
+                      setMediaError(true);
+                  } else {
+                      console.warn('[LessonDetail] play() rejected (transient):', name);
+                  }
               });
           } else {
               mediaElementRef.current.pause();
@@ -1203,18 +1209,18 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
                     {activeMedia.type === 'video' && safeActiveMediaUrl && (
                         <div className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/95 via-black/60 to-transparent p-4 transition-opacity duration-300 backdrop-blur-sm ${isPlaying ? 'opacity-0 group-hover:opacity-100' : 'opacity-100'}`}>
                              <div className="flex items-center gap-3">
-                                 <button onClick={togglePlay} className="text-white hover:text-emerald-400 transition-all duration-200 hover:scale-110 transform">
+                                 <button onClick={(e) => { e.stopPropagation(); togglePlay(); }} className="text-white hover:text-emerald-400 transition-all duration-200 hover:scale-110 transform">
                                      {isPlaying ? <Pause className="w-6 h-6 fill-current" /> : <Play className="w-6 h-6 fill-current" />}
                                  </button>
-                                 <div className="flex-1 relative h-2 bg-white/20 rounded-full cursor-pointer group/slider overflow-hidden">
-                                     <div 
-                                        className="absolute top-0 left-0 h-full bg-gradient-to-r from-emerald-700 to-emerald-400 rounded-full shadow-lg shadow-emerald-700/50" 
+                                 <div className="flex-1 relative h-2 bg-white/20 rounded-full cursor-pointer group/slider overflow-hidden" onClick={(e) => e.stopPropagation()}>
+                                     <div
+                                        className="absolute top-0 left-0 h-full bg-gradient-to-r from-emerald-700 to-emerald-400 rounded-full shadow-lg shadow-emerald-700/50"
                                         style={{ width: `${(currentTime / (duration || 1)) * 100}%` }}
                                      />
-                                     <input 
-                                        type="range" 
-                                        min="0" 
-                                        max={duration || 0} 
+                                     <input
+                                        type="range"
+                                        min="0"
+                                        max={duration || 0}
                                         step="0.1"
                                         value={currentTime}
                                         onChange={handleSeek}
@@ -1224,9 +1230,11 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
                                  <span className="text-xs text-white font-mono tabular-nums font-semibold">
                                      {Math.floor(currentTime/60)}:{Math.floor(currentTime%60).toString().padStart(2,'0')}
                                  </span>
+                                 {duration > 0 && (
                                  <button onClick={(e) => handleCaptureFrame('스냅샷', e)} className="text-white hover:text-emerald-400 transition-all duration-200 hover:scale-110 transform">
                                      <Camera className="w-5 h-5" />
                                  </button>
+                                 )}
                              </div>
                         </div>
                     )}
