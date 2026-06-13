@@ -278,8 +278,8 @@ export const analyzeSwingVideo = async (
   };
 
   try {
-    // Convert all inputs to generative parts
-    const mediaParts = await Promise.all(
+    // Convert all inputs to generative parts, skipping any that fail to load
+    const settled = await Promise.allSettled(
       mediaInputs.map(async (input) => {
         let blob: Blob;
         if (typeof input.data === 'string') {
@@ -290,6 +290,12 @@ export const analyzeSwingVideo = async (
         return toMediaPart(blob, input.mimeType);
       })
     );
+    const mediaParts = settled
+      .filter((r): r is PromiseFulfilledResult<InlineDataPart> => r.status === 'fulfilled')
+      .map((r) => r.value);
+    settled
+      .filter((r) => r.status === 'rejected')
+      .forEach((r) => log.error('미디어 로드 실패 (건너뜀):', (r as PromiseRejectedResult).reason));
 
     const angleText =
       swingAngle === 'FRONT'
