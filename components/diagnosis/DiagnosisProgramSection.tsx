@@ -5,7 +5,7 @@ import { DiagnosisHero } from './DiagnosisHero';
 import { Button } from '../Button';
 import { calculateCourseMentalScore, calculateShortGameDiagnosisScore, calculateSkillScore, clampDiagnosisScore, getAgeFromBirthDate } from '../../utils/diagnosis';
 import { useLanguage } from '../LanguageContext';
-import { ChevronDown, ChevronUp, Plus, Trash2, Monitor, Camera, Loader2 } from 'lucide-react';
+import { ChevronDown, ChevronUp, Plus, Trash2, Monitor, Camera, Loader2, Upload } from 'lucide-react';
 import { PostureAnalysisDashboard } from '../posture/PostureAnalysisDashboard';
 import { ScreenCaptureDialog } from './ScreenCaptureDialog';
 import { ShortGameDiagnosisSection } from './ShortGameDiagnosisSection';
@@ -173,6 +173,7 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
   const [equipmentPhotoError, setEquipmentPhotoError] = useState('');
   const [isAnalyzingEquipmentPhoto, setIsAnalyzingEquipmentPhoto] = useState(false);
   const equipmentPhotoInputRef = useRef<HTMLInputElement>(null);
+  const trackmanFileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const autoScore = calculateSkillScore(skillDiagnosisData);
@@ -323,6 +324,26 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
       ...prev,
       trackmanData: (prev.trackmanData || []).filter((_, i) => i !== index),
     }));
+  };
+
+  const handleTrackmanFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !selectedClub) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const imageDataUrl = e.target?.result as string;
+      setGolferProfile((prev) => ({
+        ...prev,
+        trackmanData: [...(prev.trackmanData || []), { clubType: selectedClub, capturedImageUrl: imageDataUrl }],
+      }));
+      setSelectedClub('');
+    };
+    reader.readAsDataURL(file);
+
+    if (trackmanFileInputRef.current) {
+      trackmanFileInputRef.current.value = '';
+    }
   };
 
   const handleEquipmentPhotoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -877,7 +898,7 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
                 {t('equipment_diagnosis_title') || '장비 진단 (트랙맨 데이터)'}
               </h4>
               <p className="text-xs text-slate-400 mb-4">
-                {t('equipment_diagnosis_desc') || '클럽을 선택하고 트랙맨 화면을 캡처하여 데이터를 수집합니다.'}
+                {t('equipment_diagnosis_desc') || '클럽을 선택하고 트랙맨 화면을 캡처하거나 이미지 파일을 업로드하여 데이터를 수집합니다.'}
               </p>
 
               <div className="space-y-3 mb-4">
@@ -907,6 +928,25 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
                     >
                       <Monitor className="w-4 h-4" />
                       {t('equipment_capture_screen') || '화면 캡처'}
+                    </Button>
+                    <input
+                      ref={trackmanFileInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handleTrackmanFileUpload}
+                      className="hidden"
+                      data-testid="trackman-file-input"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => trackmanFileInputRef.current?.click()}
+                      disabled={!selectedClub}
+                      className="flex items-center gap-2 whitespace-nowrap"
+                      data-testid="upload-trackman-file-btn"
+                    >
+                      <Upload className="w-4 h-4" />
+                      {t('equipment_upload_file') || '파일 업로드'}
                     </Button>
                   </div>
                 </label>
