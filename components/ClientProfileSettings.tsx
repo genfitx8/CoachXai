@@ -10,7 +10,7 @@ import {
   LessonStructuralMetricInput,
 } from '../types';
 import { Button } from './Button';
-import { ArrowLeft, Award, Briefcase, Save, CalendarClock, Activity, Plus, Trash2, Smartphone, AlertCircle, ScanLine } from 'lucide-react';
+import { ArrowLeft, Award, Briefcase, Save, CalendarClock, Activity, Plus, Trash2, Smartphone, AlertCircle, ScanLine, Camera, X, ImagePlus } from 'lucide-react';
 import { CoachSearch, CoachSearchResult } from './CoachSearch';
 import { useLanguage } from './LanguageContext';
 import { analyzeStructuralFactors, inferSwingTypeFromBodyType } from '../services/bodyAnalysisService';
@@ -55,8 +55,12 @@ export const ClientProfileSettings: React.FC<ClientProfileSettingsProps> = ({ pr
   const [isSaving, setIsSaving] = useState(false);
   const [frontBodyPhoto, setFrontBodyPhoto] = useState<File | null>(null);
   const [sideBodyPhoto, setSideBodyPhoto] = useState<File | null>(null);
+  const [frontBodyPhotoPreview, setFrontBodyPhotoPreview] = useState<string | null>(null);
+  const [sideBodyPhotoPreview, setSideBodyPhotoPreview] = useState<string | null>(null);
   const [isAnalyzingBodyPhoto, setIsAnalyzingBodyPhoto] = useState(false);
   const [bodyPhotoAnalysisError, setBodyPhotoAnalysisError] = useState<string | null>(null);
+  const frontPhotoInputRef = useRef<HTMLInputElement>(null);
+  const sidePhotoInputRef = useRef<HTMLInputElement>(null);
 
   // Experience State
   const [expYears, setExpYears] = useState<string>('');
@@ -363,9 +367,27 @@ export const ClientProfileSettings: React.FC<ClientProfileSettingsProps> = ({ pr
     const file = files?.[0] || null;
     if (type === 'front') {
       setFrontBodyPhoto(file);
+      if (frontBodyPhotoPreview) URL.revokeObjectURL(frontBodyPhotoPreview);
+      setFrontBodyPhotoPreview(file ? URL.createObjectURL(file) : null);
       return;
     }
     setSideBodyPhoto(file);
+    if (sideBodyPhotoPreview) URL.revokeObjectURL(sideBodyPhotoPreview);
+    setSideBodyPhotoPreview(file ? URL.createObjectURL(file) : null);
+  };
+
+  const handleBodyPhotoClear = (type: 'front' | 'side') => {
+    if (type === 'front') {
+      setFrontBodyPhoto(null);
+      if (frontBodyPhotoPreview) URL.revokeObjectURL(frontBodyPhotoPreview);
+      setFrontBodyPhotoPreview(null);
+      if (frontPhotoInputRef.current) frontPhotoInputRef.current.value = '';
+    } else {
+      setSideBodyPhoto(null);
+      if (sideBodyPhotoPreview) URL.revokeObjectURL(sideBodyPhotoPreview);
+      setSideBodyPhotoPreview(null);
+      if (sidePhotoInputRef.current) sidePhotoInputRef.current.value = '';
+    }
   };
 
   const handleAutoBodyPhotoAnalysis = async () => {
@@ -542,41 +564,130 @@ export const ClientProfileSettings: React.FC<ClientProfileSettingsProps> = ({ pr
 
                 {formData.memberBodyAnalysis && (
                   <div className="space-y-3">
-                    <div className="rounded-lg border border-emerald-100 bg-emerald-50/60 p-3 space-y-2">
-                      <p className="text-xs font-bold text-emerald-800">정면/측면 사진 자동 분석</p>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        <label className="text-xs text-gray-700 space-y-1 block">
-                          <span className="font-semibold">정면 전신</span>
+                    <div className="rounded-lg border border-emerald-100 bg-emerald-50/60 p-3 space-y-3">
+                      <p className="text-xs font-bold text-emerald-800 flex items-center gap-1.5">
+                        <Camera className="w-3.5 h-3.5" /> 정면/측면 사진 자동 분석
+                      </p>
+                      <div className="grid grid-cols-2 gap-2">
+                        {/* 정면 사진 업로드 */}
+                        <div className="space-y-1">
+                          <p className="text-xs font-semibold text-gray-700">정면 전신</p>
                           <input
+                            ref={frontPhotoInputRef}
                             type="file"
                             accept="image/*"
-                            capture="environment"
+                            className="hidden"
                             onChange={(e) => handleBodyPhotoChange('front', e.target.files)}
-                            className="block w-full text-xs"
                           />
-                        </label>
-                        <label className="text-xs text-gray-700 space-y-1 block">
-                          <span className="font-semibold">측면 전신</span>
+                          {frontBodyPhotoPreview ? (
+                            <div className="relative group">
+                              <img
+                                src={frontBodyPhotoPreview}
+                                alt="정면 사진 미리보기"
+                                className="w-full aspect-[3/4] object-cover rounded-lg border-2 border-emerald-400 shadow-sm"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => handleBodyPhotoClear('front')}
+                                className="absolute top-1 right-1 bg-black/60 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                              >
+                                <X className="w-3.5 h-3.5" />
+                              </button>
+                              <div className="absolute inset-0 flex items-end justify-center p-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button
+                                  type="button"
+                                  onClick={() => frontPhotoInputRef.current?.click()}
+                                  className="text-[10px] bg-black/60 text-white rounded px-2 py-0.5 w-full text-center"
+                                >
+                                  사진 변경
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => frontPhotoInputRef.current?.click()}
+                              className="w-full aspect-[3/4] rounded-lg border-2 border-dashed border-emerald-300 bg-white hover:bg-emerald-50 flex flex-col items-center justify-center gap-1 transition-colors"
+                            >
+                              <ImagePlus className="w-6 h-6 text-emerald-400" />
+                              <span className="text-[10px] text-emerald-600 font-medium">사진 선택</span>
+                            </button>
+                          )}
+                        </div>
+
+                        {/* 측면 사진 업로드 */}
+                        <div className="space-y-1">
+                          <p className="text-xs font-semibold text-gray-700">측면 전신</p>
                           <input
+                            ref={sidePhotoInputRef}
                             type="file"
                             accept="image/*"
-                            capture="environment"
+                            className="hidden"
                             onChange={(e) => handleBodyPhotoChange('side', e.target.files)}
-                            className="block w-full text-xs"
                           />
-                        </label>
+                          {sideBodyPhotoPreview ? (
+                            <div className="relative group">
+                              <img
+                                src={sideBodyPhotoPreview}
+                                alt="측면 사진 미리보기"
+                                className="w-full aspect-[3/4] object-cover rounded-lg border-2 border-emerald-400 shadow-sm"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => handleBodyPhotoClear('side')}
+                                className="absolute top-1 right-1 bg-black/60 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                              >
+                                <X className="w-3.5 h-3.5" />
+                              </button>
+                              <div className="absolute inset-0 flex items-end justify-center p-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button
+                                  type="button"
+                                  onClick={() => sidePhotoInputRef.current?.click()}
+                                  className="text-[10px] bg-black/60 text-white rounded px-2 py-0.5 w-full text-center"
+                                >
+                                  사진 변경
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => sidePhotoInputRef.current?.click()}
+                              className="w-full aspect-[3/4] rounded-lg border-2 border-dashed border-emerald-300 bg-white hover:bg-emerald-50 flex flex-col items-center justify-center gap-1 transition-colors"
+                            >
+                              <ImagePlus className="w-6 h-6 text-emerald-400" />
+                              <span className="text-[10px] text-emerald-600 font-medium">사진 선택</span>
+                            </button>
+                          )}
+                        </div>
                       </div>
+
                       <Button
                         type="button"
                         variant="secondary"
                         onClick={handleAutoBodyPhotoAnalysis}
-                        disabled={isAnalyzingBodyPhoto}
+                        disabled={isAnalyzingBodyPhoto || (!frontBodyPhoto && !sideBodyPhoto)}
                         className="w-full justify-center"
                       >
-                        {isAnalyzingBodyPhoto ? '자동 분석 중...' : '사진으로 자동 분석'}
+                        {isAnalyzingBodyPhoto ? (
+                          <span className="flex items-center gap-1.5">
+                            <span className="inline-block w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                            자동 분석 중...
+                          </span>
+                        ) : (
+                          <span className="flex items-center gap-1.5">
+                            <ScanLine className="w-3.5 h-3.5" /> 사진으로 자동 분석
+                          </span>
+                        )}
                       </Button>
+                      {!frontBodyPhoto && !sideBodyPhoto && (
+                        <p className="text-[11px] text-gray-400 text-center">정면과 측면 전신 사진을 모두 선택하면 AI가 자동으로 체형을 분석합니다</p>
+                      )}
                       {bodyPhotoAnalysisError && (
-                        <p className="text-xs text-red-600">{bodyPhotoAnalysisError}</p>
+                        <div className="flex items-start gap-1.5 bg-red-50 border border-red-100 rounded-lg p-2">
+                          <AlertCircle className="w-3.5 h-3.5 text-red-500 mt-0.5 shrink-0" />
+                          <p className="text-xs text-red-600">{bodyPhotoAnalysisError}</p>
+                        </div>
                       )}
                     </div>
 
