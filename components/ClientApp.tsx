@@ -78,7 +78,7 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
   
   // Mission/Homework Modal State
   const [showHomeworkModal, setShowHomeworkModal] = useState(false);
-  const [profileSection, setProfileSection] = useState<'OVERVIEW' | 'GOLF_PROFILE' | 'CLUB_BAG' | 'BODY_ANALYSIS'>('OVERVIEW');
+  const [profileSection, setProfileSection] = useState<'OVERVIEW' | 'GOLF_PROFILE' | 'CLUB_BAG'>('OVERVIEW');
 
   // Quick Log State
   const [quickLogs, setQuickLogs] = useState<QuickLogEntry[]>([]);
@@ -317,7 +317,7 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
       }));
   };
 
-  const openProfileSection = (section: 'OVERVIEW' | 'GOLF_PROFILE' | 'CLUB_BAG' | 'BODY_ANALYSIS') => {
+  const openProfileSection = (section: 'OVERVIEW' | 'GOLF_PROFILE' | 'CLUB_BAG') => {
       setProfileSection(section);
       setSelectedLesson(null);
       setView('PROFILE');

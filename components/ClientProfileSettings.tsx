@@ -6,15 +6,11 @@ import {
   Lesson,
   ClubSpec,
   ClubCategory,
-  LessonBodyType,
-  LessonStructuralMetricInput,
 } from '../types';
 import { Button } from './Button';
-import { ArrowLeft, Award, Briefcase, Save, CalendarClock, Activity, Plus, Trash2, Smartphone, AlertCircle, ScanLine, Camera, X, ImagePlus } from 'lucide-react';
+import { ArrowLeft, Award, Briefcase, Save, CalendarClock, Activity, Plus, Trash2, Smartphone, AlertCircle } from 'lucide-react';
 import { CoachSearch, CoachSearchResult } from './CoachSearch';
 import { useLanguage } from './LanguageContext';
-import { analyzeStructuralFactors, inferSwingTypeFromBodyType } from '../services/bodyAnalysisService';
-import { analyzeBodyPhotos } from '../services/geminiService';
 
 interface ClientProfileSettingsProps {
   profile: ClientProfile;
@@ -22,26 +18,11 @@ interface ClientProfileSettingsProps {
   onSave: (updatedProfile: ClientProfile) => void;
   onBack: () => void;
   onSearchCoach: (name: string) => Promise<CoachSearchResult[]>;
-  initialSection?: 'OVERVIEW' | 'GOLF_PROFILE' | 'CLUB_BAG' | 'BODY_ANALYSIS';
+  initialSection?: 'OVERVIEW' | 'GOLF_PROFILE' | 'CLUB_BAG';
 }
 
 export const ClientProfileSettings: React.FC<ClientProfileSettingsProps> = ({ profile, allLessons = [], onSave, onBack, onSearchCoach, initialSection = 'OVERVIEW' }) => {
   const { t } = useLanguage();
-  const BODY_TYPES: LessonBodyType[] = [
-    '이상체형',
-    '삼각체형',
-    '역삼각체형',
-    '사각체형',
-    '모래시계형',
-    '마름모꼴체형',
-    '둥근체형',
-    '튜브체형',
-  ];
-
-  const latestLessonBodyAnalysis = useMemo(
-    () => allLessons.find((lesson) => lesson.memberBodyAnalysis)?.memberBodyAnalysis,
-    [allLessons]
-  );
 
   const CLUB_CATEGORIES: { id: ClubCategory; label: string; icon: string }[] = [
     { id: 'DRIVER', label: t('club_category_driver'), icon: '🏌️' },
@@ -53,15 +34,6 @@ export const ClientProfileSettings: React.FC<ClientProfileSettingsProps> = ({ pr
 
   const [formData, setFormData] = useState<ClientProfile>({ ...profile });
   const [isSaving, setIsSaving] = useState(false);
-  const [frontBodyPhoto, setFrontBodyPhoto] = useState<File | null>(null);
-  const [sideBodyPhoto, setSideBodyPhoto] = useState<File | null>(null);
-  const [frontBodyPhotoPreview, setFrontBodyPhotoPreview] = useState<string | null>(null);
-  const [sideBodyPhotoPreview, setSideBodyPhotoPreview] = useState<string | null>(null);
-  const [isAnalyzingBodyPhoto, setIsAnalyzingBodyPhoto] = useState(false);
-  const [bodyPhotoAnalysisError, setBodyPhotoAnalysisError] = useState<string | null>(null);
-  const frontPhotoInputRef = useRef<HTMLInputElement>(null);
-  const sidePhotoInputRef = useRef<HTMLInputElement>(null);
-
   // Experience State
   const [expYears, setExpYears] = useState<string>('');
   const [expMonths, setExpMonths] = useState<string>('');
@@ -77,16 +49,7 @@ export const ClientProfileSettings: React.FC<ClientProfileSettingsProps> = ({ pr
   const [newClubSpec1, setNewClubSpec1] = useState('');
   const [newClubSpec2, setNewClubSpec2] = useState('');
   const golfProfileRef = useRef<HTMLDivElement | null>(null);
-  const bodyAnalysisRef = useRef<HTMLDivElement | null>(null);
   const clubBagRef = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    if (!latestLessonBodyAnalysis || formData.memberBodyAnalysis) return;
-    setFormData(prev => ({
-      ...prev,
-      memberBodyAnalysis: latestLessonBodyAnalysis,
-    }));
-  }, [latestLessonBodyAnalysis, formData.memberBodyAnalysis]);
 
   // Initialize Experience from golfStartDate if available
   useEffect(() => {
@@ -120,8 +83,6 @@ export const ClientProfileSettings: React.FC<ClientProfileSettingsProps> = ({ pr
   useEffect(() => {
     if (initialSection === 'GOLF_PROFILE') {
       golfProfileRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    } else if (initialSection === 'BODY_ANALYSIS') {
-      bodyAnalysisRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     } else if (initialSection === 'CLUB_BAG') {
       clubBagRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
@@ -200,19 +161,7 @@ export const ClientProfileSettings: React.FC<ClientProfileSettingsProps> = ({ pr
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setIsSaving(true);
-    
-    // Attach detailedBag to formData
-    const finalBodyAnalysis = formData.memberBodyAnalysis
-      ? {
-          ...formData.memberBodyAnalysis,
-          swingType: inferSwingTypeFromBodyType(formData.memberBodyAnalysis.bodyType),
-          structuralFactors: analyzeStructuralFactors(formData.memberBodyAnalysis.structuralInput),
-          coachComment: formData.memberBodyAnalysis.coachComment?.trim() || undefined,
-        }
-      : undefined;
-    const finalData = { ...formData, detailedBag: bagSpecs, memberBodyAnalysis: finalBodyAnalysis };
-
-    // Simulate save delay
+    const finalData = { ...formData, detailedBag: bagSpecs };
     setTimeout(() => {
         onSave(finalData);
         setIsSaving(false);
@@ -282,155 +231,6 @@ export const ClientProfileSettings: React.FC<ClientProfileSettingsProps> = ({ pr
           case 'PUTTER': return { s1: t('putter_spec1'), s2: t('putter_spec2') };
           default: return { s1: t('spec1_generic'), s2: t('spec2_generic') };
       }
-  };
-
-  const handleToggleBodyAnalysis = () => {
-    setFormData(prev => {
-      if (prev.memberBodyAnalysis) {
-        return { ...prev, memberBodyAnalysis: undefined };
-      }
-      if (latestLessonBodyAnalysis) {
-        return {
-          ...prev,
-          memberBodyAnalysis: latestLessonBodyAnalysis,
-        };
-      }
-      const structuralInput: LessonStructuralMetricInput = {};
-      const bodyType: LessonBodyType = '사각체형';
-      return {
-        ...prev,
-        memberBodyAnalysis: {
-          bodyType,
-          swingType: inferSwingTypeFromBodyType(bodyType),
-          structuralInput,
-          structuralFactors: analyzeStructuralFactors(structuralInput),
-        },
-      };
-    });
-  };
-
-  const handleBodyTypeChange = (nextBodyType: LessonBodyType) => {
-    setFormData(prev => {
-      const current = prev.memberBodyAnalysis;
-      if (!current) return prev;
-      return {
-        ...prev,
-        memberBodyAnalysis: {
-          ...current,
-          bodyType: nextBodyType,
-          swingType: inferSwingTypeFromBodyType(nextBodyType),
-          structuralFactors: analyzeStructuralFactors(current.structuralInput),
-        },
-      };
-    });
-  };
-
-  const handleBodyMetricChange = (
-    key: keyof LessonStructuralMetricInput,
-    rawValue: string
-  ) => {
-    setFormData(prev => {
-      const current = prev.memberBodyAnalysis;
-      if (!current) return prev;
-      const parsedValue = rawValue.trim() === '' ? undefined : Number(rawValue);
-      if (parsedValue !== undefined && !Number.isFinite(parsedValue)) return prev;
-      const structuralInput: LessonStructuralMetricInput = {
-        ...current.structuralInput,
-        [key]: parsedValue,
-      };
-      return {
-        ...prev,
-        memberBodyAnalysis: {
-          ...current,
-          structuralInput,
-          structuralFactors: analyzeStructuralFactors(structuralInput),
-        },
-      };
-    });
-  };
-
-  const handleBodyCommentChange = (comment: string) => {
-    setFormData(prev => {
-      const current = prev.memberBodyAnalysis;
-      if (!current) return prev;
-      return {
-        ...prev,
-        memberBodyAnalysis: {
-          ...current,
-          coachComment: comment,
-        },
-      };
-    });
-  };
-
-  const handleBodyPhotoChange = (type: 'front' | 'side', files: FileList | null) => {
-    const file = files?.[0] || null;
-    if (type === 'front') {
-      setFrontBodyPhoto(file);
-      if (frontBodyPhotoPreview) URL.revokeObjectURL(frontBodyPhotoPreview);
-      setFrontBodyPhotoPreview(file ? URL.createObjectURL(file) : null);
-      return;
-    }
-    setSideBodyPhoto(file);
-    if (sideBodyPhotoPreview) URL.revokeObjectURL(sideBodyPhotoPreview);
-    setSideBodyPhotoPreview(file ? URL.createObjectURL(file) : null);
-  };
-
-  const handleBodyPhotoClear = (type: 'front' | 'side') => {
-    if (type === 'front') {
-      setFrontBodyPhoto(null);
-      if (frontBodyPhotoPreview) URL.revokeObjectURL(frontBodyPhotoPreview);
-      setFrontBodyPhotoPreview(null);
-      if (frontPhotoInputRef.current) frontPhotoInputRef.current.value = '';
-    } else {
-      setSideBodyPhoto(null);
-      if (sideBodyPhotoPreview) URL.revokeObjectURL(sideBodyPhotoPreview);
-      setSideBodyPhotoPreview(null);
-      if (sidePhotoInputRef.current) sidePhotoInputRef.current.value = '';
-    }
-  };
-
-  const handleAutoBodyPhotoAnalysis = async () => {
-    if (!frontBodyPhoto || !sideBodyPhoto) {
-      setBodyPhotoAnalysisError('정면/측면 전신 사진을 모두 선택해 주세요.');
-      return;
-    }
-
-    setBodyPhotoAnalysisError(null);
-    setIsAnalyzingBodyPhoto(true);
-    try {
-      const result = await analyzeBodyPhotos({
-        frontImage: {
-          data: frontBodyPhoto,
-          mimeType: frontBodyPhoto.type || 'image/jpeg',
-        },
-        sideImage: {
-          data: sideBodyPhoto,
-          mimeType: sideBodyPhoto.type || 'image/jpeg',
-        },
-      });
-
-      setFormData(prev => {
-        const structuralInput: LessonStructuralMetricInput = {
-          ...result.structuralInput,
-        };
-        return {
-          ...prev,
-          memberBodyAnalysis: {
-            bodyType: result.bodyType,
-            swingType: inferSwingTypeFromBodyType(result.bodyType),
-            structuralInput,
-            structuralFactors: analyzeStructuralFactors(structuralInput),
-            coachComment: result.coachComment,
-          },
-        };
-      });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : '신체 사진 자동 분석에 실패했습니다.';
-      setBodyPhotoAnalysisError(message);
-    } finally {
-      setIsAnalyzingBodyPhoto(false);
-    }
   };
 
   return (
@@ -541,226 +341,6 @@ export const ClientProfileSettings: React.FC<ClientProfileSettingsProps> = ({ pr
                         onSearch={onSearchCoach}
                     />
                 </div>
-            </div>
-
-            <div ref={bodyAnalysisRef} className="mt-8 pt-6 border-t border-gray-100 space-y-4">
-                <div
-                  onClick={handleToggleBodyAnalysis}
-                  className={`rounded-xl border-2 cursor-pointer transition-all flex items-center gap-3 p-3 ${
-                    formData.memberBodyAnalysis
-                      ? 'border-emerald-500 bg-emerald-50'
-                      : 'border-gray-200 hover:border-gray-300'
-                  }`}
-                >
-                  <ScanLine className={`w-5 h-5 ${formData.memberBodyAnalysis ? 'text-emerald-700' : 'text-gray-400'}`} />
-                  <div>
-                    <h4 className="font-bold text-sm text-gray-900">{t('profile_body_analysis_title')}</h4>
-                    <p className="text-xs text-gray-500">{t('profile_body_analysis_desc')}</p>
-                  </div>
-                  {formData.memberBodyAnalysis && (
-                    <span className="ml-auto text-xs font-bold text-emerald-700">ON</span>
-                  )}
-                </div>
-
-                {formData.memberBodyAnalysis && (
-                  <div className="space-y-3">
-                    <div className="rounded-lg border border-emerald-100 bg-emerald-50/60 p-3 space-y-3">
-                      <p className="text-xs font-bold text-emerald-800 flex items-center gap-1.5">
-                        <Camera className="w-3.5 h-3.5" /> 정면/측면 사진 자동 분석
-                      </p>
-                      <div className="grid grid-cols-2 gap-2">
-                        {/* 정면 사진 업로드 */}
-                        <div className="space-y-1">
-                          <p className="text-xs font-semibold text-gray-700">정면 전신</p>
-                          <input
-                            ref={frontPhotoInputRef}
-                            type="file"
-                            accept="image/*"
-                            className="hidden"
-                            onChange={(e) => handleBodyPhotoChange('front', e.target.files)}
-                          />
-                          {frontBodyPhotoPreview ? (
-                            <div className="relative group">
-                              <img
-                                src={frontBodyPhotoPreview}
-                                alt="정면 사진 미리보기"
-                                className="w-full aspect-[3/4] object-cover rounded-lg border-2 border-emerald-400 shadow-sm"
-                              />
-                              <button
-                                type="button"
-                                onClick={() => handleBodyPhotoClear('front')}
-                                className="absolute top-1 right-1 bg-black/60 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
-                              >
-                                <X className="w-3.5 h-3.5" />
-                              </button>
-                              <div className="absolute inset-0 flex items-end justify-center p-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <button
-                                  type="button"
-                                  onClick={() => frontPhotoInputRef.current?.click()}
-                                  className="text-[10px] bg-black/60 text-white rounded px-2 py-0.5 w-full text-center"
-                                >
-                                  사진 변경
-                                </button>
-                              </div>
-                            </div>
-                          ) : (
-                            <button
-                              type="button"
-                              onClick={() => frontPhotoInputRef.current?.click()}
-                              className="w-full aspect-[3/4] rounded-lg border-2 border-dashed border-emerald-300 bg-white hover:bg-emerald-50 flex flex-col items-center justify-center gap-1 transition-colors"
-                            >
-                              <ImagePlus className="w-6 h-6 text-emerald-400" />
-                              <span className="text-[10px] text-emerald-600 font-medium">사진 선택</span>
-                            </button>
-                          )}
-                        </div>
-
-                        {/* 측면 사진 업로드 */}
-                        <div className="space-y-1">
-                          <p className="text-xs font-semibold text-gray-700">측면 전신</p>
-                          <input
-                            ref={sidePhotoInputRef}
-                            type="file"
-                            accept="image/*"
-                            className="hidden"
-                            onChange={(e) => handleBodyPhotoChange('side', e.target.files)}
-                          />
-                          {sideBodyPhotoPreview ? (
-                            <div className="relative group">
-                              <img
-                                src={sideBodyPhotoPreview}
-                                alt="측면 사진 미리보기"
-                                className="w-full aspect-[3/4] object-cover rounded-lg border-2 border-emerald-400 shadow-sm"
-                              />
-                              <button
-                                type="button"
-                                onClick={() => handleBodyPhotoClear('side')}
-                                className="absolute top-1 right-1 bg-black/60 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
-                              >
-                                <X className="w-3.5 h-3.5" />
-                              </button>
-                              <div className="absolute inset-0 flex items-end justify-center p-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <button
-                                  type="button"
-                                  onClick={() => sidePhotoInputRef.current?.click()}
-                                  className="text-[10px] bg-black/60 text-white rounded px-2 py-0.5 w-full text-center"
-                                >
-                                  사진 변경
-                                </button>
-                              </div>
-                            </div>
-                          ) : (
-                            <button
-                              type="button"
-                              onClick={() => sidePhotoInputRef.current?.click()}
-                              className="w-full aspect-[3/4] rounded-lg border-2 border-dashed border-emerald-300 bg-white hover:bg-emerald-50 flex flex-col items-center justify-center gap-1 transition-colors"
-                            >
-                              <ImagePlus className="w-6 h-6 text-emerald-400" />
-                              <span className="text-[10px] text-emerald-600 font-medium">사진 선택</span>
-                            </button>
-                          )}
-                        </div>
-                      </div>
-
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        onClick={handleAutoBodyPhotoAnalysis}
-                        disabled={isAnalyzingBodyPhoto || (!frontBodyPhoto && !sideBodyPhoto)}
-                        className="w-full justify-center"
-                      >
-                        {isAnalyzingBodyPhoto ? (
-                          <span className="flex items-center gap-1.5">
-                            <span className="inline-block w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                            자동 분석 중...
-                          </span>
-                        ) : (
-                          <span className="flex items-center gap-1.5">
-                            <ScanLine className="w-3.5 h-3.5" /> 사진으로 자동 분석
-                          </span>
-                        )}
-                      </Button>
-                      {!frontBodyPhoto && !sideBodyPhoto && (
-                        <p className="text-[11px] text-gray-400 text-center">정면과 측면 전신 사진을 모두 선택하면 AI가 자동으로 체형을 분석합니다</p>
-                      )}
-                      {bodyPhotoAnalysisError && (
-                        <div className="flex items-start gap-1.5 bg-red-50 border border-red-100 rounded-lg p-2">
-                          <AlertCircle className="w-3.5 h-3.5 text-red-500 mt-0.5 shrink-0" />
-                          <p className="text-xs text-red-600">{bodyPhotoAnalysisError}</p>
-                        </div>
-                      )}
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-bold text-gray-600 mb-1">{t('profile_body_type_label')}</label>
-                      <select
-                        value={formData.memberBodyAnalysis.bodyType}
-                        onChange={(e) => handleBodyTypeChange(e.target.value as LessonBodyType)}
-                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-700 outline-none"
-                      >
-                        {BODY_TYPES.map((type) => (
-                          <option key={type} value={type}>
-                            {type}
-                          </option>
-                        ))}
-                      </select>
-                      <p className="text-xs text-gray-500 mt-1">
-                        {t('profile_recommended_swing_type')} <span className="font-bold text-emerald-700">{formData.memberBodyAnalysis.swingType}</span>
-                      </p>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <input
-                        value={formData.memberBodyAnalysis.structuralInput.frontAxisTiltDeg ?? ''}
-                        onChange={(e) => handleBodyMetricChange('frontAxisTiltDeg', e.target.value)}
-                        type="number"
-                        step="0.1"
-                        placeholder={t('profile_body_front_axis_placeholder')}
-                        className="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-700 outline-none"
-                      />
-                      <input
-                        value={formData.memberBodyAnalysis.structuralInput.headTiltDeg ?? ''}
-                        onChange={(e) => handleBodyMetricChange('headTiltDeg', e.target.value)}
-                        type="number"
-                        step="0.1"
-                        placeholder={t('profile_body_head_placeholder')}
-                        className="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-700 outline-none"
-                      />
-                      <input
-                        value={formData.memberBodyAnalysis.structuralInput.shoulderTiltDeg ?? ''}
-                        onChange={(e) => handleBodyMetricChange('shoulderTiltDeg', e.target.value)}
-                        type="number"
-                        step="0.1"
-                        placeholder={t('profile_body_shoulder_placeholder')}
-                        className="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-700 outline-none"
-                      />
-                      <input
-                        value={formData.memberBodyAnalysis.structuralInput.pelvisTiltDeg ?? ''}
-                        onChange={(e) => handleBodyMetricChange('pelvisTiltDeg', e.target.value)}
-                        type="number"
-                        step="0.1"
-                        placeholder={t('profile_body_pelvis_placeholder')}
-                        className="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-700 outline-none"
-                      />
-                      <input
-                        value={formData.memberBodyAnalysis.structuralInput.kneeTiltDeg ?? ''}
-                        onChange={(e) => handleBodyMetricChange('kneeTiltDeg', e.target.value)}
-                        type="number"
-                        step="0.1"
-                        placeholder={t('profile_body_knee_placeholder')}
-                        className="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-700 outline-none sm:col-span-2"
-                      />
-                    </div>
-
-                    <textarea
-                      value={formData.memberBodyAnalysis.coachComment || ''}
-                      onChange={(e) => handleBodyCommentChange(e.target.value)}
-                      rows={2}
-                      placeholder={t('profile_body_comment_placeholder')}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-700 outline-none resize-none"
-                    />
-                  </div>
-                )}
             </div>
 
             {/* Club Composition Section */}

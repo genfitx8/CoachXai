@@ -63,42 +63,6 @@ export interface ScorecardDetail {
   totalPutts: number;
 }
 
-export type BodyImpactLevel = '상' | '하' | '-';
-
-export type LessonBodyType =
-  | '이상체형'
-  | '삼각체형'
-  | '역삼각체형'
-  | '사각체형'
-  | '모래시계형'
-  | '마름모꼴체형'
-  | '둥근체형'
-  | '튜브체형';
-
-export type LessonSwingType = '지렛대형' | '아크형' | '넓이형';
-
-export interface LessonStructuralMetricInput {
-  frontAxisTiltDeg?: number;
-  headTiltDeg?: number;
-  shoulderTiltDeg?: number;
-  pelvisTiltDeg?: number;
-  kneeTiltDeg?: number;
-}
-
-export interface LessonStructuralFactor {
-  name: string;
-  value: string;
-  impact: BodyImpactLevel;
-}
-
-export interface LessonBodyAnalysis {
-  bodyType: LessonBodyType;
-  swingType: LessonSwingType;
-  structuralInput: LessonStructuralMetricInput;
-  structuralFactors: LessonStructuralFactor[];
-  coachComment?: string;
-}
-
 export interface MotionCaptureMeasurement {
   swingPhase?: string;           // e.g. '어드레스', '백스윙', '임팩트'
   timeSeconds?: number;          // timeline timestamp (e.g. -1.3, 0.0)
@@ -129,7 +93,6 @@ export interface Lesson {
   club?: string; // Added: Golf club used (e.g., '7 Iron', 'Driver')
   score?: number; // Added: Score for 'SCORE' record type
   scorecardDetail?: ScorecardDetail; // Added: Detailed scorecard data
-  memberBodyAnalysis?: LessonBodyAnalysis; // Added: Member body analysis captured during lesson
   swingAngle?: 'FRONT' | 'SIDE'; // Added: Camera angle of the swing
   videoUrl: string; // Blob URL for media
   videoKey?: string; // Storage key for media, used to recover URL when videoUrl is missing
@@ -423,7 +386,6 @@ export interface ClientProfile {
   designatedCoach?: string; // Name of the coach
   coachId?: string; // Added: ID of the designated coach
   memo?: string;
-  memberBodyAnalysis?: LessonBodyAnalysis; // Member body analysis managed in My Info
   // Added: Points
   currentPoints?: number;
   pushToken?: string; // Expo push token for push notifications (web/PWA)

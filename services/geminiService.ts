@@ -1,4 +1,3 @@
-import { classifyBodyType, BodyShapePatternScores } from './bodyAnalysisService';
 import {
   ComparisonResult,
   GolfData,
@@ -147,27 +146,6 @@ export interface AnalysisInput {
   mimeType: string;
 }
 
-export interface BodyPhotoAnalysisResult {
-  bodyType:
-    | '이상체형'
-    | '삼각체형'
-    | '역삼각체형'
-    | '사각체형'
-    | '모래시계형'
-    | '마름모꼴체형'
-    | '둥근체형'
-    | '튜브체형';
-  structuralInput: {
-    frontAxisTiltDeg?: number;
-    headTiltDeg?: number;
-    shoulderTiltDeg?: number;
-    pelvisTiltDeg?: number;
-    kneeTiltDeg?: number;
-  };
-  patternScores?: BodyShapePatternScores;
-  coachComment: string;
-}
-
 export interface EquipmentPhotoAnalysisResult {
   driverModel?: string;
   ironModel?: string;
@@ -175,17 +153,6 @@ export interface EquipmentPhotoAnalysisResult {
   ballBrand?: string;
   summary: string;
 }
-
-const LESSON_BODY_TYPES: BodyPhotoAnalysisResult['bodyType'][] = [
-  '이상체형',
-  '삼각체형',
-  '역삼각체형',
-  '사각체형',
-  '모래시계형',
-  '마름모꼴체형',
-  '둥근체형',
-  '튜브체형',
-];
 
 const toOptionalNumber = (value: unknown): number | undefined => {
   if (typeof value !== 'number' || !Number.isFinite(value)) return undefined;
@@ -196,54 +163,6 @@ const toOptionalTrimmedString = (value: unknown): string | undefined => {
   if (typeof value !== 'string') return undefined;
   const trimmed = value.trim();
   return trimmed ? trimmed : undefined;
-};
-
-const parsePatternScores = (value: unknown): BodyShapePatternScores | undefined => {
-  if (!value || typeof value !== 'object') return undefined;
-  const source = value as Record<string, unknown>;
-  const parsed: BodyShapePatternScores = {
-    이상체형: toOptionalNumber(source.이상체형),
-    삼각체형: toOptionalNumber(source.삼각체형),
-    역삼각체형: toOptionalNumber(source.역삼각체형),
-    사각체형: toOptionalNumber(source.사각체형),
-    모래시계형: toOptionalNumber(source.모래시계형),
-    마름모꼴체형: toOptionalNumber(source.마름모꼴체형),
-    둥근체형: toOptionalNumber(source.둥근체형),
-    튜브체형: toOptionalNumber(source.튜브체형),
-  };
-
-  const hasScore = Object.values(parsed).some((score) => score !== undefined);
-  return hasScore ? parsed : undefined;
-};
-
-export const parseBodyPhotoAnalysisResponse = (
-  text: string
-): BodyPhotoAnalysisResult => {
-  const parsed = JSON.parse(text);
-  const rawBodyType = String(parsed?.bodyType ?? '사각체형');
-  const fallbackBodyType = LESSON_BODY_TYPES.includes(
-    rawBodyType as BodyPhotoAnalysisResult['bodyType']
-  )
-    ? (rawBodyType as BodyPhotoAnalysisResult['bodyType'])
-    : '사각체형';
-  const patternScores = parsePatternScores(parsed?.patternScores);
-  const bodyType = patternScores ? classifyBodyType(patternScores) : fallbackBodyType;
-
-  return {
-    bodyType,
-    patternScores,
-    structuralInput: {
-      frontAxisTiltDeg: toOptionalNumber(parsed?.structuralInput?.frontAxisTiltDeg),
-      headTiltDeg: toOptionalNumber(parsed?.structuralInput?.headTiltDeg),
-      shoulderTiltDeg: toOptionalNumber(parsed?.structuralInput?.shoulderTiltDeg),
-      pelvisTiltDeg: toOptionalNumber(parsed?.structuralInput?.pelvisTiltDeg),
-      kneeTiltDeg: toOptionalNumber(parsed?.structuralInput?.kneeTiltDeg),
-    },
-    coachComment:
-      typeof parsed?.coachComment === 'string' && parsed.coachComment.trim()
-        ? parsed.coachComment.trim()
-        : '정면/측면 전신 사진 기반 자동 분석 결과입니다.',
-  };
 };
 
 export const parseEquipmentPhotoAnalysisResponse = (
@@ -586,82 +505,6 @@ export const compareSwings = async (
   } catch (error) {
     log.error('AI Compare Analysis Error:', error);
     return fallback();
-  }
-};
-
-/**
- * 정면/측면 전신 사진 2장을 분석해 신체분석 입력값을 자동 생성합니다.
- */
-export const analyzeBodyPhotos = async (params: {
-  frontImage: AnalysisInput;
-  sideImage: AnalysisInput;
-}): Promise<BodyPhotoAnalysisResult> => {
-  const toBlob = async (input: AnalysisInput): Promise<Blob> => {
-    if (typeof input.data === 'string') {
-      return getBlobFromUrl(input.data);
-    }
-    return input.data;
-  };
-
-  try {
-    const [frontBlob, sideBlob] = await Promise.all([
-      toBlob(params.frontImage),
-      toBlob(params.sideImage),
-    ]);
-
-    const [frontPart, sidePart] = await Promise.all([
-      fileToGenerativePart(frontBlob, params.frontImage.mimeType),
-      fileToGenerativePart(sideBlob, params.sideImage.mimeType),
-    ]);
-
-    const prompt = `
-      너는 체형/정렬 분석 보조 AI다.
-      입력된 두 이미지는 각각
-      - 첫 번째: 정면 전신 사진
-      - 두 번째: 측면 전신 사진
-      이다.
-
-      아래 JSON만 출력해라.
-      - bodyType: 다음 중 1개 [이상체형, 삼각체형, 역삼각체형, 사각체형, 모래시계형, 마름모꼴체형, 둥근체형, 튜브체형]
-      - patternScores: 각 체형별 구성비(%) 추정치
-        {
-          "이상체형": number | null,
-          "삼각체형": number | null,
-          "역삼각체형": number | null,
-          "사각체형": number | null,
-          "모래시계형": number | null,
-          "마름모꼴체형": number | null,
-          "둥근체형": number | null,
-          "튜브체형": number | null
-        }
-      - structuralInput.frontAxisTiltDeg: number | null
-      - structuralInput.headTiltDeg: number | null
-      - structuralInput.shoulderTiltDeg: number | null
-      - structuralInput.pelvisTiltDeg: number | null
-      - structuralInput.kneeTiltDeg: number | null
-      - coachComment: 한국어 1~2문장 요약
-
-      제약:
-      - 단위는 모두 degree(°) 기준 수치로 반환
-      - 추정이 어려운 값은 null
-      - bodyType은 patternScores 중 가장 큰 값을 가진 체형과 일치시켜라.
-      - 코드블록 없이 순수 JSON만 반환
-    `;
-
-    const result = await invokeBackendAI<unknown>('analyze_body_photos', {
-      prompt,
-      mediaParts: [frontPart, sidePart],
-      responseMimeType: 'application/json',
-    });
-    const text = getJsonTextFromResult(result);
-    if (!text) {
-      throw new Error('신체 사진 분석 결과를 생성하지 못했습니다.');
-    }
-
-    return parseBodyPhotoAnalysisResponse(text);
-  } catch (error) {
-    log.error('AI body photo analysis failed:', error);
-    throw error;
   }
 };
 
