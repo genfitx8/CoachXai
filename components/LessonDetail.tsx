@@ -1158,11 +1158,8 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
           {(mainMediaUrl || (lesson.additionalMedia && lesson.additionalMedia.length > 0) || canEdit) ? (
              <div className="space-y-3">
               {safeActiveMediaUrl ? (
-              <div className="bg-black rounded-xl overflow-hidden shadow-2xl relative aspect-[9/16] group max-w-md mx-auto">
-                    <div 
-                        className="relative w-full h-full bg-black flex items-center justify-center cursor-pointer group"
-                        onClick={togglePlay}
-                    >
+              <div className="bg-black rounded-xl overflow-hidden shadow-2xl relative aspect-[9/16] max-w-md mx-auto">
+                    <div className="relative w-full h-full bg-black flex items-center justify-center">
                         {activeMedia.type === 'video' ? (
                             safeActiveMediaUrl && !mediaError ? (
                             <video
@@ -1170,6 +1167,7 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
                                 src={safeActiveMediaUrl}
                                 className="w-full h-full object-contain bg-black"
                                 playsInline
+                                controls
                                 preload="metadata"
                                 onTimeUpdate={handleTimeUpdate}
                                 onLoadedMetadata={handleLoadedMetadata}
@@ -1196,48 +1194,17 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
                                 <audio src={safeActiveMediaUrl} controls className="mt-4" />
                             </div>
                         )}
-                        
-                        {/* Play Overlay */}
-                        {activeMedia.type === 'video' && safeActiveMediaUrl && !isPlaying && (
-                            <div className="absolute inset-0 flex items-center justify-center bg-black/20 z-10 pointer-events-none">
-                                <PlayCircle className="w-16 h-16 text-white opacity-80" />
-                            </div>
+
+                        {/* Snapshot button — floats top-right, visible once video metadata loads */}
+                        {activeMedia.type === 'video' && safeActiveMediaUrl && !mediaError && duration > 0 && canEdit && (
+                            <button
+                                onClick={(e) => handleCaptureFrame('스냅샷', e)}
+                                className="absolute top-3 right-3 z-20 bg-black/60 backdrop-blur-md p-1.5 rounded-lg text-white hover:text-emerald-400 transition-colors"
+                            >
+                                <Camera className="w-4 h-4" />
+                            </button>
                         )}
                     </div>
-
-                    {/* Custom Video Controls */}
-                    {activeMedia.type === 'video' && safeActiveMediaUrl && (
-                        <div className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/95 via-black/60 to-transparent p-4 transition-opacity duration-300 backdrop-blur-sm ${isPlaying ? 'opacity-0 group-hover:opacity-100' : 'opacity-100'}`}>
-                             <div className="flex items-center gap-3">
-                                 <button onClick={(e) => { e.stopPropagation(); togglePlay(); }} className="text-white hover:text-emerald-400 transition-all duration-200 hover:scale-110 transform">
-                                     {isPlaying ? <Pause className="w-6 h-6 fill-current" /> : <Play className="w-6 h-6 fill-current" />}
-                                 </button>
-                                 <div className="flex-1 relative h-2 bg-white/20 rounded-full cursor-pointer group/slider overflow-hidden" onClick={(e) => e.stopPropagation()}>
-                                     <div
-                                        className="absolute top-0 left-0 h-full bg-gradient-to-r from-emerald-700 to-emerald-400 rounded-full shadow-lg shadow-emerald-700/50"
-                                        style={{ width: `${(currentTime / (duration || 1)) * 100}%` }}
-                                     />
-                                     <input
-                                        type="range"
-                                        min="0"
-                                        max={duration || 0}
-                                        step="0.1"
-                                        value={currentTime}
-                                        onChange={handleSeek}
-                                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                                     />
-                                 </div>
-                                 <span className="text-xs text-white font-mono tabular-nums font-semibold">
-                                     {Math.floor(currentTime/60)}:{Math.floor(currentTime%60).toString().padStart(2,'0')}
-                                 </span>
-                                 {duration > 0 && (
-                                 <button onClick={(e) => handleCaptureFrame('스냅샷', e)} className="text-white hover:text-emerald-400 transition-all duration-200 hover:scale-110 transform">
-                                     <Camera className="w-5 h-5" />
-                                 </button>
-                                 )}
-                             </div>
-                        </div>
-                    )}
                     
                     {/* Media Type Badge */}
                     <div className="absolute top-3 left-3 bg-black/60 backdrop-blur-md px-2 py-1 rounded-lg text-xs font-bold text-white flex items-center gap-1 z-20">
