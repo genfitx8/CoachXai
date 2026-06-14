@@ -90,7 +90,6 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
 
-  const [signupPasswordConfirm, setSignupPasswordConfirm] = useState('');
   const [signupSuccess, setSignupSuccess] = useState(false);
   const [isConsentChecked, setIsConsentChecked] = useState(false);
   const [showConsentModal, setShowConsentModal] = useState(false);
@@ -121,7 +120,6 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
     setPassword('');
     setName('');
     setPhone('');
-    setSignupPasswordConfirm('');
     setSignupSuccess(false);
     setIsConsentChecked(false);
     setBranchAdminLoginId('');
@@ -362,10 +360,6 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
       setError(t('signup_pw_min'));
       return;
     }
-    if (password !== signupPasswordConfirm) {
-      setError(t('signup_pw_mismatch'));
-      return;
-    }
     if (!isConsentChecked) {
       setError(t('signup_consent_required'));
       return;
@@ -464,14 +458,6 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
                 helper={t('signup_pw_min')}
-                leading={<Lock className="h-4 w-4" />}
-                autoComplete="new-password"
-              />
-              <PasswordInput
-                label={t('signup_pw_confirm')}
-                value={signupPasswordConfirm}
-                onChange={(e) => setSignupPasswordConfirm(e.target.value)}
-                placeholder="••••••••"
                 leading={<Lock className="h-4 w-4" />}
                 autoComplete="new-password"
               />
