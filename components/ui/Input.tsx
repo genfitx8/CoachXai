@@ -1,4 +1,5 @@
-import React, { forwardRef, useId } from 'react';
+import React, { forwardRef, useId, useState } from 'react';
+import { Eye, EyeOff } from 'lucide-react';
 
 interface BaseFieldProps {
   label?: React.ReactNode;
@@ -86,6 +87,33 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
     </div>
   );
 });
+
+type PasswordInputProps = Omit<InputProps, 'type' | 'trailing'>;
+
+export const PasswordInput = forwardRef<HTMLInputElement, PasswordInputProps>(
+  function PasswordInput(props, ref) {
+    const [visible, setVisible] = useState(false);
+
+    return (
+      <Input
+        {...props}
+        ref={ref}
+        type={visible ? 'text' : 'password'}
+        trailing={
+          <button
+            type="button"
+            tabIndex={-1}
+            onClick={() => setVisible((v) => !v)}
+            aria-label={visible ? '비밀번호 숨기기' : '비밀번호 보기'}
+            className="text-ink-muted hover:text-ink-high transition-colors focus:outline-none"
+          >
+            {visible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+          </button>
+        }
+      />
+    );
+  },
+);
 
 type TextareaProps = BaseFieldProps &
   React.TextareaHTMLAttributes<HTMLTextAreaElement>;

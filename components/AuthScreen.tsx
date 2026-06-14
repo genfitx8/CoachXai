@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from './Button';
 import { Card, CardTitle } from './ui/Card';
-import { Input } from './ui/Input';
+import { Input, PasswordInput } from './ui/Input';
 import { Modal } from './ui/Modal';
 import { authService } from '../services/authService';
 import {
@@ -458,9 +458,8 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
                 leading={<Phone className="h-4 w-4" />}
                 autoComplete="tel"
               />
-              <Input
+              <PasswordInput
                 label={t('password')}
-                type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
@@ -468,9 +467,8 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
                 leading={<Lock className="h-4 w-4" />}
                 autoComplete="new-password"
               />
-              <Input
+              <PasswordInput
                 label={t('signup_pw_confirm')}
-                type="password"
                 value={signupPasswordConfirm}
                 onChange={(e) => setSignupPasswordConfirm(e.target.value)}
                 placeholder="••••••••"
@@ -587,9 +585,8 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
                 helper="형식: 지점이름:유저이름 (예: 강남점:mina)"
                 leading={<User className="h-4 w-4" />}
               />
-              <Input
+              <PasswordInput
                 label={t('password')}
-                type="password"
                 value={branchAdminPassword}
                 onChange={(e) => setBranchAdminPassword(e.target.value)}
                 placeholder="••••••••"
@@ -643,9 +640,8 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
                 placeholder="admin@swingnote.com"
                 leading={<Mail className="h-4 w-4" />}
               />
-              <Input
+              <PasswordInput
                 label={t('password')}
-                type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
@@ -791,9 +787,8 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
                 leading={<Mail className="h-4 w-4" />}
               />
 
-              <Input
+              <PasswordInput
                 label={t('password')}
-                type="password"
                 name="password"
                 autoComplete="current-password"
                 value={password}
