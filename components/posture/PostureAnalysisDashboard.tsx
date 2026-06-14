@@ -46,11 +46,19 @@ export const PostureAnalysisDashboard: React.FC<PostureAnalysisDashboardProps> =
     setViewMode('analyzing');
     setError(null);
 
+    // Ensure animation plays for at least one full cycle (9s) so the user
+    // can see the skeleton drawing process even when analysis finishes quickly.
+    const MIN_DISPLAY_MS = 9000;
+    const minTimer = new Promise<void>((resolve) => setTimeout(resolve, MIN_DISPLAY_MS));
+
     try {
-      const analysis = await skeletonAnalysisService.analyzePosture(
-        pendingCaptures.front,
-        pendingCaptures.side,
-      );
+      const [analysis] = await Promise.all([
+        skeletonAnalysisService.analyzePosture(
+          pendingCaptures.front,
+          pendingCaptures.side,
+        ),
+        minTimer,
+      ]);
 
       const analysisResult: PostureAnalysisResult = {
         id: `posture-${Date.now()}`,
