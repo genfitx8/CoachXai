@@ -26,25 +26,56 @@ interface AnnotatedImageProps {
 
 const AnnotatedImage: React.FC<AnnotatedImageProps> = ({ capture, skeleton, label }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [isDrawn, setIsDrawn] = useState(false);
+  const [hasError, setHasError] = useState(false);
   const [confidence, setConfidence] = useState(0);
 
   useEffect(() => {
-    if (canvasRef.current) {
-      skeletonAnalysisService
-        .drawSkeleton(canvasRef.current, capture.imageData, skeleton)
-        .then(() => setConfidence(Math.round(skeleton.confidence * 100)))
-        .catch((e) => console.error('draw skeleton error:', e));
-    }
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    setIsDrawn(false);
+    setHasError(false);
+
+    skeletonAnalysisService
+      .drawSkeleton(canvas, capture.imageData, skeleton)
+      .then(() => {
+        setConfidence(Math.round(skeleton.confidence * 100));
+        setIsDrawn(true);
+      })
+      .catch((e) => {
+        console.error('draw skeleton error:', e);
+        setHasError(true);
+      });
   }, [capture, skeleton]);
 
   return (
     <div className="flex flex-col rounded-xl overflow-hidden border border-slate-700 bg-slate-900">
       <div className="flex items-center justify-between px-4 py-2 bg-slate-800">
         <span className="text-sm font-semibold text-slate-200">{label}</span>
-        <span className="text-xs text-emerald-400 font-medium">신뢰도 {confidence}%</span>
+        <span className="text-xs font-medium">
+          {isDrawn ? (
+            <span className="text-emerald-400">신뢰도 {confidence}%</span>
+          ) : hasError ? (
+            <span className="text-red-400">스켈레톤 적용 실패</span>
+          ) : (
+            <span className="text-slate-500">렌더링 중...</span>
+          )}
+        </span>
       </div>
-      <div className="relative bg-black flex items-center justify-center">
-        <canvas ref={canvasRef} className="w-full h-auto max-h-80 object-contain" />
+      <div className="bg-black">
+        {/* 원본 사진 – canvas 렌더링 전 또는 오류 시 표시 */}
+        <img
+          src={capture.imageData}
+          alt={label}
+          className={`w-full h-auto max-h-80 object-contain block ${isDrawn ? 'hidden' : ''}`}
+        />
+        {/* 스켈레톤 오버레이 canvas – 그리기 완료 후 표시 */}
+        <canvas
+          ref={canvasRef}
+          className={isDrawn ? 'block' : 'hidden'}
+          style={{ maxWidth: '100%', height: 'auto', maxHeight: '320px' }}
+        />
       </div>
     </div>
   );
