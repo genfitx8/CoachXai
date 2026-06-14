@@ -99,6 +99,24 @@ export interface LessonBodyAnalysis {
   coachComment?: string;
 }
 
+export interface MotionCaptureMeasurement {
+  swingPhase?: string;           // e.g. '어드레스', '백스윙', '임팩트'
+  timeSeconds?: number;          // timeline timestamp (e.g. -1.3, 0.0)
+  headForwardTilt?: number;      // 고개가 앞으로 쏠림 (cm, positive=forward)
+  headLateralSway?: number;      // 머리 좌우로 흔들림 (cm, positive=right)
+  upperBodyPush?: number;        // 상체 상부 밀림 (cm, positive=forward)
+  headLift?: number;             // 머리 들림 (cm, positive=up)
+  upperBodyLateralMove?: number; // 상체 상부 좌우 이동 (cm, positive=right)
+  hipSlide?: number;             // 골반 밀림 (cm, positive=forward)
+  upperBodyLift?: number;        // 상체 상부 들림 (cm, positive=up)
+}
+
+export interface MotionCaptureData {
+  measurements: MotionCaptureMeasurement[];
+  aiAnalysis: string;
+  analyzedAt: number;
+}
+
 export interface Lesson {
   id: string;
   clientName: string; // Name of the student/client
@@ -135,6 +153,7 @@ export interface Lesson {
   lessonPackageId?: string;
   /** 1-based session number within the lesson package. Always set together with `lessonPackageId`. */
   sessionNumber?: number;
+  motionCaptureData?: MotionCaptureData;
   createdAt: number;
 }
 

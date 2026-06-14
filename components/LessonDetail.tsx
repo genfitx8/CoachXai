@@ -1,11 +1,11 @@
 
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useLanguage } from './LanguageContext';
-import { Lesson, MediaItem, SwingSequenceItem, HoleRecord, ScorecardDetail, VideoEditMetadata, CompareVideoMetadata } from '../types';
+import { Lesson, MediaItem, SwingSequenceItem, HoleRecord, ScorecardDetail, VideoEditMetadata, CompareVideoMetadata, MotionCaptureMeasurement } from '../types';
 import { Button } from './Button';
 import { ArrowLeft, Calendar, User, Sparkles, Mic, Plus, Video, Image as ImageIcon, X, Camera, Square, Trash2, Mic2, PlayCircle, Lock, PenTool, Save, Target, AlertTriangle, MessageCircle, CheckCircle, AlertCircle, Clock, Volume2, StopCircle, Copy, Check, Film, ChevronRight, FileText, MonitorPlay, Scissors, GripHorizontal, RefreshCw, Maximize2, Zap, Play, Pause, ListChecks, Trophy, Wand2, MapPin, Edit2, TrendingUp, Send, Download, Loader2 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
-import { analyzeSwingVideo } from '../services/geminiService';
+import { analyzeSwingVideo, analyzeMotionCapture } from '../services/geminiService';
 import { SwingGuideOverlay } from './SwingGuideOverlay';
 import { GolfDataVisualizer } from './GolfDataVisualizer';
 import { VideoEditor } from './VideoEditor';
@@ -14,7 +14,7 @@ import { apiService, resolveMediaUrl } from '../services/apiService';
 import { storageService } from '../services/storage';
 import { sendLessonNoteViaKakao, buildLessonShareUrl } from '../services/kakaoShareService';
 import { videoEditingService } from '../services/videoEditingService';
-import { videoStore, IDB_PREFIX } from '../services/videoStore';
+import { videoStore, IDB_PREFIX, resolveSync } from '../services/videoStore';
 
 interface LessonDetailProps {
   lesson: Lesson;
@@ -57,7 +57,11 @@ export async function persistAdditionalMediaSourceForOffline(params: {
 
 export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons = [], role = 'COACH', onBack, onUpdate, onDelete, onEdit }) => {
   const { t } = useLanguage();
-  // resolvedMainUrl must be declared before mainMediaUrl is computed below
+  // resolvedMainUrl is always null on mount; the IDB effect below resolves it.
+  // Using null here avoids a double-blob-URL problem: if resolveSync() were
+  // called here AND in the effect, two different object URLs would be created
+  // for the same blob, causing the video element's key to change and
+  // unmounting/remounting the <video> right when the user presses play.
   const [resolvedMainUrl, setResolvedMainUrl] = useState<string | null>(null);
   const mainMediaSource = lesson.videoUrl || (lesson.videoKey ? `/api/files/${lesson.videoKey}` : '');
   // For idb:// URLs, use the asynchronously-resolved blob URL; fall back to empty
@@ -93,6 +97,7 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [copied, setCopied] = useState(false);
   const [isGeneratingAnalysis, setIsGeneratingAnalysis] = useState(false);
+  const [isAnalyzingMotion, setIsAnalyzingMotion] = useState(false);
   const [tempNotification, setTempNotification] = useState<string | null>(null);
   
   // Scorecard Edit Mode
@@ -175,7 +180,7 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
       setEditingHoles(JSON.parse(JSON.stringify(lesson.scorecardDetail.holes)));
     }
     setIsEditingScorecardDetail(false);
-  }, [lesson.id, lesson.clientFeedback, lesson.scorecardDetail, lesson.mediaType, lesson.createdAt, lesson.videoUrl, lesson.videoKey, resolvedMainUrl]);
+  }, [lesson.id, lesson.clientFeedback, lesson.scorecardDetail, lesson.mediaType, lesson.createdAt, lesson.videoUrl, lesson.videoKey]);
 
   useEffect(() => {
       setMediaError(false);
@@ -212,8 +217,11 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
   };
 
   const activeMediaUrl = (() => {
-    if (!activeMedia.url) return '';
+    // Check main-slot first: mainMediaUrl is already computed from
+    // lesson.videoUrl + resolvedMainUrl, so we never need activeMedia.url
+    // to be set for the main video to appear.
     if (activeMedia.id === 'main') return mainMediaUrl;
+    if (!activeMedia.url) return '';
     if (activeMedia.url.startsWith(IDB_PREFIX)) {
       return resolvedAdditionalUrls[activeMedia.id] || '';
     }
@@ -309,6 +317,28 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
           alert(t('lesson_ai_failed'));
       } finally {
           setIsGeneratingAnalysis(false);
+      }
+  };
+
+  const handleAnalyzeMotionCapture = async () => {
+      const imageItems = (lesson.additionalMedia || []).filter(m => m.type === 'image');
+      if (imageItems.length === 0) {
+          alert('분석할 모션 캡처 이미지가 없습니다. 추가 미디어로 이미지를 먼저 업로드해주세요.');
+          return;
+      }
+      setIsAnalyzingMotion(true);
+      try {
+          const inputs = imageItems.map(m => ({
+              data: getAdditionalMediaUrl(m) || m.url,
+              mimeType: 'image/jpeg' as const,
+          }));
+          const result = await analyzeMotionCapture(inputs, lesson.coachNotes);
+          onUpdate({ ...lesson, motionCaptureData: result });
+      } catch (err) {
+          console.error(err);
+          alert('모션 데이터 분석에 실패했습니다. 다시 시도해주세요.');
+      } finally {
+          setIsAnalyzingMotion(false);
       }
   };
 
@@ -460,11 +490,19 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
   const togglePlay = () => {
       if (mediaElementRef.current) {
           if (mediaElementRef.current.paused) {
-              mediaElementRef.current.play();
+              mediaElementRef.current.play().catch((err: unknown) => {
+                  // AbortError fires when play() is interrupted by buffering — not fatal
+                  const name = err instanceof Error ? err.name : '';
+                  if (name !== 'AbortError' && name !== 'NotAllowedError') {
+                      console.error('[LessonDetail] play() rejected:', err);
+                      setMediaError(true);
+                  } else {
+                      console.warn('[LessonDetail] play() rejected (transient):', name);
+                  }
+              });
           } else {
               mediaElementRef.current.pause();
           }
-          // Note: State update is handled by onPlay/onPause events
       }
   };
 
@@ -991,19 +1029,32 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
   // Resolve idb:// main video URL to a fresh blob URL whenever the lesson changes
   useEffect(() => {
     let objUrl: string | null = null;
+    let disposed = false;
 
     const resolve = async () => {
       if (lesson.videoUrl?.startsWith(IDB_PREFIX)) {
+        // Fast path: session cache (same-session recording, no async round-trip).
+        // This is the only place we create a blob URL for the main video, so
+        // there is never more than one URL in flight — no key churn on <video>.
+        const syncUrl = resolveSync(lesson.videoUrl);
+        if (syncUrl) {
+          objUrl = syncUrl;
+          if (!disposed) setResolvedMainUrl(syncUrl);
+          return;
+        }
+        // Slow path: IDB lookup (cross-session / page-reload case).
         objUrl = await videoStore.resolve(lesson.videoUrl);
-        setResolvedMainUrl(objUrl);
+        if (!disposed) setResolvedMainUrl(objUrl);
       } else {
-        setResolvedMainUrl(null);
+        if (!disposed) setResolvedMainUrl(null);
       }
     };
 
     resolve();
 
     return () => {
+      disposed = true;
+      setResolvedMainUrl(null);
       if (objUrl) URL.revokeObjectURL(objUrl);
     };
   }, [lesson.videoUrl]);
@@ -1130,24 +1181,23 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
           {(mainMediaUrl || (lesson.additionalMedia && lesson.additionalMedia.length > 0) || canEdit) ? (
              <div className="space-y-3">
               {safeActiveMediaUrl ? (
-              <div className="bg-black rounded-xl overflow-hidden shadow-2xl relative aspect-[9/16] group max-w-md mx-auto">
-                    <div 
-                        className="relative w-full h-full bg-black flex items-center justify-center cursor-pointer group"
-                        onClick={togglePlay}
-                    >
+              <div className="bg-black rounded-xl overflow-hidden shadow-2xl relative aspect-[9/16] max-w-md mx-auto">
+                    <div className="relative w-full h-full bg-black flex items-center justify-center">
                         {activeMedia.type === 'video' ? (
-                            safeActiveMediaUrl ? (
+                            safeActiveMediaUrl && !mediaError ? (
                             <video
                                 ref={mediaElementRef as React.RefObject<HTMLVideoElement>}
                                 src={safeActiveMediaUrl}
                                 className="w-full h-full object-contain bg-black"
                                 playsInline
+                                controls
+                                preload="metadata"
                                 onTimeUpdate={handleTimeUpdate}
                                 onLoadedMetadata={handleLoadedMetadata}
                                 onEnded={() => setIsPlaying(false)}
+                                onError={() => setMediaError(true)}
                                 key={safeActiveMediaUrl}
-                                crossOrigin="anonymous" 
-                                onPlay={() => setIsPlaying(true)}
+                                onPlay={() => { setIsPlaying(true); setMediaError(false); }}
                                 onPause={() => setIsPlaying(false)}
                             />
                             ) : (
@@ -1167,46 +1217,17 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
                                 <audio src={safeActiveMediaUrl} controls className="mt-4" />
                             </div>
                         )}
-                        
-                        {/* Play Overlay */}
-                        {activeMedia.type === 'video' && safeActiveMediaUrl && !isPlaying && (
-                            <div className="absolute inset-0 flex items-center justify-center bg-black/20 z-10 pointer-events-none">
-                                <PlayCircle className="w-16 h-16 text-white opacity-80" />
-                            </div>
+
+                        {/* Snapshot button — floats top-right, visible once video metadata loads */}
+                        {activeMedia.type === 'video' && safeActiveMediaUrl && !mediaError && duration > 0 && canEdit && (
+                            <button
+                                onClick={(e) => handleCaptureFrame('스냅샷', e)}
+                                className="absolute top-3 right-3 z-20 bg-black/60 backdrop-blur-md p-1.5 rounded-lg text-white hover:text-emerald-400 transition-colors"
+                            >
+                                <Camera className="w-4 h-4" />
+                            </button>
                         )}
                     </div>
-
-                    {/* Custom Video Controls */}
-                    {activeMedia.type === 'video' && safeActiveMediaUrl && (
-                        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/95 via-black/60 to-transparent p-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300 backdrop-blur-sm">
-                             <div className="flex items-center gap-3">
-                                 <button onClick={togglePlay} className="text-white hover:text-emerald-400 transition-all duration-200 hover:scale-110 transform">
-                                     {isPlaying ? <Pause className="w-6 h-6 fill-current" /> : <Play className="w-6 h-6 fill-current" />}
-                                 </button>
-                                 <div className="flex-1 relative h-2 bg-white/20 rounded-full cursor-pointer group/slider overflow-hidden">
-                                     <div 
-                                        className="absolute top-0 left-0 h-full bg-gradient-to-r from-emerald-700 to-emerald-400 rounded-full shadow-lg shadow-emerald-700/50" 
-                                        style={{ width: `${(currentTime / (duration || 1)) * 100}%` }}
-                                     />
-                                     <input 
-                                        type="range" 
-                                        min="0" 
-                                        max={duration || 0} 
-                                        step="0.1"
-                                        value={currentTime}
-                                        onChange={handleSeek}
-                                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                                     />
-                                 </div>
-                                 <span className="text-xs text-white font-mono tabular-nums font-semibold">
-                                     {Math.floor(currentTime/60)}:{Math.floor(currentTime%60).toString().padStart(2,'0')}
-                                 </span>
-                                 <button onClick={(e) => handleCaptureFrame('스냅샷', e)} className="text-white hover:text-emerald-400 transition-all duration-200 hover:scale-110 transform">
-                                     <Camera className="w-5 h-5" />
-                                 </button>
-                             </div>
-                        </div>
-                    )}
                     
                     {/* Media Type Badge */}
                     <div className="absolute top-3 left-3 bg-black/60 backdrop-blur-md px-2 py-1 rounded-lg text-xs font-bold text-white flex items-center gap-1 z-20">
@@ -1892,7 +1913,7 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
 
           {/* Shot Data Visualizer (Only if Golf Data exists and NOT Score mode) */}
           {hasGolfData && lesson.recordType !== 'SCORE' && lesson.golfData && (
-              <GolfDataVisualizer 
+              <GolfDataVisualizer
                   currentData={lesson.golfData}
                   allLessons={allLessons}
                   clientName={lesson.clientName}
@@ -1901,6 +1922,123 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
                   currentDate={lesson.date}
               />
           )}
+
+          {/* Motion Capture Data Card */}
+          {(() => {
+            const motionImages = (lesson.additionalMedia || []).filter(m => m.type === 'image');
+            const hasMotionImages = motionImages.length > 0;
+            const motionData = lesson.motionCaptureData;
+
+            if (!hasMotionImages && !motionData) return null;
+
+            const metricLabels: { key: keyof MotionCaptureMeasurement; label: string }[] = [
+              { key: 'headForwardTilt',      label: '고개 앞쏠림' },
+              { key: 'headLateralSway',      label: '머리 좌우흔들림' },
+              { key: 'upperBodyPush',        label: '상체 밀림' },
+              { key: 'headLift',             label: '머리 들림' },
+              { key: 'upperBodyLateralMove', label: '상체 좌우이동' },
+              { key: 'hipSlide',             label: '골반 밀림' },
+              { key: 'upperBodyLift',        label: '상체 상부 들림' },
+            ];
+
+            const getCellColor = (val: number | undefined) => {
+              if (val === undefined || val === null) return 'text-gray-300';
+              const abs = Math.abs(val);
+              if (abs === 0) return 'text-gray-400';
+              if (abs <= 2) return 'text-emerald-600 font-medium';
+              if (abs <= 4) return 'text-amber-600 font-semibold';
+              return 'text-red-600 font-bold';
+            };
+
+            return (
+              <div className="bg-white rounded-xl shadow-sm border border-purple-100 overflow-hidden">
+                <div className="bg-purple-50 px-4 py-3 border-b border-purple-100 flex justify-between items-center">
+                  <h3 className="font-bold text-purple-900 flex items-center gap-2">
+                    <TrendingUp className="w-5 h-5 text-purple-600" />
+                    모션 캡처 데이터 분석
+                  </h3>
+                  {canEdit && hasMotionImages && (
+                    <Button
+                      onClick={handleAnalyzeMotionCapture}
+                      isLoading={isAnalyzingMotion}
+                      className="bg-purple-700 hover:bg-purple-800 text-white text-xs py-1.5 px-3 h-auto shadow-sm"
+                      icon={<Wand2 className="w-3.5 h-3.5" />}
+                    >
+                      {motionData ? '재분석' : 'AI 분석 시작'}
+                    </Button>
+                  )}
+                </div>
+
+                {motionData ? (
+                  <div className="p-4 space-y-4">
+                    {/* Measurements Table */}
+                    {motionData.measurements.length > 0 && (
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-xs border-collapse">
+                          <thead>
+                            <tr className="bg-purple-50">
+                              <th className="text-left py-2 px-3 text-purple-700 font-semibold border-b border-purple-100">측정 항목</th>
+                              {motionData.measurements.map((m, i) => (
+                                <th key={i} className="text-center py-2 px-3 text-purple-700 font-semibold border-b border-purple-100 whitespace-nowrap">
+                                  {m.swingPhase || `구간 ${i + 1}`}
+                                  {m.timeSeconds !== undefined && (
+                                    <span className="block text-purple-400 font-normal">{m.timeSeconds}s</span>
+                                  )}
+                                </th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {metricLabels.map(({ key, label }) => (
+                              <tr key={key} className="border-b border-gray-50 hover:bg-gray-50">
+                                <td className="py-2 px-3 text-gray-600 font-medium">{label}</td>
+                                {motionData.measurements.map((m, i) => {
+                                  const val = m[key] as number | undefined;
+                                  return (
+                                    <td key={i} className={`py-2 px-3 text-center ${getCellColor(val)}`}>
+                                      {val !== undefined && val !== null ? `${val > 0 ? '+' : ''}${val}cm` : '-'}
+                                    </td>
+                                  );
+                                })}
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                        <p className="text-[10px] text-gray-400 mt-1 px-1">
+                          색상: <span className="text-emerald-600">●정상(≤2cm)</span> <span className="text-amber-600">●주의(≤4cm)</span> <span className="text-red-600">●교정필요(&gt;4cm)</span>
+                        </p>
+                      </div>
+                    )}
+
+                    {/* AI Analysis Text */}
+                    <div className="prose prose-sm prose-purple text-gray-600 leading-relaxed max-w-none pt-2 border-t border-gray-100">
+                      <ReactMarkdown>{motionData.aiAnalysis}</ReactMarkdown>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <TrendingUp className="w-12 h-12 text-gray-200 mx-auto mb-3" />
+                    <p className="text-gray-500 text-sm mb-2">
+                      {motionImages.length}장의 모션 캡처 이미지가 감지되었습니다.
+                    </p>
+                    <p className="text-gray-400 text-xs mb-4">
+                      K-Motion 등 3D 모션 분석 시스템 화면을 AI가 읽어 측정값과 코칭 피드백을 제공합니다.
+                    </p>
+                    {canEdit && (
+                      <Button
+                        onClick={handleAnalyzeMotionCapture}
+                        isLoading={isAnalyzingMotion}
+                        className="bg-purple-700 hover:bg-purple-800 text-white shadow-lg shadow-slate-200"
+                        icon={<Wand2 className="w-4 h-4" />}
+                      >
+                        모션 데이터 AI 분석
+                      </Button>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
 
           {/* Coach Notes */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
