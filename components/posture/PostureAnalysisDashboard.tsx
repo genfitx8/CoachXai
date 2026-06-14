@@ -4,9 +4,10 @@ import { DualCameraCapture } from './DualCameraCapture';
 import { PostureAnalysisResults } from './PostureAnalysisResults';
 import { skeletonAnalysisService } from '../../services/skeletonAnalysisService';
 import {
-  Scan, ArrowLeft, Loader, Camera, Upload, Zap, CheckCircle2,
+  Scan, ArrowLeft, Camera, Upload, Zap, CheckCircle2,
   RotateCcw, Play, ZoomIn, AlertCircle,
 } from 'lucide-react';
+import { PostureAnalyzingView } from './PostureAnalyzingView';
 
 interface PostureAnalysisDashboardProps {
   memberName: string;
@@ -314,19 +315,12 @@ export const PostureAnalysisDashboard: React.FC<PostureAnalysisDashboardProps> =
   }
 
   /* ── ANALYZING ── */
-  if (viewMode === 'analyzing') {
+  if (viewMode === 'analyzing' && pendingCaptures) {
     return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center px-4">
-        <div className="text-center">
-          <div className="relative inline-flex mb-8">
-            <div className="w-24 h-24 rounded-full border-4 border-slate-800" />
-            <div className="absolute inset-0 w-24 h-24 rounded-full border-4 border-emerald-500 border-t-transparent animate-spin" />
-            <Loader size={32} className="absolute inset-0 m-auto text-emerald-400" />
-          </div>
-          <h2 className="text-2xl font-bold text-slate-100 mb-2">AI 분석 중...</h2>
-          <p className="text-slate-400 text-sm">스켈레톤 분석 및 체형 밸런스를 측정하고 있습니다</p>
-        </div>
-      </div>
+      <PostureAnalyzingView
+        frontCapture={pendingCaptures.front}
+        sideCapture={pendingCaptures.side}
+      />
     );
   }
 
