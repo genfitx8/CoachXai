@@ -10,7 +10,7 @@ import { ChevronDown, ChevronUp, Plus, Trash2, Monitor, Camera, Loader2, Upload 
 import { PostureAnalysisDashboard } from '../posture/PostureAnalysisDashboard';
 import { ScreenCaptureDialog } from './ScreenCaptureDialog';
 import { ShortGameDiagnosisSection } from './ShortGameDiagnosisSection';
-import { analyzeEquipmentPhoto } from '../../services/geminiService';
+import { analyzeEquipmentPhoto, analyzeTrackmanScreen } from '../../services/geminiService';
 
 interface DiagnosisProgramSectionProps {
   program: DiagnosisProgram;
@@ -170,6 +170,7 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
   const [showScreenCapture, setShowScreenCapture] = useState(false);
   const [selectedClubForCapture, setSelectedClubForCapture] = useState<string>('');
   const [selectedClub, setSelectedClub] = useState('');
+  const [analyzingTrackmanIndex, setAnalyzingTrackmanIndex] = useState<number | null>(null);
   const [equipmentPhotoSummary, setEquipmentPhotoSummary] = useState('');
   const [equipmentPhotoError, setEquipmentPhotoError] = useState('');
   const [isAnalyzingEquipmentPhoto, setIsAnalyzingEquipmentPhoto] = useState(false);
@@ -314,19 +315,41 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
     setShowScreenCapture(true);
   };
 
-  const handleScreenCapture = (imageDataUrl: string) => {
+  const handleScreenCapture = async (imageDataUrl: string) => {
+    const clubType = selectedClubForCapture;
     const newTrackmanData: TrackmanData = {
-      clubType: selectedClubForCapture,
+      clubType,
       capturedImageUrl: imageDataUrl,
     };
 
-    setGolferProfile((prev) => ({
-      ...prev,
-      trackmanData: [...(prev.trackmanData || []), newTrackmanData],
-    }));
+    let newIndex = 0;
+    setGolferProfile((prev) => {
+      newIndex = (prev.trackmanData || []).length;
+      return { ...prev, trackmanData: [...(prev.trackmanData || []), newTrackmanData] };
+    });
 
     setShowScreenCapture(false);
     setSelectedClubForCapture('');
+
+    setAnalyzingTrackmanIndex(newIndex);
+    try {
+      const extracted = await analyzeTrackmanScreen({ data: imageDataUrl, mimeType: 'image/png' });
+      setGolferProfile((prev) => {
+        const updated = (prev.trackmanData || []).map((d, i) => {
+          if (i !== newIndex) return d;
+          const merged: TrackmanData = { ...d, ...extracted };
+          if (merged.ballSpeed && merged.clubSpeed) {
+            merged.smashFactor = Math.round((merged.ballSpeed / merged.clubSpeed) * 1000) / 1000;
+          }
+          return merged;
+        });
+        return { ...prev, trackmanData: updated };
+      });
+    } catch {
+      // silently ignore — user can fill in manually
+    } finally {
+      setAnalyzingTrackmanIndex(null);
+    }
   };
 
   const handleRemoveTrackmanData = (index: number) => {
@@ -355,15 +378,37 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
   const handleTrackmanFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file || !selectedClub) return;
+    const clubType = selectedClub;
 
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
       const imageDataUrl = e.target?.result as string;
-      setGolferProfile((prev) => ({
-        ...prev,
-        trackmanData: [...(prev.trackmanData || []), { clubType: selectedClub, capturedImageUrl: imageDataUrl }],
-      }));
+      let newIndex = 0;
+      setGolferProfile((prev) => {
+        newIndex = (prev.trackmanData || []).length;
+        return { ...prev, trackmanData: [...(prev.trackmanData || []), { clubType, capturedImageUrl: imageDataUrl }] };
+      });
       setSelectedClub('');
+
+      setAnalyzingTrackmanIndex(newIndex);
+      try {
+        const extracted = await analyzeTrackmanScreen({ data: file, mimeType: file.type || 'image/jpeg' });
+        setGolferProfile((prev) => {
+          const updated = (prev.trackmanData || []).map((d, i) => {
+            if (i !== newIndex) return d;
+            const merged: TrackmanData = { ...d, ...extracted };
+            if (merged.ballSpeed && merged.clubSpeed) {
+              merged.smashFactor = Math.round((merged.ballSpeed / merged.clubSpeed) * 1000) / 1000;
+            }
+            return merged;
+          });
+          return { ...prev, trackmanData: updated };
+        });
+      } catch {
+        // silently ignore — user can fill in manually
+      } finally {
+        setAnalyzingTrackmanIndex(null);
+      }
     };
     reader.readAsDataURL(file);
 
@@ -1073,12 +1118,17 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
                           )}
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-semibold text-slate-100">{clubLabel}</p>
-                            {analysis ? (
+                            {analyzingTrackmanIndex === index ? (
+                              <p className="text-xs text-violet-400 mt-0.5 flex items-center gap-1">
+                                <Loader2 className="w-3 h-3 animate-spin" />
+                                AI가 수치를 읽는 중...
+                              </p>
+                            ) : analysis ? (
                               <p className="text-xs text-emerald-400 mt-0.5">분석 완료 · {analysis.overallScore}점</p>
                             ) : data.clubSpeed ? (
                               <p className="text-xs text-yellow-400 mt-0.5">수치 입력 중...</p>
                             ) : (
-                              <p className="text-xs text-slate-400 mt-0.5">아래에 트랙맨 수치를 입력하세요</p>
+                              <p className="text-xs text-slate-400 mt-0.5">수치를 직접 입력하거나 AI가 자동으로 읽어옵니다</p>
                             )}
                           </div>
                           <button

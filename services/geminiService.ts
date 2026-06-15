@@ -1481,3 +1481,90 @@ aiAnalysis에는 다음을 포함하세요:
     };
   }
 };
+
+export interface TrackmanScreenAnalysisResult {
+  clubSpeed?: number;
+  ballSpeed?: number;
+  smashFactor?: number;
+  launchAngle?: number;
+  spinRate?: number;
+  carryDistance?: number;
+  totalDistance?: number;
+}
+
+const parseTrackmanScreenResponse = (text: string): TrackmanScreenAnalysisResult => {
+  try {
+    const parsed = JSON.parse(text);
+    const toNum = (v: unknown): number | undefined => {
+      const n = typeof v === 'string' ? parseFloat(v) : Number(v);
+      return Number.isFinite(n) && n > 0 ? n : undefined;
+    };
+    return {
+      clubSpeed: toNum(parsed?.clubSpeed),
+      ballSpeed: toNum(parsed?.ballSpeed),
+      smashFactor: toNum(parsed?.smashFactor),
+      launchAngle: toNum(parsed?.launchAngle),
+      spinRate: toNum(parsed?.spinRate),
+      carryDistance: toNum(parsed?.carryDistance),
+      totalDistance: toNum(parsed?.totalDistance),
+    };
+  } catch {
+    return {};
+  }
+};
+
+export const analyzeTrackmanScreen = async (
+  imageInput: AnalysisInput
+): Promise<TrackmanScreenAnalysisResult> => {
+  try {
+    const blob =
+      typeof imageInput.data === 'string'
+        ? await getBlobFromUrl(imageInput.data)
+        : imageInput.data;
+    const mediaPart = await fileToGenerativePart(blob, imageInput.mimeType);
+
+    const prompt = `
+      너는 골프 런치 모니터(트랙맨, GC Quad, Foresight 등) 화면에서 수치를 읽어내는 AI다.
+      입력된 이미지는 런치 모니터 화면 캡처 또는 사진이다.
+
+      화면에 표시된 수치를 정확히 읽어 아래 JSON만 출력해라.
+      숫자를 읽을 수 없거나 해당 항목이 없으면 null로 표기해라.
+
+      {
+        "clubSpeed": number | null,
+        "ballSpeed": number | null,
+        "smashFactor": number | null,
+        "launchAngle": number | null,
+        "spinRate": number | null,
+        "carryDistance": number | null,
+        "totalDistance": number | null
+      }
+
+      각 필드 설명:
+      - clubSpeed: 클럽 헤드 스피드 (m/s 또는 mph — 화면 단위 그대로 읽어라, mph이면 m/s로 변환하지 말 것)
+      - ballSpeed: 볼 스피드 (m/s 또는 mph)
+      - smashFactor: 스매시 팩터 (소수점 2~3자리, 보통 1.2~1.5 범위)
+      - launchAngle: 발사각 (도, °)
+      - spinRate: 스핀 (rpm)
+      - carryDistance: 캐리 거리 (m 또는 yards — 화면 단위 그대로)
+      - totalDistance: 토탈 거리 (m 또는 yards)
+
+      규칙:
+      - 화면에 표시된 숫자를 그대로 읽어라. 단위 변환하지 마라.
+      - 숫자 외에 다른 텍스트는 출력하지 마라.
+      - 코드블록 없이 순수 JSON만 반환해라.
+    `;
+
+    const result = await invokeBackendAI<unknown>('analyze_trackman_screen', {
+      prompt,
+      mediaParts: [mediaPart],
+      responseMimeType: 'application/json',
+    });
+    const text = getJsonTextFromResult(result);
+    if (!text) return {};
+    return parseTrackmanScreenResponse(text);
+  } catch (error) {
+    log.error('AI trackman screen analysis failed:', error);
+    return {};
+  }
+};
