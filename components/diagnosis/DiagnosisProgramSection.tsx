@@ -4,6 +4,7 @@ import { PostureAnalysisResult } from '../../types/postureAnalysis';
 import { DiagnosisHero } from './DiagnosisHero';
 import { Button } from '../Button';
 import { calculateCourseMentalScore, calculateShortGameDiagnosisScore, calculateSkillScore, clampDiagnosisScore, getAgeFromBirthDate } from '../../utils/diagnosis';
+import { analyzeTrackmanData, calculateEquipmentScore, ClubEquipmentAnalysis, MetricAnalysisResult } from '../../utils/equipmentAnalysis';
 import { useLanguage } from '../LanguageContext';
 import { ChevronDown, ChevronUp, Plus, Trash2, Monitor, Camera, Loader2, Upload } from 'lucide-react';
 import { PostureAnalysisDashboard } from '../posture/PostureAnalysisDashboard';
@@ -182,6 +183,15 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
     }
   }, [skillDiagnosisData]);
 
+  useEffect(() => {
+    const list = golferProfile.trackmanData;
+    if (!list || list.length === 0) return;
+    const autoScore = calculateEquipmentScore(list);
+    if (autoScore !== null) {
+      setFactorScores((prev) => ({ ...prev, equipment: clampDiagnosisScore(autoScore) }));
+    }
+  }, [golferProfile.trackmanData]);
+
   const memberName = golferProfile.name;
 
   const diagnosisGoalOptions = [
@@ -324,6 +334,22 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
       ...prev,
       trackmanData: (prev.trackmanData || []).filter((_, i) => i !== index),
     }));
+  };
+
+  const handleUpdateTrackmanData = (index: number, field: keyof TrackmanData, rawValue: string) => {
+    const numValue = rawValue === '' ? undefined : parseFloat(rawValue);
+    setGolferProfile((prev) => {
+      const updated = (prev.trackmanData || []).map((data, i) => {
+        if (i !== index) return data;
+        const next = { ...data, [field]: numValue };
+        // Auto-derive smash factor when both speeds are available
+        if ((field === 'ballSpeed' || field === 'clubSpeed') && next.ballSpeed && next.clubSpeed) {
+          next.smashFactor = Math.round((next.ballSpeed / next.clubSpeed) * 1000) / 1000;
+        }
+        return next;
+      });
+      return { ...prev, trackmanData: updated };
+    });
   };
 
   const handleTrackmanFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -891,6 +917,75 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
 
       // Special handling for equipment-diagnosis to integrate club selection and screen capture
       if (currentStep.id === 'equipment-diagnosis') {
+        const renderMetricRow = (metric: MetricAnalysisResult) => {
+          const statusColor =
+            metric.status === 'optimal'
+              ? 'text-emerald-400'
+              : metric.status === 'acceptable'
+              ? 'text-yellow-400'
+              : 'text-red-400';
+          const sign = metric.deviation >= 0 ? '+' : '';
+          return (
+            <div key={metric.label} className="flex items-center justify-between py-1.5 border-b border-slate-700 last:border-0">
+              <span className="text-xs text-slate-400 w-20">{metric.label}</span>
+              <div className="flex items-center gap-2 flex-1 justify-end">
+                <span className="text-xs font-medium text-slate-100">
+                  {metric.actual}{metric.unit}
+                </span>
+                <span className="text-xs text-slate-500">vs 기준 {metric.optimal}{metric.unit}</span>
+                <span className={`text-xs font-semibold ${statusColor}`}>
+                  ({sign}{metric.deviation}{metric.unit})
+                </span>
+                <span className={`text-xs font-bold tabular-nums w-10 text-right ${statusColor}`}>
+                  {metric.score}점
+                </span>
+              </div>
+            </div>
+          );
+        };
+
+        const renderAnalysisPanel = (analysis: ClubEquipmentAnalysis) => {
+          const scoreColor =
+            analysis.overallScore >= 80
+              ? 'text-emerald-400'
+              : analysis.overallScore >= 60
+              ? 'text-yellow-400'
+              : 'text-red-400';
+
+          const poorMetrics = [
+            analysis.smashFactor,
+            analysis.launchAngle,
+            analysis.spinRate,
+            analysis.carryDistance,
+          ].filter((m): m is MetricAnalysisResult => m !== undefined && m.status === 'poor');
+
+          return (
+            <div className="mt-3 rounded-lg border border-slate-600 bg-slate-800 p-3">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-semibold text-violet-300">최적화 기준 비교</span>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs text-slate-400">기준 헤드스피드 {analysis.clubSpeed.toFixed(1)} m/s</span>
+                  <span className={`text-sm font-bold ${scoreColor}`}>{analysis.overallScore}점</span>
+                </div>
+              </div>
+              <div className="mb-2">
+                {analysis.smashFactor && renderMetricRow(analysis.smashFactor)}
+                {analysis.launchAngle && renderMetricRow(analysis.launchAngle)}
+                {analysis.spinRate && renderMetricRow(analysis.spinRate)}
+                {analysis.carryDistance && renderMetricRow(analysis.carryDistance)}
+              </div>
+              {poorMetrics.length > 0 && (
+                <div className="mt-2 p-2 bg-red-950/40 rounded border border-red-800/40">
+                  <p className="text-xs text-red-300 font-medium mb-1">개선 필요 항목</p>
+                  {poorMetrics.map((m) => (
+                    <p key={m.label} className="text-xs text-red-200 leading-relaxed">• {m.hint}</p>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        };
+
         return (
           <div className="space-y-4">
             <div className="rounded-xl border border-slate-700 bg-slate-900 p-4">
@@ -898,9 +993,10 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
                 {t('equipment_diagnosis_title') || '장비 진단 (트랙맨 데이터)'}
               </h4>
               <p className="text-xs text-slate-400 mb-4">
-                {t('equipment_diagnosis_desc') || '클럽을 선택하고 트랙맨 화면을 캡처하거나 이미지 파일을 업로드하여 데이터를 수집합니다.'}
+                클럽을 선택하고 트랙맨 화면을 캡처하거나 파일을 업로드한 뒤, 측정 수치를 입력하면 최적화 기준과 자동 비교됩니다.
               </p>
 
+              {/* Club select + capture/upload buttons */}
               <div className="space-y-3 mb-4">
                 <label className="space-y-2">
                   <span className="text-sm text-slate-300">
@@ -952,46 +1048,94 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
                 </label>
               </div>
 
+              {/* Captured data list with metric inputs and analysis */}
               {(golferProfile.trackmanData && golferProfile.trackmanData.length > 0) && (
-                <div className="space-y-2">
+                <div className="space-y-4">
                   <h5 className="text-xs font-medium text-slate-300">
-                    {t('equipment_captured_data') || '캡처된 데이터'}
+                    캡처된 데이터 — 수치를 입력하면 최적화 기준과 자동 비교됩니다
                   </h5>
-                  {golferProfile.trackmanData.map((data, index) => (
-                    <div
-                      key={index}
-                      className="flex items-start gap-3 p-3 bg-slate-950 border border-slate-700 rounded-lg"
-                    >
-                      {data.capturedImageUrl && (
-                        <img
-                          src={data.capturedImageUrl}
-                          alt={`Trackman ${data.clubType}`}
-                          className="w-24 h-16 object-cover rounded border border-slate-600"
-                        />
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-slate-200">
-                          {clubOptions.find((c) => c.value === data.clubType)?.label || data.clubType}
-                        </p>
-                        <p className="text-xs text-slate-400 mt-1">
-                          {t('equipment_data_captured') || '트랙맨 데이터 캡처 완료'}
-                        </p>
-                      </div>
-                      <button
-                        onClick={() => handleRemoveTrackmanData(index)}
-                        className="text-red-400 hover:text-red-300 p-1"
-                        data-testid={`remove-trackman-data-${index}`}
+                  {golferProfile.trackmanData.map((data, index) => {
+                    const analysis = analyzeTrackmanData(data);
+                    const clubLabel = clubOptions.find((c) => c.value === data.clubType)?.label || data.clubType;
+                    return (
+                      <div
+                        key={index}
+                        className="rounded-lg border border-slate-700 bg-slate-950 p-3 space-y-3"
                       >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  ))}
+                        {/* Header row */}
+                        <div className="flex items-center gap-3">
+                          {data.capturedImageUrl && (
+                            <img
+                              src={data.capturedImageUrl}
+                              alt={`Trackman ${data.clubType}`}
+                              className="w-20 h-14 object-cover rounded border border-slate-600 flex-shrink-0"
+                            />
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-semibold text-slate-100">{clubLabel}</p>
+                            {analysis ? (
+                              <p className="text-xs text-emerald-400 mt-0.5">분석 완료 · {analysis.overallScore}점</p>
+                            ) : data.clubSpeed ? (
+                              <p className="text-xs text-yellow-400 mt-0.5">수치 입력 중...</p>
+                            ) : (
+                              <p className="text-xs text-slate-400 mt-0.5">아래에 트랙맨 수치를 입력하세요</p>
+                            )}
+                          </div>
+                          <button
+                            onClick={() => handleRemoveTrackmanData(index)}
+                            className="text-red-400 hover:text-red-300 p-1 flex-shrink-0"
+                            data-testid={`remove-trackman-data-${index}`}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+
+                        {/* Numeric metric inputs */}
+                        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                          {([
+                            { field: 'clubSpeed', label: '헤드스피드', placeholder: 'm/s' },
+                            { field: 'ballSpeed', label: '볼스피드', placeholder: 'm/s' },
+                            { field: 'smashFactor', label: '스매시팩터', placeholder: '자동계산' },
+                            { field: 'launchAngle', label: '발사각', placeholder: '°' },
+                            { field: 'spinRate', label: '스핀', placeholder: 'rpm' },
+                            { field: 'carryDistance', label: '캐리', placeholder: 'm' },
+                          ] as { field: keyof TrackmanData; label: string; placeholder: string }[]).map(
+                            ({ field, label, placeholder }) => (
+                              <label key={field} className="space-y-1">
+                                <span className="text-xs text-slate-400">{label}</span>
+                                <input
+                                  type="number"
+                                  min={0}
+                                  step={field === 'smashFactor' ? 0.001 : field === 'launchAngle' ? 0.1 : 1}
+                                  value={(data[field] as number | undefined) ?? ''}
+                                  readOnly={field === 'smashFactor' && !!(data.ballSpeed && data.clubSpeed)}
+                                  onChange={(e) => handleUpdateTrackmanData(index, field, e.target.value)}
+                                  placeholder={placeholder}
+                                  className={`w-full rounded-lg border border-slate-700 bg-slate-900 px-2 py-1.5 text-sm text-slate-100 outline-none focus:border-violet-500 ${field === 'smashFactor' && data.ballSpeed && data.clubSpeed ? 'text-slate-400 cursor-not-allowed' : ''}`}
+                                  data-testid={`trackman-${index}-${field}`}
+                                />
+                              </label>
+                            ),
+                          )}
+                        </div>
+
+                        {/* Analysis panel */}
+                        {analysis && renderAnalysisPanel(analysis)}
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>
 
+            {/* Equipment score — auto-calculated, manually adjustable */}
             <label className="block space-y-2 rounded-xl border border-slate-700 bg-slate-900 p-3">
-              <span className="text-sm text-slate-300">{factor.label} 점수</span>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-slate-300">{factor.label} 점수</span>
+                {golferProfile.trackmanData && golferProfile.trackmanData.some((d) => d.clubSpeed) && (
+                  <span className="text-xs text-violet-400">트랙맨 수치 기반 자동 계산됨</span>
+                )}
+              </div>
               <input
                 type="number"
                 min={0}
@@ -1003,7 +1147,7 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
                 data-testid={`diagnosis-score-input-${factorKey}`}
               />
               <p className="text-xs text-slate-400">
-                {t('equipment_score_help') || '점수는 0~100 범위로 자동 보정됩니다. 트랙맨 데이터를 참고하여 입력하세요.'}
+                헤드스피드 입력 시 자동 계산됩니다. 필요시 수동으로 조정 가능합니다.
               </p>
             </label>
           </div>
