@@ -2381,7 +2381,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
               <select
                 value={club}
                 onChange={(e) => setClub(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-700 outline-none"
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl bg-white text-gray-800 focus:ring-2 focus:ring-emerald-700 outline-none"
               >
                 <option value="">선택안함</option>
                 {CLUB_GROUPS.map((group) => (
@@ -2410,7 +2410,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
                   setScore(e.target.value === '' ? '' : Number(e.target.value))
                 }
                 placeholder="예: 85"
-                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-lg"
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl bg-white text-gray-800 focus:ring-2 focus:ring-blue-500 outline-none font-bold text-lg"
               />
             </div>
           )}
@@ -2514,7 +2514,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
                 : '연습 내용이나 느낀 점을 기록하세요.'
             }
             rows={4}
-            className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-700 focus:border-emerald-700 outline-none transition-all resize-none"
+            className="w-full px-4 py-3 border border-gray-300 rounded-xl bg-white text-gray-800 placeholder:text-gray-400 focus:ring-2 focus:ring-emerald-700 focus:border-emerald-700 outline-none transition-all resize-none"
           />
         </div>
 
@@ -2545,7 +2545,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
                   ? '예: 벽대고 빈스윙 20회'
                   : '예: 7번 아이언 리듬 연습'
               }
-              className="flex-1 px-4 py-3 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-emerald-700 focus:border-emerald-700 outline-none transition-all"
+              className="flex-1 px-4 py-3 border border-gray-300 rounded-xl bg-white text-gray-800 placeholder:text-gray-400 text-sm focus:ring-2 focus:ring-emerald-700 focus:border-emerald-700 outline-none transition-all"
               onKeyDown={(e) =>
                 e.key === 'Enter' && (e.preventDefault(), addHomework())
               }
@@ -2571,7 +2571,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
                     type="date"
                     value={hwStartDate}
                     onChange={(e) => setHwStartDate(e.target.value)}
-                    className="w-full text-xs p-2 border border-gray-200 rounded focus:border-indigo-500 outline-none"
+                    className="w-full text-xs p-2 border border-gray-200 rounded bg-white text-gray-800 focus:border-indigo-500 outline-none"
                   />
                 </div>
                 <div>
@@ -2581,7 +2581,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
                   <select
                     value={hwDuration}
                     onChange={(e) => setHwDuration(Number(e.target.value))}
-                    className="w-full text-xs p-2 border border-gray-200 rounded focus:border-indigo-500 outline-none"
+                    className="w-full text-xs p-2 border border-gray-200 rounded bg-white text-gray-800 focus:border-indigo-500 outline-none"
                   >
                     {DURATION_OPTIONS.map((opt) => (
                       <option key={opt.value} value={opt.value}>
