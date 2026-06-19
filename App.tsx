@@ -339,6 +339,35 @@ const AppContent: React.FC = () => {
         fetchedClients = clients;
         fetchedCoaches = coachesData;
         setCoaches(fetchedCoaches);
+
+        // Sync any clients that exist only in localStorage (e.g. added while offline
+        // or on a device that wasn't connected to the API) up to the server so they
+        // become visible on all devices.
+        if (role === 'COACH') {
+          const localClients = storageService.getClients();
+          const unsyncedClients = localClients.filter(
+            (lc) =>
+              !fetchedClients.some(
+                (ac) => ac.name === lc.name && ac.phone === lc.phone
+              )
+          );
+          if (unsyncedClients.length > 0) {
+            try {
+              // Strip local IDs so the server assigns its own UUIDs.
+              const clientsToCreate: ClientProfile[] = unsyncedClients.map(
+                ({ id: _id, ...rest }) => rest as ClientProfile
+              );
+              await apiService.saveClients(clientsToCreate);
+              // Reload so we have the server-assigned IDs in state.
+              fetchedClients = await apiService.getClients();
+              console.log(
+                `[App] Synced ${unsyncedClients.length} local-only client(s) to server`
+              );
+            } catch (syncErr) {
+              console.warn('[App] Failed to sync local clients to server:', syncErr);
+            }
+          }
+        }
       } catch (e) {
         console.warn('[App] Failed to load data from API (lessons, clients, coaches), falling back to local storage:', e);
         setLessons(storageService.getLessons());
@@ -881,6 +910,15 @@ const AppContent: React.FC = () => {
     const isFb = apiService.isAvailable();
     if (isFb) {
       await apiService.saveClients([clientWithCoach]);
+      // Reload the client list so the newly created client gets its server-assigned ID.
+      // Without this, the client sits in state without an ID, which can cause duplicate
+      // POST requests if the coach edits the client before the next full data reload.
+      try {
+        const refreshed = await apiService.getClients();
+        setClients(refreshed);
+      } catch (e) {
+        console.warn('[App] Failed to refresh client list after add:', e);
+      }
     } else {
       storageService.saveClients([...clients, clientWithCoach]);
     }
