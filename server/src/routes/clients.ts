@@ -24,8 +24,12 @@ function mapClient(row: Record<string, unknown>) {
   };
 }
 
-// GET /api/clients
+// GET /api/clients — coaches only: returns clients assigned to this coach
 router.get('/', async (req: Request, res: Response) => {
+  if (req.user?.role !== 'coach') {
+    res.status(403).json({ error: 'Forbidden' });
+    return;
+  }
   try {
     const coachId = req.user!.id;
     const result = await pool.query(
@@ -35,6 +39,58 @@ router.get('/', async (req: Request, res: Response) => {
     res.json({ clients: result.rows.map(mapClient) });
   } catch (err) {
     console.error('[clients] GET / error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// PUT /api/clients/me — client self-update: allows a student to update their own profile
+// including designating a coach (sets coach_id)
+router.put('/me', async (req: Request, res: Response) => {
+  if (req.user?.role !== 'client') {
+    res.status(403).json({ error: 'Forbidden' });
+    return;
+  }
+  try {
+    const clientId = req.user!.id;
+    const {
+      coachId,
+      name,
+      email,
+      phone,
+      pushToken,
+    } = req.body as Record<string, unknown>;
+
+    const now = Date.now();
+
+    const result = await pool.query(
+      `UPDATE clients SET
+        coach_id = $1,
+        name = COALESCE($2, name),
+        email = COALESCE($3, email),
+        phone = COALESCE($4, phone),
+        push_token = $5,
+        updated_at = $6
+      WHERE id = $7
+      RETURNING *`,
+      [
+        coachId ?? null,
+        name ?? null,
+        email ?? null,
+        phone ?? null,
+        pushToken ?? null,
+        now,
+        clientId,
+      ]
+    );
+
+    if (result.rows.length === 0) {
+      res.status(404).json({ error: 'Client not found' });
+      return;
+    }
+
+    res.json(mapClient(result.rows[0]));
+  } catch (err) {
+    console.error('[clients] PUT /me error:', err);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

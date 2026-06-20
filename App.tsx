@@ -343,10 +343,14 @@ const AppContent: React.FC = () => {
         // Sync any clients that exist only in localStorage (e.g. added while offline
         // or on a device that wasn't connected to the API) up to the server so they
         // become visible on all devices.
+        // Only sync clients that are explicitly assigned to this coach — never
+        // auto-assign unrelated students who happen to be in local storage.
         if (role === 'COACH') {
+          const syncingCoachId = authService.getCoachProfile()?.id;
           const localClients = storageService.getClients();
           const unsyncedClients = localClients.filter(
             (lc) =>
+              lc.coachId === syncingCoachId &&
               !fetchedClients.some(
                 (ac) => ac.name === lc.name && ac.phone === lc.phone
               )
@@ -1211,7 +1215,12 @@ const AppContent: React.FC = () => {
 
     const isFb = apiService.isAvailable();
     if (isFb) {
-      await apiService.saveClients([profileWithCoach]);
+      if (userRole === 'CLIENT') {
+        // Students update their own record (including coach designation) via /me endpoint.
+        await apiService.updateMyClientProfile(profileWithCoach);
+      } else {
+        await apiService.saveClients([profileWithCoach]);
+      }
     } else {
       const updatedList = clients.map((c) =>
         c.name === profileWithCoach.name && c.phone === profileWithCoach.phone
