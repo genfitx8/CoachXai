@@ -58,6 +58,7 @@ import {
 import { Button } from './components/Button';
 import { CoachXHub } from './components/CoachXHub';
 import { CoachXChat } from './components/CoachXChat';
+import { CoachXAssistant } from './components/CoachXAssistant';
 import { buildMemberGrowthReports } from './services/coachXService';
 import { DIAGNOSIS_FACTORS, DIAGNOSIS_PROCESS } from './constants/diagnosis';
 import { diagnosisService } from './services/diagnosisService';
@@ -1703,10 +1704,10 @@ const AppContent: React.FC = () => {
                 )}
 
                 <Button
-                  onClick={() => setCoachView('COACHX')}
+                  onClick={() => setCoachView('COACHX_ASSISTANT')}
                   data-testid="coachx-entry-btn"
-                  className="w-full py-4 text-base rounded-2xl border border-slate-600/70 shadow-lg shadow-slate-900/40 bg-gradient-to-r from-slate-800 to-slate-700 hover:from-slate-700 hover:to-slate-600 justify-center"
-                  icon={<Sparkles className="w-5 h-5" />}
+                  className="w-full py-4 text-base rounded-2xl border border-violet-500/50 shadow-lg shadow-slate-900/40 bg-gradient-to-r from-violet-900/60 to-slate-800 hover:from-violet-800/60 hover:to-slate-700 justify-center"
+                  icon={<Sparkles className="w-5 h-5 text-violet-300" />}
                 >
                   coachx ai
                 </Button>
@@ -2082,6 +2083,18 @@ const AppContent: React.FC = () => {
               setCoachView('COACHX');
             }}
             initialQuery={coachXChatInitialQuery}
+          />
+        )}
+
+        {coachView === 'COACHX_ASSISTANT' && currentUser && 'id' in currentUser && (
+          <CoachXAssistant
+            coachProfile={currentUser as CoachProfile}
+            allLessons={allCoachLessons}
+            clients={clients}
+            onBack={() => setCoachView('LIST')}
+            onOpenBayReservation={() => setCoachView('RESERVATIONS')}
+            onOpenReservationManager={() => setCoachView('RESERVATIONS')}
+            onOpenCoachXHub={() => setCoachView('COACHX')}
           />
         )}
 
