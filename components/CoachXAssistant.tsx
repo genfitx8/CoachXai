@@ -80,8 +80,101 @@ function makeId(): string {
 function detectBookingIntent(text: string): BookingType | null {
   const lower = text.toLowerCase();
   if (/타석|bay|range|driving/.test(lower)) return 'bay';
-  if (/레슨\s*예약|lesson\s*book|lesson\s*reserv|예약|book/.test(lower)) return 'lesson';
+  if (/레슨|예약|book|reserv/.test(lower)) return 'lesson';
   return null;
+}
+
+// ── Natural language booking parser ──────────────────────────────────────────
+
+interface ParsedBooking {
+  date: string | null;
+  hour: number | null;
+  clientName: string | null;
+  clientId: string | null;
+}
+
+function parseNaturalLanguageBooking(text: string, clients: ClientProfile[]): ParsedBooking {
+  const today = new Date();
+  const year = today.getFullYear();
+
+  // ── Date ────────────────────────────────────────────────────────────────
+  let date: string | null = null;
+
+  if (/오늘/.test(text)) {
+    date = today.toISOString().slice(0, 10);
+  } else if (/내일/.test(text)) {
+    const d = new Date(today); d.setDate(d.getDate() + 1);
+    date = d.toISOString().slice(0, 10);
+  } else if (/모레/.test(text)) {
+    const d = new Date(today); d.setDate(d.getDate() + 2);
+    date = d.toISOString().slice(0, 10);
+  }
+
+  if (!date) {
+    // "7월 20일" / "07월 20일"
+    const m = text.match(/(\d{1,2})월\s*(\d{1,2})일/);
+    if (m) {
+      const mo = parseInt(m[1], 10);
+      const dy = parseInt(m[2], 10);
+      const candidate = new Date(`${year}-${String(mo).padStart(2,'0')}-${String(dy).padStart(2,'0')}`);
+      const useYear = candidate < today ? year + 1 : year;
+      date = `${useYear}-${String(mo).padStart(2,'0')}-${String(dy).padStart(2,'0')}`;
+    }
+  }
+
+  if (!date) {
+    // "2026-07-20" ISO
+    const m = text.match(/(\d{4})-(\d{1,2})-(\d{1,2})/);
+    if (m) date = `${m[1]}-${m[2].padStart(2,'0')}-${m[3].padStart(2,'0')}`;
+  }
+
+  if (!date) {
+    // "월요일", "다음 주 화요일"
+    const dayMap: Record<string, number> = { 일: 0, 월: 1, 화: 2, 수: 3, 목: 4, 금: 5, 토: 6 };
+    const m = text.match(/(다음\s*주)?\s*(월|화|수|목|금|토|일)요일/);
+    if (m) {
+      const target = dayMap[m[2]];
+      const isNext = /다음/.test(text);
+      const d = new Date(today);
+      let diff = target - d.getDay();
+      if (diff <= 0 || isNext) diff += 7;
+      d.setDate(d.getDate() + diff);
+      date = d.toISOString().slice(0, 10);
+    }
+  }
+
+  // ── Time ────────────────────────────────────────────────────────────────
+  let hour: number | null = null;
+
+  // "오전 10시" / "오후 3시" / "오후 3시 30분"
+  const tm = text.match(/(오전|오후)?\s*(\d{1,2})시/);
+  if (tm) {
+    let h = parseInt(tm[2], 10);
+    if (tm[1] === '오후' && h !== 12) h += 12;
+    else if (tm[1] === '오전' && h === 12) h = 0;
+    else if (!tm[1] && h <= 7) h += 12; // ambiguous: 1~7시 → assume PM
+    hour = h;
+  }
+
+  if (hour === null) {
+    // "15:00"
+    const m24 = text.match(/(\d{1,2}):(\d{2})/);
+    if (m24) hour = parseInt(m24[1], 10);
+  }
+
+  // ── Client name ──────────────────────────────────────────────────────────
+  let clientName: string | null = null;
+  let clientId: string | null = null;
+
+  for (const c of clients) {
+    if (c.name.length >= 2 && text.includes(c.name)) {
+      clientName = c.name;
+      clientId = c.phone ?? null;
+      break;
+    }
+  }
+
+  return { date, hour, clientName, clientId };
 }
 
 // ── Booking step templates ───────────────────────────────────────────────────
@@ -228,14 +321,40 @@ export const CoachXAssistant: React.FC<CoachXAssistantProps> = ({
 
   const handleDateSelect = useCallback((date: string) => {
     addMessage('user', `📅 ${formatDateKo(date)}`);
-    setBooking(prev => ({ ...prev, date, step: prev.type === 'lesson' ? 'time' : 'time' }));
-    setTimeout(() => addAssistantMessage(BOOKING_MESSAGES.lesson_time), 400);
+    setBooking(prev => {
+      // If hour already parsed, skip time picker
+      const nextStep: BookingStep = prev.hour !== null ? 'client' : 'time';
+      return { ...prev, date, step: nextStep };
+    });
+    setTimeout(() => {
+      setBooking(prev => {
+        if (prev.hour !== null) {
+          addAssistantMessage(BOOKING_MESSAGES.lesson_client);
+        } else {
+          addAssistantMessage(BOOKING_MESSAGES.lesson_time);
+        }
+        return prev;
+      });
+    }, 400);
   }, [addMessage, addAssistantMessage]);
 
   const handleTimeSelect = useCallback((hour: number) => {
     addMessage('user', `⏰ ${pad(hour)}:00 ~ ${pad(hour + 1)}:00`);
-    setBooking(prev => ({ ...prev, hour, step: 'client' }));
-    setTimeout(() => addAssistantMessage(BOOKING_MESSAGES.lesson_client), 400);
+    setBooking(prev => {
+      // If client already matched, skip client picker → confirm
+      const nextStep: BookingStep = prev.clientName ? 'confirm' : 'client';
+      return { ...prev, hour, step: nextStep };
+    });
+    setTimeout(() => {
+      setBooking(prev => {
+        if (prev.clientName) {
+          addAssistantMessage(BOOKING_MESSAGES.lesson_confirm);
+        } else {
+          addAssistantMessage(BOOKING_MESSAGES.lesson_client);
+        }
+        return prev;
+      });
+    }, 400);
   }, [addMessage, addAssistantMessage]);
 
   const handleClientSelect = useCallback((clientId: string | null, clientName: string | null) => {
@@ -288,9 +407,61 @@ export const CoachXAssistant: React.FC<CoachXAssistantProps> = ({
 
     // Check for booking intent
     const intent = detectBookingIntent(msgText);
-    if (intent) {
+    if (intent === 'bay') {
       setIsTyping(false);
-      startBooking(intent);
+      if (onOpenBayReservation) {
+        addAssistantMessage(BOOKING_MESSAGES.bay_nav);
+        setTimeout(onOpenBayReservation, 800);
+      } else {
+        startBooking('bay');
+      }
+      return;
+    }
+    if (intent === 'lesson') {
+      // Try to parse date / time / client from the natural language message
+      const parsed = parseNaturalLanguageBooking(msgText, coachClients);
+      setIsTyping(false);
+
+      if (parsed.date && parsed.hour !== null) {
+        // All critical info found → jump straight to confirmation
+        const clientStr = parsed.clientName ? ` (${parsed.clientName} 회원)` : '';
+        setBooking({
+          type: 'lesson',
+          step: 'confirm',
+          date: parsed.date,
+          hour: parsed.hour,
+          clientId: parsed.clientId,
+          clientName: parsed.clientName,
+        });
+        addAssistantMessage(
+          `**${formatDateKo(parsed.date)} ${pad(parsed.hour)}:00~${pad(parsed.hour + 1)}:00${clientStr}** 레슨 예약이군요! 📋\n아래 내용을 확인하고 예약을 확정해 주세요.`
+        );
+      } else if (parsed.date) {
+        // Date found, need time
+        setBooking({
+          type: 'lesson',
+          step: 'time',
+          date: parsed.date,
+          hour: null,
+          clientId: parsed.clientId,
+          clientName: parsed.clientName,
+        });
+        addAssistantMessage(`**${formatDateKo(parsed.date)}** 레슨이군요! ✅\n이제 **시간**을 선택해 주세요.`);
+      } else if (parsed.hour !== null) {
+        // Time found, need date
+        setBooking({
+          type: 'lesson',
+          step: 'date',
+          date: null,
+          hour: parsed.hour,
+          clientId: parsed.clientId,
+          clientName: parsed.clientName,
+        });
+        addAssistantMessage(`**${pad(parsed.hour)}:00** 시간으로 알겠어요! 📅\n**날짜**를 선택해 주세요.`);
+      } else {
+        // No info parsed → start normal step-by-step
+        startBooking('lesson');
+      }
       return;
     }
 
@@ -318,7 +489,7 @@ export const CoachXAssistant: React.FC<CoachXAssistantProps> = ({
       setIsTyping(false);
       addAssistantMessage('죄송해요, 잠시 오류가 발생했어요. 다시 시도해 주세요.');
     }
-  }, [input, isTyping, clearReveal, addMessage, addAssistantMessage, startBooking, allLessons, clients, language, onOpenReservationManager, onOpenCoachXHub]);
+  }, [input, isTyping, clearReveal, addMessage, addAssistantMessage, startBooking, allLessons, clients, coachClients, language, onOpenBayReservation, onOpenReservationManager, onOpenCoachXHub]);
 
   // ── Quick actions ─────────────────────────────────────────────────────────
 
