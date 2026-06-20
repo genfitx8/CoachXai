@@ -127,6 +127,10 @@ export async function initDb(): Promise<void> {
     )
   `);
 
+  await pool.query(
+    `CREATE INDEX IF NOT EXISTS idx_lessons_client_phone ON lessons (client_phone)`
+  );
+
   // Add columns to existing lessons tables that were created before these fields existed
   const lessonAlters = [
     "ALTER TABLE lessons ADD COLUMN IF NOT EXISTS media_type VARCHAR(20)",

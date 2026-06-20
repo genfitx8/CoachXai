@@ -66,9 +66,9 @@ router.get('/', async (req: Request, res: Response) => {
         [userId]
       );
     } else if (userRole === 'client') {
-      // Client: first get the client's name and phone to construct the composite key
+      // Client: first get the client's name, phone, and coach linkage
       const clientResult = await pool.query(
-        'SELECT name, phone FROM clients WHERE id = $1',
+        'SELECT name, phone, coach_id FROM clients WHERE id = $1',
         [userId]
       );
 
@@ -80,11 +80,23 @@ router.get('/', async (req: Request, res: Response) => {
       const client = clientResult.rows[0];
       const clientCompositeId = `${client.name}_${client.phone}`;
 
-      // Fetch lessons using the composite key
-      result = await pool.query(
-        'SELECT * FROM lessons WHERE client_id = $1 ORDER BY created_at DESC',
-        [clientCompositeId]
-      );
+      if (client.phone && client.coach_id) {
+        // Also search by phone + coach to surface lessons created before the member
+        // signed up (when the coach may have used a slightly different name).
+        result = await pool.query(
+          `SELECT * FROM (
+            SELECT * FROM lessons WHERE client_id = $1
+            UNION
+            SELECT * FROM lessons WHERE client_phone = $2 AND coach_id = $3
+          ) AS combined ORDER BY created_at DESC`,
+          [clientCompositeId, client.phone, client.coach_id]
+        );
+      } else {
+        result = await pool.query(
+          'SELECT * FROM lessons WHERE client_id = $1 ORDER BY created_at DESC',
+          [clientCompositeId]
+        );
+      }
     } else {
       res.status(403).json({ error: 'Invalid user role' });
       return;
