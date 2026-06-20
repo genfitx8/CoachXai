@@ -4,6 +4,7 @@ import {
   GolfData,
   ClientProfile,
   Lesson,
+  Homework,
   ShotMetrics,
   TrainingProgramConfig,
   QuickLogEntry,
@@ -1566,5 +1567,88 @@ export const analyzeTrackmanScreen = async (
   } catch (error) {
     log.error('AI trackman screen analysis failed:', error);
     return {};
+  }
+};
+
+export const generateStudentChatResponse = async (
+  userMessage: string,
+  myLessons: Lesson[],
+  clientProfile: ClientProfile,
+  homeworkList: Homework[],
+  language: CoachXLanguage = 'ko'
+): Promise<string> => {
+  try {
+    const recentLessons = [...myLessons]
+      .sort((a, b) => b.createdAt - a.createdAt)
+      .slice(0, 10);
+
+    const lessonContext = recentLessons.length > 0
+      ? recentLessons.map(l => {
+          const parts = [`[${l.date}] ${l.title}`];
+          if (l.coachNotes) parts.push(`코치 노트: ${l.coachNotes.substring(0, 150)}`);
+          if (l.aiAnalysis) parts.push(`AI 분석: ${l.aiAnalysis.substring(0, 150)}`);
+          if (l.tags?.length) parts.push(`태그: ${l.tags.join(', ')}`);
+          return parts.join(' | ');
+        }).join('\n')
+      : '레슨 기록 없음.';
+
+    const today = new Date().toISOString().split('T')[0];
+    const todayHomework = homeworkList.filter(h => h.date === today);
+    const pendingHomework = todayHomework.filter(h => !h.isCompleted);
+
+    const homeworkContext = pendingHomework.length > 0
+      ? pendingHomework.map(h => `- ${h.title}`).join('\n')
+      : '오늘 남은 미션 없음';
+
+    const LANG_INSTRUCTION: Record<CoachXLanguage, string> = {
+      ko: '반드시 한국어로 답변하세요. 친근하고 격려하는 톤으로 말해주세요.',
+      en: 'Respond entirely in English. Use a friendly and encouraging tone.',
+      ja: '必ず日本語で回答してください。フレンドリーで励ますトーンで話してください。',
+      th: 'Respond in English with a friendly and encouraging tone.',
+    };
+
+    const prompt = `당신은 학생 전용 AI 골프 코칭 어시스턴트 "CoachX AI"입니다. 학생의 레슨 기록과 개인 데이터를 바탕으로 개인화된 조언을 제공합니다.
+
+학생 정보:
+- 이름: ${clientProfile.name}
+- 핸디캡: ${clientProfile.handicap || '없음'}
+- 베스트 스코어: ${clientProfile.bestScore || '없음'}
+- 담당 코치: ${clientProfile.designatedCoach || '미지정'}
+- 총 레슨 수: ${myLessons.length}
+
+최근 레슨 기록 (최근 10개):
+${lessonContext}
+
+오늘의 미션 (미완료):
+${homeworkContext}
+
+학생 질문: "${userMessage}"
+
+언어 지시: ${LANG_INSTRUCTION[language]}
+
+주의사항:
+- 학생 데이터를 기반으로 구체적이고 개인화된 답변을 해주세요
+- 격려하고 동기부여하는 톤을 유지하세요
+- 골프 기술 조언은 전문적이되 쉽게 설명하세요
+- 답변은 간결하고 실용적으로 300자 이내로 해주세요`;
+
+    const result = await invokeBackendAI<unknown>('student_chat', {
+      prompt,
+      temperature: 0.7,
+      language,
+    });
+    const text = getResponseText(result) ?? '';
+    if (!text.trim()) throw new Error('Empty response');
+    return text;
+  } catch (error) {
+    log.error('Student chat error:', error);
+    const name = clientProfile.name;
+    const fallbacks: Record<CoachXLanguage, string> = {
+      ko: `안녕하세요, ${name}님! 현재 AI 서비스에 일시적으로 연결할 수 없습니다. 잠시 후 다시 시도해주세요. 궁금한 점은 코치님께 직접 문의해보세요!`,
+      en: `Hi ${name}! The AI service is temporarily unavailable. Please try again shortly or contact your coach directly.`,
+      ja: `こんにちは、${name}さん！AIサービスに現在接続できません。しばらくしてから再度お試しください。`,
+      th: `Hi ${name}! The AI service is temporarily unavailable. Please try again shortly.`,
+    };
+    return fallbacks[language] ?? fallbacks['ko'];
   }
 };
