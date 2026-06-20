@@ -15,7 +15,8 @@ import { PaymentSuccess } from './PaymentSuccess';
 import { PaymentFail } from './PaymentFail';
 import { MembershipPurchase } from './MembershipPurchase';
 import { MembershipPaymentSuccess } from './MembershipPaymentSuccess';
-import { User, LogOut, History, PlayCircle, Plus, BarChart3, Bell, ListChecks, Globe, Calendar, Search, Filter, Eye, EyeOff, ChevronRight, ChevronLeft, Award, Target, ClipboardList, Crown, Briefcase, ScanLine } from 'lucide-react';
+import { StudentAIChat } from './StudentAIChat';
+import { User, LogOut, History, PlayCircle, Plus, BarChart3, Bell, ListChecks, Globe, Calendar, Search, Filter, Eye, EyeOff, ChevronRight, ChevronLeft, Award, Target, ClipboardList, Crown, Briefcase, ScanLine, Sparkles } from 'lucide-react';
 import { firebaseService } from '../services/firebase';
 import { storageService } from '../services/storage';
 import { pointService } from '../services/pointService';
@@ -47,7 +48,7 @@ const HIDE_RESERVATION_FEATURES = (import.meta.env.VITE_CLIENT_HIDE_RESERVATION 
 
 export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons, onLogout, onUpdateLesson, onSaveNewRecord, onDeleteLesson, onUpdateProfile }) => {
   const { t, language, setLanguage } = useLanguage();
-  const [view, setView] = useState<ViewState | 'STATS' | 'PROFILE' | 'RESERVATION' | 'BAY_RESERVATION' | 'MY_BAY_RESERVATIONS' | 'POINT_PURCHASE' | 'MEMBERSHIP_PURCHASE' | 'PAYMENT_SUCCESS' | 'MEMBERSHIP_PAYMENT_SUCCESS' | 'PAYMENT_FAIL' | 'RECENT_RECORDS'>(() => {
+  const [view, setView] = useState<ViewState | 'STATS' | 'PROFILE' | 'RESERVATION' | 'BAY_RESERVATION' | 'MY_BAY_RESERVATIONS' | 'POINT_PURCHASE' | 'MEMBERSHIP_PURCHASE' | 'PAYMENT_SUCCESS' | 'MEMBERSHIP_PAYMENT_SUCCESS' | 'PAYMENT_FAIL' | 'RECENT_RECORDS' | 'STUDENT_AI'>(() => {
     const params = new URLSearchParams(window.location.search);
     const purchaseType = params.get('purchase');
     if (params.get('paymentKey') && params.get('orderId')) {
@@ -461,6 +462,24 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
                     </div>
                 )}
 
+                {/* ===== CoachX AI 버튼 ===== */}
+                <button
+                    onClick={() => setView('STUDENT_AI')}
+                    className="w-full bg-gradient-to-r from-violet-700 via-indigo-600 to-blue-600 hover:from-violet-600 hover:via-indigo-500 hover:to-blue-500 text-white rounded-2xl px-6 py-4 shadow-xl shadow-violet-950/40 hover:shadow-2xl transition-all duration-300 transform hover:scale-[1.02] active:scale-[0.98] flex items-center gap-4 group relative overflow-hidden"
+                >
+                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent translate-x-[-200%] group-hover:translate-x-[200%] transition-transform duration-700" />
+                    <div className="relative bg-white/20 p-2.5 rounded-full group-hover:bg-white/30 transition-colors flex-shrink-0">
+                        <Sparkles className="w-6 h-6" />
+                    </div>
+                    <div className="relative text-left min-w-0">
+                        <div className="text-base font-black">CoachX AI</div>
+                        <div className="text-xs text-indigo-100 font-medium truncate">
+                            {language === 'en' ? 'Your AI golf assistant' : language === 'ja' ? 'AIゴルフアシスタント' : '내 전담 AI 골프 어시스턴트'}
+                        </div>
+                    </div>
+                    <ChevronRight className="w-5 h-5 ml-auto text-indigo-200 group-hover:translate-x-1 transition-transform" />
+                </button>
+
                 {/* ===== 레슨 Section ===== */}
                 <div className="bg-slate-900/80 rounded-2xl p-5 shadow-sm border border-slate-700/70">
                     <div className="flex items-center gap-2 mb-4">
@@ -681,10 +700,21 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
         )}
 
         {effectiveView === 'STATS' && (
-            <ClientStats 
-                lessons={allMyLessons} 
-                onBack={handleBackToList} 
+            <ClientStats
+                lessons={allMyLessons}
+                onBack={handleBackToList}
             />
+        )}
+
+        {effectiveView === 'STUDENT_AI' && (
+            <div className="fixed inset-0 z-50 bg-gray-950 overflow-y-auto">
+                <StudentAIChat
+                    clientProfile={clientProfile}
+                    myLessons={myLessonsRaw}
+                    homeworkList={homeworkList}
+                    onBack={handleBackToList}
+                />
+            </div>
         )}
 
         {effectiveView === 'PROFILE' && (
