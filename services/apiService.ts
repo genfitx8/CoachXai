@@ -299,6 +299,10 @@ export const apiService = {
     if (client.id) await req('DELETE', `/api/clients/${client.id}`);
   },
 
+  async updateMyClientProfile(profile: ClientProfile): Promise<void> {
+    await req('PUT', '/api/clients/me', profile);
+  },
+
   // ── Coaches ───────────────────────────────────────────────────────────────
 
   async getCoaches(): Promise<CoachProfile[]> {
