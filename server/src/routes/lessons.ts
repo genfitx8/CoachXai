@@ -79,18 +79,41 @@ router.get('/', async (req: Request, res: Response) => {
 
       const client = clientResult.rows[0];
       const clientCompositeId = `${client.name}_${client.phone}`;
+      // Normalize phone to digits-only so format differences (010-1234-5678 vs
+      // 01012345678) don't prevent lessons from being found.
+      const normalizedPhone = client.phone
+        ? client.phone.replace(/[^0-9]/g, '')
+        : '';
 
-      if (client.phone && client.coach_id) {
-        // Also search by phone + coach to surface lessons created before the member
-        // signed up (when the coach may have used a slightly different name).
-        result = await pool.query(
-          `SELECT * FROM (
-            SELECT * FROM lessons WHERE client_id = $1
-            UNION
-            SELECT * FROM lessons WHERE client_phone = $2 AND coach_id = $3
-          ) AS combined ORDER BY created_at DESC`,
-          [clientCompositeId, client.phone, client.coach_id]
-        );
+      if (normalizedPhone) {
+        // Search by client_id composite OR by normalized phone number.
+        // The phone-based branch catches lessons created before the member
+        // signed up, or when the coach stored the phone in a different format.
+        // When coach_id is available, also require it on the phone branch to
+        // avoid surfacing unrelated records.
+        if (client.coach_id) {
+          result = await pool.query(
+            `SELECT * FROM (
+              SELECT * FROM lessons WHERE client_id = $1
+              UNION
+              SELECT * FROM lessons
+                WHERE coach_id = $3
+                AND REGEXP_REPLACE(COALESCE(client_phone, ''), '[^0-9]', '', 'g') = $2
+            ) AS combined ORDER BY created_at DESC`,
+            [clientCompositeId, normalizedPhone, client.coach_id]
+          );
+        } else {
+          // No coach linkage yet – search across all coaches by phone only.
+          result = await pool.query(
+            `SELECT * FROM (
+              SELECT * FROM lessons WHERE client_id = $1
+              UNION
+              SELECT * FROM lessons
+                WHERE REGEXP_REPLACE(COALESCE(client_phone, ''), '[^0-9]', '', 'g') = $2
+            ) AS combined ORDER BY created_at DESC`,
+            [clientCompositeId, normalizedPhone]
+          );
+        }
       } else {
         result = await pool.query(
           'SELECT * FROM lessons WHERE client_id = $1 ORDER BY created_at DESC',

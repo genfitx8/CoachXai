@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { Lesson, ViewState, ClientProfile, CoachProfile, Homework, QuickLogEntry } from '../types';
 import { LessonCard } from './LessonCard';
 import { LessonDetail } from './LessonDetail';
@@ -183,11 +183,30 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
       return homeworkList.filter(h => h.date === today);
   }, [homeworkList]);
 
+  // Normalize a phone string to digits only so format differences
+  // (010-1234-5678 vs 01012345678) don't prevent lessons from matching.
+  const myNormalizedPhone = useMemo(
+    () => (clientProfile.phone || '').replace(/[^0-9]/g, ''),
+    [clientProfile.phone]
+  );
+
+  const matchesMyPhone = useCallback(
+    (lessonPhone: string | undefined) => {
+      if (!myNormalizedPhone) return false;
+      const normalized = (lessonPhone || '').replace(/[^0-9]/g, '');
+      return normalized.length > 0 && normalized === myNormalizedPhone;
+    },
+    [myNormalizedPhone]
+  );
+
   // All lessons (including data images) - used for Stats
   const allMyLessons = useMemo(() => {
     return allLessons
-      // Match by Name AND Phone to handle duplicates
-      .filter(l => l.clientName === clientProfile.name && l.clientPhone === clientProfile.phone)
+      // Match by normalized phone (primary) or exact name+phone (fallback)
+      .filter(l =>
+        matchesMyPhone(l.clientPhone) ||
+        (l.clientName === clientProfile.name && l.clientPhone === clientProfile.phone)
+      )
       // Apply Date Filter
       .filter(l => {
           if (searchStartDate && l.date < searchStartDate) return false;
@@ -195,12 +214,15 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
           return true;
       })
       .sort((a, b) => b.createdAt - a.createdAt);
-  }, [allLessons, clientProfile, searchStartDate, searchEndDate]);
+  }, [allLessons, clientProfile, searchStartDate, searchEndDate, matchesMyPhone]);
 
   const today = getLocalISODate();
   const myLessonsRaw = useMemo(() => {
-    return allLessons.filter(l => l.clientName === clientProfile.name && l.clientPhone === clientProfile.phone);
-  }, [allLessons, clientProfile.name, clientProfile.phone]);
+    return allLessons.filter(l =>
+      matchesMyPhone(l.clientPhone) ||
+      (l.clientName === clientProfile.name && l.clientPhone === clientProfile.phone)
+    );
+  }, [allLessons, clientProfile.name, clientProfile.phone, matchesMyPhone]);
   const totalRecordCount = myLessonsRaw.length;
   const remainingFreeRecords = Math.max(0, FREE_RECORD_LIMIT - totalRecordCount);
   const todayAIUsage = useMemo(() => {
