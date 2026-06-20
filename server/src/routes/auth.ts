@@ -162,16 +162,38 @@ router.post('/signup/client', async (req: Request, res: Response) => {
     const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
     const now = Date.now();
 
-    const result = await pool.query(
-      `INSERT INTO clients (name, email, phone, password_hash, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6)
-       RETURNING *`,
-      [name, email, phone ?? null, passwordHash, now, now]
-    );
+    // If phone provided, check for a coach-pre-registered client with the same phone.
+    // These records have no password yet (coach created them without a login account).
+    // Merge into that record so the member inherits their coach linkage and lesson history.
+    let client = null;
+    if (phone) {
+      const preRegistered = await pool.query(
+        `SELECT * FROM clients WHERE phone = $1 AND password_hash IS NULL LIMIT 1`,
+        [phone.trim()]
+      );
 
-    const client = result.rows[0];
+      if (preRegistered.rows.length > 0) {
+        const result = await pool.query(
+          `UPDATE clients SET
+            name = $1, email = $2, password_hash = $3, updated_at = $4
+          WHERE id = $5 RETURNING *`,
+          [name, email, passwordHash, now, preRegistered.rows[0].id]
+        );
+        client = result.rows[0];
+      }
+    }
+
+    if (!client) {
+      const result = await pool.query(
+        `INSERT INTO clients (name, email, phone, password_hash, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6)
+         RETURNING *`,
+        [name, email, phone ?? null, passwordHash, now, now]
+      );
+      client = result.rows[0];
+    }
+
     const token = signToken(client.id, 'client');
-
     res.status(201).json({ token, client: mapClient(client) });
   } catch (err) {
     console.error('[auth] signup/client error:', err);
