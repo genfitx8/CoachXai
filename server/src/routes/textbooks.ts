@@ -58,18 +58,16 @@ router.post('/seed-official', async (req: Request, res: Response) => {
       ]
     );
 
+    await pool.query('DELETE FROM textbook_chapters WHERE textbook_id = $1', [textbook.id]);
+
     for (const ch of chapters) {
       await pool.query(
         `INSERT INTO textbook_chapters (id, textbook_id, part_number, chapter_number, part_title, title, content, key_points, quiz, created_at, updated_at)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
-         ON CONFLICT (id) DO UPDATE SET
-           title=EXCLUDED.title, content=EXCLUDED.content,
-           key_points=EXCLUDED.key_points, quiz=EXCLUDED.quiz,
-           updated_at=EXCLUDED.updated_at`,
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
         [
           ch.id, ch.textbookId, ch.partNumber, ch.chapterNumber,
           ch.partTitle, ch.title, ch.content,
-          JSON.stringify(ch.keyPoints), JSON.stringify(ch.quiz),
+          JSON.stringify(ch.keyPoints), ch.quiz ? JSON.stringify(ch.quiz) : null,
           ch.createdAt, ch.updatedAt,
         ]
       );
@@ -112,6 +110,80 @@ router.get('/', async (req: Request, res: Response) => {
   } catch (err) {
     console.error('[textbooks] list error:', err);
     res.status(500).json({ error: 'Failed to list textbooks' });
+  }
+});
+
+// GET /api/textbooks/attempts?chapterId=...
+router.get('/attempts', async (req: Request, res: Response) => {
+  try {
+    const userId = req.user!.id;
+    const { chapterId } = req.query as { chapterId?: string };
+
+    const result = await pool.query(
+      `SELECT * FROM quiz_attempts WHERE student_id=$1 ${chapterId ? 'AND chapter_id=$2' : ''} ORDER BY taken_at DESC`,
+      chapterId ? [userId, chapterId] : [userId]
+    );
+
+    res.json(result.rows.map((r) => ({
+      id: r.id,
+      studentId: r.student_id,
+      chapterId: r.chapter_id,
+      textbookId: r.textbook_id,
+      attemptNumber: r.attempt_number,
+      score: r.score,
+      passed: r.passed,
+      answers: r.answers ?? [],
+      takenAt: r.taken_at,
+    })));
+  } catch (err) {
+    console.error('[textbooks] get attempts error:', err);
+    res.status(500).json({ error: 'Failed to get attempts' });
+  }
+});
+
+// GET /api/textbooks/lesson-records?chapterId=...&studentId=...
+router.get('/lesson-records', async (req: Request, res: Response) => {
+  try {
+    const userId = req.user!.id;
+    const role = req.user!.role;
+    const { chapterId, studentId } = req.query as { chapterId?: string; studentId?: string };
+
+    let query = `SELECT * FROM chapter_lesson_records WHERE 1=1`;
+    const params: unknown[] = [];
+
+    if (role === 'coach') {
+      params.push(userId);
+      query += ` AND coach_id=$${params.length}`;
+    } else {
+      params.push(userId);
+      query += ` AND student_id=$${params.length}`;
+    }
+
+    if (chapterId) { params.push(chapterId); query += ` AND chapter_id=$${params.length}`; }
+    if (studentId && role === 'coach') { params.push(studentId); query += ` AND student_id=$${params.length}`; }
+
+    query += ' ORDER BY lesson_date DESC, created_at DESC';
+
+    const result = await pool.query(query, params);
+    res.json(result.rows.map((r) => ({
+      id: r.id,
+      chapterId: r.chapter_id,
+      textbookId: r.textbook_id,
+      studentId: r.student_id,
+      studentName: r.student_name,
+      coachId: r.coach_id,
+      lessonDate: r.lesson_date,
+      textMemo: r.text_memo,
+      mediaFiles: r.media_files ?? [],
+      checklist: r.checklist ?? [],
+      linkedLessonId: r.linked_lesson_id,
+      coachFeedback: r.coach_feedback,
+      createdAt: r.created_at,
+      updatedAt: r.updated_at,
+    })));
+  } catch (err) {
+    console.error('[textbooks] get lesson-records error:', err);
+    res.status(500).json({ error: 'Failed to get records' });
   }
 });
 
@@ -412,81 +484,7 @@ router.post('/attempts', async (req: Request, res: Response) => {
   }
 });
 
-// GET /api/textbooks/attempts?chapterId=...
-router.get('/attempts', async (req: Request, res: Response) => {
-  try {
-    const userId = req.user!.id;
-    const { chapterId } = req.query as { chapterId?: string };
-
-    const result = await pool.query(
-      `SELECT * FROM quiz_attempts WHERE student_id=$1 ${chapterId ? 'AND chapter_id=$2' : ''} ORDER BY taken_at DESC`,
-      chapterId ? [userId, chapterId] : [userId]
-    );
-
-    res.json(result.rows.map((r) => ({
-      id: r.id,
-      studentId: r.student_id,
-      chapterId: r.chapter_id,
-      textbookId: r.textbook_id,
-      attemptNumber: r.attempt_number,
-      score: r.score,
-      passed: r.passed,
-      answers: r.answers ?? [],
-      takenAt: r.taken_at,
-    })));
-  } catch (err) {
-    console.error('[textbooks] get attempts error:', err);
-    res.status(500).json({ error: 'Failed to get attempts' });
-  }
-});
-
 // ── Chapter Lesson Records ─────────────────────────────────────────────────
-
-// GET /api/textbooks/lesson-records?chapterId=...&studentId=...
-router.get('/lesson-records', async (req: Request, res: Response) => {
-  try {
-    const userId = req.user!.id;
-    const role = req.user!.role;
-    const { chapterId, studentId } = req.query as { chapterId?: string; studentId?: string };
-
-    let query = `SELECT * FROM chapter_lesson_records WHERE 1=1`;
-    const params: unknown[] = [];
-
-    if (role === 'coach') {
-      params.push(userId);
-      query += ` AND coach_id=$${params.length}`;
-    } else {
-      params.push(userId);
-      query += ` AND student_id=$${params.length}`;
-    }
-
-    if (chapterId) { params.push(chapterId); query += ` AND chapter_id=$${params.length}`; }
-    if (studentId && role === 'coach') { params.push(studentId); query += ` AND student_id=$${params.length}`; }
-
-    query += ' ORDER BY lesson_date DESC, created_at DESC';
-
-    const result = await pool.query(query, params);
-    res.json(result.rows.map((r) => ({
-      id: r.id,
-      chapterId: r.chapter_id,
-      textbookId: r.textbook_id,
-      studentId: r.student_id,
-      studentName: r.student_name,
-      coachId: r.coach_id,
-      lessonDate: r.lesson_date,
-      textMemo: r.text_memo,
-      mediaFiles: r.media_files ?? [],
-      checklist: r.checklist ?? [],
-      linkedLessonId: r.linked_lesson_id,
-      coachFeedback: r.coach_feedback,
-      createdAt: r.created_at,
-      updatedAt: r.updated_at,
-    })));
-  } catch (err) {
-    console.error('[textbooks] get lesson-records error:', err);
-    res.status(500).json({ error: 'Failed to get records' });
-  }
-});
 
 // POST /api/textbooks/lesson-records
 router.post('/lesson-records', async (req: Request, res: Response) => {
