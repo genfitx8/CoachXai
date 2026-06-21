@@ -713,6 +713,11 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
                     myLessons={myLessonsRaw}
                     homeworkList={homeworkList}
                     onBack={handleBackToList}
+                    onOpenBayReservation={!HIDE_RESERVATION_FEATURES ? () => { setView('BAY_RESERVATION'); } : undefined}
+                    onOpenMyReservations={!HIDE_RESERVATION_FEATURES ? () => { setView('RESERVATION'); } : undefined}
+                    onOpenStats={() => { setView('STATS'); }}
+                    onOpenRecords={() => { setView('RECENT_RECORDS'); }}
+                    onOpenProfile={() => openProfileSection('OVERVIEW')}
                 />
             </div>
         )}
