@@ -256,16 +256,18 @@ const AppContent: React.FC = () => {
           // Determine identifying info
           const { name, phone } = session.clientData;
 
-          // Fetch full profile
+          // Fetch full profile (including coachId) for the authenticated client
           let foundClient: ClientProfile | undefined;
           if (canUseProtectedApi) {
             try {
-              const allClients = await apiService.getClients();
+              foundClient = await apiService.getMyClientProfile();
+            } catch (e) {
+              console.warn('[App] Failed to restore client profile from /api/clients/me:', e);
+              // Fallback: search local storage
+              const allClients = storageService.getClients();
               foundClient = allClients.find(
                 (c) => c.name === name && c.phone === phone
               );
-            } catch (e) {
-              console.warn('[App] Failed to restore client profile from API:', e);
             }
           } else {
             const allClients = storageService.getClients();

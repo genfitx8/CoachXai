@@ -280,6 +280,11 @@ export const apiService = {
 
   // ── Clients ───────────────────────────────────────────────────────────────
 
+  async getMyClientProfile(): Promise<ClientProfile> {
+    const data = await req<{ client: ClientProfile }>('GET', '/api/clients/me');
+    return data.client;
+  },
+
   async getClients(): Promise<ClientProfile[]> {
     const data = await req<{ clients: ClientProfile[] }>('GET', '/api/clients');
     return data.clients;
