@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Lesson, ClientProfile, Homework } from '../types';
+import { Lesson, ClientProfile, CoachProfile, Homework } from '../types';
 import { ChevronLeft, Send, Sparkles, Bot, MessageCircle, Target, TrendingUp, ListChecks, Dumbbell, HelpCircle } from 'lucide-react';
 import { CoachXChatMessage } from '../services/coachXService';
 import { generateStudentChatResponse } from '../services/geminiService';
@@ -9,6 +9,7 @@ interface StudentAIChatProps {
   clientProfile: ClientProfile;
   myLessons: Lesson[];
   homeworkList: Homework[];
+  coachProfile?: CoachProfile;
   onBack: () => void;
   initialQuery?: string;
 }
@@ -48,6 +49,7 @@ export const StudentAIChat: React.FC<StudentAIChatProps> = ({
   clientProfile,
   myLessons,
   homeworkList,
+  coachProfile,
   onBack,
   initialQuery,
 }) => {
@@ -111,7 +113,7 @@ export const StudentAIChat: React.FC<StudentAIChatProps> = ({
     setIsTyping(true);
 
     const lang = (language as 'ko' | 'en' | 'ja') ?? 'ko';
-    const reply = await generateStudentChatResponse(msgText, myLessons, clientProfile, homeworkList, lang);
+    const reply = await generateStudentChatResponse(msgText, myLessons, clientProfile, homeworkList, lang, coachProfile);
     const assistantMsg: CoachXChatMessage = {
       role: 'assistant',
       content: reply,

@@ -357,6 +357,15 @@ export const apiService = {
     // Phase 2: full coach deletion
   },
 
+  async getCoachById(coachId: string): Promise<CoachProfile | null> {
+    try {
+      const data = await req<{ coach: CoachProfile }>('GET', `/api/coaches/${coachId}`);
+      return data.coach;
+    } catch {
+      return null;
+    }
+  },
+
   async findCoach(name: string, phone: string): Promise<CoachProfile | null> {
     try {
       const coaches = await this.getCoaches();

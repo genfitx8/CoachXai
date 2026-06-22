@@ -81,6 +81,41 @@ router.get('/me', coachSelfLimiter, authMiddleware, requireCoachRole, async (req
   }
 });
 
+// GET /api/coaches/:id - accessible by authenticated coaches and clients
+router.get('/:id', coachSelfLimiter, authMiddleware, async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const result = await pool.query(
+      `SELECT ${COACH_COLUMNS} FROM coaches WHERE id = $1`,
+      [id]
+    );
+
+    if (result.rows.length === 0) {
+      res.status(404).json({ error: 'Coach not found' });
+      return;
+    }
+
+    const coach = mapCoach(result.rows[0]);
+    // Clients only receive public-safe fields
+    if (req.user?.role !== 'coach') {
+      res.json({
+        coach: {
+          id: coach.id,
+          name: coach.name,
+          phone: coach.phone,
+          email: coach.email,
+          workingSchedule: coach.workingSchedule,
+        },
+      });
+      return;
+    }
+    res.json({ coach });
+  } catch (err) {
+    console.error('[coaches] GET /:id error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // PUT /api/coaches/me
 router.put('/me', coachSelfLimiter, authMiddleware, requireCoachRole, async (req: Request, res: Response) => {
   try {
