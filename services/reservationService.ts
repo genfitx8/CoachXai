@@ -790,6 +790,116 @@ class ReservationService {
   }
 
   /**
+   * 회원이 예약 가능 슬롯을 직접 CONFIRMED 상태로 확정
+   */
+  async confirmAvailableSlotByStudent(
+    reservationId: string,
+    clientId: string,
+    clientName: string,
+    clientPhone: string,
+    notes?: string
+  ): Promise<LessonReservation> {
+    const reservation = await this.loadReservationById(reservationId);
+    if (!reservation) throw new Error('예약을 찾을 수 없습니다.');
+    if (reservation.status !== 'AVAILABLE') throw new Error('이미 예약된 시간대입니다.');
+
+    const updatedReservation: LessonReservation = {
+      ...reservation,
+      clientId,
+      clientName,
+      clientPhone,
+      notes,
+      status: 'CONFIRMED',
+      requestedAt: Date.now(),
+      adminConfirmedAt: Date.now(),
+      updatedAt: Date.now(),
+    };
+    await this.persistReservation(updatedReservation);
+
+    sendLessonReservationStatusNotifications(updatedReservation, 'ADMIN_CONFIRMED').catch((e) =>
+      log.error('[ReservationService] Unexpected notification error:', e)
+    );
+
+    return updatedReservation;
+  }
+
+  /**
+   * 회원이 직접 시간을 입력하여 CONFIRMED 상태로 예약 확정 (새 예약 생성)
+   */
+  async confirmReservationWithTimeByStudent(
+    coachId: string,
+    coachName: string,
+    clientId: string,
+    clientName: string,
+    clientPhone: string,
+    startTime: string,
+    endTime: string,
+    notes?: string
+  ): Promise<LessonReservation> {
+    let allReservations: LessonReservation[];
+
+    if (this.isFirebaseMode()) {
+      allReservations = await firebaseService.getReservations(coachId);
+    } else {
+      const all = storageService.getReservations();
+      allReservations = all.filter((r) => r.coachId === coachId);
+    }
+
+    const requestStart = new Date(startTime);
+    const requestEnd = new Date(endTime);
+
+    const hasTimeOverlap = (s1: Date, e1: Date, s2: Date, e2: Date): boolean =>
+      s1 < e2 && e1 > s2;
+
+    const blockedConflict = allReservations.find((r) => {
+      if (r.status !== 'BLOCKED') return false;
+      return hasTimeOverlap(requestStart, requestEnd, new Date(r.startTime), new Date(r.endTime));
+    });
+
+    if (blockedConflict) {
+      throw new Error(`선택하신 시간은 예약이 불가능합니다. (사유: ${blockedConflict.blockReason || '블럭된 시간'})`);
+    }
+
+    const reservationConflict = allReservations.find((r) => {
+      if (!OCCUPIED_SLOT_STATUSES.includes(r.status)) return false;
+      return hasTimeOverlap(requestStart, requestEnd, new Date(r.startTime), new Date(r.endTime));
+    });
+
+    if (reservationConflict) {
+      throw new Error('선택하신 시간은 이미 다른 예약이 있습니다.');
+    }
+
+    const reservation: LessonReservation = {
+      id: crypto.randomUUID(),
+      coachId,
+      coachName,
+      clientId,
+      clientName,
+      clientPhone,
+      startTime,
+      endTime,
+      status: 'CONFIRMED',
+      notes,
+      requestedAt: Date.now(),
+      adminConfirmedAt: Date.now(),
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    };
+
+    if (this.isFirebaseMode()) {
+      await firebaseService.saveReservation(reservation);
+    } else {
+      storageService.saveReservation(reservation);
+    }
+
+    sendLessonReservationStatusNotifications(reservation, 'ADMIN_CONFIRMED').catch((e) =>
+      log.error('[ReservationService] Unexpected notification error:', e)
+    );
+
+    return reservation;
+  }
+
+  /**
    * 코치가 회원 대신 레슨 예약을 직접 CONFIRMED 상태로 생성
    * - BLOCKED / PENDING / CONFIRMED 슬롯과 겹치면 오류
    * - createdByCoachId 에 코치 ID 기록

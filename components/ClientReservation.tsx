@@ -3,7 +3,7 @@ import { ClientProfile, CoachProfile, LessonReservation, ReservationStatus } fro
 import { reservationService, VIRTUAL_SLOT_ID_PREFIX } from '../services/reservationService';
 import { firebaseService } from '../services/firebase';
 import { storageService } from '../services/storage';
-import { Calendar, Clock, User, ArrowLeft, Filter, XCircle } from 'lucide-react';
+import { Calendar, Clock, User, ArrowLeft, Filter, XCircle, MapPin, CheckCircle } from 'lucide-react';
 import { Button } from './Button';
 
 interface ClientReservationProps {
@@ -98,7 +98,7 @@ export const ClientReservation: React.FC<ClientReservationProps> = ({ clientProf
     if (!selectedSlot) return;
 
     try {
-      await reservationService.requestReservation(
+      await reservationService.confirmAvailableSlotByStudent(
         selectedSlot.id,
         clientId,
         clientProfile.name,
@@ -106,12 +106,12 @@ export const ClientReservation: React.FC<ClientReservationProps> = ({ clientProf
         notes || undefined
       );
 
-      alert('예약 요청이 완료되었습니다. 코치의 승인을 기다려주세요.');
+      alert('예약이 확정되었습니다.');
       setSelectedSlot(null);
       setNotes('');
       loadAvailableSlots();
     } catch (error: any) {
-      alert(error.message || '예약 요청에 실패했습니다.');
+      alert(error.message || '예약 확정에 실패했습니다.');
     }
   };
 
@@ -187,7 +187,7 @@ export const ClientReservation: React.FC<ClientReservationProps> = ({ clientProf
     try {
       if (selectedDateSlot && !selectedDateSlot.id.startsWith(VIRTUAL_SLOT_ID_PREFIX)) {
         // Use the pre-set explicit available slot
-        await reservationService.requestReservation(
+        await reservationService.confirmAvailableSlotByStudent(
           selectedDateSlot.id,
           clientId,
           clientProfile.name,
@@ -198,7 +198,7 @@ export const ClientReservation: React.FC<ClientReservationProps> = ({ clientProf
         // Direct time input or virtual working-hour slot
         const startDateTime = `${requestDate}T${requestStartTime}:00`;
         const endDateTime = `${requestDate}T${requestEndTime}:00`;
-        await reservationService.requestReservationWithTime(
+        await reservationService.confirmReservationWithTimeByStudent(
           coachId,
           selectedCoachName,
           clientId,
@@ -210,7 +210,7 @@ export const ClientReservation: React.FC<ClientReservationProps> = ({ clientProf
         );
       }
 
-      alert('예약 요청이 완료되었습니다. 코치의 승인을 기다려주세요.');
+      alert('예약이 확정되었습니다.');
       setShowRequestForm(false);
       setRequestDate('');
       setRequestStartTime('');
@@ -220,7 +220,7 @@ export const ClientReservation: React.FC<ClientReservationProps> = ({ clientProf
       setDateSlotsForDate([]);
       loadMyReservations();
     } catch (error: any) {
-      alert(error.message || '예약 요청에 실패했습니다.');
+      alert(error.message || '예약 확정에 실패했습니다.');
     }
   };
 
@@ -430,22 +430,22 @@ export const ClientReservation: React.FC<ClientReservationProps> = ({ clientProf
                 {!showRequestForm ? (
                   <div className="bg-white rounded-lg shadow-sm p-8 text-center">
                     <Calendar className="w-16 h-16 text-blue-500 mx-auto mb-4" />
-                    <h3 className="text-xl font-semibold text-gray-900 mb-2">레슨 예약하기</h3>
+                    <h3 className="text-xl font-semibold text-gray-900 mb-2">레슨 예약 확정하기</h3>
                     <p className="text-gray-600 mb-6">
                       원하시는 날짜와 시간을 선택해주세요.<br />
-                      블럭된 시간을 제외한 모든 시간에 예약을 요청할 수 있습니다.
+                      블럭된 시간을 제외한 모든 시간에 즉시 예약 확정이 가능합니다.
                     </p>
                     <Button onClick={() => setShowRequestForm(true)} className="mx-auto">
-                      예약 신청하기
+                      예약 확정하기
                     </Button>
                   </div>
                 ) : (
                   <div className="bg-white rounded-lg shadow-md p-6">
-                    <h2 className="text-lg font-semibold mb-4">레슨 예약 신청</h2>
+                    <h2 className="text-lg font-semibold mb-4">레슨 예약 확정</h2>
                     <form onSubmit={handleRequestWithTime} className="space-y-4">
                       <div>
                         <label htmlFor="request-coach" className="block text-sm font-medium text-gray-700 mb-1">
-                          프로
+                          담당 프로
                         </label>
                         <input
                           id="request-coach"
@@ -568,7 +568,7 @@ export const ClientReservation: React.FC<ClientReservationProps> = ({ clientProf
                       </div>
                       <div className="flex gap-2">
                         <Button type="submit" className="flex-1">
-                          예약 요청
+                          예약 확정
                         </Button>
                         <button
                           type="button"
@@ -599,28 +599,36 @@ export const ClientReservation: React.FC<ClientReservationProps> = ({ clientProf
                   전체
                 </button>
                 <button
-                  onClick={() => setFilterStatus('REQUESTED')}
-                  className={`px-3 py-1 rounded-full text-sm font-medium transition whitespace-nowrap ${
-                    filterStatus === 'REQUESTED' ? 'bg-yellow-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
-                >
-                  코치 승인 대기
-                </button>
-                <button
-                  onClick={() => setFilterStatus('ADMIN_BLOCK_PENDING')}
-                  className={`px-3 py-1 rounded-full text-sm font-medium transition whitespace-nowrap ${
-                    filterStatus === 'ADMIN_BLOCK_PENDING' ? 'bg-indigo-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
-                >
-                  관리자 확정 대기
-                </button>
-                <button
                   onClick={() => setFilterStatus('CONFIRMED')}
                   className={`px-3 py-1 rounded-full text-sm font-medium transition whitespace-nowrap ${
                     filterStatus === 'CONFIRMED' ? 'bg-green-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                   }`}
                 >
-                  확정됨
+                  예약 확정
+                </button>
+                <button
+                  onClick={() => setFilterStatus('CHANGE_REQUESTED')}
+                  className={`px-3 py-1 rounded-full text-sm font-medium transition whitespace-nowrap ${
+                    filterStatus === 'CHANGE_REQUESTED' ? 'bg-purple-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  변경 요청
+                </button>
+                <button
+                  onClick={() => setFilterStatus('CANCEL_REQUESTED')}
+                  className={`px-3 py-1 rounded-full text-sm font-medium transition whitespace-nowrap ${
+                    filterStatus === 'CANCEL_REQUESTED' ? 'bg-orange-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  취소 요청
+                </button>
+                <button
+                  onClick={() => setFilterStatus('CANCELLED')}
+                  className={`px-3 py-1 rounded-full text-sm font-medium transition whitespace-nowrap ${
+                    filterStatus === 'CANCELLED' ? 'bg-red-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  취소됨
                 </button>
               </div>
             </div>
@@ -665,6 +673,18 @@ export const ClientReservation: React.FC<ClientReservationProps> = ({ clientProf
                         <User className="w-4 h-4 text-gray-400" />
                         <span>{reservation.coachName} 코치</span>
                       </div>
+                      {reservation.bayLabel && (
+                        <div className="flex items-center gap-2 text-gray-600 text-sm mt-1">
+                          <MapPin className="w-4 h-4 text-gray-400" />
+                          <span>타석: {reservation.bayLabel}</span>
+                        </div>
+                      )}
+                      {reservation.status === 'CONFIRMED' && reservation.adminConfirmedAt && (
+                        <div className="flex items-center gap-2 text-green-600 text-xs mt-1">
+                          <CheckCircle className="w-3.5 h-3.5" />
+                          <span>확정일시: {new Date(reservation.adminConfirmedAt).toLocaleString('ko-KR', { month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                        </div>
+                      )}
                       {reservation.notes && (
                         <p className="text-sm text-gray-600 mt-2 italic">{reservation.notes}</p>
                       )}
@@ -701,7 +721,7 @@ export const ClientReservation: React.FC<ClientReservationProps> = ({ clientProf
       {selectedSlot && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
-            <h2 className="text-xl font-bold mb-4">레슨 예약</h2>
+            <h2 className="text-xl font-bold mb-4">레슨 예약 확정</h2>
             
             <div className="space-y-3 mb-6">
               <div className="flex items-center gap-2 text-gray-700">
@@ -724,7 +744,7 @@ export const ClientReservation: React.FC<ClientReservationProps> = ({ clientProf
 
             <div className="mb-6">
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                요청 메모 (선택사항)
+                메모 (선택사항)
               </label>
               <textarea
                 value={notes}
@@ -737,7 +757,7 @@ export const ClientReservation: React.FC<ClientReservationProps> = ({ clientProf
 
             <div className="flex gap-2">
               <Button onClick={handleRequestReservation} className="flex-1">
-                예약 요청
+                예약 확정
               </Button>
               <button
                 onClick={() => {
