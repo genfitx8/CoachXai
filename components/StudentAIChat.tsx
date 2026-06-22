@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Lesson, ClientProfile, CoachProfile, Homework } from '../types';
-import { ChevronLeft, Send, Sparkles, Bot, MessageCircle, Target, TrendingUp, ListChecks, Dumbbell, HelpCircle } from 'lucide-react';
+import { ChevronLeft, Send, Sparkles, Bot, MessageCircle, Target, TrendingUp, ListChecks, Dumbbell, HelpCircle, Home } from 'lucide-react';
 import { CoachXChatMessage } from '../services/coachXService';
 import { generateStudentChatResponse } from '../services/geminiService';
 import { useLanguage } from './LanguageContext';
@@ -170,10 +170,13 @@ export const StudentAIChat: React.FC<StudentAIChatProps> = ({
       <div className="flex items-center gap-3 px-4 py-3 border-b border-white/10 bg-gray-900/90 backdrop-blur-sm sticky top-0 z-10">
         <button
           onClick={onBack}
-          className="p-3 rounded-full hover:bg-white/10 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
+          className="flex items-center gap-1 py-2 px-2.5 rounded-xl hover:bg-white/10 transition-colors min-h-[44px]"
           aria-label={t('back')}
         >
-          <ChevronLeft className="w-5 h-5 text-white" />
+          <ChevronLeft className="w-5 h-5 text-white flex-shrink-0" />
+          <span className="text-sm font-semibold text-white">
+            {language === 'en' ? 'Home' : language === 'ja' ? 'ホーム' : '대시보드'}
+          </span>
         </button>
 
         <div className="relative w-9 h-9 flex items-center justify-center flex-shrink-0">
@@ -284,6 +287,17 @@ export const StudentAIChat: React.FC<StudentAIChatProps> = ({
 
       {/* Input bar */}
       <div className="px-4 pb-safe pb-4 border-t border-white/10 bg-gray-900/90 backdrop-blur-sm pt-3">
+        <div className="flex gap-2 items-end mb-2">
+          <button
+            onClick={onBack}
+            className="flex items-center gap-1.5 text-xs text-indigo-300 hover:text-white transition-colors py-1.5 px-2 rounded-lg hover:bg-white/10"
+          >
+            <Home className="w-3.5 h-3.5 flex-shrink-0" />
+            <span>
+              {language === 'en' ? 'Back to Dashboard' : language === 'ja' ? 'ダッシュボードへ戻る' : '대시보드로 돌아가기'}
+            </span>
+          </button>
+        </div>
         <div className="flex gap-2 items-end">
           <input
             ref={inputRef}
