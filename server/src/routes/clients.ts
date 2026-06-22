@@ -24,6 +24,25 @@ function mapClient(row: Record<string, unknown>) {
   };
 }
 
+// GET /api/clients/me — client fetches their own profile
+router.get('/me', async (req: Request, res: Response) => {
+  try {
+    if (req.user!.role !== 'client') {
+      res.status(403).json({ error: 'Forbidden' });
+      return;
+    }
+    const result = await pool.query('SELECT * FROM clients WHERE id = $1', [req.user!.id]);
+    if (result.rows.length === 0) {
+      res.status(404).json({ error: 'Client not found' });
+      return;
+    }
+    res.json({ client: mapClient(result.rows[0]) });
+  } catch (err) {
+    console.error('[clients] GET /me error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // GET /api/clients
 router.get('/', async (req: Request, res: Response) => {
   try {
