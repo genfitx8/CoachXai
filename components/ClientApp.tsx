@@ -19,6 +19,7 @@ import { StudentAIChat } from './StudentAIChat';
 import { User, LogOut, History, PlayCircle, Plus, BarChart3, Bell, ListChecks, Globe, Calendar, Search, Filter, Eye, EyeOff, ChevronRight, ChevronLeft, Award, Target, ClipboardList, Crown, Briefcase, ScanLine, Sparkles } from 'lucide-react';
 import { firebaseService } from '../services/firebase';
 import { storageService } from '../services/storage';
+import { apiService } from '../services/apiService';
 import { pointService } from '../services/pointService';
 import { NotificationToast } from './NotificationToast';
 import { useLanguage } from './LanguageContext';
@@ -81,6 +82,9 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
   const [showHomeworkModal, setShowHomeworkModal] = useState(false);
   const [profileSection, setProfileSection] = useState<'OVERVIEW' | 'GOLF_PROFILE' | 'CLUB_BAG' | 'BODY_ANALYSIS'>('OVERVIEW');
 
+  // Designated coach profile (for AI context)
+  const [designatedCoachProfile, setDesignatedCoachProfile] = useState<CoachProfile | null>(null);
+
   // Quick Log State
   const [quickLogs, setQuickLogs] = useState<QuickLogEntry[]>([]);
   const isProMember = clientProfile.subscriptionPlan === 'PRO' || !!clientProfile.isSubscribed;
@@ -101,6 +105,29 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
 
     return view;
   }, [view]);
+
+  // Load designated coach profile for AI context
+  useEffect(() => {
+    const coachId = clientProfile.coachId;
+    if (!coachId) return;
+
+    const loadCoach = async () => {
+      let coach: CoachProfile | null = null;
+      if (isFirebaseMode) {
+        coach = await firebaseService.getCoachById(coachId);
+      } else {
+        const stored = storageService.getCoachById(coachId);
+        if (stored) {
+          coach = stored;
+        } else {
+          coach = await apiService.getCoachById(coachId);
+        }
+      }
+      if (coach) setDesignatedCoachProfile(coach);
+    };
+
+    loadCoach();
+  }, [clientProfile.coachId, isFirebaseMode]);
 
   // Load Homework & AI Check
   useEffect(() => {
@@ -712,6 +739,7 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
                     clientProfile={clientProfile}
                     myLessons={myLessonsRaw}
                     homeworkList={homeworkList}
+                    coachProfile={designatedCoachProfile ?? undefined}
                     onBack={handleBackToList}
                 />
             </div>

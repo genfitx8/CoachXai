@@ -1570,12 +1570,49 @@ export const analyzeTrackmanScreen = async (
   }
 };
 
+const DAY_LABELS: Record<string, string> = {
+  mon: '월요일', tue: '화요일', wed: '수요일', thu: '목요일',
+  fri: '금요일', sat: '토요일', sun: '일요일',
+};
+
+const buildCoachContext = (coachProfile: CoachProfile | undefined, designatedCoachName: string | undefined): string => {
+  if (!coachProfile) {
+    return `담당 코치: ${designatedCoachName || '미지정'}`;
+  }
+
+  const lines: string[] = [
+    `담당 코치 이름: ${coachProfile.name}`,
+  ];
+  if (coachProfile.phone) lines.push(`코치 연락처: ${coachProfile.phone}`);
+  if (coachProfile.email) lines.push(`코치 이메일: ${coachProfile.email}`);
+
+  const schedule = coachProfile.workingSchedule;
+  if (schedule && Object.keys(schedule).length > 0) {
+    const scheduleParts: string[] = [];
+    for (const [day, entry] of Object.entries(schedule)) {
+      if (!entry) continue;
+      const label = DAY_LABELS[day] ?? day;
+      if (entry.isClosed) {
+        scheduleParts.push(`${label}: 휴무`);
+      } else {
+        scheduleParts.push(`${label}: ${entry.open} ~ ${entry.close}`);
+      }
+    }
+    if (scheduleParts.length > 0) {
+      lines.push(`코치 스케줄:\n${scheduleParts.map(s => `  - ${s}`).join('\n')}`);
+    }
+  }
+
+  return lines.join('\n');
+};
+
 export const generateStudentChatResponse = async (
   userMessage: string,
   myLessons: Lesson[],
   clientProfile: ClientProfile,
   homeworkList: Homework[],
-  language: CoachXLanguage = 'ko'
+  language: CoachXLanguage = 'ko',
+  coachProfile?: CoachProfile
 ): Promise<string> => {
   try {
     const recentLessons = [...myLessons]
@@ -1600,6 +1637,8 @@ export const generateStudentChatResponse = async (
       ? pendingHomework.map(h => `- ${h.title}`).join('\n')
       : '오늘 남은 미션 없음';
 
+    const coachContext = buildCoachContext(coachProfile, clientProfile.designatedCoach);
+
     const LANG_INSTRUCTION: Record<CoachXLanguage, string> = {
       ko: '반드시 한국어로 답변하세요. 친근하고 격려하는 톤으로 말해주세요.',
       en: 'Respond entirely in English. Use a friendly and encouraging tone.',
@@ -1613,8 +1652,10 @@ export const generateStudentChatResponse = async (
 - 이름: ${clientProfile.name}
 - 핸디캡: ${clientProfile.handicap || '없음'}
 - 베스트 스코어: ${clientProfile.bestScore || '없음'}
-- 담당 코치: ${clientProfile.designatedCoach || '미지정'}
 - 총 레슨 수: ${myLessons.length}
+
+지정 코치 정보:
+${coachContext}
 
 최근 레슨 기록 (최근 10개):
 ${lessonContext}
@@ -1628,6 +1669,7 @@ ${homeworkContext}
 
 주의사항:
 - 학생 데이터를 기반으로 구체적이고 개인화된 답변을 해주세요
+- 코치 이름이나 스케줄에 대해 질문하면 위 지정 코치 정보를 활용해 정확히 답해주세요
 - 격려하고 동기부여하는 톤을 유지하세요
 - 골프 기술 조언은 전문적이되 쉽게 설명하세요
 - 답변은 간결하고 실용적으로 300자 이내로 해주세요`;
