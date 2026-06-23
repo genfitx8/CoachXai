@@ -21,6 +21,7 @@ export const CoachXLanding: React.FC<CoachXLandingProps> = ({
     useState<DeferredInstallPromptEvent | null>(null);
   const [isInstalled, setIsInstalled] = useState(false);
   const [installHintMessage, setInstallHintMessage] = useState('');
+  const [isGreeting, setIsGreeting] = useState(false);
 
   const userAgent =
     typeof window === 'undefined' ? '' : window.navigator.userAgent.toLowerCase();
@@ -45,6 +46,8 @@ export const CoachXLanding: React.FC<CoachXLandingProps> = ({
         utterance.rate = GREETING_SPEECH_RATE;
         utterance.pitch = 1;
         utterance.volume = 0.8;
+        utterance.onstart = () => setIsGreeting(true);
+        utterance.onend = () => setIsGreeting(false);
 
         speechSynthesisApi.cancel();
         speechSynthesisApi.speak(utterance);
@@ -167,10 +170,23 @@ export const CoachXLanding: React.FC<CoachXLandingProps> = ({
           className="absolute left-1/2 top-1/2 w-52 h-52 -translate-x-1/2 -translate-y-1/2 rounded-full border border-violet-300/30 animate-pulse"
           style={{ animationDelay: '1s' }}
         />
+        {isGreeting && (
+          <div
+            className="absolute left-1/2 top-1/2 h-96 w-96 -translate-x-1/2 -translate-y-1/2 rounded-full border border-cyan-300/50 animate-ping"
+            style={{ animationDuration: '1.5s' }}
+          />
+        )}
       </div>
 
       <div className="relative z-10 text-center">
-        <h1 className="text-4xl md:text-5xl tracking-wide font-semibold">CoachX AI</h1>
+        <h1
+          className="text-4xl md:text-5xl tracking-wide font-semibold"
+          style={{
+            textShadow: '0 0 40px rgba(56,189,248,0.35), 0 0 80px rgba(56,189,248,0.15)',
+          }}
+        >
+          CoachX AI
+        </h1>
         <p className="mt-4 text-white/70 text-base md:text-lg">Hello, coach.</p>
       </div>
 
