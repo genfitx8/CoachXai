@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Lesson, ClientProfile, CoachProfile, Homework, LessonReservation } from '../types';
+import { Lesson, ClientProfile, CoachProfile, Homework, LessonReservation, QuickLogEntry } from '../types';
 import {
   ChevronLeft, Send, Sparkles, Bot, MessageCircle, Target, TrendingUp,
   ListChecks, Dumbbell, HelpCircle, Mic, MicOff, MessageSquare, Volume2, VolumeX,
@@ -17,6 +17,7 @@ interface StudentAIChatProps {
   clientProfile: ClientProfile;
   myLessons: Lesson[];
   homeworkList: Homework[];
+  quickLogs?: QuickLogEntry[];
   coachProfile?: CoachProfile;
   onBack: () => void;
   initialQuery?: string;
@@ -99,6 +100,7 @@ export const StudentAIChat: React.FC<StudentAIChatProps> = ({
   clientProfile,
   myLessons,
   homeworkList,
+  quickLogs = [],
   coachProfile,
   onBack,
   initialQuery,
@@ -353,7 +355,7 @@ export const StudentAIChat: React.FC<StudentAIChatProps> = ({
 
     setIsTyping(true);
 
-    const reply = await generateStudentChatResponse(msgText, myLessons, clientProfile, homeworkList, lang, coachProfile);
+    const reply = await generateStudentChatResponse(msgText, myLessons, clientProfile, homeworkList, lang, coachProfile, quickLogs);
     const assistantMsg: CoachXChatMessage = {
       role: 'assistant',
       content: reply,
