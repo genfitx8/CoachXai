@@ -672,6 +672,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
       >
         <div className="absolute -top-32 left-1/2 h-[420px] w-[420px] -translate-x-1/2 rounded-full bg-primary-600/15 blur-3xl" />
         <div className="absolute bottom-0 right-0 h-[360px] w-[360px] translate-x-1/3 translate-y-1/3 rounded-full bg-primary-800/20 blur-3xl" />
+        <div className="absolute left-1/2 top-1/4 h-[200px] w-[200px] -translate-x-1/2 rounded-full bg-cyan-500/6 blur-3xl" />
       </div>
 
       {/* Language switcher — top right */}
@@ -720,9 +721,13 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
       <div className="relative z-10 flex min-h-screen items-center justify-center p-4 pb-20">
         <Card variant="elevated" padding="none" className="w-full max-w-md overflow-hidden">
           {/* Brand header */}
-          <div className="px-8 pt-10 pb-6 text-center">
-            <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-primary-500 to-primary-700 shadow-glow">
-              <Activity className="h-8 w-8 text-white" />
+          <div className="relative overflow-hidden px-8 pt-10 pb-6 text-center">
+            <div aria-hidden="true" className="pointer-events-none absolute inset-0">
+              <div className="absolute left-1/2 top-0 h-48 w-48 -translate-x-1/2 -translate-y-1/4 rounded-full bg-cyan-500/8 blur-3xl" />
+              <div className="absolute left-1/2 top-0 h-40 w-40 -translate-x-1/2 -translate-y-1/4 rounded-full bg-primary-600/10 blur-2xl" />
+            </div>
+            <div className="relative mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl border border-cyan-300/20 bg-bg-overlay shadow-elev-2">
+              <Activity className="h-8 w-8 text-cyan-300" />
             </div>
             <CardTitle className="text-display-sm">CoachX AI</CardTitle>
             <p className="mt-2 text-sm leading-relaxed text-ink-muted">{t('app_desc')}</p>
@@ -843,10 +848,18 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
                 type="submit"
                 fullWidth
                 size="lg"
-                isLoading={isLoading}
+                disabled={isLoading}
                 className="mt-2"
               >
-                {t('login_btn')}
+                {isLoading ? (
+                  <span className="flex items-center gap-2">
+                    <svg className="h-4 w-4 animate-spin text-current" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    </svg>
+                    AI 연결 중...
+                  </span>
+                ) : t('login_btn')}
               </Button>
             </form>
 

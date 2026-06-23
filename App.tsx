@@ -21,6 +21,7 @@ import { LessonUploadPage } from './components/LessonUploadPage';
 import { ImpactSelectionPage } from './components/ImpactSelectionPage';
 import { AuthScreen } from './components/AuthScreen';
 import { CoachXLanding } from './components/CoachXLanding';
+import { WelcomeScreen, TodayLessonSummary } from './components/WelcomeScreen';
 import { AdminDashboard } from './components/AdminDashboard';
 import { BranchAdminDashboard } from './components/BranchAdminDashboard';
 import { SwingComparison } from './components/SwingComparison';
@@ -127,6 +128,7 @@ const AppContent: React.FC = () => {
   } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [showAuthScreen, setShowAuthScreen] = useState(false);
+  const [showWelcomeScreen, setShowWelcomeScreen] = useState(false);
 
   // Data State
   const [lessons, setLessons] = useState<Lesson[]>([]);
@@ -511,8 +513,7 @@ const AppContent: React.FC = () => {
       if (apiService.isAvailable()) {
         await apiService.saveCoach(data);
       }
-      loadAndShowCoachNotifications(data.id);
-      checkAndShowLessonSuggestion(data.id);
+      // Notifications are deferred to handleWelcomeComplete to avoid overlapping with WelcomeScreen
     } else if (role === 'CLIENT') {
       clientIdentity = { name: data.name, phone: data.phone };
       // Ensure client is in our list (for new signups)
@@ -529,6 +530,10 @@ const AppContent: React.FC = () => {
     // Reload data to ensure freshness
     const isFb = apiService.isAvailable() && !!apiService.getToken();
     await loadData(isFb, role);
+
+    if (role === 'COACH') {
+      setShowWelcomeScreen(true);
+    }
   };
 
   // Deep-link: when the URL contains #lesson=<id> (e.g. from a KakaoTalk share),
@@ -586,7 +591,7 @@ const AppContent: React.FC = () => {
     setUserRole(null);
     setCurrentUser(null);
     setBranchAdminData(null);
-    setAuthEntryMode(null);
+    setShowWelcomeScreen(false);
     setCoachView('LIST');
     setSelectedLesson(null);
   };
@@ -1519,6 +1524,26 @@ const AppContent: React.FC = () => {
     };
   }, [allCoachLessons, clients, lessonPackages, currentUser]);
 
+  const todayLessonsForWelcome = useMemo<TodayLessonSummary[]>(
+    () =>
+      dashboardData.todayLessons.map((l) => ({
+        id: l.id,
+        clientName: l.clientName,
+        time: l.date,
+        title: l.title,
+        status: (l.feedbackStatus === 'COMPLETED' ? 'completed' : 'scheduled') as 'scheduled' | 'completed',
+      })),
+    [dashboardData.todayLessons]
+  );
+
+  const handleWelcomeComplete = useCallback(() => {
+    setShowWelcomeScreen(false);
+    if (coachProfile) {
+      loadAndShowCoachNotifications(coachProfile.id);
+      checkAndShowLessonSuggestion(coachProfile.id);
+    }
+  }, [coachProfile]);
+
   /** CoachX member growth reports – derived from lesson data for urgency badge and client list badges */
   const coachXMemberReports = useMemo(
     () => buildMemberGrowthReports(allCoachLessons, clients),
@@ -1576,6 +1601,16 @@ const AppContent: React.FC = () => {
     return (
       <AuthScreen
         onLoginSuccess={handleLoginSuccess}
+      />
+    );
+  }
+
+  if (showWelcomeScreen && userRole === 'COACH' && coachProfile) {
+    return (
+      <WelcomeScreen
+        coachName={coachProfile.name}
+        todayLessons={todayLessonsForWelcome}
+        onComplete={handleWelcomeComplete}
       />
     );
   }
