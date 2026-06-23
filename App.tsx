@@ -21,7 +21,7 @@ import { LessonUploadPage } from './components/LessonUploadPage';
 import { ImpactSelectionPage } from './components/ImpactSelectionPage';
 import { AuthScreen } from './components/AuthScreen';
 import { CoachXLanding } from './components/CoachXLanding';
-import { WelcomeScreen, TodayLessonSummary } from './components/WelcomeScreen';
+import { CoachAIHome, TodayLessonSummary } from './components/CoachAIHome';
 import { AdminDashboard } from './components/AdminDashboard';
 import { BranchAdminDashboard } from './components/BranchAdminDashboard';
 import { SwingComparison } from './components/SwingComparison';
@@ -1536,7 +1536,7 @@ const AppContent: React.FC = () => {
     [dashboardData.todayLessons]
   );
 
-  const handleWelcomeComplete = useCallback(() => {
+  const handleNavigateToDashboard = useCallback(() => {
     setShowWelcomeScreen(false);
     if (coachProfile) {
       loadAndShowCoachNotifications(coachProfile.id);
@@ -1607,10 +1607,12 @@ const AppContent: React.FC = () => {
 
   if (showWelcomeScreen && userRole === 'COACH' && coachProfile) {
     return (
-      <WelcomeScreen
-        coachName={coachProfile.name}
+      <CoachAIHome
+        coachProfile={coachProfile}
+        allLessons={lessons}
+        clients={clients}
         todayLessons={todayLessonsForWelcome}
-        onComplete={handleWelcomeComplete}
+        onNavigateToDashboard={handleNavigateToDashboard}
       />
     );
   }
