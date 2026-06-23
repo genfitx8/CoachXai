@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Lesson, ClientProfile, CoachProfile, Homework } from '../types';
+import { Lesson, ClientProfile, CoachProfile, Homework, QuickLogEntry } from '../types';
 import {
   ChevronLeft, Send, Sparkles, Bot, MessageCircle, Target, TrendingUp,
   ListChecks, Dumbbell, HelpCircle, Home, Mic, MicOff, MessageSquare, Volume2, VolumeX,
@@ -14,6 +14,7 @@ interface StudentAIChatProps {
   clientProfile: ClientProfile;
   myLessons: Lesson[];
   homeworkList: Homework[];
+  quickLogs?: QuickLogEntry[];
   coachProfile?: CoachProfile;
   onBack: () => void;
   initialQuery?: string;
@@ -54,6 +55,7 @@ export const StudentAIChat: React.FC<StudentAIChatProps> = ({
   clientProfile,
   myLessons,
   homeworkList,
+  quickLogs = [],
   coachProfile,
   onBack,
   initialQuery,
@@ -154,7 +156,7 @@ export const StudentAIChat: React.FC<StudentAIChatProps> = ({
     setIsTyping(true);
 
     const lang = (language as 'ko' | 'en' | 'ja') ?? 'ko';
-    const reply = await generateStudentChatResponse(msgText, myLessons, clientProfile, homeworkList, lang, coachProfile);
+    const reply = await generateStudentChatResponse(msgText, myLessons, clientProfile, homeworkList, lang, coachProfile, quickLogs);
     const assistantMsg: CoachXChatMessage = {
       role: 'assistant',
       content: reply,
@@ -457,38 +459,6 @@ export const StudentAIChat: React.FC<StudentAIChatProps> = ({
 
       {/* Input bar */}
       <div className="px-4 pb-safe pb-4 border-t border-white/10 bg-gray-900/90 backdrop-blur-sm pt-3">
-<<<<<<< HEAD
-        <div className="flex gap-2 items-end mb-2">
-          <button
-            onClick={onBack}
-            className="flex items-center gap-1.5 text-xs text-indigo-300 hover:text-white transition-colors py-1.5 px-2 rounded-lg hover:bg-white/10"
-          >
-            <Home className="w-3.5 h-3.5 flex-shrink-0" />
-            <span>
-              {language === 'en' ? 'Back to Dashboard' : language === 'ja' ? 'ダッシュボードへ戻る' : '대시보드로 돌아가기'}
-            </span>
-          </button>
-        </div>
-        <div className="flex gap-2 items-end">
-          <input
-            ref={inputRef}
-            type="text"
-            value={input}
-            onChange={e => setInput(e.target.value)}
-            onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void handleSend(); } }}
-            placeholder={placeholderText}
-            className="flex-1 bg-gray-800 border border-white/10 rounded-2xl px-4 py-3 text-sm text-white placeholder-gray-400 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-colors"
-          />
-          <button
-            onClick={() => void handleSend()}
-            disabled={!input.trim() || isTyping || revealedChars !== null}
-            aria-label="Send"
-            className="w-11 h-11 rounded-full bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center transition-colors flex-shrink-0"
-          >
-            <Send className="w-4 h-4 text-white" />
-          </button>
-        </div>
-=======
         {mode === 'chat' ? (
           <div className="flex gap-2 items-end">
             <input
@@ -588,7 +558,6 @@ export const StudentAIChat: React.FC<StudentAIChatProps> = ({
             )}
           </div>
         )}
->>>>>>> 272fadc (feat: 학생 앱 CoachX AI에 음성 채팅 기능 추가 및 음성 모드 기본값으로 설정)
       </div>
 
       <style>{`

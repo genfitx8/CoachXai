@@ -739,6 +739,7 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
                     clientProfile={clientProfile}
                     myLessons={myLessonsRaw}
                     homeworkList={homeworkList}
+                    quickLogs={quickLogs}
                     coachProfile={designatedCoachProfile ?? undefined}
                     onBack={handleBackToList}
                 />

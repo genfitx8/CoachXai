@@ -1575,6 +1575,150 @@ const DAY_LABELS: Record<string, string> = {
   fri: '금요일', sat: '토요일', sun: '일요일',
 };
 
+const buildRichGolferContext = (
+  myLessons: Lesson[],
+  quickLogs: QuickLogEntry[],
+  homeworkList: Homework[],
+  clientProfile: ClientProfile
+): string => {
+  const sections: string[] = [];
+
+  // Body analysis (from profile or most recent lesson that has it)
+  const bodyAnalysis =
+    clientProfile.memberBodyAnalysis ??
+    myLessons.find(l => l.memberBodyAnalysis)?.memberBodyAnalysis;
+  if (bodyAnalysis) {
+    const highImpactFactors = bodyAnalysis.structuralFactors
+      ?.filter(f => f.impact === '상' || f.impact === '하')
+      .map(f => `${f.name}(${f.impact})`)
+      .join(', ');
+    const lines = [
+      `체형: ${bodyAnalysis.bodyType} | 스윙 유형: ${bodyAnalysis.swingType}`,
+    ];
+    if (highImpactFactors) lines.push(`주요 구조 특성: ${highImpactFactors}`);
+    if (bodyAnalysis.coachComment) lines.push(`코치 의견: ${bodyAnalysis.coachComment}`);
+    sections.push(`[신체 분석]\n${lines.join('\n')}`);
+  }
+
+  // Recent lessons / practice / round records
+  const recentLessons = [...myLessons]
+    .sort((a, b) => b.createdAt - a.createdAt)
+    .slice(0, 15);
+
+  if (recentLessons.length > 0) {
+    const AREA_KO: Record<string, string> = {
+      DRIVER: '드라이버', IRON: '아이언', SHORT_GAME: '숏게임',
+      PUTTING: '퍼팅', ROUND: '라운드', OTHER: '기타',
+    };
+    const lessonLines = recentLessons.map(l => {
+      const typeLabel =
+        l.recordType === 'SCORE' ? '라운드'
+        : l.recordType === 'PRACTICE' ? '연습'
+        : '레슨';
+      const header = `[${l.date}] ${l.title} (${typeLabel}${l.club ? ` · ${l.club}` : ''})`;
+      const parts: string[] = [header];
+
+      if (l.coachNotes) parts.push(`  코치 노트: ${l.coachNotes.substring(0, 300)}`);
+      if (l.aiAnalysis) parts.push(`  AI 분석: ${l.aiAnalysis.substring(0, 300)}`);
+
+      if (l.golfData) {
+        const gd = l.golfData;
+        const nums: string[] = [];
+        if (gd.ballSpeed != null)     nums.push(`볼속도 ${gd.ballSpeed}km/h`);
+        if (gd.clubHeadSpeed != null) nums.push(`헤드속도 ${gd.clubHeadSpeed}km/h`);
+        if (gd.carryDistance != null) nums.push(`캐리 ${gd.carryDistance}m`);
+        if (gd.totalDistance != null) nums.push(`총거리 ${gd.totalDistance}m`);
+        if (gd.launchAngle != null)   nums.push(`런치앵글 ${gd.launchAngle}°`);
+        if (gd.backSpin != null)      nums.push(`백스핀 ${gd.backSpin}rpm`);
+        if (gd.sideSpin != null)      nums.push(`사이드스핀 ${gd.sideSpin}rpm`);
+        if (gd.smashFactor != null)   nums.push(`스매시팩터 ${gd.smashFactor}`);
+        if (gd.clubPath != null)      nums.push(`클럽패스 ${gd.clubPath}°`);
+        if (gd.faceAngle != null)     nums.push(`페이스앵글 ${gd.faceAngle}°`);
+        if (nums.length) parts.push(`  구질 데이터: ${nums.join(' | ')}`);
+      }
+
+      if (l.motionCaptureData?.measurements?.length) {
+        const mc = l.motionCaptureData;
+        const nums: string[] = [];
+        mc.measurements.forEach(m => {
+          const p = m.swingPhase ? `[${m.swingPhase}] ` : '';
+          if (m.headLift != null && m.headLift !== 0)            nums.push(`${p}머리들림 ${m.headLift}cm`);
+          if (m.hipSlide != null && m.hipSlide !== 0)            nums.push(`${p}힙슬라이드 ${m.hipSlide}cm`);
+          if (m.upperBodyPush != null && m.upperBodyPush !== 0)  nums.push(`${p}상체밀림 ${m.upperBodyPush}cm`);
+          if (m.headLateralSway != null && m.headLateralSway !== 0) nums.push(`${p}머리흔들림 ${m.headLateralSway}cm`);
+          if (m.upperBodyLift != null && m.upperBodyLift !== 0)  nums.push(`${p}상체들림 ${m.upperBodyLift}cm`);
+        });
+        if (nums.length) parts.push(`  모션캡처: ${nums.slice(0, 6).join(' | ')}`);
+        if (mc.aiAnalysis) parts.push(`  모션 분석: ${mc.aiAnalysis.substring(0, 200)}`);
+      }
+
+      if (l.scorecardDetail) {
+        const sc = l.scorecardDetail;
+        parts.push(`  스코어카드: ${sc.courseName} | ${sc.totalScore}타 | 퍼팅 ${sc.totalPutts}개`);
+        const badHoles = sc.holes
+          .filter(h => h.score > h.par + 2)
+          .map(h => `홀${h.holeNumber}(${h.score}타·${h.putts}퍼팅)`);
+        if (badHoles.length) parts.push(`  어려웠던 홀: ${badHoles.slice(0, 6).join(', ')}`);
+        const gir = sc.holes.filter(h => h.score <= h.par).length;
+        parts.push(`  파온: ${gir}홀/${sc.holes.length}홀`);
+      }
+
+      if (l.tags?.length) parts.push(`  태그: ${l.tags.join(', ')}`);
+
+      return parts.join('\n');
+    });
+    sections.push(`[레슨·연습·라운드 기록 (최근 ${recentLessons.length}개)]\n${lessonLines.join('\n\n')}`);
+  }
+
+  // Quick logs
+  const recentLogs = [...quickLogs]
+    .sort((a, b) => b.createdAt - a.createdAt)
+    .slice(0, 10);
+
+  if (recentLogs.length > 0) {
+    const MOOD_KO: Record<string, string> = {
+      GREAT: '최고', GOOD: '좋음', OKAY: '보통', BAD: '나쁨', TERRIBLE: '최악',
+    };
+    const AREA_KO: Record<string, string> = {
+      DRIVER: '드라이버', IRON: '아이언', SHORT_GAME: '숏게임',
+      PUTTING: '퍼팅', ROUND: '라운드', OTHER: '기타',
+    };
+    const logLines = recentLogs.map(log => {
+      const parts = [`[${log.logDate}] 기분: ${MOOD_KO[log.mood] || log.mood}`];
+      if (log.practiceArea) parts.push(`분야: ${AREA_KO[log.practiceArea] || log.practiceArea}`);
+      if (log.goodPoint) parts.push(`잘된 점: ${log.goodPoint.substring(0, 100)}`);
+      if (log.problemPoint) parts.push(`문제점: ${log.problemPoint.substring(0, 100)}`);
+      if (log.notes) parts.push(`메모: ${log.notes.substring(0, 80)}`);
+      return parts.join(' | ');
+    });
+
+    // Most-practiced area
+    const areaFreq: Record<string, number> = {};
+    recentLogs.forEach(log => {
+      if (log.practiceArea) areaFreq[log.practiceArea] = (areaFreq[log.practiceArea] || 0) + 1;
+    });
+    const topArea = Object.entries(areaFreq).sort((a, b) => b[1] - a[1])[0];
+    const topAreaNote = topArea
+      ? `→ 주요 연습 분야: ${AREA_KO[topArea[0]] || topArea[0]} (${topArea[1]}회)`
+      : '';
+
+    sections.push(
+      `[연습 일지 (최근 ${recentLogs.length}개)]\n${logLines.join('\n')}${topAreaNote ? `\n${topAreaNote}` : ''}`
+    );
+  }
+
+  // All pending homework
+  const pendingHw = homeworkList.filter(h => !h.isCompleted);
+  if (pendingHw.length > 0) {
+    const hwLines = pendingHw
+      .map(h => `- [${h.date || '기한 없음'}] ${h.title}`)
+      .join('\n');
+    sections.push(`[미완료 숙제·미션 (${pendingHw.length}개)]\n${hwLines}`);
+  }
+
+  return sections.join('\n\n');
+};
+
 const buildCoachContext = (coachProfile: CoachProfile | undefined, designatedCoachName: string | undefined): string => {
   if (!coachProfile) {
     return `담당 코치: ${designatedCoachName || '미지정'}`;
@@ -1612,31 +1756,11 @@ export const generateStudentChatResponse = async (
   clientProfile: ClientProfile,
   homeworkList: Homework[],
   language: CoachXLanguage = 'ko',
-  coachProfile?: CoachProfile
+  coachProfile?: CoachProfile,
+  quickLogs: QuickLogEntry[] = []
 ): Promise<string> => {
   try {
-    const recentLessons = [...myLessons]
-      .sort((a, b) => b.createdAt - a.createdAt)
-      .slice(0, 10);
-
-    const lessonContext = recentLessons.length > 0
-      ? recentLessons.map(l => {
-          const parts = [`[${l.date}] ${l.title}`];
-          if (l.coachNotes) parts.push(`코치 노트: ${l.coachNotes.substring(0, 150)}`);
-          if (l.aiAnalysis) parts.push(`AI 분석: ${l.aiAnalysis.substring(0, 150)}`);
-          if (l.tags?.length) parts.push(`태그: ${l.tags.join(', ')}`);
-          return parts.join(' | ');
-        }).join('\n')
-      : '레슨 기록 없음.';
-
-    const today = new Date().toISOString().split('T')[0];
-    const todayHomework = homeworkList.filter(h => h.date === today);
-    const pendingHomework = todayHomework.filter(h => !h.isCompleted);
-
-    const homeworkContext = pendingHomework.length > 0
-      ? pendingHomework.map(h => `- ${h.title}`).join('\n')
-      : '오늘 남은 미션 없음';
-
+    const golferContext = buildRichGolferContext(myLessons, quickLogs, homeworkList, clientProfile);
     const coachContext = buildCoachContext(coachProfile, clientProfile.designatedCoach);
 
     const LANG_INSTRUCTION: Record<CoachXLanguage, string> = {
@@ -1646,33 +1770,35 @@ export const generateStudentChatResponse = async (
       th: 'Respond in English with a friendly and encouraging tone.',
     };
 
-    const prompt = `당신은 학생 전용 AI 골프 코칭 어시스턴트 "CoachX AI"입니다. 학생의 레슨 기록과 개인 데이터를 바탕으로 개인화된 조언을 제공합니다.
+    const prompt = `당신은 학생 전용 AI 골프 코칭 어시스턴트 "CoachX AI"입니다.
+아래 학생의 모든 골프 기록 데이터를 분석하여 정확하고 개인화된 조언을 제공합니다.
 
-학생 정보:
-- 이름: ${clientProfile.name}
-- 핸디캡: ${clientProfile.handicap || '없음'}
-- 베스트 스코어: ${clientProfile.bestScore || '없음'}
-- 총 레슨 수: ${myLessons.length}
+=== 학생 프로필 ===
+이름: ${clientProfile.name}
+핸디캡: ${clientProfile.handicap || '미입력'}
+베스트 스코어: ${clientProfile.bestScore || '미입력'}
+총 레슨·기록 수: ${myLessons.length}
 
-지정 코치 정보:
+=== 지정 코치 정보 ===
 ${coachContext}
 
-최근 레슨 기록 (최근 10개):
-${lessonContext}
+=== 골프 기록 데이터 ===
+${golferContext || '기록 없음 (기본기 위주로 조언해 주세요)'}
 
-오늘의 미션 (미완료):
-${homeworkContext}
-
-학생 질문: "${userMessage}"
+=== 학생 질문 ===
+"${userMessage}"
 
 언어 지시: ${LANG_INSTRUCTION[language]}
 
-주의사항:
-- 학생 데이터를 기반으로 구체적이고 개인화된 답변을 해주세요
-- 코치 이름이나 스케줄에 대해 질문하면 위 지정 코치 정보를 활용해 정확히 답해주세요
-- 격려하고 동기부여하는 톤을 유지하세요
-- 골프 기술 조언은 전문적이되 쉽게 설명하세요
-- 답변은 간결하고 실용적으로 300자 이내로 해주세요`;
+답변 원칙:
+- 위 기록 데이터를 직접 참조하여 날짜나 수치를 언급하며 구체적으로 답변하세요
+- 반복되는 문제 패턴(태그, 코치 노트, 연습 일지의 문제점)이 있다면 명확히 짚어주세요
+- 구질 데이터(볼속도, 비거리, 클럽패스, 페이스앵글 등)가 있으면 수치를 활용해 분석하세요
+- 모션캡처 수치가 있으면 신체 움직임의 원인과 교정 방법을 연결해 설명하세요
+- 스코어카드 데이터가 있으면 퍼팅 수, 파온율, 어려웠던 홀 등을 구체적으로 활용하세요
+- 연습 일지의 자기 보고 내용과 레슨 데이터를 교차 분석하세요
+- 코치 스케줄이나 연락처 질문은 위 코치 정보를 정확히 활용하세요
+- 800자 이내로 명확하고 실용적으로 답변하세요`;
 
     const result = await invokeBackendAI<unknown>('student_chat', {
       prompt,
