@@ -1169,6 +1169,7 @@ export const generateCoachXChatResponse = async (
 
     const prompt = `${systemPrompt}
 
+--- Provided data (answer ONLY from this) ---
 Coach context:
 - Total lesson records: ${allLessons.length}
 - Total members: ${memberCount}
@@ -1177,8 +1178,12 @@ Coach context:
 Recent lesson history (up to 15 most recent):
 ${lessonContext}
 ${conversationBlock}
+--- End of provided data ---
+
 Coach's question: "${userMessage}"
 
+IMPORTANT: Answer strictly based on the provided data and conversation history above.
+Do not introduce topics unrelated to the conversation or golf coaching.
 Language instruction: ${LANG_INSTRUCTION[language]}`;
 
     const result = await invokeBackendAI<unknown>('coachx_chat', {
@@ -1794,8 +1799,17 @@ export const generateStudentChatResponse = async (
       : '';
 
     const prompt = `당신은 학생 전용 AI 골프 코칭 어시스턴트 "CoachX AI"입니다.
-아래 학생의 모든 골프 기록 데이터를 분석하여 정확하고 개인화된 조언을 제공합니다.
 
+【역할 범위 — 아래 주제만 답변하세요】
+• 골프 스윙, 기술, 연습 방법
+• 아래 제공된 기록 데이터 기반의 개인화된 분석
+• 코치 예약, 스케줄, 연락처 (아래 코치 정보 기준)
+• 숙제·미션 관련 질문
+
+골프·코칭과 무관한 질문(날씨, 음식, 일반 상식 등)은 정중히 거절하고
+골프 관련 주제로 안내하세요. 절대 엉뚱한 내용을 지어내지 마세요.
+
+--- 제공 데이터 (이 데이터만 기반으로 답변) ---
 === 학생 프로필 ===
 이름: ${clientProfile.name}
 핸디캡: ${clientProfile.handicap || '미입력'}
@@ -1807,7 +1821,8 @@ ${coachContext}
 
 === 골프 기록 데이터 ===
 ${golferContext || '기록 없음 (기본기 위주로 조언해 주세요)'}
-${conversationBlock}
+${conversationBlock}--- 제공 데이터 끝 ---
+
 === 학생 질문 ===
 "${userMessage}"
 
@@ -1815,6 +1830,7 @@ ${conversationBlock}
 
 답변 원칙:
 - 이전 대화 내역이 있으면 반드시 맥락을 이어받아 답변하세요
+- 제공된 기록 데이터 외 정보는 지어내지 마세요; 데이터가 없으면 솔직히 말하세요
 - 위 기록 데이터를 직접 참조하여 날짜나 수치를 언급하며 구체적으로 답변하세요
 - 반복되는 문제 패턴(태그, 코치 노트, 연습 일지의 문제점)이 있다면 명확히 짚어주세요
 - 구질 데이터(볼속도, 비거리, 클럽패스, 페이스앵글 등)가 있으면 수치를 활용해 분석하세요

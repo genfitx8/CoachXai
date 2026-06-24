@@ -1240,8 +1240,11 @@ export function generateHeuristicResponse(
     return response;
   }
 
-  const isProgress = msg.includes('성장') || msg.includes('progress') ||
-    msg.includes('회원') || msg.includes('member') || msg.includes('会員') || msg.includes('成長');
+  const isProgress = msg.includes('회원 성장') || msg.includes('성장 요약') || msg.includes('성장 분석') ||
+    msg.includes('member progress') || msg.includes('member growth') ||
+    msg.includes('会員成長') || msg.includes('会員の成長') ||
+    (msg.includes('성장') && (msg.includes('레슨') || msg.includes('회원') || msg.includes('분석'))) ||
+    (msg.includes('회원') && (msg.includes('분석') || msg.includes('요약') || msg.includes('성장')));
   if (isProgress) {
     const reports = buildMemberGrowthReports(allLessons, clients, language);
     const improving = reports.filter(r => r.trendIndicator === 'improving').length;
@@ -1258,7 +1261,10 @@ export function generateHeuristicResponse(
   }
 
   const isPattern = msg.includes('내 레슨') || msg.includes('my lesson') ||
-    msg.includes('패턴') || msg.includes('pattern') || msg.includes('パターン') || msg.includes('指導');
+    msg.includes('指導') ||
+    (msg.includes('패턴') && (msg.includes('레슨') || msg.includes('코치') || msg.includes('분석'))) ||
+    (msg.includes('pattern') && (msg.includes('lesson') || msg.includes('coach') || msg.includes('teach'))) ||
+    (msg.includes('パターン') && msg.includes('レッスン'));
   if (isPattern) {
     if (language === 'en') {
       return `🔍 **Lesson Pattern Analysis**\n\nAnalysed **${allLessons.length}** lesson records:\n\n- Most frequent topics: **${topicStr}**\n- Members coached: **${memberCount}**\n\n**Growth suggestions:**\n${topics[0] ? `• Strengthen visual drill materials for ${topics[0]}` : '• Try recording a wider variety of lesson topics'}\n• Use per-member progress checklists to track improvement\n\n${aiNote}`;
@@ -1270,8 +1276,9 @@ export function generateHeuristicResponse(
   }
 
   const isNextLesson = msg.includes('다음 레슨') || msg.includes('next lesson') ||
-    msg.includes('추천') || msg.includes('recommend') ||
-    msg.includes('次のレッスン') || msg.includes('おすすめ');
+    msg.includes('次のレッスン') || msg.includes('おすすめ') ||
+    (msg.includes('추천') && (msg.includes('레슨') || msg.includes('드릴') || msg.includes('커리큘럼') || msg.includes('연습'))) ||
+    (msg.includes('recommend') && (msg.includes('lesson') || msg.includes('drill') || msg.includes('practice')));
   if (isNextLesson) {
     if (language === 'en') {
       return `🗓️ **Next Lesson Recommendation**\n\nBased on lesson data, here is the suggested focus:\n\n- Primary topic: **${topics[0] ?? dt3}**\n- Secondary topic: **${topics[1] ?? dt1}**\n- Goal: Review previous correction points + introduce a new drill\n\n**Pro tip:** Start with a 5-minute warm-up and address check to improve focus and lesson flow.\n\n> Tip: Ask with a specific member name for a personalised recommendation.\n\n${aiNote}`;
