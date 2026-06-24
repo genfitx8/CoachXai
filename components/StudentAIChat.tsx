@@ -355,7 +355,9 @@ export const StudentAIChat: React.FC<StudentAIChatProps> = ({
 
     setIsTyping(true);
 
-    const reply = await generateStudentChatResponse(msgText, myLessons, clientProfile, homeworkList, lang, coachProfile, quickLogs);
+    // Pass prior turns so the AI can follow conversation context
+    const historyForAI = [...messages, userMsg].slice(0, -1).map(m => ({ role: m.role, content: m.content }));
+    const reply = await generateStudentChatResponse(msgText, myLessons, clientProfile, homeworkList, lang, coachProfile, quickLogs, historyForAI);
     const assistantMsg: CoachXChatMessage = {
       role: 'assistant',
       content: reply,

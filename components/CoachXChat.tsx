@@ -129,7 +129,9 @@ export const CoachXChat: React.FC<CoachXChatProps> = ({
     setInput('');
     setIsTyping(true);
 
-    const reply = await generateCoachXChatResponse(msgText, allLessons, clients, language);
+    // Pass prior turns (excluding the message just added) so the AI can follow conversation context
+    const historyForAI = [...messages, userMsg].slice(0, -1).map(m => ({ role: m.role, content: m.content }));
+    const reply = await generateCoachXChatResponse(msgText, allLessons, clients, language, historyForAI);
     const assistantMsg: CoachXChatMessage = {
       role: 'assistant',
       content: reply,
