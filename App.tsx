@@ -509,6 +509,7 @@ const AppContent: React.FC = () => {
 
     if (role === 'COACH') {
       setCoachProfile(data);
+      setShowWelcomeScreen(true); // Set before any await so dashboard never flashes
       // Save coach to DB if not exists (Simulation)
       if (apiService.isAvailable()) {
         await apiService.saveCoach(data);
@@ -531,9 +532,6 @@ const AppContent: React.FC = () => {
     const isFb = apiService.isAvailable() && !!apiService.getToken();
     await loadData(isFb, role);
 
-    if (role === 'COACH') {
-      setShowWelcomeScreen(true);
-    }
   };
 
   // Deep-link: when the URL contains #lesson=<id> (e.g. from a KakaoTalk share),
