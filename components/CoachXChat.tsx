@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Lesson, ClientProfile, CoachProfile } from '../types';
-import { ChevronLeft, Send, Sparkles, Bot } from 'lucide-react';
+import { ChevronLeft, Send, Sparkles, Bot, Mic, MicOff, Volume2 } from 'lucide-react';
 import { CoachXChatMessage } from '../services/coachXService';
 import { generateCoachXChatResponse } from '../services/geminiService';
 import { useLanguage } from './LanguageContext';
@@ -41,20 +41,21 @@ const SUGGESTED_PROMPTS_JA = [
   'コーチ成長のヒントは？',
 ];
 
-/**
- * Delay before auto-sending the initialQuery on mount.
- * Allows the chat UI to fully render and scroll into view before CoachX starts
- * processing, preventing a jarring immediate "typing" state on first paint.
- */
 const INITIAL_QUERY_DELAY_MS = 400;
-
-/**
- * Target duration for the typing reveal effect (ms).
- * Chunk size is computed so any response finishes in roughly this time.
- */
 const TYPING_REVEAL_DURATION_MS = 2500;
-/** Interval between reveal ticks (ms). */
 const TYPING_TICK_MS = 20;
+
+type SpeechRecognitionEvent = Event & {
+  results: SpeechRecognitionResultList;
+  resultIndex: number;
+};
+
+declare global {
+  interface Window {
+    SpeechRecognition: typeof SpeechRecognition;
+    webkitSpeechRecognition: typeof SpeechRecognition;
+  }
+}
 
 export const CoachXChat: React.FC<CoachXChatProps> = ({
   coachProfile,
@@ -77,17 +78,23 @@ export const CoachXChat: React.FC<CoachXChatProps> = ({
   ]);
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
-  /** Number of characters revealed in the last assistant message, or null when fully shown. */
   const [revealedChars, setRevealedChars] = useState<number | null>(null);
+  const [voiceMode, setVoiceMode] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
+
   const revealIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const recognitionRef = useRef<SpeechRecognition | null>(null);
+  const voiceModeRef = useRef(voiceMode);
+
+  useEffect(() => { voiceModeRef.current = voiceMode; }, [voiceMode]);
 
   const suggestedPrompts =
     language === 'en' ? SUGGESTED_PROMPTS_EN
     : language === 'ja' ? SUGGESTED_PROMPTS_JA
     : SUGGESTED_PROMPTS_KO;
 
-  /** Cancel any in-progress reveal animation. */
   const clearReveal = useCallback(() => {
     if (revealIntervalRef.current !== null) {
       clearInterval(revealIntervalRef.current);
@@ -96,29 +103,45 @@ export const CoachXChat: React.FC<CoachXChatProps> = ({
     setRevealedChars(null);
   }, []);
 
-  // Clean up reveal interval on unmount
-  useEffect(() => () => { clearReveal(); }, [clearReveal]);
+  useEffect(() => () => {
+    clearReveal();
+    recognitionRef.current?.abort();
+    window.speechSynthesis?.cancel();
+  }, [clearReveal]);
 
-  // Scroll to bottom whenever messages change, typing indicator changes, or
-  // the reveal animation progresses.
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isTyping, revealedChars]);
 
-  // Auto-send the initialQuery once on mount (e.g. when opened from a member card)
   useEffect(() => {
     if (!initialQuery) return;
     const timer = setTimeout(() => { void handleSend(initialQuery); }, INITIAL_QUERY_DELAY_MS);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // intentionally run only once on mount
+  }, []);
 
-  const handleSend = async (text?: string) => {
+  const speakText = useCallback((text: string) => {
+    if (!window.speechSynthesis || !window.SpeechSynthesisUtterance) return;
+    window.speechSynthesis.cancel();
+    const plain = text.replace(/\*\*(.*?)\*\*/g, '$1').replace(/[🏌️🏆💡📊⚡]/gu, '');
+    const utterance = new SpeechSynthesisUtterance(plain);
+    utterance.lang = language === 'en' ? 'en-US' : language === 'ja' ? 'ja-JP' : 'ko-KR';
+    utterance.rate = 1.0;
+    utterance.pitch = 1;
+    utterance.volume = 0.9;
+    utterance.onstart = () => setIsSpeaking(true);
+    utterance.onend = () => setIsSpeaking(false);
+    utterance.onerror = () => setIsSpeaking(false);
+    window.speechSynthesis.speak(utterance);
+  }, [language]);
+
+  const handleSend = useCallback(async (text?: string) => {
     const msgText = (text ?? input).trim();
     if (!msgText) return;
 
-    // Cancel any ongoing reveal before starting a new exchange
     clearReveal();
+    window.speechSynthesis?.cancel();
+    setIsSpeaking(false);
 
     const userMsg: CoachXChatMessage = {
       role: 'user',
@@ -138,12 +161,14 @@ export const CoachXChat: React.FC<CoachXChatProps> = ({
       timestamp: Date.now(),
     };
 
-    // Add the full message then start the progressive reveal
     setMessages(prev => [...prev, assistantMsg]);
     setIsTyping(false);
 
+    if (voiceModeRef.current) {
+      speakText(reply);
+    }
+
     const totalChars = reply.length;
-    // Compute chunk size so the full response reveals in ~TYPING_REVEAL_DURATION_MS
     const totalTicks = Math.ceil(TYPING_REVEAL_DURATION_MS / TYPING_TICK_MS);
     const charsPerTick = Math.max(1, Math.ceil(totalChars / totalTicks));
 
@@ -153,7 +178,6 @@ export const CoachXChat: React.FC<CoachXChatProps> = ({
         if (prev === null) return null;
         const next = prev + charsPerTick;
         if (next >= totalChars) {
-          // Reveal complete — clear interval and mark as fully shown
           if (revealIntervalRef.current !== null) {
             clearInterval(revealIntervalRef.current);
             revealIntervalRef.current = null;
@@ -163,9 +187,52 @@ export const CoachXChat: React.FC<CoachXChatProps> = ({
         return next;
       });
     }, TYPING_TICK_MS);
+  }, [input, allLessons, clients, language, clearReveal, speakText]);
+
+  const startListening = useCallback(() => {
+    const SpeechRecognitionApi = window.SpeechRecognition ?? window.webkitSpeechRecognition;
+    if (!SpeechRecognitionApi) return;
+
+    const recognition = new SpeechRecognitionApi();
+    recognition.lang = language === 'en' ? 'en-US' : language === 'ja' ? 'ja-JP' : 'ko-KR';
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+
+    recognition.onstart = () => setIsListening(true);
+    recognition.onend = () => setIsListening(false);
+    recognition.onerror = () => setIsListening(false);
+    recognition.onresult = (e: SpeechRecognitionEvent) => {
+      const transcript = e.results[e.resultIndex][0].transcript.trim();
+      if (transcript) void handleSend(transcript);
+    };
+
+    recognitionRef.current = recognition;
+    recognition.start();
+  }, [language, handleSend]);
+
+  const stopListening = useCallback(() => {
+    recognitionRef.current?.stop();
+    setIsListening(false);
+  }, []);
+
+  const handleMicPress = () => {
+    if (isListening) {
+      stopListening();
+    } else {
+      startListening();
+    }
   };
 
-  /** Render markdown-like bold (**text**) and line breaks */
+  const handleToggleVoiceMode = (toVoice: boolean) => {
+    setVoiceMode(toVoice);
+    if (!toVoice) {
+      recognitionRef.current?.abort();
+      setIsListening(false);
+      window.speechSynthesis?.cancel();
+      setIsSpeaking(false);
+    }
+  };
+
   const renderContent = (text: string) => {
     const lines = text.split('\n');
     return lines.map((line, i) => {
@@ -192,15 +259,36 @@ export const CoachXChat: React.FC<CoachXChatProps> = ({
           <ChevronLeft className="w-5 h-5 text-white" />
         </button>
 
-        {/* CoachX icon (mini) */}
         <div className="relative w-9 h-9 flex items-center justify-center">
           <div className="absolute inset-0 rounded-full bg-gradient-to-br from-slate-600 to-slate-700 coachx-pulse" />
           <Sparkles className="relative z-10 w-4 h-4 text-white" />
         </div>
 
-        <div>
+        <div className="flex-1">
           <p className="font-bold text-sm text-white">Coachx</p>
           <p className="text-xs text-violet-300">{t('coachx_subtitle')}</p>
+        </div>
+
+        {/* Chat / Voice toggle */}
+        <div className="flex items-center gap-1 bg-gray-800 rounded-full p-0.5">
+          <button
+            type="button"
+            onClick={() => handleToggleVoiceMode(false)}
+            className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+              !voiceMode ? 'bg-violet-600 text-white' : 'text-gray-400 hover:text-white'
+            }`}
+          >
+            {language === 'en' ? 'Chat' : language === 'ja' ? 'チャット' : '채팅'}
+          </button>
+          <button
+            type="button"
+            onClick={() => handleToggleVoiceMode(true)}
+            className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+              voiceMode ? 'bg-violet-600 text-white' : 'text-gray-400 hover:text-white'
+            }`}
+          >
+            {language === 'en' ? 'Voice' : language === 'ja' ? '音声' : '음성'}
+          </button>
         </div>
       </div>
 
@@ -261,8 +349,8 @@ export const CoachXChat: React.FC<CoachXChatProps> = ({
         <div ref={bottomRef} />
       </div>
 
-      {/* Suggested prompts */}
-      {messages.length <= 1 && (
+      {/* Suggested prompts (text mode only) */}
+      {!voiceMode && messages.length <= 1 && (
         <div className="px-4 pb-2">
           <p className="text-xs text-gray-500 mb-2">{t('coachx_suggested_prompts')}</p>
           <div className="flex flex-wrap gap-2">
@@ -279,29 +367,65 @@ export const CoachXChat: React.FC<CoachXChatProps> = ({
         </div>
       )}
 
-      {/* Input bar */}
-      <div className="px-4 pb-safe pb-4 border-t border-white/10 bg-gray-900/90 backdrop-blur-sm pt-3">
-        <div className="flex gap-2 items-end">
-          <input
-            type="text"
-            value={input}
-            onChange={e => setInput(e.target.value)}
-            onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
-            placeholder={t('coachx_chat_placeholder')}
-            className="flex-1 bg-gray-800 border border-white/10 rounded-2xl px-4 py-3 text-sm text-white placeholder-gray-400 outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 transition-colors resize-none"
-          />
+      {/* Input area */}
+      {voiceMode ? (
+        /* Voice mode — mic button */
+        <div className="px-4 pb-safe pb-8 pt-4 flex flex-col items-center gap-3 border-t border-white/10 bg-gray-900/90 backdrop-blur-sm">
+          {isSpeaking && (
+            <div className="flex items-center gap-2 text-xs text-violet-300">
+              <Volume2 className="w-3.5 h-3.5" />
+              {language === 'en' ? 'Speaking…' : language === 'ja' ? '読み上げ中…' : '응답 중…'}
+            </div>
+          )}
           <button
-            onClick={() => handleSend()}
-            disabled={!input.trim() || isTyping || revealedChars !== null}
-            aria-label="Send"
-            className="w-11 h-11 rounded-full bg-slate-700 hover:bg-slate-600 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center transition-colors flex-shrink-0"
+            type="button"
+            onPointerDown={handleMicPress}
+            disabled={isTyping}
+            className={`relative w-20 h-20 rounded-full flex items-center justify-center transition-all disabled:opacity-40 ${
+              isListening
+                ? 'bg-red-500/80 shadow-lg shadow-red-500/30'
+                : 'bg-violet-600/80 hover:bg-violet-500/80 shadow-lg shadow-violet-500/20'
+            }`}
+            aria-label={isListening ? 'Stop' : 'Speak'}
           >
-            <Send className="w-4 h-4 text-white" />
+            {isListening && (
+              <span className="absolute inset-0 rounded-full border-2 border-red-400 animate-ping opacity-60" />
+            )}
+            {isListening
+              ? <MicOff className="w-8 h-8 text-white" />
+              : <Mic className="w-8 h-8 text-white" />
+            }
           </button>
+          <p className="text-xs text-gray-500">
+            {isListening
+              ? (language === 'en' ? 'Listening… tap to stop' : language === 'ja' ? '聞いています…タップで停止' : '듣는 중… 탭해서 중지')
+              : (language === 'en' ? 'Tap to speak' : language === 'ja' ? 'タップして話す' : '탭해서 말하기')}
+          </p>
         </div>
-      </div>
+      ) : (
+        /* Text mode — input bar */
+        <div className="px-4 pb-safe pb-4 border-t border-white/10 bg-gray-900/90 backdrop-blur-sm pt-3">
+          <div className="flex gap-2 items-end">
+            <input
+              type="text"
+              value={input}
+              onChange={e => setInput(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void handleSend(); } }}
+              placeholder={t('coachx_chat_placeholder')}
+              className="flex-1 bg-gray-800 border border-white/10 rounded-2xl px-4 py-3 text-sm text-white placeholder-gray-400 outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 transition-colors resize-none"
+            />
+            <button
+              onClick={() => void handleSend()}
+              disabled={!input.trim() || isTyping || revealedChars !== null}
+              aria-label="Send"
+              className="w-11 h-11 rounded-full bg-slate-700 hover:bg-slate-600 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center transition-colors flex-shrink-0"
+            >
+              <Send className="w-4 h-4 text-white" />
+            </button>
+          </div>
+        </div>
+      )}
 
-      {/* Keyframes (injected once) */}
       <style>{`
         @keyframes coachx-bounce {
           0%, 60%, 100% { transform: translateY(0); }
