@@ -9,6 +9,10 @@ import { CoachXChatMessage } from '../services/coachXService';
 import { generateStudentChatResponse } from '../services/geminiService';
 import { reservationService } from '../services/reservationService';
 import { useLanguage } from './LanguageContext';
+import { useTypingReveal } from '../hooks/useTypingReveal';
+import { useTextToSpeech } from '../hooks/useTextToSpeech';
+import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
+import { renderMarkdown } from '../utils/renderMarkdown';
 
 type Mode = 'voice' | 'chat';
 type BookingStep = 'idle' | 'loading-slots' | 'slot-selection' | 'confirming' | 'booking';
@@ -50,8 +54,6 @@ const SUGGESTED_PROMPTS_JA = [
   { icon: HelpCircle, text: 'パッティングのコツを教えて' },
 ];
 
-const TYPING_REVEAL_DURATION_MS = 2000;
-const TYPING_TICK_MS = 20;
 const INITIAL_QUERY_DELAY_MS = 400;
 
 const BOOKING_KEYWORDS_KO = ['예약', '레슨 예약', '신청', '예약하고 싶', '예약 가능', '스케줄', '시간 있어', '빈 시간', '예약할게', '레슨 잡'];
@@ -88,7 +90,6 @@ function formatSlotDate(isoStr: string, language: 'ko' | 'en' | 'ja'): string {
 }
 
 function formatSlotRange(start: string, end: string, language: 'ko' | 'en' | 'ja'): string {
-  const s = new Date(start);
   const e = new Date(end);
   const dateStr = formatSlotDate(start, language);
   const endHH = String(e.getHours()).padStart(2, '0');
@@ -120,10 +121,6 @@ export const StudentAIChat: React.FC<StudentAIChatProps> = ({
   ]);
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
-  const [revealedChars, setRevealedChars] = useState<number | null>(null);
-  const [isListening, setIsListening] = useState(false);
-  const [voiceError, setVoiceError] = useState<string | null>(null);
-  const [isSpeaking, setIsSpeaking] = useState(false);
   const [ttsEnabled, setTtsEnabled] = useState(true);
 
   // Booking state
@@ -132,9 +129,6 @@ export const StudentAIChat: React.FC<StudentAIChatProps> = ({
   const [selectedSlot, setSelectedSlot] = useState<LessonReservation | null>(null);
   const [bookingNotes, setBookingNotes] = useState('');
 
-  const revealIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const recognitionRef = useRef<SpeechRecognition | null>(null);
-  const synthRef = useRef<SpeechSynthesis | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -145,82 +139,18 @@ export const StudentAIChat: React.FC<StudentAIChatProps> = ({
     : language === 'ja' ? SUGGESTED_PROMPTS_JA
     : SUGGESTED_PROMPTS_KO;
 
-  useEffect(() => {
-    synthRef.current = window.speechSynthesis ?? null;
-  }, []);
-
-  const clearReveal = useCallback(() => {
-    if (revealIntervalRef.current !== null) {
-      clearInterval(revealIntervalRef.current);
-      revealIntervalRef.current = null;
-    }
-    setRevealedChars(null);
-  }, []);
-
-  useEffect(() => () => {
-    clearReveal();
-    synthRef.current?.cancel();
-    recognitionRef.current?.stop();
-  }, [clearReveal]);
+  const { revealedChars, startReveal, clearReveal } = useTypingReveal(2000);
+  const { isSpeaking, speak, stopSpeaking } = useTextToSpeech(language, ttsEnabled && mode === 'voice');
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isTyping, revealedChars, bookingStep]);
 
-  useEffect(() => {
-    if (!initialQuery) return;
-    const timer = setTimeout(() => { void handleSend(initialQuery); }, INITIAL_QUERY_DELAY_MS);
-    return () => clearTimeout(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const speak = useCallback((text: string) => {
-    if (!synthRef.current || !ttsEnabled) return;
-    synthRef.current.cancel();
-    const plain = text.replace(/\*\*/g, '').replace(/\n/g, ' ');
-    const utter = new SpeechSynthesisUtterance(plain);
-    utter.lang = language === 'en' ? 'en-US' : language === 'ja' ? 'ja-JP' : 'ko-KR';
-    utter.rate = 1.0;
-    utter.pitch = 1.0;
-    utter.onstart = () => setIsSpeaking(true);
-    utter.onend = () => setIsSpeaking(false);
-    utter.onerror = () => setIsSpeaking(false);
-    synthRef.current.speak(utter);
-  }, [language, ttsEnabled]);
-
-  const stopSpeaking = useCallback(() => {
-    synthRef.current?.cancel();
-    setIsSpeaking(false);
-  }, []);
-
-  const addAssistantMessage = useCallback((content: string, speak_: boolean = false) => {
-    const msg: CoachXChatMessage = { role: 'assistant', content, timestamp: Date.now() };
-    setMessages(prev => [...prev, msg]);
-
-    if (speak_ && mode === 'voice') {
-      speak(content);
-    }
-
-    const totalChars = content.length;
-    const totalTicks = Math.ceil(TYPING_REVEAL_DURATION_MS / TYPING_TICK_MS);
-    const charsPerTick = Math.max(1, Math.ceil(totalChars / totalTicks));
-
-    setRevealedChars(0);
-    revealIntervalRef.current = setInterval(() => {
-      setRevealedChars(prev => {
-        if (prev === null) return null;
-        const next = prev + charsPerTick;
-        if (next >= totalChars) {
-          if (revealIntervalRef.current !== null) {
-            clearInterval(revealIntervalRef.current);
-            revealIntervalRef.current = null;
-          }
-          return null;
-        }
-        return next;
-      });
-    }, TYPING_TICK_MS);
-  }, [mode, speak]);
+  const addAssistantMessage = useCallback((content: string, doSpeak = false) => {
+    setMessages(prev => [...prev, { role: 'assistant', content, timestamp: Date.now() }]);
+    if (doSpeak) speak(content);
+    startReveal(content);
+  }, [speak, startReveal]);
 
   // ── Booking flow ───────────────────────────────────────────────────────────
 
@@ -304,7 +234,7 @@ export const StudentAIChat: React.FC<StudentAIChatProps> = ({
         : `🎉 레슨이 **성공적으로 신청**되었어요!\n\n**일시:** ${formatSlotRange(selectedSlot.startTime, selectedSlot.endTime, lang)}\n**코치:** ${coachProfile?.name ?? ''}\n\n코치님께서 곧 예약을 확인하실 거예요. 예약 내역에서 상태를 확인할 수 있어요.`;
 
       addAssistantMessage(successMsg, true);
-    } catch (error) {
+    } catch {
       const errMsg = lang === 'en'
         ? `Sorry, the booking failed. The slot may already be taken. Please select another time.`
         : lang === 'ja'
@@ -339,15 +269,10 @@ export const StudentAIChat: React.FC<StudentAIChatProps> = ({
     clearReveal();
     stopSpeaking();
 
-    const userMsg: CoachXChatMessage = {
-      role: 'user',
-      content: msgText,
-      timestamp: Date.now(),
-    };
+    const userMsg: CoachXChatMessage = { role: 'user', content: msgText, timestamp: Date.now() };
     setMessages(prev => [...prev, userMsg]);
     setInput('');
 
-    // Booking intent detection
     if (isBookingIntent(msgText)) {
       await startBookingFlow();
       return;
@@ -355,127 +280,38 @@ export const StudentAIChat: React.FC<StudentAIChatProps> = ({
 
     setIsTyping(true);
 
-    // Pass prior turns so the AI can follow conversation context
     const historyForAI = [...messages, userMsg].slice(0, -1).map(m => ({ role: m.role, content: m.content }));
     const reply = await generateStudentChatResponse(msgText, myLessons, clientProfile, homeworkList, lang, coachProfile, quickLogs, historyForAI);
-    const assistantMsg: CoachXChatMessage = {
-      role: 'assistant',
-      content: reply,
-      timestamp: Date.now(),
-    };
 
-    setMessages(prev => [...prev, assistantMsg]);
+    setMessages(prev => [...prev, { role: 'assistant', content: reply, timestamp: Date.now() }]);
     setIsTyping(false);
-
-    if (mode === 'voice') {
-      speak(reply);
-    }
-
-    const totalChars = reply.length;
-    const totalTicks = Math.ceil(TYPING_REVEAL_DURATION_MS / TYPING_TICK_MS);
-    const charsPerTick = Math.max(1, Math.ceil(totalChars / totalTicks));
-
-    setRevealedChars(0);
-    revealIntervalRef.current = setInterval(() => {
-      setRevealedChars(prev => {
-        if (prev === null) return null;
-        const next = prev + charsPerTick;
-        if (next >= totalChars) {
-          if (revealIntervalRef.current !== null) {
-            clearInterval(revealIntervalRef.current);
-            revealIntervalRef.current = null;
-          }
-          return null;
-        }
-        return next;
-      });
-    }, TYPING_TICK_MS);
+    speak(reply);
+    startReveal(reply);
   };
 
   // ── Voice STT ──────────────────────────────────────────────────────────────
 
-  const stopListening = useCallback(() => {
-    recognitionRef.current?.stop();
-    setIsListening(false);
+  const { isListening, voiceError, stopListening, toggleListening } = useSpeechRecognition({
+    language,
+    onResult: handleSend,
+  });
+
+  useEffect(() => {
+    if (!initialQuery) return;
+    const timer = setTimeout(() => { void handleSend(initialQuery); }, INITIAL_QUERY_DELAY_MS);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  const startListening = useCallback(() => {
-    setVoiceError(null);
-    stopSpeaking();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const SRConstructor: (new () => SpeechRecognition) | undefined = (window as any).SpeechRecognition ?? (window as any).webkitSpeechRecognition;
-    if (!SRConstructor) {
-      setVoiceError(
-        language === 'en' ? 'This browser does not support speech recognition.'
-        : language === 'ja' ? 'このブラウザは音声認識をサポートしていません。'
-        : '이 브라우저는 음성 인식을 지원하지 않습니다.'
-      );
-      return;
-    }
-    const rec = new SRConstructor();
-    rec.lang = language === 'en' ? 'en-US' : language === 'ja' ? 'ja-JP' : 'ko-KR';
-    rec.continuous = false;
-    rec.interimResults = false;
-
-    rec.onstart = () => setIsListening(true);
-    rec.onend = () => setIsListening(false);
-    rec.onerror = (e: Event) => {
-      setIsListening(false);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const errType = (e as any).error;
-      if (errType === 'aborted') return;
-      if (errType === 'not-allowed') {
-        setVoiceError(
-          language === 'en' ? 'Microphone permission denied.'
-          : language === 'ja' ? 'マイクのアクセスが拒否されました。'
-          : '마이크 권한이 거부되었습니다.'
-        );
-      } else {
-        setVoiceError(
-          language === 'en' ? 'Voice recognition error. Please try again.'
-          : language === 'ja' ? '音声認識エラーが発生しました。'
-          : '음성 인식 중 오류가 발생했어요.'
-        );
-      }
-    };
-    rec.onresult = (e: SpeechRecognitionEvent) => {
-      const transcript = e.results[0]?.[0]?.transcript ?? '';
-      if (transcript) void handleSend(transcript);
-    };
-
-    recognitionRef.current = rec;
-    rec.start();
-  }, [language, stopSpeaking, handleSend]);
-
-  const toggleListening = useCallback(() => {
-    if (isListening) stopListening();
-    else startListening();
-  }, [isListening, stopListening, startListening]);
 
   const switchMode = useCallback((newMode: Mode) => {
     if (newMode === 'chat') {
       stopListening();
-      synthRef.current?.cancel();
-      setIsSpeaking(false);
+      stopSpeaking();
     }
     setMode(newMode);
-  }, [stopListening]);
+  }, [stopListening, stopSpeaking]);
 
   // ── Render helpers ─────────────────────────────────────────────────────────
-
-  const renderContent = (text: string) => {
-    const lines = text.split('\n');
-    return lines.map((line, i) => {
-      const parts = line.split(/\*\*(.*?)\*\*/g);
-      return (
-        <p key={i} className={i < lines.length - 1 ? 'mb-1' : ''}>
-          {parts.map((part, j) =>
-            j % 2 === 1 ? <strong key={j}>{part}</strong> : part
-          )}
-        </p>
-      );
-    });
-  };
 
   const voiceButtonLabel = language === 'en'
     ? (isListening ? 'Stop listening' : 'Tap to speak')
@@ -713,7 +549,7 @@ export const StudentAIChat: React.FC<StudentAIChatProps> = ({
                     : 'bg-gray-800 text-gray-100 rounded-bl-sm'
                 }`}
               >
-                {renderContent(displayContent)}
+                {renderMarkdown(displayContent)}
                 {isRevealing && (
                   <span className="student-ai-cursor inline-block w-0.5 h-3.5 bg-indigo-400 ml-0.5 align-text-bottom" />
                 )}
@@ -758,7 +594,7 @@ export const StudentAIChat: React.FC<StudentAIChatProps> = ({
                 return (
                   <button
                     key={i}
-                    onClick={() => handleSend(prompt.text)}
+                    onClick={() => void handleSend(prompt.text)}
                     className="flex items-center gap-2 text-xs bg-gray-800 hover:bg-gray-700 border border-white/10 text-gray-300 hover:text-white rounded-xl px-3 py-2.5 transition-colors text-left"
                   >
                     <Icon className="w-3.5 h-3.5 text-indigo-400 flex-shrink-0" />
@@ -773,7 +609,7 @@ export const StudentAIChat: React.FC<StudentAIChatProps> = ({
         <div ref={bottomRef} />
       </div>
 
-      {/* Booking slot loading indicator in messages area */}
+      {/* Booking slot loading indicator */}
       {bookingStep === 'loading-slots' && (
         <div className="mx-4 mb-3 flex items-center gap-3 py-3 px-4 bg-indigo-900/30 border border-indigo-500/20 rounded-2xl">
           <Loader2 className="w-4 h-4 text-indigo-400 animate-spin flex-shrink-0" />
@@ -783,13 +619,8 @@ export const StudentAIChat: React.FC<StudentAIChatProps> = ({
         </div>
       )}
 
-      {/* Slot selection panel */}
       {bookingStep === 'slot-selection' && renderSlotSelection()}
-
-      {/* Confirmation panel */}
       {bookingStep === 'confirming' && renderConfirmation()}
-
-      {/* Booking loading */}
       {bookingStep === 'booking' && renderBookingLoading()}
 
       {/* Voice error */}
