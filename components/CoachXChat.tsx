@@ -4,6 +4,10 @@ import { ChevronLeft, Send, Sparkles, Bot, Mic, MicOff, Volume2 } from 'lucide-r
 import { CoachXChatMessage } from '../services/coachXService';
 import { generateCoachXChatResponse } from '../services/geminiService';
 import { useLanguage } from './LanguageContext';
+import { useTypingReveal } from '../hooks/useTypingReveal';
+import { useTextToSpeech } from '../hooks/useTextToSpeech';
+import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
+import { renderMarkdown } from '../utils/renderMarkdown';
 
 interface CoachXChatProps {
   coachProfile: CoachProfile;
@@ -42,20 +46,6 @@ const SUGGESTED_PROMPTS_JA = [
 ];
 
 const INITIAL_QUERY_DELAY_MS = 400;
-const TYPING_REVEAL_DURATION_MS = 2500;
-const TYPING_TICK_MS = 20;
-
-type SpeechRecognitionEvent = Event & {
-  results: SpeechRecognitionResultList;
-  resultIndex: number;
-};
-
-declare global {
-  interface Window {
-    SpeechRecognition: typeof SpeechRecognition;
-    webkitSpeechRecognition: typeof SpeechRecognition;
-  }
-}
 
 export const CoachXChat: React.FC<CoachXChatProps> = ({
   coachProfile,
@@ -78,40 +68,47 @@ export const CoachXChat: React.FC<CoachXChatProps> = ({
   ]);
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
-  const [revealedChars, setRevealedChars] = useState<number | null>(null);
   const [voiceMode, setVoiceMode] = useState(false);
-  const [isListening, setIsListening] = useState(false);
-  const [isSpeaking, setIsSpeaking] = useState(false);
 
-  const revealIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
-  const recognitionRef = useRef<SpeechRecognition | null>(null);
-  const voiceModeRef = useRef(voiceMode);
 
-  useEffect(() => { voiceModeRef.current = voiceMode; }, [voiceMode]);
+  const { revealedChars, startReveal, clearReveal } = useTypingReveal(2500);
+  const { isSpeaking, speak, stopSpeaking } = useTextToSpeech(language, voiceMode);
 
   const suggestedPrompts =
     language === 'en' ? SUGGESTED_PROMPTS_EN
     : language === 'ja' ? SUGGESTED_PROMPTS_JA
     : SUGGESTED_PROMPTS_KO;
 
-  const clearReveal = useCallback(() => {
-    if (revealIntervalRef.current !== null) {
-      clearInterval(revealIntervalRef.current);
-      revealIntervalRef.current = null;
-    }
-    setRevealedChars(null);
-  }, []);
-
-  useEffect(() => () => {
-    clearReveal();
-    recognitionRef.current?.abort();
-    window.speechSynthesis?.cancel();
-  }, [clearReveal]);
-
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isTyping, revealedChars]);
+
+  const handleSend = useCallback(async (text?: string) => {
+    const msgText = (text ?? input).trim();
+    if (!msgText) return;
+
+    clearReveal();
+    stopSpeaking();
+
+    const userMsg: CoachXChatMessage = { role: 'user', content: msgText, timestamp: Date.now() };
+    setMessages(prev => [...prev, userMsg]);
+    setInput('');
+    setIsTyping(true);
+
+    const historyForAI = [...messages, userMsg].slice(0, -1).map(m => ({ role: m.role, content: m.content }));
+    const reply = await generateCoachXChatResponse(msgText, allLessons, clients, language, historyForAI);
+
+    setMessages(prev => [...prev, { role: 'assistant', content: reply, timestamp: Date.now() }]);
+    setIsTyping(false);
+    speak(reply);
+    startReveal(reply);
+  }, [input, messages, allLessons, clients, language, clearReveal, stopSpeaking, speak, startReveal]);
+
+  const { isListening, stopListening, toggleListening } = useSpeechRecognition({
+    language,
+    onResult: handleSend,
+  });
 
   useEffect(() => {
     if (!initialQuery) return;
@@ -120,131 +117,12 @@ export const CoachXChat: React.FC<CoachXChatProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const speakText = useCallback((text: string) => {
-    if (!window.speechSynthesis || !window.SpeechSynthesisUtterance) return;
-    window.speechSynthesis.cancel();
-    const plain = text.replace(/\*\*(.*?)\*\*/g, '$1').replace(/[🏌️🏆💡📊⚡]/gu, '');
-    const utterance = new SpeechSynthesisUtterance(plain);
-    utterance.lang = language === 'en' ? 'en-US' : language === 'ja' ? 'ja-JP' : 'ko-KR';
-    utterance.rate = 1.0;
-    utterance.pitch = 1;
-    utterance.volume = 0.9;
-    utterance.onstart = () => setIsSpeaking(true);
-    utterance.onend = () => setIsSpeaking(false);
-    utterance.onerror = () => setIsSpeaking(false);
-    window.speechSynthesis.speak(utterance);
-  }, [language]);
-
-  const handleSend = useCallback(async (text?: string) => {
-    const msgText = (text ?? input).trim();
-    if (!msgText) return;
-
-    clearReveal();
-    window.speechSynthesis?.cancel();
-    setIsSpeaking(false);
-
-    const userMsg: CoachXChatMessage = {
-      role: 'user',
-      content: msgText,
-      timestamp: Date.now(),
-    };
-    setMessages(prev => [...prev, userMsg]);
-    setInput('');
-    setIsTyping(true);
-
-    // Pass prior turns (excluding the message just added) so the AI can follow conversation context
-    const historyForAI = [...messages, userMsg].slice(0, -1).map(m => ({ role: m.role, content: m.content }));
-    const reply = await generateCoachXChatResponse(msgText, allLessons, clients, language, historyForAI);
-    const assistantMsg: CoachXChatMessage = {
-      role: 'assistant',
-      content: reply,
-      timestamp: Date.now(),
-    };
-
-    setMessages(prev => [...prev, assistantMsg]);
-    setIsTyping(false);
-
-    if (voiceModeRef.current) {
-      speakText(reply);
-    }
-
-    const totalChars = reply.length;
-    const totalTicks = Math.ceil(TYPING_REVEAL_DURATION_MS / TYPING_TICK_MS);
-    const charsPerTick = Math.max(1, Math.ceil(totalChars / totalTicks));
-
-    setRevealedChars(0);
-    revealIntervalRef.current = setInterval(() => {
-      setRevealedChars(prev => {
-        if (prev === null) return null;
-        const next = prev + charsPerTick;
-        if (next >= totalChars) {
-          if (revealIntervalRef.current !== null) {
-            clearInterval(revealIntervalRef.current);
-            revealIntervalRef.current = null;
-          }
-          return null;
-        }
-        return next;
-      });
-    }, TYPING_TICK_MS);
-  }, [input, allLessons, clients, language, clearReveal, speakText]);
-
-  const startListening = useCallback(() => {
-    const SpeechRecognitionApi = window.SpeechRecognition ?? window.webkitSpeechRecognition;
-    if (!SpeechRecognitionApi) return;
-
-    const recognition = new SpeechRecognitionApi();
-    recognition.lang = language === 'en' ? 'en-US' : language === 'ja' ? 'ja-JP' : 'ko-KR';
-    recognition.interimResults = false;
-    recognition.maxAlternatives = 1;
-
-    recognition.onstart = () => setIsListening(true);
-    recognition.onend = () => setIsListening(false);
-    recognition.onerror = () => setIsListening(false);
-    recognition.onresult = (e: SpeechRecognitionEvent) => {
-      const transcript = e.results[e.resultIndex][0].transcript.trim();
-      if (transcript) void handleSend(transcript);
-    };
-
-    recognitionRef.current = recognition;
-    recognition.start();
-  }, [language, handleSend]);
-
-  const stopListening = useCallback(() => {
-    recognitionRef.current?.stop();
-    setIsListening(false);
-  }, []);
-
-  const handleMicPress = () => {
-    if (isListening) {
-      stopListening();
-    } else {
-      startListening();
-    }
-  };
-
   const handleToggleVoiceMode = (toVoice: boolean) => {
     setVoiceMode(toVoice);
     if (!toVoice) {
-      recognitionRef.current?.abort();
-      setIsListening(false);
-      window.speechSynthesis?.cancel();
-      setIsSpeaking(false);
+      stopListening();
+      stopSpeaking();
     }
-  };
-
-  const renderContent = (text: string) => {
-    const lines = text.split('\n');
-    return lines.map((line, i) => {
-      const parts = line.split(/\*\*(.*?)\*\*/g);
-      return (
-        <p key={i} className={i < lines.length - 1 ? 'mb-1' : ''}>
-          {parts.map((part, j) =>
-            j % 2 === 1 ? <strong key={j}>{part}</strong> : part
-          )}
-        </p>
-      );
-    });
   };
 
   return (
@@ -318,7 +196,7 @@ export const CoachXChat: React.FC<CoachXChatProps> = ({
                     : 'bg-gray-800 text-gray-100 rounded-bl-sm'
                 }`}
               >
-                {renderContent(displayContent)}
+                {renderMarkdown(displayContent)}
                 {isRevealing && (
                   <span className="coachx-cursor inline-block w-0.5 h-3.5 bg-violet-400 ml-0.5 align-text-bottom" />
                 )}
@@ -357,7 +235,7 @@ export const CoachXChat: React.FC<CoachXChatProps> = ({
             {suggestedPrompts.map((prompt, i) => (
               <button
                 key={i}
-                onClick={() => handleSend(prompt)}
+                onClick={() => void handleSend(prompt)}
                 className="text-xs bg-gray-800 hover:bg-gray-700 border border-white/10 text-gray-300 hover:text-white rounded-full px-3 py-1.5 transition-colors"
               >
                 {prompt}
@@ -379,7 +257,7 @@ export const CoachXChat: React.FC<CoachXChatProps> = ({
           )}
           <button
             type="button"
-            onPointerDown={handleMicPress}
+            onPointerDown={toggleListening}
             disabled={isTyping}
             className={`relative w-20 h-20 rounded-full flex items-center justify-center transition-all disabled:opacity-40 ${
               isListening

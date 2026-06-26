@@ -1,9 +1,13 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Lesson, ClientProfile, CoachProfile } from '../types';
 import { CoachXChatMessage } from '../services/coachXService';
 import { generateCoachXChatResponse } from '../services/geminiService';
 import { useLanguage } from './LanguageContext';
 import { Send, Mic, MicOff, LayoutDashboard, VolumeX, Volume2, MessageSquare } from 'lucide-react';
+import { useTypingReveal } from '../hooks/useTypingReveal';
+import { useTextToSpeech } from '../hooks/useTextToSpeech';
+import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
+import { renderMarkdown } from '../utils/renderMarkdown';
 
 export interface TodayLessonSummary {
   id: string;
@@ -23,30 +27,9 @@ interface CoachAIHomeProps {
 
 type Mode = 'chat' | 'voice';
 
-const TYPING_REVEAL_DURATION_MS = 1800;
-const TYPING_TICK_MS = 20;
-
 const QUICK_CHIPS_KO = ['오늘 일정 알려줘', '주의 학생 있어?', '이번 주 레슨 요약', '코칭 인사이트 보여줘'];
 const QUICK_CHIPS_EN = ["Today's schedule", 'Students needing attention', 'Weekly lesson summary', 'Coaching insights'];
 const QUICK_CHIPS_JA = ['今日のスケジュール', '注意が必要な生徒は?', '今週のレッスン要約', 'コーチングインサイト'];
-
-function renderMarkdown(text: string): React.ReactNode {
-  return text.split('\n').map((line, lineIdx) => {
-    const segments = line.split(/(\*\*[^*]+\*\*)/g);
-    return (
-      <span key={lineIdx}>
-        {lineIdx > 0 && <br />}
-        {segments.map((seg, i) =>
-          seg.startsWith('**') && seg.endsWith('**') ? (
-            <strong key={i}>{seg.slice(2, -2)}</strong>
-          ) : (
-            <span key={i}>{seg}</span>
-          )
-        )}
-      </span>
-    );
-  });
-}
 
 export const CoachAIHome: React.FC<CoachAIHomeProps> = ({
   coachProfile,
@@ -81,59 +64,18 @@ export const CoachAIHome: React.FC<CoachAIHomeProps> = ({
   ]);
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
-  const [revealedChars, setRevealedChars] = useState<number | null>(null);
-  const [isListening, setIsListening] = useState(false);
-  const [isSpeaking, setIsSpeaking] = useState(false);
   const [ttsEnabled, setTtsEnabled] = useState(true);
-  const [voiceError, setVoiceError] = useState<string | null>(null);
   const [userHasSent, setUserHasSent] = useState(false);
 
-  const revealIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const recognitionRef = useRef<SpeechRecognition | null>(null);
-  const synthRef = useRef<SpeechSynthesis | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    synthRef.current = window.speechSynthesis ?? null;
-  }, []);
-
-  useEffect(() => () => {
-    if (revealIntervalRef.current) clearInterval(revealIntervalRef.current);
-    synthRef.current?.cancel();
-    recognitionRef.current?.stop();
-  }, []);
+  const { revealedChars, startReveal, clearReveal } = useTypingReveal(1800);
+  const { isSpeaking, speak, stopSpeaking } = useTextToSpeech(language, ttsEnabled && mode === 'voice');
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isTyping, revealedChars]);
-
-  const clearReveal = useCallback(() => {
-    if (revealIntervalRef.current !== null) {
-      clearInterval(revealIntervalRef.current);
-      revealIntervalRef.current = null;
-    }
-    setRevealedChars(null);
-  }, []);
-
-  const speak = useCallback((text: string) => {
-    if (!synthRef.current || !ttsEnabled) return;
-    synthRef.current.cancel();
-    const plain = text.replace(/\*\*/g, '').replace(/\n/g, ' ');
-    const utter = new SpeechSynthesisUtterance(plain);
-    utter.lang = language === 'en' ? 'en-US' : language === 'ja' ? 'ja-JP' : 'ko-KR';
-    utter.rate = 1.0;
-    utter.pitch = 1.0;
-    utter.onstart = () => setIsSpeaking(true);
-    utter.onend = () => setIsSpeaking(false);
-    utter.onerror = () => setIsSpeaking(false);
-    synthRef.current.speak(utter);
-  }, [language, ttsEnabled]);
-
-  const stopSpeaking = useCallback(() => {
-    synthRef.current?.cancel();
-    setIsSpeaking(false);
-  }, []);
 
   const handleSend = async (text?: string) => {
     const msgText = (text ?? input).trim();
@@ -150,73 +92,17 @@ export const CoachAIHome: React.FC<CoachAIHomeProps> = ({
 
     const lang = (language as 'ko' | 'en' | 'ja') ?? 'ko';
     const reply = await generateCoachXChatResponse(msgText, allLessons, clients, lang);
-    const assistantMsg: CoachXChatMessage = { role: 'assistant', content: reply, timestamp: Date.now() };
 
-    setMessages(prev => [...prev, assistantMsg]);
+    setMessages(prev => [...prev, { role: 'assistant', content: reply, timestamp: Date.now() }]);
     setIsTyping(false);
-
-    if (mode === 'voice') speak(reply);
-
-    const totalChars = reply.length;
-    const totalTicks = Math.ceil(TYPING_REVEAL_DURATION_MS / TYPING_TICK_MS);
-    const charsPerTick = Math.max(1, Math.ceil(totalChars / totalTicks));
-    setRevealedChars(0);
-    revealIntervalRef.current = setInterval(() => {
-      setRevealedChars(prev => {
-        if (prev === null) return null;
-        const next = prev + charsPerTick;
-        if (next >= totalChars) {
-          if (revealIntervalRef.current) { clearInterval(revealIntervalRef.current); revealIntervalRef.current = null; }
-          return null;
-        }
-        return next;
-      });
-    }, TYPING_TICK_MS);
+    speak(reply);
+    startReveal(reply);
   };
 
-  const stopListening = useCallback(() => {
-    recognitionRef.current?.stop();
-    setIsListening(false);
-  }, []);
-
-  const startListening = useCallback(() => {
-    setVoiceError(null);
-    stopSpeaking();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const SRCtor: (new () => SpeechRecognition) | undefined = (window as any).SpeechRecognition ?? (window as any).webkitSpeechRecognition;
-    if (!SRCtor) {
-      setVoiceError(language === 'en' ? 'Speech recognition not supported in this browser.' : language === 'ja' ? 'このブラウザは音声認識をサポートしていません。' : '이 브라우저는 음성 인식을 지원하지 않습니다.');
-      return;
-    }
-    const rec = new SRCtor();
-    rec.lang = language === 'en' ? 'en-US' : language === 'ja' ? 'ja-JP' : 'ko-KR';
-    rec.continuous = false;
-    rec.interimResults = false;
-    rec.onstart = () => setIsListening(true);
-    rec.onend = () => setIsListening(false);
-    rec.onerror = (e: Event) => {
-      setIsListening(false);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const errType = (e as any).error;
-      if (errType === 'aborted') return;
-      setVoiceError(
-        errType === 'not-allowed'
-          ? (language === 'en' ? 'Microphone permission denied.' : language === 'ja' ? 'マイクのアクセスが拒否されました。' : '마이크 권한이 거부되었습니다.')
-          : (language === 'en' ? 'Voice recognition error.' : language === 'ja' ? '音声認識エラー。' : '음성 인식 오류가 발생했어요.')
-      );
-    };
-    rec.onresult = (e: SpeechRecognitionEvent) => {
-      const transcript = e.results[0]?.[0]?.transcript ?? '';
-      if (transcript) void handleSend(transcript);
-    };
-    recognitionRef.current = rec;
-    rec.start();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [language, stopSpeaking]);
-
-  const toggleListening = useCallback(() => {
-    if (isListening) stopListening(); else startListening();
-  }, [isListening, stopListening, startListening]);
+  const { isListening, voiceError, toggleListening } = useSpeechRecognition({
+    language,
+    onResult: handleSend,
+  });
 
   const quickChips = language === 'en' ? QUICK_CHIPS_EN : language === 'ja' ? QUICK_CHIPS_JA : QUICK_CHIPS_KO;
 
@@ -249,7 +135,7 @@ export const CoachAIHome: React.FC<CoachAIHomeProps> = ({
           {/* TTS toggle */}
           <button
             type="button"
-            onClick={() => { ttsEnabled ? (stopSpeaking(), setTtsEnabled(false)) : setTtsEnabled(true); }}
+            onClick={() => { if (ttsEnabled) stopSpeaking(); setTtsEnabled(p => !p); }}
             className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 text-white/40 transition-colors hover:border-white/20 hover:text-white/70"
             title={ttsEnabled ? '음성 읽기 끄기' : '음성 읽기 켜기'}
           >

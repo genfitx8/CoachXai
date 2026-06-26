@@ -8,6 +8,10 @@ import { CoachProfile, ClientProfile, Lesson } from '../types';
 import { generateCoachXChatResponse } from '../services/geminiService';
 import { reservationService } from '../services/reservationService';
 import { useLanguage } from './LanguageContext';
+import { useTypingReveal } from '../hooks/useTypingReveal';
+import { useTextToSpeech } from '../hooks/useTextToSpeech';
+import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
+import { renderMarkdown } from '../utils/renderMarkdown';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -44,8 +48,6 @@ interface CoachXAssistantProps {
 // ── Constants ────────────────────────────────────────────────────────────────
 
 const LESSON_HOURS = Array.from({ length: 13 }, (_, i) => i + 8); // 08:00–20:00
-const TYPING_REVEAL_DURATION_MS = 1800;
-const TYPING_TICK_MS = 20;
 
 const pad = (n: number) => String(n).padStart(2, '0');
 
@@ -97,7 +99,6 @@ function parseNaturalLanguageBooking(text: string, clients: ClientProfile[]): Pa
   const today = new Date();
   const year = today.getFullYear();
 
-  // ── Date ────────────────────────────────────────────────────────────────
   let date: string | null = null;
 
   if (/오늘/.test(text)) {
@@ -111,7 +112,6 @@ function parseNaturalLanguageBooking(text: string, clients: ClientProfile[]): Pa
   }
 
   if (!date) {
-    // "7월 20일" / "07월 20일"
     const m = text.match(/(\d{1,2})월\s*(\d{1,2})일/);
     if (m) {
       const mo = parseInt(m[1], 10);
@@ -123,13 +123,11 @@ function parseNaturalLanguageBooking(text: string, clients: ClientProfile[]): Pa
   }
 
   if (!date) {
-    // "2026-07-20" ISO
     const m = text.match(/(\d{4})-(\d{1,2})-(\d{1,2})/);
     if (m) date = `${m[1]}-${m[2].padStart(2,'0')}-${m[3].padStart(2,'0')}`;
   }
 
   if (!date) {
-    // "월요일", "다음 주 화요일"
     const dayMap: Record<string, number> = { 일: 0, 월: 1, 화: 2, 수: 3, 목: 4, 금: 5, 토: 6 };
     const m = text.match(/(다음\s*주)?\s*(월|화|수|목|금|토|일)요일/);
     if (m) {
@@ -143,26 +141,22 @@ function parseNaturalLanguageBooking(text: string, clients: ClientProfile[]): Pa
     }
   }
 
-  // ── Time ────────────────────────────────────────────────────────────────
   let hour: number | null = null;
 
-  // "오전 10시" / "오후 3시" / "오후 3시 30분"
   const tm = text.match(/(오전|오후)?\s*(\d{1,2})시/);
   if (tm) {
     let h = parseInt(tm[2], 10);
     if (tm[1] === '오후' && h !== 12) h += 12;
     else if (tm[1] === '오전' && h === 12) h = 0;
-    else if (!tm[1] && h <= 7) h += 12; // ambiguous: 1~7시 → assume PM
+    else if (!tm[1] && h <= 7) h += 12;
     hour = h;
   }
 
   if (hour === null) {
-    // "15:00"
     const m24 = text.match(/(\d{1,2}):(\d{2})/);
     if (m24) hour = parseInt(m24[1], 10);
   }
 
-  // ── Client name ──────────────────────────────────────────────────────────
   let clientName: string | null = null;
   let clientId: string | null = null;
 
@@ -186,7 +180,6 @@ const BOOKING_MESSAGES: Record<string, string> = {
   lesson_client:   '시간이 선택됐어요 ✅\n**회원**을 선택해 주세요. (없으면 건너뛰기 가능)',
   lesson_confirm:  '예약 내용을 확인해 주세요 📋',
   lesson_done:     '레슨 예약이 완료됐어요! 🎉\n코치 캘린더에 슬롯이 등록되었습니다.',
-  lesson_error:    '예약 처리 중 오류가 발생했어요. 다시 시도해 주세요.',
   bay_nav:         '타석 예약 페이지로 이동할게요! 🏌️',
   general_help:    '안녕하세요! 저는 **CoachX AI**예요.\n\n무엇을 도와드릴까요?\n- 📅 **레슨 예약** — 레슨 슬롯 생성\n- 🏌️ **타석 예약** — 타석 예약 관리\n- 💡 **코칭 인사이트** — AI 분석 및 인사이트\n- 📋 **예약 현황** — 현재 예약 목록',
 };
@@ -219,78 +212,23 @@ export const CoachXAssistant: React.FC<CoachXAssistantProps> = ({
   ]);
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
-  const [revealedChars, setRevealedChars] = useState<number | null>(null);
-  const revealIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const [booking, setBooking] = useState<BookingState>({
     type: null, step: null, date: null, hour: null, clientId: null, clientName: null,
   });
   const [isBookingLoading, setIsBookingLoading] = useState(false);
 
-  // Voice
-  const [isListening, setIsListening] = useState(false);
-  const [voiceError, setVoiceError] = useState<string | null>(null);
-  const recognitionRef = useRef<SpeechRecognition | null>(null);
-  const synthRef = useRef<SpeechSynthesis | null>(null);
-
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // ── Init ──────────────────────────────────────────────────────────────────
-
-  useEffect(() => {
-    synthRef.current = window.speechSynthesis ?? null;
-  }, []);
+  const { revealedChars, startReveal, clearReveal } = useTypingReveal(1800);
+  const { speak, stopSpeaking } = useTextToSpeech(language, mode === 'voice');
 
   // ── Scroll ───────────────────────────────────────────────────────────────
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isTyping, revealedChars, booking.step]);
-
-  // ── Reveal animation ─────────────────────────────────────────────────────
-
-  const clearReveal = useCallback(() => {
-    if (revealIntervalRef.current !== null) {
-      clearInterval(revealIntervalRef.current);
-      revealIntervalRef.current = null;
-    }
-    setRevealedChars(null);
-  }, []);
-
-  useEffect(() => () => { clearReveal(); }, [clearReveal]);
-
-  const startReveal = useCallback((text: string) => {
-    const totalChars = text.length;
-    const totalTicks = Math.ceil(TYPING_REVEAL_DURATION_MS / TYPING_TICK_MS);
-    const charsPerTick = Math.max(1, Math.ceil(totalChars / totalTicks));
-    setRevealedChars(0);
-    revealIntervalRef.current = setInterval(() => {
-      setRevealedChars(prev => {
-        if (prev === null) return null;
-        const next = prev + charsPerTick;
-        if (next >= totalChars) {
-          if (revealIntervalRef.current !== null) {
-            clearInterval(revealIntervalRef.current);
-            revealIntervalRef.current = null;
-          }
-          return null;
-        }
-        return next;
-      });
-    }, TYPING_TICK_MS);
-  }, []);
-
-  // ── TTS ──────────────────────────────────────────────────────────────────
-
-  const speak = useCallback((text: string) => {
-    if (!synthRef.current || mode !== 'voice') return;
-    synthRef.current.cancel();
-    const plain = text.replace(/\*\*/g, '').replace(/\n/g, ' ');
-    const utter = new SpeechSynthesisUtterance(plain);
-    utter.lang = language === 'en' ? 'en-US' : 'ko-KR';
-    synthRef.current.speak(utter);
-  }, [language, mode]);
 
   // ── Add message ───────────────────────────────────────────────────────────
 
@@ -322,7 +260,6 @@ export const CoachXAssistant: React.FC<CoachXAssistantProps> = ({
   const handleDateSelect = useCallback((date: string) => {
     addMessage('user', `📅 ${formatDateKo(date)}`);
     setBooking(prev => {
-      // If hour already parsed, skip time picker
       const nextStep: BookingStep = prev.hour !== null ? 'client' : 'time';
       return { ...prev, date, step: nextStep };
     });
@@ -341,7 +278,6 @@ export const CoachXAssistant: React.FC<CoachXAssistantProps> = ({
   const handleTimeSelect = useCallback((hour: number) => {
     addMessage('user', `⏰ ${pad(hour)}:00 ~ ${pad(hour + 1)}:00`);
     setBooking(prev => {
-      // If client already matched, skip client picker → confirm
       const nextStep: BookingStep = prev.clientName ? 'confirm' : 'client';
       return { ...prev, hour, step: nextStep };
     });
@@ -405,7 +341,6 @@ export const CoachXAssistant: React.FC<CoachXAssistantProps> = ({
     setInput('');
     setIsTyping(true);
 
-    // Check for booking intent
     const intent = detectBookingIntent(msgText);
     if (intent === 'bay') {
       setIsTyping(false);
@@ -418,12 +353,10 @@ export const CoachXAssistant: React.FC<CoachXAssistantProps> = ({
       return;
     }
     if (intent === 'lesson') {
-      // Try to parse date / time / client from the natural language message
       const parsed = parseNaturalLanguageBooking(msgText, coachClients);
       setIsTyping(false);
 
       if (parsed.date && parsed.hour !== null) {
-        // All critical info found → jump straight to confirmation
         const clientStr = parsed.clientName ? ` (${parsed.clientName} 회원)` : '';
         setBooking({
           type: 'lesson',
@@ -437,7 +370,6 @@ export const CoachXAssistant: React.FC<CoachXAssistantProps> = ({
           `**${formatDateKo(parsed.date)} ${pad(parsed.hour)}:00~${pad(parsed.hour + 1)}:00${clientStr}** 레슨 예약이군요! 📋\n아래 내용을 확인하고 예약을 확정해 주세요.`
         );
       } else if (parsed.date) {
-        // Date found, need time
         setBooking({
           type: 'lesson',
           step: 'time',
@@ -448,7 +380,6 @@ export const CoachXAssistant: React.FC<CoachXAssistantProps> = ({
         });
         addAssistantMessage(`**${formatDateKo(parsed.date)}** 레슨이군요! ✅\n이제 **시간**을 선택해 주세요.`);
       } else if (parsed.hour !== null) {
-        // Time found, need date
         setBooking({
           type: 'lesson',
           step: 'date',
@@ -459,13 +390,11 @@ export const CoachXAssistant: React.FC<CoachXAssistantProps> = ({
         });
         addAssistantMessage(`**${pad(parsed.hour)}:00** 시간으로 알겠어요! 📅\n**날짜**를 선택해 주세요.`);
       } else {
-        // No info parsed → start normal step-by-step
         startBooking('lesson');
       }
       return;
     }
 
-    // Check for quick commands
     const lower = msgText.toLowerCase();
     if (/예약 현황|reservation status/.test(lower) && onOpenReservationManager) {
       setIsTyping(false);
@@ -480,7 +409,6 @@ export const CoachXAssistant: React.FC<CoachXAssistantProps> = ({
       return;
     }
 
-    // General AI response
     try {
       const reply = await generateCoachXChatResponse(msgText, allLessons, clients, language as 'ko' | 'en' | 'ja');
       setIsTyping(false);
@@ -490,6 +418,11 @@ export const CoachXAssistant: React.FC<CoachXAssistantProps> = ({
       addAssistantMessage('죄송해요, 잠시 오류가 발생했어요. 다시 시도해 주세요.');
     }
   }, [input, isTyping, clearReveal, addMessage, addAssistantMessage, startBooking, allLessons, clients, coachClients, language, onOpenBayReservation, onOpenReservationManager, onOpenCoachXHub]);
+
+  const { isListening, voiceError, stopListening, toggleListening } = useSpeechRecognition({
+    language,
+    onResult: handleSend,
+  });
 
   // ── Quick actions ─────────────────────────────────────────────────────────
 
@@ -522,61 +455,6 @@ export const CoachXAssistant: React.FC<CoachXAssistantProps> = ({
         break;
     }
   }, [startBooking, onOpenBayReservation, onOpenCoachXHub, onOpenReservationManager, addAssistantMessage, handleSend]);
-
-  // ── Voice ─────────────────────────────────────────────────────────────────
-
-  const stopListening = useCallback(() => {
-    recognitionRef.current?.stop();
-    setIsListening(false);
-  }, []);
-
-  const startListening = useCallback(() => {
-    setVoiceError(null);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const SRConstructor: (new () => SpeechRecognition) | undefined = (window as any).SpeechRecognition ?? (window as any).webkitSpeechRecognition;
-    if (!SRConstructor) {
-      setVoiceError('이 브라우저는 음성 인식을 지원하지 않습니다.');
-      return;
-    }
-    const rec = new SRConstructor();
-    rec.lang = language === 'en' ? 'en-US' : 'ko-KR';
-    rec.continuous = false;
-    rec.interimResults = false;
-
-    rec.onstart = () => setIsListening(true);
-    rec.onend = () => setIsListening(false);
-    rec.onerror = (e: Event) => {
-      setIsListening(false);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      if ((e as any).error !== 'aborted') setVoiceError('음성 인식 중 오류가 발생했어요.');
-    };
-    rec.onresult = (e: SpeechRecognitionEvent) => {
-      const transcript = e.results[0]?.[0]?.transcript ?? '';
-      if (transcript) void handleSend(transcript);
-    };
-
-    recognitionRef.current = rec;
-    rec.start();
-  }, [language, handleSend]);
-
-  const toggleListening = useCallback(() => {
-    if (isListening) stopListening();
-    else startListening();
-  }, [isListening, stopListening, startListening]);
-
-  // ── Render helpers ────────────────────────────────────────────────────────
-
-  const renderContent = (text: string) => {
-    const lines = text.split('\n');
-    return lines.map((line, i) => {
-      const parts = line.split(/\*\*(.*?)\*\*/g);
-      return (
-        <p key={i} className={i < lines.length - 1 ? 'mb-1' : ''}>
-          {parts.map((part, j) => j % 2 === 1 ? <strong key={j}>{part}</strong> : part)}
-        </p>
-      );
-    });
-  };
 
   const dateOptions = getDateOptions();
 
@@ -736,7 +614,7 @@ export const CoachXAssistant: React.FC<CoachXAssistantProps> = ({
         {/* Mode toggle */}
         <div className="flex items-center gap-1 bg-gray-800 rounded-xl p-1 border border-white/10">
           <button
-            onClick={() => { setMode('chat'); synthRef.current?.cancel(); stopListening(); }}
+            onClick={() => { setMode('chat'); stopSpeaking(); stopListening(); }}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
               mode === 'chat' ? 'bg-violet-600 text-white' : 'text-gray-400 hover:text-gray-200'
             }`}
@@ -775,7 +653,7 @@ export const CoachXAssistant: React.FC<CoachXAssistantProps> = ({
                   ? 'bg-slate-700 text-white rounded-br-sm'
                   : 'bg-gray-800 text-gray-100 rounded-bl-sm'
               }`}>
-                {renderContent(displayContent)}
+                {renderMarkdown(displayContent)}
                 {isRevealing && (
                   <span className="coachx-assistant-cursor inline-block w-0.5 h-3.5 bg-violet-400 ml-0.5 align-text-bottom" />
                 )}
@@ -803,7 +681,7 @@ export const CoachXAssistant: React.FC<CoachXAssistantProps> = ({
           </div>
         )}
 
-        {/* Quick action chips – shown on first screen */}
+        {/* Quick action chips */}
         {messages.length <= 1 && !booking.step && (
           <div className="flex flex-col gap-2 pt-2">
             <p className="text-xs text-gray-500 px-1">빠른 실행</p>
