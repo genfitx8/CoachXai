@@ -333,7 +333,7 @@ export const AdminPromptManager: React.FC<AdminPromptManagerProps> = ({ isFireba
             <textarea
               value={form.systemPrompt}
               onChange={(e) => setForm((f) => ({ ...f, systemPrompt: e.target.value }))}
-              placeholder="You are Coachx, an AI coaching assistant..."
+              placeholder="You are CoachX AI..."
               rows={8}
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none resize-y text-sm font-mono"
             />
