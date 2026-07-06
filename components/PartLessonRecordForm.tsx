@@ -1,20 +1,19 @@
 import React, { useState, useEffect } from 'react';
-import { Save, X, Link2, Plus, Trash2, CheckSquare, Square } from 'lucide-react';
-import type { ChapterLessonRecord, ChapterChecklistItem } from '../types/textbook';
-import type { TextbookChapter } from '../types/textbook';
+import { Save, X, Link2, Trash2, CheckSquare, Square } from 'lucide-react';
+import type { PartLessonRecord, PartChecklistItem, CurriculumPart } from '../types/curriculum';
 
-interface ChapterLessonRecordFormProps {
-  chapter: TextbookChapter;
+interface PartLessonRecordFormProps {
+  part: CurriculumPart;
   studentId: string;
   studentName: string;
-  existingRecord?: ChapterLessonRecord;
+  existingRecord?: PartLessonRecord;
   existingLessons?: { id: string; title: string; date: string }[];
-  onSave: (data: Omit<ChapterLessonRecord, 'id' | 'coachId' | 'createdAt' | 'updatedAt'>) => Promise<void>;
+  onSave: (data: Omit<PartLessonRecord, 'id' | 'coachId' | 'createdAt' | 'updatedAt'>) => Promise<void>;
   onClose: () => void;
 }
 
-export const ChapterLessonRecordForm: React.FC<ChapterLessonRecordFormProps> = ({
-  chapter,
+export const PartLessonRecordForm: React.FC<PartLessonRecordFormProps> = ({
+  part,
   studentId,
   studentName,
   existingRecord,
@@ -26,19 +25,19 @@ export const ChapterLessonRecordForm: React.FC<ChapterLessonRecordFormProps> = (
     existingRecord?.lessonDate ?? new Date().toISOString().slice(0, 10)
   );
   const [textMemo, setTextMemo] = useState(existingRecord?.textMemo ?? '');
-  const [checklist, setChecklist] = useState<ChapterChecklistItem[]>(
+  const [checklist, setChecklist] = useState<PartChecklistItem[]>(
     existingRecord?.checklist ??
-    (chapter.keyPoints ?? []).map((text) => ({ text, checked: false }))
+    (part.keyPoints ?? []).map((text) => ({ text, checked: false }))
   );
   const [linkedLessonId, setLinkedLessonId] = useState(existingRecord?.linkedLessonId ?? '');
   const [coachFeedback, setCoachFeedback] = useState(existingRecord?.coachFeedback ?? '');
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (!existingRecord && chapter.keyPoints?.length) {
-      setChecklist(chapter.keyPoints.map((text) => ({ text, checked: false })));
+    if (!existingRecord && part.keyPoints?.length) {
+      setChecklist(part.keyPoints.map((text) => ({ text, checked: false })));
     }
-  }, [chapter.keyPoints, existingRecord]);
+  }, [part.keyPoints, existingRecord]);
 
   function toggleCheck(index: number) {
     setChecklist((prev) =>
@@ -50,8 +49,8 @@ export const ChapterLessonRecordForm: React.FC<ChapterLessonRecordFormProps> = (
     setSaving(true);
     try {
       await onSave({
-        chapterId: chapter.id,
-        textbookId: chapter.textbookId,
+        partId: part.id,
+        curriculumId: part.curriculumId,
         studentId,
         studentName,
         lessonDate,
@@ -63,7 +62,7 @@ export const ChapterLessonRecordForm: React.FC<ChapterLessonRecordFormProps> = (
       });
       onClose();
     } catch (e) {
-      console.error('[ChapterLessonRecordForm] save error:', e);
+      console.error('[PartLessonRecordForm] save error:', e);
     } finally {
       setSaving(false);
     }
@@ -77,7 +76,7 @@ export const ChapterLessonRecordForm: React.FC<ChapterLessonRecordFormProps> = (
       <div className="flex items-center justify-between px-5 py-4 border-b border-slate-800">
         <div>
           <h3 className="text-base font-bold text-slate-100">레슨 기록</h3>
-          <p className="text-xs text-slate-400 mt-0.5 truncate max-w-[240px]">{chapter.title}</p>
+          <p className="text-xs text-slate-400 mt-0.5 truncate max-w-[240px]">{part.title}</p>
         </div>
         <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-slate-800 text-slate-400">
           <X className="w-5 h-5" />

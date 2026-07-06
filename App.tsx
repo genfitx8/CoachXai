@@ -38,7 +38,7 @@ import { TrainingProgramGenerator } from './components/TrainingProgramGenerator'
 import { LessonStartPromptModal } from './components/LessonStartPromptModal';
 import { DiagnosisProgramSection } from './components/diagnosis/DiagnosisProgramSection';
 import { DiagnosisResultSection } from './components/diagnosis/DiagnosisResultSection';
-import { TextbookManager } from './components/TextbookManager';
+import { CurriculumManager } from './components/CurriculumManager';
 import { storageService } from './services/storage';
 import { authService } from './services/authService';
 import { firebaseService } from './services/firebase';
@@ -1736,12 +1736,12 @@ const AppContent: React.FC = () => {
                 </Button>
 
                 <Button
-                  onClick={() => setCoachView('TEXTBOOK')}
-                  data-testid="textbook-entry-btn"
+                  onClick={() => setCoachView('CURRICULUM')}
+                  data-testid="curriculum-entry-btn"
                   className="w-full py-4 text-base rounded-2xl border border-amber-500/30 shadow-lg shadow-slate-900/40 bg-gradient-to-r from-slate-900 to-slate-800 hover:from-slate-800 hover:to-slate-700 justify-center"
                   icon={<BookOpen className="w-5 h-5 text-amber-400" />}
                 >
-                  교육 교재 관리
+                  교육 커리큘럼 관리
                 </Button>
 
               </div>
@@ -2112,8 +2112,8 @@ const AppContent: React.FC = () => {
           />
         )}
 
-        {coachView === 'TEXTBOOK' && currentUser && 'id' in currentUser && (
-          <TextbookManager
+        {coachView === 'CURRICULUM' && currentUser && 'id' in currentUser && (
+          <CurriculumManager
             coachProfile={currentUser as CoachProfile}
             clients={clients}
             lessons={allCoachLessons.map((l) => ({
