@@ -19,6 +19,15 @@ export interface CurriculumPart {
   updatedAt: number;
 }
 
+export interface CurriculumPartTemplate {
+  partKey: CurriculumPartKey;
+  order: number;
+  title: string;
+  content: string;
+  keyPoints: string[];
+  updatedAt: number;
+}
+
 export interface Curriculum {
   id: string;
   title: string;

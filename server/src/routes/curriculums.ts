@@ -7,6 +7,26 @@ import { buildDefaultCurriculumParts } from '../seeds/curriculumParts';
 const router = Router();
 router.use(authMiddleware);
 
+// Builds the 5 fixed parts for a newly created curriculum from the admin-editable
+// templates table, falling back to the static seed if the table is unexpectedly empty.
+async function buildPartsFromTemplates(curriculumId: string, now: number) {
+  const result = await pool.query('SELECT * FROM curriculum_part_templates ORDER BY part_order ASC');
+  if (result.rows.length === 0) {
+    return buildDefaultCurriculumParts(curriculumId, now);
+  }
+  return result.rows.map((row) => ({
+    id: uuidv4(),
+    curriculumId,
+    partKey: row.part_key as string,
+    partOrder: row.part_order as number,
+    title: row.title as string,
+    content: row.content as string,
+    keyPoints: (row.key_points ?? []) as string[],
+    createdAt: now,
+    updatedAt: now,
+  }));
+}
+
 function mapCurriculum(row: Record<string, unknown>) {
   return {
     id: row.id,
@@ -147,7 +167,7 @@ router.post('/', async (req: Request, res: Response) => {
       [id, title, description ?? null, req.user!.id, now, now]
     );
 
-    const parts = buildDefaultCurriculumParts(id, now);
+    const parts = await buildPartsFromTemplates(id, now);
     for (const part of parts) {
       await pool.query(
         `INSERT INTO curriculum_parts (id, curriculum_id, part_key, part_order, title, content, key_points, created_at, updated_at)

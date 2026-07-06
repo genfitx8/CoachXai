@@ -1,4 +1,5 @@
 import { Pool } from 'pg';
+import { CURRICULUM_PART_DEFS } from '../seeds/curriculumParts';
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -266,6 +267,28 @@ export async function initDb(): Promise<void> {
   await pool.query(
     `CREATE INDEX IF NOT EXISTS idx_part_lesson_records_part ON part_lesson_records (part_id, student_id)`
   );
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS curriculum_part_templates (
+      part_key    VARCHAR(50) PRIMARY KEY,
+      part_order  INTEGER NOT NULL,
+      title       VARCHAR(500) NOT NULL,
+      content     TEXT,
+      key_points  JSONB DEFAULT '[]',
+      updated_at  BIGINT NOT NULL
+    )
+  `);
+
+  // Seed the admin-editable templates from the built-in defaults once.
+  // ON CONFLICT DO NOTHING preserves any admin edits across restarts/redeploys.
+  const now = Date.now();
+  for (const def of CURRICULUM_PART_DEFS) {
+    await pool.query(
+      `INSERT INTO curriculum_part_templates (part_key, part_order, title, content, key_points, updated_at)
+       VALUES ($1,$2,$3,$4,$5,$6) ON CONFLICT (part_key) DO NOTHING`,
+      [def.partKey, def.partOrder, def.title, def.content, JSON.stringify(def.keyPoints), now]
+    );
+  }
 }
 
 export default pool;

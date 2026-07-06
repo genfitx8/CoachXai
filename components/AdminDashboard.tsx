@@ -9,6 +9,7 @@ import { AdminCourseManager } from './AdminCourseManager';
 import { AdminBranchManager } from './AdminBranchManager';
 import { AdminBranchStaffManager } from './AdminBranchStaffManager';
 import { AdminPromptManager } from './AdminPromptManager';
+import { AdminCurriculumTemplateManager } from './AdminCurriculumTemplateManager';
 import { AdminCoachActivity } from './AdminCoachActivity';
 import { useLanguage } from './LanguageContext';
 
@@ -45,7 +46,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   onChangeSubscriptionPlan
 }) => {
   const { t } = useLanguage();
-  const [activeTab, setActiveTab] = useState<'CLIENTS' | 'LESSONS' | 'SYSTEM' | 'TEMPLATES' | 'MESSAGES' | 'COURSES' | 'BRANCHES' | 'BRANCH_STAFF' | 'AI_PROMPTS' | 'COACH_ACTIVITY'>('CLIENTS');
+  const [activeTab, setActiveTab] = useState<'CLIENTS' | 'LESSONS' | 'SYSTEM' | 'TEMPLATES' | 'MESSAGES' | 'COURSES' | 'BRANCHES' | 'BRANCH_STAFF' | 'AI_PROMPTS' | 'COACH_ACTIVITY' | 'CURRICULUM_TEMPLATES'>('CLIENTS');
   const [memberType, setMemberType] = useState<'GENERAL' | 'COACH'>('GENERAL'); 
   
   // Media visibility toggle
@@ -402,11 +403,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             >
                 {t('admin_tab_branch_staff')}
             </button>
-            <button 
+            <button
                 onClick={() => setActiveTab('AI_PROMPTS')}
                 className={`pb-3 text-sm font-bold transition-colors border-b-2 whitespace-nowrap flex items-center gap-1.5 ${activeTab === 'AI_PROMPTS' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
             >
                 <Sparkles className="w-3.5 h-3.5" /> {t('admin_tab_prompts')}
+            </button>
+            <button
+                onClick={() => setActiveTab('CURRICULUM_TEMPLATES')}
+                className={`pb-3 text-sm font-bold transition-colors border-b-2 whitespace-nowrap flex items-center gap-1.5 ${activeTab === 'CURRICULUM_TEMPLATES' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
+            >
+                <ListChecks className="w-3.5 h-3.5" /> 커리큘럼 콘텐츠
             </button>
         </div>
 
@@ -871,6 +878,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
             {activeTab === 'AI_PROMPTS' && (
                 <AdminPromptManager isFirebaseMode={isFbConnected} />
+            )}
+
+            {activeTab === 'CURRICULUM_TEMPLATES' && (
+                <AdminCurriculumTemplateManager />
             )}
         </div>
       </main>
