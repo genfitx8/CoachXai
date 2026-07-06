@@ -16,8 +16,17 @@ async function req<T = unknown>(method: string, path: string, body?: unknown): P
     body: body !== undefined ? JSON.stringify(body) : undefined,
   });
   if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: 'Server error' }));
-    throw new Error(err.error || `HTTP ${res.status}`);
+    let message = `HTTP ${res.status}`;
+    const text = await res.text().catch(() => '');
+    try {
+      const err = JSON.parse(text);
+      if (err?.error) message = err.error;
+    } catch {
+      // Non-JSON error body (e.g. an HTML 404/502 page from a stale deploy) —
+      // surface a short snippet so the real cause is visible instead of a generic message.
+      if (text) message = `HTTP ${res.status}: ${text.replace(/<[^>]*>/g, ' ').trim().slice(0, 150)}`;
+    }
+    throw new Error(message);
   }
   return res.json() as Promise<T>;
 }
