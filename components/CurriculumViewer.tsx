@@ -84,6 +84,7 @@ export const CurriculumViewer: React.FC<CurriculumViewerProps> = ({
       await loadData();
     } catch (e) {
       console.error('[CurriculumViewer] set status error:', e);
+      alert(`상태 변경에 실패했습니다.\n(${e instanceof Error ? e.message : '알 수 없는 오류'})`);
     } finally {
       setUpdatingStatus(false);
     }

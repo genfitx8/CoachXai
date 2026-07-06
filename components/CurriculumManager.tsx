@@ -22,6 +22,10 @@ type ManagerView = 'list' | 'create' | 'viewer' | 'progress' | 'assign';
 
 const PART_COUNT = 5;
 
+function errMsg(e: unknown): string {
+  return e instanceof Error && e.message ? e.message : '알 수 없는 오류';
+}
+
 export const CurriculumManager: React.FC<CurriculumManagerProps> = ({
   coachProfile,
   clients,
@@ -34,6 +38,7 @@ export const CurriculumManager: React.FC<CurriculumManagerProps> = ({
   const [selectedClient, setSelectedClient] = useState<ClientProfile | null>(null);
   const [progressData, setProgressData] = useState<StudentCurriculumProgress[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
 
   // Create form state
@@ -51,10 +56,12 @@ export const CurriculumManager: React.FC<CurriculumManagerProps> = ({
   const load = useCallback(async () => {
     try {
       setLoading(true);
+      setLoadError(null);
       const list = await listCurriculums();
       setCurriculums(list);
     } catch (e) {
       console.error('[CurriculumManager] load error:', e);
+      setLoadError(errMsg(e));
     } finally {
       setLoading(false);
     }
@@ -73,7 +80,7 @@ export const CurriculumManager: React.FC<CurriculumManagerProps> = ({
       await load();
     } catch (e) {
       console.error('[CurriculumManager] create error:', e);
-      alert('커리큘럼 생성에 실패했습니다.');
+      alert(`커리큘럼 생성에 실패했습니다.\n(${errMsg(e)})`);
     } finally {
       setCreating(false);
     }
@@ -86,7 +93,7 @@ export const CurriculumManager: React.FC<CurriculumManagerProps> = ({
       await load();
     } catch (e) {
       console.error('[CurriculumManager] delete error:', e);
-      alert('삭제에 실패했습니다.');
+      alert(`삭제에 실패했습니다.\n(${errMsg(e)})`);
     }
   }
 
@@ -100,7 +107,7 @@ export const CurriculumManager: React.FC<CurriculumManagerProps> = ({
       setSelectedStudentIds([]);
     } catch (e) {
       console.error('[CurriculumManager] assign error:', e);
-      alert('배정에 실패했습니다.');
+      alert(`배정에 실패했습니다.\n(${errMsg(e)})`);
     } finally {
       setAssigning(false);
     }
@@ -391,6 +398,18 @@ export const CurriculumManager: React.FC<CurriculumManagerProps> = ({
           교육 커리큘럼
         </h2>
       </div>
+
+      {loadError && (
+        <div className="flex items-center justify-between gap-3 bg-red-500/10 border border-red-500/30 rounded-xl px-4 py-3 text-sm text-red-300">
+          <span>커리큘럼 목록을 불러오지 못했습니다. ({loadError})</span>
+          <button
+            onClick={() => load()}
+            className="shrink-0 px-3 py-1.5 rounded-lg bg-red-500/20 hover:bg-red-500/30 text-xs font-semibold transition-colors"
+          >
+            다시 시도
+          </button>
+        </div>
+      )}
 
       {/* Actions row */}
       <div className="flex flex-wrap gap-2">
