@@ -11,7 +11,7 @@ import coachesRouter from './routes/coaches';
 import filesRouter from './routes/files';
 import lessonPackagesRouter from './routes/lessonPackages';
 import aiRouter from './routes/ai';
-import textbooksRouter from './routes/textbooks';
+import curriculumsRouter from './routes/curriculums';
 
 const app = express();
 const PORT = parseInt(process.env.PORT ?? '4000', 10);
@@ -60,7 +60,7 @@ app.use('/api/coaches', coachesRouter);
 app.use('/api/files', filesRouter);
 app.use('/api/lesson-packages', lessonPackagesRouter);
 app.use('/api/ai', aiRouter);
-app.use('/api/textbooks', textbooksRouter);
+app.use('/api/curriculums', curriculumsRouter);
 
 // PayApp payments routes
 app.use('/api/payments/payapp', payappPaymentsRouter);

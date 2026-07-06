@@ -186,108 +186,85 @@ export async function initDb(): Promise<void> {
     )
   `);
 
-  // ── Textbook system ──────────────────────────────────────────────────────
+  // ── Curriculum system ────────────────────────────────────────────────────
 
   await pool.query(`
-    CREATE TABLE IF NOT EXISTS textbooks (
+    CREATE TABLE IF NOT EXISTS curriculums (
       id              VARCHAR(255) PRIMARY KEY,
       title           VARCHAR(500) NOT NULL,
       description     TEXT,
-      cover_image     TEXT,
-      target_level    VARCHAR(20) DEFAULT 'beginner',
-      is_official     BOOLEAN DEFAULT false,
       coach_id        UUID,
-      chapters_count  INTEGER DEFAULT 0,
       created_at      BIGINT NOT NULL,
       updated_at      BIGINT NOT NULL
     )
   `);
 
   await pool.query(`
-    CREATE TABLE IF NOT EXISTS textbook_chapters (
+    CREATE TABLE IF NOT EXISTS curriculum_parts (
       id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      textbook_id     VARCHAR(255) NOT NULL REFERENCES textbooks(id) ON DELETE CASCADE,
-      part_number     INTEGER NOT NULL DEFAULT 1,
-      chapter_number  INTEGER NOT NULL DEFAULT 1,
-      part_title      VARCHAR(500),
+      curriculum_id   VARCHAR(255) NOT NULL REFERENCES curriculums(id) ON DELETE CASCADE,
+      part_key        VARCHAR(50) NOT NULL,
+      part_order      INTEGER NOT NULL DEFAULT 1,
       title           VARCHAR(500) NOT NULL,
       content         TEXT,
       key_points      JSONB DEFAULT '[]',
-      quiz            JSONB,
       created_at      BIGINT NOT NULL,
-      updated_at      BIGINT NOT NULL
+      updated_at      BIGINT NOT NULL,
+      UNIQUE(curriculum_id, part_key)
     )
   `);
 
   await pool.query(
-    `CREATE INDEX IF NOT EXISTS idx_textbook_chapters_textbook_id ON textbook_chapters (textbook_id)`
+    `CREATE INDEX IF NOT EXISTS idx_curriculum_parts_curriculum_id ON curriculum_parts (curriculum_id)`
   );
 
   await pool.query(`
-    CREATE TABLE IF NOT EXISTS student_textbooks (
-      id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      student_id    VARCHAR(255) NOT NULL,
-      textbook_id   VARCHAR(255) NOT NULL REFERENCES textbooks(id) ON DELETE CASCADE,
-      coach_id      UUID,
-      assigned_at   BIGINT NOT NULL,
-      created_at    BIGINT NOT NULL,
-      UNIQUE(student_id, textbook_id)
+    CREATE TABLE IF NOT EXISTS student_curriculums (
+      id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      student_id     VARCHAR(255) NOT NULL,
+      curriculum_id  VARCHAR(255) NOT NULL REFERENCES curriculums(id) ON DELETE CASCADE,
+      coach_id       UUID,
+      assigned_at    BIGINT NOT NULL,
+      created_at     BIGINT NOT NULL,
+      UNIQUE(student_id, curriculum_id)
     )
   `);
 
   await pool.query(`
-    CREATE TABLE IF NOT EXISTS student_chapter_progress (
+    CREATE TABLE IF NOT EXISTS student_part_progress (
       id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       student_id        VARCHAR(255) NOT NULL,
-      textbook_id       VARCHAR(255) NOT NULL,
-      chapter_progress  JSONB DEFAULT '{}',
+      curriculum_id     VARCHAR(255) NOT NULL,
+      part_progress     JSONB DEFAULT '{}',
       overall_progress  INTEGER DEFAULT 0,
       completed_at      BIGINT,
       assigned_at       BIGINT NOT NULL,
       updated_at        BIGINT NOT NULL,
-      UNIQUE(student_id, textbook_id)
+      UNIQUE(student_id, curriculum_id)
     )
   `);
 
   await pool.query(`
-    CREATE TABLE IF NOT EXISTS quiz_attempts (
-      id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      student_id     VARCHAR(255) NOT NULL,
-      chapter_id     UUID NOT NULL,
-      textbook_id    VARCHAR(255) NOT NULL,
-      attempt_number INTEGER NOT NULL DEFAULT 1,
-      score          INTEGER NOT NULL DEFAULT 0,
-      passed         BOOLEAN DEFAULT false,
-      answers        JSONB DEFAULT '[]',
-      taken_at       BIGINT NOT NULL
-    )
-  `);
-
-  await pool.query(
-    `CREATE INDEX IF NOT EXISTS idx_quiz_attempts_student_chapter ON quiz_attempts (student_id, chapter_id)`
-  );
-
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS chapter_lesson_records (
-      id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      chapter_id      UUID NOT NULL,
-      textbook_id     VARCHAR(255) NOT NULL,
-      student_id      VARCHAR(255) NOT NULL,
-      student_name    VARCHAR(255),
-      coach_id        UUID NOT NULL,
-      lesson_date     VARCHAR(20),
-      text_memo       TEXT,
-      media_files     JSONB DEFAULT '[]',
-      checklist       JSONB DEFAULT '[]',
+    CREATE TABLE IF NOT EXISTS part_lesson_records (
+      id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      part_id          UUID NOT NULL,
+      curriculum_id    VARCHAR(255) NOT NULL,
+      student_id       VARCHAR(255) NOT NULL,
+      student_name     VARCHAR(255),
+      coach_id         UUID NOT NULL,
+      lesson_date      VARCHAR(20),
+      text_memo        TEXT,
+      media_files      JSONB DEFAULT '[]',
+      checklist        JSONB DEFAULT '[]',
       linked_lesson_id UUID,
-      coach_feedback  TEXT,
-      created_at      BIGINT NOT NULL,
-      updated_at      BIGINT NOT NULL
+      coach_feedback   TEXT,
+      created_at       BIGINT NOT NULL,
+      updated_at       BIGINT NOT NULL
     )
   `);
 
   await pool.query(
-    `CREATE INDEX IF NOT EXISTS idx_chapter_lesson_records_chapter ON chapter_lesson_records (chapter_id, student_id)`
+    `CREATE INDEX IF NOT EXISTS idx_part_lesson_records_part ON part_lesson_records (part_id, student_id)`
   );
 }
 
