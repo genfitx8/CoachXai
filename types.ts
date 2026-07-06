@@ -24,6 +24,11 @@ export interface GolfData {
   smashFactor?: number;
   clubPath?: number;
   faceAngle?: number;
+  attackAngle?: number; // 어택 앵글 (Attack Angle)
+  spinRate?: number; // 스핀량 (Spin Rate, rpm)
+  dynamicLoft?: number; // 다이나믹 로프트 (Dyn. Loft)
+  spinLoft?: number; // 스핀 로프트 (Spin Loft)
+  sideTotal?: number; // 사이드 토탈, +는 오른쪽(R) / -는 왼쪽(L) (m)
 }
 
 export interface SwingSequenceItem {
