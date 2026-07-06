@@ -96,19 +96,35 @@ export const GolfDataVisualizer: React.FC<GolfDataVisualizerProps> = ({
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                  <div className="flex justify-between items-center p-3 border-b border-gray-100">
                     <span className="text-gray-500 text-sm">발사각</span>
-                    <span className="font-bold text-gray-800">{currentData.launchAngle || '-'}°</span>
+                    <span className="font-bold text-gray-800">{currentData.launchAngle ?? '-'}°</span>
                  </div>
                  <div className="flex justify-between items-center p-3 border-b border-gray-100">
                     <span className="text-gray-500 text-sm">백스핀</span>
-                    <span className="font-bold text-gray-800">{currentData.backSpin || '-'} rpm</span>
+                    <span className="font-bold text-gray-800">{currentData.backSpin ?? currentData.spinRate ?? '-'} rpm</span>
                  </div>
                  <div className="flex justify-between items-center p-3 border-b border-gray-100">
                     <span className="text-gray-500 text-sm">사이드스핀</span>
-                    <span className="font-bold text-gray-800">{currentData.sideSpin || '-'} rpm</span>
+                    <span className="font-bold text-gray-800">{currentData.sideSpin ?? '-'} rpm</span>
                  </div>
                  <div className="flex justify-between items-center p-3 border-b border-gray-100">
                     <span className="text-gray-500 text-sm">정타율</span>
-                    <span className="font-bold text-gray-800">{currentData.smashFactor || '-'}</span>
+                    <span className="font-bold text-gray-800">{currentData.smashFactor ?? '-'}</span>
+                 </div>
+                 <div className="flex justify-between items-center p-3 border-b border-gray-100">
+                    <span className="text-gray-500 text-sm">어택 앵글</span>
+                    <span className="font-bold text-gray-800">{currentData.attackAngle ?? '-'}°</span>
+                 </div>
+                 <div className="flex justify-between items-center p-3 border-b border-gray-100">
+                    <span className="text-gray-500 text-sm">클럽 패스</span>
+                    <span className="font-bold text-gray-800">{currentData.clubPath ?? '-'}°</span>
+                 </div>
+                 <div className="flex justify-between items-center p-3 border-b border-gray-100">
+                    <span className="text-gray-500 text-sm">다이나믹 로프트</span>
+                    <span className="font-bold text-gray-800">{currentData.dynamicLoft ?? '-'}°</span>
+                 </div>
+                 <div className="flex justify-between items-center p-3 border-b border-gray-100">
+                    <span className="text-gray-500 text-sm">사이드 토탈</span>
+                    <span className="font-bold text-gray-800">{currentData.sideTotal ?? '-'} m</span>
                  </div>
             </div>
         </div>

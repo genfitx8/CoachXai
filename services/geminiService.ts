@@ -378,7 +378,7 @@ export const extractGolfData = async (
 
     const prompt = `
       이 이미지는 두 가지 중 하나입니다:
-      1. **골프 시뮬레이터(GDR, 카카오VX, 트랙맨 등)의 데이터 화면**
+      1. **골프 시뮬레이터/런치모니터(GDR, 카카오VX, 트랙맨, GC Quad, Foresight 등)의 데이터 화면**
       2. **골프 스코어카드(필드 또는 스크린 게임 결과)**
 
       이미지를 분석하여 다음 작업을 수행하고 JSON으로 응답해주세요.
@@ -391,32 +391,49 @@ export const extractGolfData = async (
       - 찾을 수 없다면 가장 눈에 띄는(주인공인) 점수를 추출하세요.
       - golfData의 수치들은 null로 두세요.
 
-      **Case 2: 시뮬레이터 데이터인 경우**
+      **Case 2: 시뮬레이터/런치모니터 데이터인 경우**
       - 화면에 있는 비거리, 스피드 등 수치를 추출하여 'metrics' 객체에 넣으세요.
       - score는 null로 두세요.
+      - **여러 샷이 표(테이블) 형태로 나열되어 있고 'Average'(평균) 행이 있다면, 반드시 그 Average 행의 값을 사용하세요.** 개별 샷 번호(1, 2, 3...) 행의 값을 쓰지 마세요.
+      - 눈 아이콘이 꺼져있거나(hidden), 취소선이 그어져 회색으로 표시된 행은 분석에서 제외된 샷이므로 무시하고, 이미 계산되어 있는 Average 행 값을 그대로 신뢰하세요.
+      - 'Consistency'(일관성) 행은 사용하지 마세요.
+      - 컬럼 이름은 장비/화면마다 다르게 표기될 수 있으니 아래 매핑을 참고해 유사한 의미의 컬럼을 찾아 매핑하세요.
 
-      **추출해야 할 데이터 필드 (반드시 아래 영문 Key 사용, 단위 무시, 숫자만):**
+      **추출해야 할 데이터 필드 (반드시 아래 영문 Key 사용, 단위 무시, 숫자만. 부호(+/-)가 있는 값은 부호를 유지):**
       - score (스코어카드일 때 총 타수)
-      - carryDistance (캐리 거리)
-      - totalDistance (총 거리)
-      - ballSpeed (볼 스피드)
-      - clubHeadSpeed (클럽 헤드 스피드)
-      - launchAngle (발사각)
-      - backSpin (백스핀)
-      - sideSpin (사이드스핀)
-      - smashFactor (정타율/스매시팩터)
-      
-      **응답 형식 (JSON):**
+      - carryDistance (Carry, 캐리 거리)
+      - totalDistance (Total, 총 거리)
+      - ballSpeed (Ball Speed, 볼 스피드)
+      - clubHeadSpeed (Club Speed, 클럽(헤드) 스피드)
+      - launchAngle (Launch Angle, 발사각 — 없다면 생략, Attack Angle과 혼동하지 말 것)
+      - attackAngle (Attack Ang./Attack Angle, 어택 앵글)
+      - backSpin (Back Spin, 백스핀 — Spin Rate가 백/사이드로 분리되어 있을 때만)
+      - sideSpin (Side Spin, 사이드스핀 — Spin Rate가 백/사이드로 분리되어 있을 때만)
+      - spinRate (Spin Rate, 스핀량 — 백/사이드 분리 없이 총 스핀량 하나만 있을 때)
+      - smashFactor (Smash Factor, 정타율/스매시팩터)
+      - clubPath (Club Path, 클럽 패스)
+      - dynamicLoft (Dyn. Loft/Dynamic Loft, 다이나믹 로프트)
+      - spinLoft (Spin Loft, 스핀 로프트)
+      - faceAngle (Face Angle, 페이스 앵글)
+      - sideTotal (Side Tot./Side Total, 사이드 토탈 거리 — 오른쪽(R)이면 양수(+), 왼쪽(L)이면 음수(-)로 변환)
+
+      **응답 형식 (JSON, 필드는 이미지에서 확인 가능한 것만 포함):**
       \`\`\`json
       {
         "isScorecard": boolean,
-        "score": 85, 
+        "score": 85,
         "metrics": {
           "carryDistance": 150.5,
           "totalDistance": 160.2,
           "ballSpeed": 65.0,
           "clubHeadSpeed": 45.0,
           "smashFactor": 1.45,
+          "attackAngle": -0.8,
+          "spinRate": 4195,
+          "clubPath": -0.1,
+          "dynamicLoft": 21.7,
+          "spinLoft": 22.7,
+          "sideTotal": 12.7,
           ...
         },
         "comment": "스코어카드: 김철수님의 기록은 85타입니다. / 시뮬레이터: 볼 스피드가 아주 훌륭합니다."
