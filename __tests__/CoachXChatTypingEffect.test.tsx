@@ -21,7 +21,7 @@ vi.mock('../components/LanguageContext', () => ({
       const map: Record<string, string> = {
         back: 'Back',
         send: 'Send',
-        coachx_subtitle: 'AI Coaching Intelligence',
+        coachx_subtitle: 'CoachX AI',
         coachx_suggested_prompts: 'Try asking:',
         coachx_chat_placeholder: 'Ask Coachx…',
       };
