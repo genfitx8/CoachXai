@@ -4,11 +4,14 @@ import { Lesson } from '../types';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine, AreaChart, Area, BarChart, Bar, Cell } from 'recharts';
 import { ArrowLeft, TrendingUp, TrendingDown, Minus, Target, Wind, Calendar, Trophy, Flag, Activity, LayoutDashboard, Crosshair, Filter, CalendarDays, RefreshCw, Percent, CircleDot, Mic, GitCompareArrows } from 'lucide-react';
 import { Button } from './Button';
+import { getTourAverageDistanceM, getTourLabel, TourGender } from '../constants/tourAverages';
 
 interface ClientStatsProps {
   lessons: Lesson[];
   onBack: () => void;
 }
+
+const TOUR_GENDER_STORAGE_KEY = 'coachxai_stats_tour_gender';
 
 type StatTab = 'SHOT' | 'SCORE';
 type PeriodOption = '1M' | '3M' | '6M' | '1Y' | 'ALL';
@@ -24,7 +27,17 @@ const getLocalISODate = (date: Date) => {
 export const ClientStats: React.FC<ClientStatsProps> = ({ lessons, onBack }) => {
   const [activeTab, setActiveTab] = useState<StatTab>('SHOT');
   const [selectedClub, setSelectedClub] = useState<string>('');
-  
+
+  // Tour Average Comparison (PGA for male, LPGA for female)
+  const [tourGender, setTourGender] = useState<TourGender>(() => {
+    const saved = localStorage.getItem(TOUR_GENDER_STORAGE_KEY);
+    return saved === 'FEMALE' ? 'FEMALE' : 'MALE';
+  });
+
+  useEffect(() => {
+    localStorage.setItem(TOUR_GENDER_STORAGE_KEY, tourGender);
+  }, [tourGender]);
+
   // Date Range State
   const [period, setPeriod] = useState<PeriodOption>('3M'); // Default 3 Months
   const [startDate, setStartDate] = useState('');
@@ -138,6 +151,16 @@ export const ClientStats: React.FC<ClientStatsProps> = ({ lessons, onBack }) => 
 
     return { avgTotal, maxTotal, avgBallSpeed, avgSmash, count: shotStatsData.length, improvement };
   }, [shotStatsData]);
+
+  const tourAverageDistance = useMemo(() => {
+    if (!selectedClub) return null;
+    return getTourAverageDistanceM(selectedClub, tourGender);
+  }, [selectedClub, tourGender]);
+
+  const tourAverageDiff = useMemo(() => {
+    if (!shotSummary || tourAverageDistance === null) return null;
+    return shotSummary.avgTotal - tourAverageDistance;
+  }, [shotSummary, tourAverageDistance]);
 
 
   // --- SCORE DATA LOGIC ---
@@ -480,6 +503,29 @@ export const ClientStats: React.FC<ClientStatsProps> = ({ lessons, onBack }) => 
                         </div>
                     </div>
 
+                    {/* Tour Average Comparison Gender Toggle */}
+                    <div className="flex items-center justify-between bg-white px-3 py-2 rounded-xl border border-gray-200 shadow-sm">
+                        <span className="text-xs font-bold text-gray-500">투어 평균 비교 기준</span>
+                        <div className="flex bg-gray-100 p-1 rounded-full">
+                            <button
+                                onClick={() => setTourGender('MALE')}
+                                className={`px-3 py-1 rounded-full text-xs font-bold transition-all ${
+                                    tourGender === 'MALE' ? 'bg-emerald-800 text-white shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                                }`}
+                            >
+                                남성 (PGA)
+                            </button>
+                            <button
+                                onClick={() => setTourGender('FEMALE')}
+                                className={`px-3 py-1 rounded-full text-xs font-bold transition-all ${
+                                    tourGender === 'FEMALE' ? 'bg-pink-600 text-white shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                                }`}
+                            >
+                                여성 (LPGA)
+                            </button>
+                        </div>
+                    </div>
+
                     {shotSummary && (
                         <div className="space-y-4">
                             {/* Report Header Card */}
@@ -519,6 +565,27 @@ export const ClientStats: React.FC<ClientStatsProps> = ({ lessons, onBack }) => 
                                             <div className="text-xs opacity-90 mt-1 font-medium">정타율 {shotSummary.avgSmash}</div>
                                         </div>
                                     </div>
+
+                                    {tourAverageDistance !== null && (
+                                        <div className={`col-span-2 rounded-xl p-3 border mt-1 ${tourGender === 'MALE' ? 'bg-blue-50 border-blue-100' : 'bg-pink-50 border-pink-100'}`}>
+                                            <div className="flex items-center justify-between">
+                                                <span className={`text-xs font-bold flex items-center gap-1 ${tourGender === 'MALE' ? 'text-blue-700' : 'text-pink-700'}`}>
+                                                    <Trophy className="w-3.5 h-3.5" /> {getTourLabel(tourGender)} 평균 비거리
+                                                </span>
+                                                <span className={`text-sm font-bold ${tourGender === 'MALE' ? 'text-blue-900' : 'text-pink-900'}`}>{tourAverageDistance}m</span>
+                                            </div>
+                                            {tourAverageDiff !== null && (
+                                                <div className="flex items-center justify-end gap-1 mt-1 text-xs">
+                                                    <span className="text-gray-500">내 평균 대비</span>
+                                                    <span className={`flex items-center gap-0.5 font-bold ${tourAverageDiff >= 0 ? 'text-emerald-700' : 'text-red-600'}`}>
+                                                        {tourAverageDiff >= 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+                                                        {tourAverageDiff >= 0 ? `+${tourAverageDiff}` : tourAverageDiff}m
+                                                    </span>
+                                                </div>
+                                            )}
+                                            <p className="text-[10px] text-gray-400 mt-1">* 공개된 투어 통계 기반 참고용 평균치입니다.</p>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
 
@@ -538,6 +605,14 @@ export const ClientStats: React.FC<ClientStatsProps> = ({ lessons, onBack }) => 
                                                 contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', fontSize: '12px' }}
                                             />
                                             <Legend wrapperStyle={{fontSize: '11px'}} />
+                                            {tourAverageDistance !== null && (
+                                                <ReferenceLine
+                                                    y={tourAverageDistance}
+                                                    stroke={tourGender === 'MALE' ? '#2563eb' : '#db2777'}
+                                                    strokeDasharray="3 3"
+                                                    label={{ value: `${getTourLabel(tourGender)} 평균`, fill: tourGender === 'MALE' ? '#2563eb' : '#db2777', fontSize: 10, position: 'insideBottomLeft' }}
+                                                />
+                                            )}
                                             <Line type="monotone" dataKey="total" name="Total" stroke="#059669" strokeWidth={2} dot={{r: 3}} activeDot={{r: 5}} />
                                             <Line type="monotone" dataKey="carry" name="Carry" stroke="#3b82f6" strokeWidth={2} dot={{r: 3}} />
                                         </LineChart>
