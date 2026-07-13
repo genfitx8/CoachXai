@@ -1,13 +1,15 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   BookOpen, ChevronLeft, ChevronRight, CheckCircle,
-  Clock, FileText, X, ClipboardList,
+  Clock, FileText, X, ClipboardList, Check,
 } from 'lucide-react';
 import type {
   Curriculum, CurriculumPart, StudentCurriculumProgress,
   PartProgressItem, PartLessonRecord, PartStatus,
 } from '../types/curriculum';
-import { getCurriculum, getCurriculumProgress, setPartStatus, listPartLessonRecords } from '../services/curriculumService';
+import {
+  getCurriculum, getCurriculumProgress, setPartStatus, setPartItemChecked, listPartLessonRecords,
+} from '../services/curriculumService';
 import { PartLessonRecordForm } from './PartLessonRecordForm';
 
 interface CurriculumViewerProps {
@@ -87,6 +89,22 @@ export const CurriculumViewer: React.FC<CurriculumViewerProps> = ({
       alert(`상태 변경에 실패했습니다.\n(${e instanceof Error ? e.message : '알 수 없는 오류'})`);
     } finally {
       setUpdatingStatus(false);
+    }
+  }
+
+  const [togglingItem, setTogglingItem] = useState<number | null>(null);
+
+  async function handleToggleItem(itemIndex: number, currentlyChecked: boolean) {
+    if (!selectedPart) return;
+    setTogglingItem(itemIndex);
+    try {
+      await setPartItemChecked(curriculumId, studentId, selectedPart.partKey, itemIndex, !currentlyChecked);
+      await loadData();
+    } catch (e) {
+      console.error('[CurriculumViewer] toggle item error:', e);
+      alert(`체크 상태 변경에 실패했습니다.\n(${e instanceof Error ? e.message : '알 수 없는 오류'})`);
+    } finally {
+      setTogglingItem(null);
     }
   }
 
@@ -234,6 +252,73 @@ export const CurriculumViewer: React.FC<CurriculumViewerProps> = ({
                     __html: renderMarkdown(selectedPart.content ?? ''),
                   }}
                 />
+
+                {/* Training items checklist */}
+                {(selectedPart.items ?? []).length > 0 && (() => {
+                  const items = selectedPart.items ?? [];
+                  const checkedItems = partProgress?.checkedItems ?? {};
+                  const checkedCount = items.filter((_, i) => checkedItems[String(i)]).length;
+                  const groups: { section?: string; entries: { item: typeof items[number]; index: number }[] }[] = [];
+                  items.forEach((item, index) => {
+                    const last = groups[groups.length - 1];
+                    if (last && last.section === item.section) {
+                      last.entries.push({ item, index });
+                    } else {
+                      groups.push({ section: item.section, entries: [{ item, index }] });
+                    }
+                  });
+                  return (
+                    <div className="border-t border-slate-800 pt-5 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <ClipboardList className="w-4 h-4 text-indigo-400" />
+                          <h4 className="text-sm font-bold text-slate-200">훈련 내용 체크리스트</h4>
+                        </div>
+                        <span className="text-xs text-slate-500">{checkedCount}/{items.length} 완료</span>
+                      </div>
+                      <div className="space-y-4">
+                        {groups.map((group, gi) => (
+                          <div key={gi} className="space-y-1.5">
+                            {group.section && (
+                              <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                                {group.section}
+                              </div>
+                            )}
+                            <ul className="space-y-1.5">
+                              {group.entries.map(({ item, index }) => {
+                                const checked = !!checkedItems[String(index)];
+                                return (
+                                  <li key={index}>
+                                    <button
+                                      onClick={() => coachMode && handleToggleItem(index, checked)}
+                                      disabled={!coachMode || togglingItem === index}
+                                      className={`w-full flex items-center gap-2.5 text-sm text-left px-2 py-1.5 rounded-lg transition-colors disabled:opacity-60 ${
+                                        coachMode ? 'hover:bg-slate-800' : ''
+                                      }`}
+                                    >
+                                      <span
+                                        className={`w-5 h-5 rounded-md border flex items-center justify-center shrink-0 transition-colors ${
+                                          checked
+                                            ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-400'
+                                            : 'border-slate-600 text-transparent'
+                                        }`}
+                                      >
+                                        <Check className="w-3.5 h-3.5" />
+                                      </span>
+                                      <span className={checked ? 'text-slate-400 line-through' : 'text-slate-300'}>
+                                        {item.text}
+                                      </span>
+                                    </button>
+                                  </li>
+                                );
+                              })}
+                            </ul>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 {/* Key points checklist */}
                 {(selectedPart.keyPoints ?? []).length > 0 && (

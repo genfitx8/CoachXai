@@ -88,6 +88,20 @@ export async function setPartStatus(
   await req('PUT', `/api/curriculums/${curriculumId}/students/${studentId}/parts/${partKey}`, { status });
 }
 
+export async function setPartItemChecked(
+  curriculumId: string,
+  studentId: string,
+  partKey: string,
+  itemIndex: number,
+  checked: boolean
+): Promise<void> {
+  await req(
+    'PUT',
+    `/api/curriculums/${curriculumId}/students/${studentId}/parts/${partKey}/items/${itemIndex}`,
+    { checked }
+  );
+}
+
 // ── Part Lesson Records ─────────────────────────────────────────────────────
 
 export async function listPartLessonRecords(params: {

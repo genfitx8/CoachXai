@@ -1,4 +1,4 @@
-import { CurriculumPartTemplate } from '../types/curriculum';
+import { CurriculumPartTemplate, CurriculumPartItem } from '../types/curriculum';
 
 const BASE_URL = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '');
 const ADMIN_TOKEN_KEY = 'coachxai_admin_api_token';
@@ -45,7 +45,7 @@ export async function listCurriculumTemplates(): Promise<CurriculumPartTemplate[
 
 export async function updateCurriculumTemplate(
   partKey: string,
-  data: { title: string; content?: string; keyPoints?: string[] }
+  data: { title: string; content?: string; keyPoints?: string[]; items?: CurriculumPartItem[] }
 ): Promise<CurriculumPartTemplate> {
   return req<CurriculumPartTemplate>('PUT', `/api/curriculum-templates/${partKey}`, data);
 }

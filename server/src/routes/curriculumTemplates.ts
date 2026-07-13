@@ -12,6 +12,7 @@ function mapTemplate(row: Record<string, unknown>) {
     title: row.title,
     content: row.content,
     keyPoints: row.key_points ?? [],
+    items: row.items ?? [],
     updatedAt: row.updated_at,
   };
 }
@@ -33,13 +34,13 @@ router.get('/', async (_req: Request, res: Response) => {
 router.put('/:partKey', async (req: Request, res: Response) => {
   try {
     const { partKey } = req.params;
-    const { title, content, keyPoints } = req.body;
+    const { title, content, keyPoints, items } = req.body;
     const now = Date.now();
 
     const result = await pool.query(
-      `UPDATE curriculum_part_templates SET title=$1, content=$2, key_points=$3, updated_at=$4
-       WHERE part_key=$5 RETURNING *`,
-      [title, content ?? null, JSON.stringify(keyPoints ?? []), now, partKey]
+      `UPDATE curriculum_part_templates SET title=$1, content=$2, key_points=$3, items=$4, updated_at=$5
+       WHERE part_key=$6 RETURNING *`,
+      [title, content ?? null, JSON.stringify(keyPoints ?? []), JSON.stringify(items ?? []), now, partKey]
     );
     if (result.rows.length === 0) { res.status(404).json({ error: 'Not found' }); return; }
     res.json(mapTemplate(result.rows[0]));

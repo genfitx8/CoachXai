@@ -22,6 +22,7 @@ async function buildPartsFromTemplates(curriculumId: string, now: number) {
     title: row.title as string,
     content: row.content as string,
     keyPoints: (row.key_points ?? []) as string[],
+    items: (row.items ?? []) as { text: string; section?: string }[],
     createdAt: now,
     updatedAt: now,
   }));
@@ -47,6 +48,7 @@ function mapPart(row: Record<string, unknown>) {
     title: row.title,
     content: row.content,
     keyPoints: row.key_points ?? [],
+    items: row.items ?? [],
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -170,9 +172,9 @@ router.post('/', async (req: Request, res: Response) => {
     const parts = await buildPartsFromTemplates(id, now);
     for (const part of parts) {
       await pool.query(
-        `INSERT INTO curriculum_parts (id, curriculum_id, part_key, part_order, title, content, key_points, created_at, updated_at)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
-        [part.id, part.curriculumId, part.partKey, part.partOrder, part.title, part.content, JSON.stringify(part.keyPoints), part.createdAt, part.updatedAt]
+        `INSERT INTO curriculum_parts (id, curriculum_id, part_key, part_order, title, content, key_points, items, created_at, updated_at)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+        [part.id, part.curriculumId, part.partKey, part.partOrder, part.title, part.content, JSON.stringify(part.keyPoints), JSON.stringify(part.items), part.createdAt, part.updatedAt]
       );
     }
 
@@ -185,6 +187,7 @@ router.post('/', async (req: Request, res: Response) => {
       title: p.title,
       content: p.content,
       keyPoints: p.keyPoints,
+      items: p.items,
       createdAt: p.createdAt,
       updatedAt: p.updatedAt,
     }));
@@ -362,6 +365,46 @@ router.put('/:curriculumId/students/:studentId/parts/:partKey', async (req: Requ
   } catch (err) {
     console.error('[curriculums] set part status error:', err);
     res.status(500).json({ error: 'Failed to update part status' });
+  }
+});
+
+// PUT /api/curriculums/:curriculumId/students/:studentId/parts/:partKey/items/:itemIndex — toggle a single training item (coach only)
+router.put('/:curriculumId/students/:studentId/parts/:partKey/items/:itemIndex', async (req: Request, res: Response) => {
+  try {
+    if (req.user!.role !== 'coach') { res.status(403).json({ error: 'Coach only' }); return; }
+    const { curriculumId, studentId, partKey, itemIndex } = req.params;
+    const { checked } = req.body as { checked: boolean };
+    const now = Date.now();
+
+    const progressResult = await pool.query(
+      `SELECT * FROM student_part_progress WHERE student_id=$1 AND curriculum_id=$2`,
+      [studentId, curriculumId]
+    );
+    if (progressResult.rows.length === 0) { res.status(404).json({ error: 'Not assigned' }); return; }
+
+    const existing = progressResult.rows[0].part_progress as Record<string, {
+      status: string; completedAt?: number; lessonRecordIds: string[]; checkedItems?: Record<string, boolean>;
+    }> ?? {};
+    const prev = existing[partKey] ?? { status: 'not_started', lessonRecordIds: [] };
+    const checkedItems = { ...(prev.checkedItems ?? {}) };
+    if (checked) checkedItems[itemIndex] = true;
+    else delete checkedItems[itemIndex];
+
+    existing[partKey] = {
+      ...prev,
+      status: prev.status === 'not_started' ? 'in_progress' : prev.status,
+      checkedItems,
+    };
+
+    await pool.query(
+      `UPDATE student_part_progress SET part_progress=$1, updated_at=$2 WHERE student_id=$3 AND curriculum_id=$4`,
+      [JSON.stringify(existing), now, studentId, curriculumId]
+    );
+
+    res.json({ ok: true, partProgress: existing });
+  } catch (err) {
+    console.error('[curriculums] toggle item error:', err);
+    res.status(500).json({ error: 'Failed to update item' });
   }
 });
 
