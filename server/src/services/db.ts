@@ -209,11 +209,16 @@ export async function initDb(): Promise<void> {
       title           VARCHAR(500) NOT NULL,
       content         TEXT,
       key_points      JSONB DEFAULT '[]',
+      items           JSONB DEFAULT '[]',
       created_at      BIGINT NOT NULL,
       updated_at      BIGINT NOT NULL,
       UNIQUE(curriculum_id, part_key)
     )
   `);
+
+  await pool.query(
+    `ALTER TABLE curriculum_parts ADD COLUMN IF NOT EXISTS items JSONB DEFAULT '[]'`
+  );
 
   await pool.query(
     `CREATE INDEX IF NOT EXISTS idx_curriculum_parts_curriculum_id ON curriculum_parts (curriculum_id)`
@@ -275,18 +280,29 @@ export async function initDb(): Promise<void> {
       title       VARCHAR(500) NOT NULL,
       content     TEXT,
       key_points  JSONB DEFAULT '[]',
+      items       JSONB DEFAULT '[]',
       updated_at  BIGINT NOT NULL
     )
   `);
+
+  await pool.query(
+    `ALTER TABLE curriculum_part_templates ADD COLUMN IF NOT EXISTS items JSONB DEFAULT '[]'`
+  );
 
   // Seed the admin-editable templates from the built-in defaults once.
   // ON CONFLICT DO NOTHING preserves any admin edits across restarts/redeploys.
   const now = Date.now();
   for (const def of CURRICULUM_PART_DEFS) {
     await pool.query(
-      `INSERT INTO curriculum_part_templates (part_key, part_order, title, content, key_points, updated_at)
-       VALUES ($1,$2,$3,$4,$5,$6) ON CONFLICT (part_key) DO NOTHING`,
-      [def.partKey, def.partOrder, def.title, def.content, JSON.stringify(def.keyPoints), now]
+      `INSERT INTO curriculum_part_templates (part_key, part_order, title, content, key_points, items, updated_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7) ON CONFLICT (part_key) DO NOTHING`,
+      [def.partKey, def.partOrder, def.title, def.content, JSON.stringify(def.keyPoints), JSON.stringify(def.items), now]
+    );
+    // Backfill items for templates that already existed before this column was added.
+    await pool.query(
+      `UPDATE curriculum_part_templates SET items=$1
+       WHERE part_key=$2 AND (items IS NULL OR items = '[]'::jsonb)`,
+      [JSON.stringify(def.items), def.partKey]
     );
   }
 }

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Save, Plus, Trash2, KeyRound, ListChecks, RefreshCcw } from 'lucide-react';
 import { Button } from './Button';
-import type { CurriculumPartTemplate } from '../types/curriculum';
+import type { CurriculumPartTemplate, CurriculumPartItem } from '../types/curriculum';
 import {
   listCurriculumTemplates,
   updateCurriculumTemplate,
@@ -14,10 +14,16 @@ interface EditState {
   title: string;
   content: string;
   keyPoints: string[];
+  items: CurriculumPartItem[];
 }
 
 function toEditState(t: CurriculumPartTemplate): EditState {
-  return { title: t.title, content: t.content ?? '', keyPoints: [...t.keyPoints] };
+  return {
+    title: t.title,
+    content: t.content ?? '',
+    keyPoints: [...t.keyPoints],
+    items: (t.items ?? []).map((item) => ({ ...item })),
+  };
 }
 
 function isDirty(a: EditState, b: EditState): boolean {
@@ -25,7 +31,9 @@ function isDirty(a: EditState, b: EditState): boolean {
     a.title !== b.title ||
     a.content !== b.content ||
     a.keyPoints.length !== b.keyPoints.length ||
-    a.keyPoints.some((v, i) => v !== b.keyPoints[i])
+    a.keyPoints.some((v, i) => v !== b.keyPoints[i]) ||
+    a.items.length !== b.items.length ||
+    a.items.some((v, i) => v.text !== b.items[i]?.text || v.section !== b.items[i]?.section)
   );
 }
 
@@ -86,6 +94,7 @@ export const AdminCurriculumTemplateManager: React.FC = () => {
         title: edit.title,
         content: edit.content,
         keyPoints: edit.keyPoints.filter((k) => k.trim().length > 0),
+        items: edit.items.filter((item) => item.text.trim().length > 0),
       });
       setTemplates((prev) => prev.map((t) => (t.partKey === partKey ? updated : t)));
       setEdits((prev) => ({ ...prev, [partKey]: toEditState(updated) }));
@@ -122,6 +131,28 @@ export const AdminCurriculumTemplateManager: React.FC = () => {
     setEdits((prev) => ({
       ...prev,
       [partKey]: { ...prev[partKey], keyPoints: prev[partKey].keyPoints.filter((_, i) => i !== index) },
+    }));
+  }
+
+  function updateItem(partKey: string, index: number, patch: Partial<CurriculumPartItem>) {
+    setEdits((prev) => {
+      const items = [...(prev[partKey]?.items ?? [])];
+      items[index] = { ...items[index], ...patch };
+      return { ...prev, [partKey]: { ...prev[partKey], items } };
+    });
+  }
+
+  function addItem(partKey: string) {
+    setEdits((prev) => ({
+      ...prev,
+      [partKey]: { ...prev[partKey], items: [...(prev[partKey]?.items ?? []), { text: '' }] },
+    }));
+  }
+
+  function removeItem(partKey: string, index: number) {
+    setEdits((prev) => ({
+      ...prev,
+      [partKey]: { ...prev[partKey], items: prev[partKey].items.filter((_, i) => i !== index) },
     }));
   }
 
@@ -248,6 +279,53 @@ export const AdminCurriculumTemplateManager: React.FC = () => {
                     ))}
                     {edit.keyPoints.length === 0 && (
                       <p className="text-xs text-gray-400">등록된 핵심 포인트가 없습니다.</p>
+                    )}
+                  </div>
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs font-bold text-gray-500">
+                      훈련 내용 체크리스트 항목
+                    </label>
+                    <button
+                      onClick={() => addItem(t.partKey)}
+                      className="flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-700 font-semibold"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      추가
+                    </button>
+                  </div>
+                  <p className="text-xs text-gray-400 mb-2">
+                    학생/코치가 하나씩 체크 완료할 수 있는 세부 훈련 항목입니다. 구분(섹션)은 선택 입력입니다.
+                  </p>
+                  <div className="space-y-2">
+                    {edit.items.map((item, i) => (
+                      <div key={i} className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          value={item.section ?? ''}
+                          onChange={(e) => updateItem(t.partKey, i, { section: e.target.value || undefined })}
+                          placeholder="구분"
+                          className="w-28 px-2 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-xs text-gray-500"
+                        />
+                        <input
+                          type="text"
+                          value={item.text}
+                          onChange={(e) => updateItem(t.partKey, i, { text: e.target.value })}
+                          placeholder="훈련 항목"
+                          className="flex-1 px-3 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
+                        />
+                        <button
+                          onClick={() => removeItem(t.partKey, i)}
+                          className="p-1.5 text-gray-400 hover:text-red-500 transition-colors"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ))}
+                    {edit.items.length === 0 && (
+                      <p className="text-xs text-gray-400">등록된 훈련 항목이 없습니다.</p>
                     )}
                   </div>
                 </div>

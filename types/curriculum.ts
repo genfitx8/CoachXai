@@ -7,6 +7,11 @@ export type CurriculumPartKey =
   | 'course_management'
   | 'mental';
 
+export interface CurriculumPartItem {
+  text: string;
+  section?: string;
+}
+
 export interface CurriculumPart {
   id: string;
   curriculumId: string;
@@ -15,6 +20,7 @@ export interface CurriculumPart {
   title: string;
   content: string;
   keyPoints: string[];
+  items: CurriculumPartItem[];
   createdAt: number;
   updatedAt: number;
 }
@@ -25,6 +31,7 @@ export interface CurriculumPartTemplate {
   title: string;
   content: string;
   keyPoints: string[];
+  items: CurriculumPartItem[];
   updatedAt: number;
 }
 
@@ -42,6 +49,7 @@ export interface PartProgressItem {
   status: PartStatus;
   completedAt?: number;
   lessonRecordIds: string[];
+  checkedItems?: Record<string, boolean>;
 }
 
 export interface StudentCurriculumProgress {

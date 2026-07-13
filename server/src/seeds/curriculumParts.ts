@@ -20,6 +20,12 @@ export const CURRICULUM_PART_DEFS = [
       '회전 파워 훈련으로 헤드스피드를 향상시킨다',
       '유산소·근지구력 훈련으로 라운드 후반 집중력을 유지한다',
     ],
+    items: [
+      { text: '척추·고관절·어깨의 가동성 확보' },
+      { text: '코어·하체 안정성으로 스윙 축 유지' },
+      { text: '회전 파워 훈련으로 헤드스피드 향상' },
+      { text: '18홀을 견디는 지구력과 부상 예방' },
+    ],
   },
   {
     partKey: 'swing_technique',
@@ -35,35 +41,7 @@ export const CURRICULUM_PART_DEFS = [
 - 어프로치·칩·피치·벙커 등 숏게임 시스템
 - 퍼팅 메커니즘과 거리 컨트롤
 
-### 골프 이론 및 원리
-- 골프의 시작
-- 진자운동 원리
-- 볼의 비행법칙
-- 바디스윙과 암스윙
-- 3가지 분리 법칙
-- 장비의 중요성
-
-### 셋업
-- 그립
-- 자세
-- 체중분배
-- 볼위치
-- 클럽별 적용
-
-### 인스윙
-- 트리거
-- 테이크백
-- 하프스윙
-- 탑스윙
-- 전환
-- 다운스윙
-- 임팩트
-- 팔로우스루
-- 피니쉬
-- 스윙 리듬 & 템포
-
-### 아웃스윙
-- 프리샷 루틴`,
+아래 세부 항목은 학습 진행에 맞춰 하나씩 체크하며 익힙니다.`,
     keyPoints: [
       '그립·스탠스·어드레스의 기본 원리를 숙지한다',
       '다운스윙은 하체부터 시작하고 임팩트에서 핸즈 퍼스트를 유지한다',
@@ -73,6 +51,30 @@ export const CURRICULUM_PART_DEFS = [
       '그립·자세·체중분배·볼위치를 클럽별로 정확히 세팅한다',
       '트리거부터 피니쉬까지 인스윙 단계를 순서대로 점검한다',
       '스윙 리듬과 템포를 일정하게 유지하고, 프리샷 루틴으로 아웃스윙을 준비한다',
+    ],
+    items: [
+      { section: '골프 이론 및 원리', text: '골프의 시작' },
+      { section: '골프 이론 및 원리', text: '진자운동 원리' },
+      { section: '골프 이론 및 원리', text: '볼의 비행법칙' },
+      { section: '골프 이론 및 원리', text: '바디스윙과 암스윙' },
+      { section: '골프 이론 및 원리', text: '3가지 분리 법칙' },
+      { section: '골프 이론 및 원리', text: '장비의 중요성' },
+      { section: '셋업', text: '그립' },
+      { section: '셋업', text: '자세' },
+      { section: '셋업', text: '체중분배' },
+      { section: '셋업', text: '볼위치' },
+      { section: '셋업', text: '클럽별 적용' },
+      { section: '인스윙', text: '트리거' },
+      { section: '인스윙', text: '테이크백' },
+      { section: '인스윙', text: '하프스윙' },
+      { section: '인스윙', text: '탑스윙' },
+      { section: '인스윙', text: '전환' },
+      { section: '인스윙', text: '다운스윙' },
+      { section: '인스윙', text: '임팩트' },
+      { section: '인스윙', text: '팔로우스루' },
+      { section: '인스윙', text: '피니쉬' },
+      { section: '인스윙', text: '스윙 리듬 & 템포' },
+      { section: '아웃스윙', text: '프리샷 루틴' },
     ],
   },
   {
@@ -93,6 +95,12 @@ export const CURRICULUM_PART_DEFS = [
       '클럽 피팅을 통해 라이각·로프트를 최적화한다',
       '볼 스펙(스핀률, 압축강도)이 결과에 미치는 영향을 안다',
       '그립 마모 등 장비 상태를 주기적으로 점검한다',
+    ],
+    items: [
+      { text: '클럽 스펙(샤프트 강도, 로프트, 라이각) 이해' },
+      { text: '클럽 피팅의 필요성과 시기' },
+      { text: '볼 선택이 스핀·탄도에 미치는 영향' },
+      { text: '장비 관리(그립 교체 주기, 클럽 점검)' },
     ],
   },
   {
@@ -123,6 +131,18 @@ export const CURRICULUM_PART_DEFS = [
       '티박스 위치를 활용해 유리한 각도와 안전한 동선을 확보한다',
       '그린을 정확히 읽고 코스 전체를 아우르는 게임 전략을 세운다',
     ],
+    items: [
+      { section: '전략', text: '빅 넘버(더블 보기 이상) 최소화 전략' },
+      { section: '전략', text: '미스 방향 계획과 강점 지점 활용' },
+      { section: '전략', text: '3샷 역산 전략으로 홀 설계' },
+      { section: '전략', text: '라운드 컨디션에 맞춘 전략 조정' },
+      { section: '코스 리딩', text: '클럽별 탄착지점 설정' },
+      { section: '코스 리딩', text: '랜딩포인트 찾기' },
+      { section: '코스 리딩', text: '라이별 응용샷' },
+      { section: '코스 리딩', text: '티박스 사용법' },
+      { section: '코스 리딩', text: '그린리딩' },
+      { section: '코스 리딩', text: '게임 전략' },
+    ],
   },
   {
     partKey: 'mental',
@@ -147,6 +167,14 @@ export const CURRICULUM_PART_DEFS = [
       '한 샷 한 샷에 온전히 몰입할 수 있는 집중 신호를 만든다',
       '상황에 맞게 각성수준(긴장·흥분)을 높이거나 낮춰 최적의 컨디션을 유지한다',
     ],
+    items: [
+      { section: '루틴과 회복', text: '프리샷 루틴 설계와 내면화' },
+      { section: '루틴과 회복', text: '압박 상황 대처 (호흡, 루틴 전환, 프로세스 집중)' },
+      { section: '루틴과 회복', text: '실수 후 회복력 (10초 룰)' },
+      { section: '루틴과 회복', text: '라운드 전반의 집중력 관리' },
+      { section: '몰입과 각성', text: '몰입(Flow) 상태 진입과 유지' },
+      { section: '몰입과 각성', text: '각성수준 유지' },
+    ],
   },
 ] as const;
 
@@ -161,6 +189,7 @@ export function buildDefaultCurriculumParts(curriculumId: string, now: number) {
     title: def.title,
     content: def.content,
     keyPoints: [...def.keyPoints],
+    items: def.items.map((item) => ({ ...item })),
     createdAt: now,
     updatedAt: now,
   }));
