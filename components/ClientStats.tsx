@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { Lesson } from '../types';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine, AreaChart, Area, BarChart, Bar, Cell } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine, AreaChart, Area, BarChart, Bar, Cell, LabelList } from 'recharts';
 import { ArrowLeft, TrendingUp, TrendingDown, Minus, Target, Wind, Calendar, Trophy, Flag, Activity, LayoutDashboard, Crosshair, Filter, CalendarDays, RefreshCw, Percent, CircleDot, Mic, GitCompareArrows } from 'lucide-react';
 import { Button } from './Button';
 import { getTourAverageDistanceM, getTourLabel, TourGender } from '../constants/tourAverages';
@@ -588,6 +588,49 @@ export const ClientStats: React.FC<ClientStatsProps> = ({ lessons, onBack }) => 
                                     )}
                                 </div>
                             </div>
+
+                            {/* Tour Average Comparison Chart */}
+                            {tourAverageDistance !== null && (
+                                <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-md hover:shadow-lg transition-shadow">
+                                    <h3 className="font-bold text-gray-900 mb-4 text-sm flex items-center gap-2">
+                                        <span className={`w-1.5 h-5 bg-gradient-to-b rounded-full shadow-sm ${tourGender === 'MALE' ? 'from-blue-500 to-blue-600' : 'from-pink-500 to-pink-600'}`}></span>
+                                        내 평균 vs {getTourLabel(tourGender)} 평균
+                                    </h3>
+                                    <div className="h-40 w-full">
+                                        <ResponsiveContainer width="100%" height="100%">
+                                            <BarChart
+                                                data={[
+                                                    { name: '내 평균', value: shotSummary.avgTotal },
+                                                    { name: `${getTourLabel(tourGender)}`, value: tourAverageDistance },
+                                                ]}
+                                                layout="vertical"
+                                                margin={{ top: 5, right: 40, bottom: 5, left: 0 }}
+                                            >
+                                                <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f0f0f0" />
+                                                <XAxis type="number" tick={{ fontSize: 10 }} stroke="#9ca3af" />
+                                                <YAxis type="category" dataKey="name" tick={{ fontSize: 12, fontWeight: 700 }} stroke="#9ca3af" width={70} />
+                                                <Tooltip
+                                                    formatter={(value: number) => [`${value}m`, '평균 비거리']}
+                                                    contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', fontSize: '12px' }}
+                                                />
+                                                <Bar dataKey="value" radius={[0, 6, 6, 0]} barSize={28}>
+                                                    <Cell fill="#059669" />
+                                                    <Cell fill={tourGender === 'MALE' ? '#2563eb' : '#db2777'} />
+                                                    <LabelList dataKey="value" position="right" formatter={(v: number) => `${v}m`} style={{ fontSize: 12, fontWeight: 700, fill: '#374151' }} />
+                                                </Bar>
+                                            </BarChart>
+                                        </ResponsiveContainer>
+                                    </div>
+                                    {tourAverageDiff !== null && (
+                                        <p className="text-center text-xs text-gray-500 mt-1">
+                                            내 평균 대비{' '}
+                                            <span className={`font-bold ${tourAverageDiff >= 0 ? 'text-emerald-700' : 'text-red-600'}`}>
+                                                {tourAverageDiff >= 0 ? `+${tourAverageDiff}` : tourAverageDiff}m
+                                            </span>
+                                        </p>
+                                    )}
+                                </div>
+                            )}
 
                             {/* Charts */}
                             <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-md hover:shadow-lg transition-shadow">
