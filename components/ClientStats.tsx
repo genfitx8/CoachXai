@@ -604,13 +604,22 @@ export const ClientStats: React.FC<ClientStatsProps> = ({ lessons, onBack }) => 
                                             <Tooltip 
                                                 contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', fontSize: '12px' }}
                                             />
-                                            <Legend wrapperStyle={{fontSize: '11px'}} />
+                                            <Legend
+                                                wrapperStyle={{fontSize: '11px'}}
+                                                payload={[
+                                                    { value: 'Total', type: 'line', color: '#059669' },
+                                                    { value: 'Carry', type: 'line', color: '#3b82f6' },
+                                                    ...(tourAverageDistance !== null ? [{ value: `${getTourLabel(tourGender)} 평균 (${tourAverageDistance}m)`, type: 'line' as const, color: tourGender === 'MALE' ? '#2563eb' : '#db2777' }] : []),
+                                                ]}
+                                            />
                                             {tourAverageDistance !== null && (
                                                 <ReferenceLine
                                                     y={tourAverageDistance}
                                                     stroke={tourGender === 'MALE' ? '#2563eb' : '#db2777'}
-                                                    strokeDasharray="3 3"
-                                                    label={{ value: `${getTourLabel(tourGender)} 평균`, fill: tourGender === 'MALE' ? '#2563eb' : '#db2777', fontSize: 10, position: 'insideBottomLeft' }}
+                                                    strokeWidth={2}
+                                                    strokeDasharray="5 3"
+                                                    ifOverflow="extendDomain"
+                                                    label={{ value: `${getTourLabel(tourGender)} 평균 ${tourAverageDistance}m`, fill: tourGender === 'MALE' ? '#2563eb' : '#db2777', fontSize: 10, position: 'insideBottomLeft' }}
                                                 />
                                             )}
                                             <Line type="monotone" dataKey="total" name="Total" stroke="#059669" strokeWidth={2} dot={{r: 3}} activeDot={{r: 5}} />
