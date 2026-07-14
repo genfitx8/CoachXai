@@ -11,6 +11,7 @@ import { AdminBranchStaffManager } from './AdminBranchStaffManager';
 import { AdminPromptManager } from './AdminPromptManager';
 import { AdminCurriculumTemplateManager } from './AdminCurriculumTemplateManager';
 import { AdminCoachActivity } from './AdminCoachActivity';
+import { AdminReservationManager } from './AdminReservationManager';
 import { useLanguage } from './LanguageContext';
 
 interface AdminDashboardProps {
@@ -29,6 +30,7 @@ interface AdminDashboardProps {
     user: ClientProfile | CoachProfile,
     plan: 'FREE' | 'PRO'
   ) => void;
+  onCoachUpdated?: (coach: CoachProfile) => void;
 }
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({
@@ -43,10 +45,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   onLogout,
   onToggleSubscription,
   onGrantTrial,
-  onChangeSubscriptionPlan
+  onChangeSubscriptionPlan,
+  onCoachUpdated,
 }) => {
   const { t } = useLanguage();
-  const [activeTab, setActiveTab] = useState<'CLIENTS' | 'LESSONS' | 'SYSTEM' | 'TEMPLATES' | 'MESSAGES' | 'COURSES' | 'BRANCHES' | 'BRANCH_STAFF' | 'AI_PROMPTS' | 'COACH_ACTIVITY' | 'CURRICULUM_TEMPLATES'>('CLIENTS');
+  const [activeTab, setActiveTab] = useState<'CLIENTS' | 'RESERVATIONS' | 'LESSONS' | 'SYSTEM' | 'TEMPLATES' | 'MESSAGES' | 'COURSES' | 'BRANCHES' | 'BRANCH_STAFF' | 'AI_PROMPTS' | 'COACH_ACTIVITY' | 'CURRICULUM_TEMPLATES'>('CLIENTS');
   const [memberType, setMemberType] = useState<'GENERAL' | 'COACH'>('GENERAL'); 
   
   // Media visibility toggle
@@ -349,13 +352,20 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
         {/* Tabs */}
         <div className="border-b border-gray-200 flex gap-6 overflow-x-auto">
-            <button 
+            <button
                 onClick={() => setActiveTab('CLIENTS')}
                 className={`pb-3 text-sm font-bold transition-colors border-b-2 whitespace-nowrap ${activeTab === 'CLIENTS' ? 'border-gray-900 text-gray-900' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
             >
                 {t('admin_tab_clients')}
             </button>
-            <button 
+            <button
+                onClick={() => setActiveTab('RESERVATIONS')}
+                data-testid="admin-tab-reservations"
+                className={`pb-3 text-sm font-bold transition-colors border-b-2 whitespace-nowrap flex items-center gap-1.5 ${activeTab === 'RESERVATIONS' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
+            >
+                <Calendar className="w-3.5 h-3.5" /> {t('admin_tab_reservations')}
+            </button>
+            <button
                 onClick={() => setActiveTab('COACH_ACTIVITY')}
                 className={`pb-3 text-sm font-bold transition-colors border-b-2 whitespace-nowrap flex items-center gap-1.5 ${activeTab === 'COACH_ACTIVITY' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
             >
@@ -552,6 +562,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
             {activeTab === 'COACH_ACTIVITY' && (
                 <AdminCoachActivity coaches={coaches} lessons={lessons} clients={clients} />
+            )}
+
+            {activeTab === 'RESERVATIONS' && (
+                <AdminReservationManager
+                    coaches={coaches}
+                    onCoachUpdated={onCoachUpdated ?? (() => {})}
+                />
             )}
 
             {activeTab === 'LESSONS' && (

@@ -1238,6 +1238,15 @@ const AppContent: React.FC = () => {
     }
   };
 
+  // Admin editing another coach's profile/schedule: update the coaches list only,
+  // leaving the admin's own currentUser/coachProfile session untouched.
+  const handleAdminUpdateCoachProfile = (updated: CoachProfile) => {
+    setCoaches((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
+    // Persist through firebaseService (used by ReservationManager for schedule saves).
+    // Persistence for the reservation-slot writes themselves is already handled by
+    // reservationService, so we only need to keep the coaches list in sync here.
+  };
+
   const handleSaveLessonPackage = async (pkg: LessonPackage) => {
     setLessonPackages((prev) => {
       const idx = prev.findIndex((p) => p.id === pkg.id);
@@ -1597,6 +1606,7 @@ const AppContent: React.FC = () => {
         onToggleSubscription={handleToggleSubscription}
         onGrantTrial={handleGrantTrial}
         onChangeSubscriptionPlan={handleChangeSubscriptionPlan}
+        onCoachUpdated={handleAdminUpdateCoachProfile}
       />
     );
   }
