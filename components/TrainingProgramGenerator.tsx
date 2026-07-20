@@ -11,10 +11,24 @@ import {
   X,
   ChevronDown,
   ChevronUp,
+  FileText,
+  CalendarDays,
 } from 'lucide-react';
-import { ClientProfile, Lesson, TrainingProgram, TrainingProgramConfig } from '../types';
+import type {
+  ClientProfile,
+  Lesson,
+  TrainingProgram,
+  TrainingProgramConfig,
+  WeeklySchedule,
+  TrainingDiagnosis,
+} from '../types';
 import { Button } from './Button';
-import { generateTrainingProgram } from '../services/geminiService';
+import {
+  generateTrainingProgram,
+  generateWeeklySchedule,
+} from '../services/geminiService';
+import { storageService } from '../services/storage';
+import { WeeklyScheduleEditor } from './WeeklyScheduleEditor';
 
 interface TrainingProgramGeneratorProps {
   client: ClientProfile;
@@ -72,9 +86,13 @@ export const TrainingProgramGenerator: React.FC<TrainingProgramGeneratorProps> =
   // ── Generation state ─────────────────────────────────────────────────────────
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedPlan, setGeneratedPlan] = useState('');
+  const [generatedSchedule, setGeneratedSchedule] = useState<WeeklySchedule | null>(null);
+  const [generatedDiagnosis, setGeneratedDiagnosis] = useState<TrainingDiagnosis | null>(null);
+  const [previewTab, setPreviewTab] = useState<'SCHEDULE' | 'PLAN'>('SCHEDULE');
 
   // ── Saved programs list ──────────────────────────────────────────────────────
   const [expandedProgramId, setExpandedProgramId] = useState<string | null>(null);
+  const [expandedTabByProgram, setExpandedTabByProgram] = useState<Record<string, 'SCHEDULE' | 'PLAN'>>({});
 
   // Client's lessons (sorted newest first)
   const clientLessons = useMemo(
@@ -86,6 +104,18 @@ export const TrainingProgramGenerator: React.FC<TrainingProgramGeneratorProps> =
         .sort((a, b) => b.createdAt - a.createdAt),
     [lessons, client]
   );
+
+  // Client's quick logs (sorted newest first). Sourced from local storage.
+  const clientQuickLogs = useMemo(() => {
+    try {
+      return storageService
+        .getQuickLogsByClient(clientId)
+        .sort((a, b) => b.createdAt - a.createdAt);
+    } catch {
+      return [];
+    }
+    // Re-evaluate whenever the client changes; storage reads are cheap.
+  }, [clientId]);
 
   // Programs for this client (sorted newest first)
   const clientPrograms = useMemo(
@@ -142,16 +172,49 @@ export const TrainingProgramGenerator: React.FC<TrainingProgramGeneratorProps> =
 
     setIsGenerating(true);
     setGeneratedPlan('');
+    setGeneratedSchedule(null);
+    setGeneratedDiagnosis(null);
     try {
-      const plan = await generateTrainingProgram(client, clientLessons, config);
+      const [plan, scheduleResult] = await Promise.all([
+        generateTrainingProgram(client, clientLessons, config),
+        generateWeeklySchedule(client, clientLessons, clientQuickLogs, config),
+      ]);
       setGeneratedPlan(plan);
+      setGeneratedSchedule(scheduleResult.schedule);
+      setGeneratedDiagnosis(scheduleResult.diagnosis);
+      setPreviewTab('SCHEDULE');
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const handleRegenerateSchedule = async () => {
+    if (!validateForm()) return;
+    const goal = performanceGoal === '기타' ? customGoal.trim() : performanceGoal;
+    const config: TrainingProgramConfig = {
+      startDate,
+      endDate,
+      frequencyPerWeek,
+      sessionDurationMinutes,
+      performanceGoal: goal,
+    };
+    setIsGenerating(true);
+    try {
+      const scheduleResult = await generateWeeklySchedule(
+        client,
+        clientLessons,
+        clientQuickLogs,
+        config,
+      );
+      setGeneratedSchedule(scheduleResult.schedule);
+      setGeneratedDiagnosis(scheduleResult.diagnosis);
     } finally {
       setIsGenerating(false);
     }
   };
 
   const handleSave = () => {
-    if (!generatedPlan) return;
+    if (!generatedPlan && !generatedSchedule) return;
     const goal = performanceGoal === '기타' ? customGoal.trim() : performanceGoal;
     const config: TrainingProgramConfig = {
       startDate,
@@ -169,11 +232,15 @@ export const TrainingProgramGenerator: React.FC<TrainingProgramGeneratorProps> =
       clientPhone: client.phone,
       config,
       generatedPlan,
+      ...(generatedSchedule ? { weeklySchedule: generatedSchedule } : {}),
+      ...(generatedDiagnosis ? { diagnosis: generatedDiagnosis } : {}),
       createdAt: now,
       updatedAt: now,
     };
     onSaveProgram(program);
     setGeneratedPlan('');
+    setGeneratedSchedule(null);
+    setGeneratedDiagnosis(null);
   };
 
   const handleDeleteProgram = (programId: string) => {
@@ -206,13 +273,13 @@ export const TrainingProgramGenerator: React.FC<TrainingProgramGeneratorProps> =
 
       <div className="px-4 pt-4 space-y-4 max-w-lg mx-auto">
 
-        {/* Lesson context info */}
-        <div className="bg-indigo-50 rounded-xl p-3 flex items-center gap-3 text-sm">
-          <BarChart2 className="w-5 h-5 text-indigo-500 flex-shrink-0" />
-          <span className="text-indigo-700">
-            {clientLessons.length > 0
-              ? `${clientLessons.length}개 레슨 기록 기반으로 프로그램을 생성합니다.`
-              : '레슨 기록이 없습니다. 기본 플랜으로 생성됩니다.'}
+        {/* Lesson + quick log context info */}
+        <div className="bg-indigo-50 rounded-xl p-3 flex items-start gap-3 text-sm">
+          <BarChart2 className="w-5 h-5 text-indigo-500 flex-shrink-0 mt-0.5" />
+          <span className="text-indigo-700 leading-relaxed">
+            {clientLessons.length === 0 && clientQuickLogs.length === 0
+              ? '레슨/빠른기록이 없습니다. 기본 플랜으로 생성됩니다.'
+              : `레슨 ${clientLessons.length}건 · 빠른기록 ${clientQuickLogs.length}건 기반으로 진단·스케줄을 생성합니다.`}
           </span>
         </div>
 
@@ -382,8 +449,8 @@ export const TrainingProgramGenerator: React.FC<TrainingProgramGeneratorProps> =
           </Button>
         </div>
 
-        {/* Generated plan */}
-        {generatedPlan && (
+        {/* Generated result (schedule + markdown plan) */}
+        {(generatedPlan || generatedSchedule) && (
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
             <div className="bg-slate-800 px-5 py-4 flex justify-between items-center">
               <h2 className="font-bold text-white flex items-center gap-2">
@@ -391,18 +458,59 @@ export const TrainingProgramGenerator: React.FC<TrainingProgramGeneratorProps> =
                 생성된 훈련 프로그램
               </h2>
               <button
-                onClick={() => setGeneratedPlan('')}
+                onClick={() => {
+                  setGeneratedPlan('');
+                  setGeneratedSchedule(null);
+                  setGeneratedDiagnosis(null);
+                }}
                 className="text-white/70 hover:text-white"
                 aria-label="닫기"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
+
+            {/* Tab switcher */}
+            <div className="flex border-b border-gray-100 bg-gray-50">
+              <button
+                onClick={() => setPreviewTab('SCHEDULE')}
+                className={`flex-1 py-2.5 text-xs font-bold flex items-center justify-center gap-1.5 transition ${
+                  previewTab === 'SCHEDULE'
+                    ? 'bg-white text-slate-800 border-b-2 border-slate-800'
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                <CalendarDays className="w-3.5 h-3.5" />
+                주간 스케줄
+              </button>
+              <button
+                onClick={() => setPreviewTab('PLAN')}
+                className={`flex-1 py-2.5 text-xs font-bold flex items-center justify-center gap-1.5 transition ${
+                  previewTab === 'PLAN'
+                    ? 'bg-white text-slate-800 border-b-2 border-slate-800'
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                <FileText className="w-3.5 h-3.5" />
+                주차별 계획
+              </button>
+            </div>
+
             <div className="p-5">
-              {/* Render markdown-ish content */}
-              <div className="prose prose-sm max-w-none text-gray-700 whitespace-pre-wrap text-sm leading-relaxed">
-                {generatedPlan}
-              </div>
+              {previewTab === 'SCHEDULE' && generatedSchedule && (
+                <WeeklyScheduleEditor
+                  schedule={generatedSchedule}
+                  diagnosis={generatedDiagnosis ?? undefined}
+                  isGenerating={isGenerating}
+                  onChange={setGeneratedSchedule}
+                  onRegenerate={handleRegenerateSchedule}
+                />
+              )}
+              {previewTab === 'PLAN' && (
+                <div className="prose prose-sm max-w-none text-gray-700 whitespace-pre-wrap text-sm leading-relaxed">
+                  {generatedPlan || '주차별 계획이 아직 생성되지 않았습니다.'}
+                </div>
+              )}
               <div className="mt-4 pt-4 border-t border-gray-100">
                 <Button
                   onClick={handleSave}
@@ -462,10 +570,63 @@ export const TrainingProgramGenerator: React.FC<TrainingProgramGeneratorProps> =
                     </div>
                   </button>
                   {isExpanded && (
-                    <div className="px-5 pb-5 border-t border-gray-100 pt-4">
-                      <div className="prose prose-sm max-w-none text-gray-700 whitespace-pre-wrap text-sm leading-relaxed">
-                        {program.generatedPlan}
-                      </div>
+                    <div className="px-5 pb-5 border-t border-gray-100 pt-4 space-y-3">
+                      {program.weeklySchedule && (
+                        <div className="flex border border-gray-200 rounded-lg overflow-hidden text-xs font-bold">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setExpandedTabByProgram((prev) => ({
+                                ...prev,
+                                [program.id]: 'SCHEDULE',
+                              }));
+                            }}
+                            className={`flex-1 py-1.5 flex items-center justify-center gap-1 ${
+                              (expandedTabByProgram[program.id] ?? 'SCHEDULE') === 'SCHEDULE'
+                                ? 'bg-slate-800 text-white'
+                                : 'bg-white text-gray-500 hover:bg-gray-50'
+                            }`}
+                          >
+                            <CalendarDays className="w-3 h-3" />
+                            스케줄
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setExpandedTabByProgram((prev) => ({
+                                ...prev,
+                                [program.id]: 'PLAN',
+                              }));
+                            }}
+                            className={`flex-1 py-1.5 flex items-center justify-center gap-1 ${
+                              expandedTabByProgram[program.id] === 'PLAN'
+                                ? 'bg-slate-800 text-white'
+                                : 'bg-white text-gray-500 hover:bg-gray-50'
+                            }`}
+                          >
+                            <FileText className="w-3 h-3" />
+                            계획
+                          </button>
+                        </div>
+                      )}
+                      {program.weeklySchedule &&
+                        (expandedTabByProgram[program.id] ?? 'SCHEDULE') === 'SCHEDULE' ? (
+                          <WeeklyScheduleEditor
+                            schedule={program.weeklySchedule}
+                            diagnosis={program.diagnosis}
+                            onChange={(nextSchedule) => {
+                              onSaveProgram({
+                                ...program,
+                                weeklySchedule: nextSchedule,
+                                updatedAt: Date.now(),
+                              });
+                            }}
+                          />
+                        ) : (
+                          <div className="prose prose-sm max-w-none text-gray-700 whitespace-pre-wrap text-sm leading-relaxed">
+                            {program.generatedPlan}
+                          </div>
+                        )}
                     </div>
                   )}
                 </div>
