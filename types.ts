@@ -261,8 +261,75 @@ export interface TrainingProgram {
   config: TrainingProgramConfig;
   /** AI-generated program content in markdown format. */
   generatedPlan: string;
+  /** Structured weekly schedule (day x hour grid). Optional for backwards compatibility. */
+  weeklySchedule?: WeeklySchedule;
+  /** Data-driven diagnosis summary used to seed the schedule. */
+  diagnosis?: TrainingDiagnosis;
   createdAt: number;
   updatedAt: number;
+}
+
+// ── Weekly Schedule Types ────────────────────────────────────────────────────
+
+/** Broad training bucket used for ratio bookkeeping and colour coding. */
+export type TrainingCategory =
+  | 'SHORT_GAME'      // 숏게임 (100m 이내 샷, 어프로치)
+  | 'PUTTING'         // 퍼팅
+  | 'CONTROL_SHOT'    // 컨트롤 샷
+  | 'SWING'           // 스윙 (스피드/안정성/일관성)
+  | 'TARGETING'       // 목표 타겟팅
+  | 'BALL_FLIGHT'     // 구질 구현 (클럽 패스/페이스 컨트롤)
+  | 'REST';           // 휴식/기타
+
+/** A single training block placed in the weekly grid. */
+export interface ScheduleSession {
+  id: string;
+  /** 0 = Monday … 6 = Sunday. */
+  dayOfWeek: number;
+  /** 24h format, "HH:MM". */
+  startTime: string;
+  /** Duration in minutes (30 min increments recommended). */
+  durationMinutes: number;
+  category: TrainingCategory;
+  /** Short human label shown in the cell, e.g. "숏게임", "퍼팅". */
+  label: string;
+  /** Optional coach note / drill detail. */
+  note?: string;
+}
+
+/** Configured training-time allocation across categories (minutes per week). */
+export interface CategoryAllocation {
+  category: TrainingCategory;
+  minutes: number;
+  /** Fraction of totalMinutes (0–1) for quick display. */
+  ratio: number;
+}
+
+/** Full week plan produced by the AI and edited by the coach. */
+export interface WeeklySchedule {
+  /** Total planned minutes per week (sum of sessions). */
+  totalMinutes: number;
+  /** Per-category time allocation summary. */
+  allocations: CategoryAllocation[];
+  /** All training blocks in the week. */
+  sessions: ScheduleSession[];
+  /** Optional overall coach summary displayed above the grid. */
+  overview?: string;
+}
+
+/** Data-driven diagnosis of a student's weak points. */
+export interface TrainingDiagnosis {
+  /** Short prose summary of the student's current state. */
+  summary: string;
+  /** Ranked list of weak areas the AI detected. */
+  weakAreas: Array<{
+    category: TrainingCategory;
+    reason: string;
+    /** 0–1 severity used for ratio weighting. */
+    severity: number;
+  }>;
+  /** Ranked list of strengths worth maintaining. */
+  strengths: string[];
 }
 
 export type ViewState = 'LIST' | 'DETAIL' | 'NEW' | 'COMPARE' | 'CLIENTS' | 'DIAGNOSIS_PROGRAM' | 'DIAGNOSIS_RESULT' | 'CLIENT_STATS' | 'LESSON_LIST' | 'LESSON_PACKAGE' | 'TRAINING_PROGRAM' | 'COACHX' | 'COACHX_CHAT' | 'COACHX_ASSISTANT' | 'LESSON_UPLOAD' | 'LESSON_IMPACT' | 'POSTURE_ANALYSIS' | 'CURRICULUM';

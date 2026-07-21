@@ -11,6 +11,11 @@ import {
   WeeklyInsight,
   MotionCaptureData,
   CoachProfile,
+  WeeklySchedule,
+  TrainingCategory,
+  TrainingDiagnosis,
+  ScheduleSession,
+  CategoryAllocation,
 } from '../types';
 import {
   CoachXLanguage,
@@ -991,6 +996,364 @@ ${lessonContext}
     log.error('Generate Training Program Error:', error);
     return fallbackPlan(config.performanceGoal);
   }
+};
+
+// ── Weekly Schedule Generator ────────────────────────────────────────────────
+
+const CATEGORY_LABELS: Record<TrainingCategory, string> = {
+  SHORT_GAME: '숏게임',
+  PUTTING: '퍼팅',
+  CONTROL_SHOT: '컨트롤 샷',
+  SWING: '스윙',
+  TARGETING: '타겟팅',
+  BALL_FLIGHT: '구질 구현',
+  REST: '휴식',
+};
+
+const CATEGORY_KEYS: TrainingCategory[] = [
+  'SHORT_GAME',
+  'PUTTING',
+  'CONTROL_SHOT',
+  'SWING',
+  'TARGETING',
+  'BALL_FLIGHT',
+  'REST',
+];
+
+const isTrainingCategory = (value: unknown): value is TrainingCategory =>
+  typeof value === 'string' && (CATEGORY_KEYS as string[]).includes(value);
+
+const roundToHalfHour = (minutes: number): number =>
+  Math.max(30, Math.round(minutes / 30) * 30);
+
+const summariseAllocations = (sessions: ScheduleSession[]): CategoryAllocation[] => {
+  const totals = new Map<TrainingCategory, number>();
+  for (const s of sessions) {
+    totals.set(s.category, (totals.get(s.category) ?? 0) + s.durationMinutes);
+  }
+  const total = Array.from(totals.values()).reduce((a, b) => a + b, 0) || 1;
+  return Array.from(totals.entries())
+    .map(([category, minutes]) => ({
+      category,
+      minutes,
+      ratio: minutes / total,
+    }))
+    .sort((a, b) => b.minutes - a.minutes);
+};
+
+/** Simple heuristic diagnosis used when the AI backend is unavailable. */
+const buildHeuristicDiagnosis = (
+  lessons: Lesson[],
+  quickLogs: QuickLogEntry[],
+): TrainingDiagnosis => {
+  const areaCounts = new Map<TrainingCategory, number>();
+  const bump = (cat: TrainingCategory) =>
+    areaCounts.set(cat, (areaCounts.get(cat) ?? 0) + 1);
+
+  for (const l of lessons.slice(0, 20)) {
+    const text = `${l.title ?? ''} ${l.coachNotes ?? ''} ${l.aiAnalysis ?? ''} ${(l.tags ?? []).join(' ')}`;
+    if (/퍼팅|putt/i.test(text)) bump('PUTTING');
+    if (/어프로치|칩|피치|숏게임|웨지/.test(text)) bump('SHORT_GAME');
+    if (/드라이버|스윙|톱|다운스윙|피니시/.test(text)) bump('SWING');
+    if (/방향|타겟|얼라인|정확/.test(text)) bump('TARGETING');
+    if (/슬라이스|훅|드로|페이드|구질|페이스|패스/.test(text)) bump('BALL_FLIGHT');
+    if (/거리|컨트롤/.test(text)) bump('CONTROL_SHOT');
+  }
+  for (const q of quickLogs.slice(0, 30)) {
+    if (q.practiceArea === 'PUTTING') bump('PUTTING');
+    if (q.practiceArea === 'SHORT_GAME') bump('SHORT_GAME');
+    if (q.practiceArea === 'DRIVER' || q.practiceArea === 'IRON') bump('SWING');
+    if (/슬라이스|훅|드로|페이드/.test(q.problemPoint ?? '')) bump('BALL_FLIGHT');
+  }
+
+  const max = Math.max(1, ...Array.from(areaCounts.values()));
+  const weakAreas = Array.from(areaCounts.entries())
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 3)
+    .map(([category, count]) => ({
+      category,
+      reason: `최근 기록에서 ${CATEGORY_LABELS[category]} 관련 언급 ${count}회`,
+      severity: count / max,
+    }));
+
+  return {
+    summary:
+      lessons.length + quickLogs.length === 0
+        ? '분석할 기록이 부족합니다. 기본 밸런스 프로그램을 제안합니다.'
+        : `최근 레슨 ${lessons.length}건, 빠른기록 ${quickLogs.length}건을 기반으로 진단했습니다.`,
+    weakAreas,
+    strengths: [],
+  };
+};
+
+/** Build a default weekly grid modelled on the reference document (short 70% / long 30%). */
+const buildFallbackSchedule = (config: TrainingProgramConfig): WeeklySchedule => {
+  const totalMinutesTarget = config.frequencyPerWeek * config.sessionDurationMinutes;
+  // Reference blueprint: 40h/week distribution used as ratios.
+  const referenceRatios: Record<TrainingCategory, number> = {
+    PUTTING: 6 / 40,
+    SHORT_GAME: 20 / 40,
+    CONTROL_SHOT: 2 / 40,
+    SWING: 5 / 40,
+    TARGETING: 5 / 40,
+    BALL_FLIGHT: 2 / 40,
+    REST: 0,
+  };
+
+  const days = Math.min(config.frequencyPerWeek, 6);
+  const sessions: ScheduleSession[] = [];
+  const order: TrainingCategory[] = [
+    'SHORT_GAME',
+    'PUTTING',
+    'SWING',
+    'TARGETING',
+    'CONTROL_SHOT',
+    'BALL_FLIGHT',
+  ];
+
+  let cursor = 0;
+  for (let day = 0; day < days; day++) {
+    const category = order[cursor % order.length];
+    cursor++;
+    sessions.push({
+      id: `sess_${day}_${cursor}`,
+      dayOfWeek: day,
+      startTime: '10:00',
+      durationMinutes: config.sessionDurationMinutes,
+      category,
+      label: CATEGORY_LABELS[category],
+    });
+  }
+
+  const allocations = CATEGORY_KEYS.filter((c) => c !== 'REST').map((category) => {
+    const minutes = Math.round(referenceRatios[category] * totalMinutesTarget);
+    return {
+      category,
+      minutes,
+      ratio: totalMinutesTarget > 0 ? minutes / totalMinutesTarget : 0,
+    };
+  });
+
+  return {
+    totalMinutes: sessions.reduce((sum, s) => sum + s.durationMinutes, 0),
+    allocations,
+    sessions,
+    overview: '기록이 부족하여 기본 밸런스 스케줄을 제안합니다. 코치가 편집해 주세요.',
+  };
+};
+
+const summariseLessonsForSchedule = (lessons: Lesson[]): string => {
+  if (!lessons.length) return '레슨 기록 없음';
+  return lessons
+    .slice(0, 12)
+    .map((l, i) => {
+      const parts: string[] = [`#${i + 1} ${l.date} · ${l.title ?? ''}`];
+      if (l.coachNotes) parts.push(`코치메모: ${l.coachNotes.slice(0, 140)}`);
+      if (l.aiAnalysis) parts.push(`AI: ${l.aiAnalysis.slice(0, 140)}`);
+      if (l.golfData?.carryDistance) parts.push(`캐리 ${l.golfData.carryDistance}m`);
+      if (l.tags?.length) parts.push(`태그: ${l.tags.join(',')}`);
+      return parts.join(' | ');
+    })
+    .join('\n');
+};
+
+const summariseQuickLogs = (logs: QuickLogEntry[]): string => {
+  if (!logs.length) return '빠른기록 없음';
+  return logs
+    .slice(0, 15)
+    .map(
+      (q) =>
+        `${q.logDate} [${q.mood}] 잘된점: ${q.goodPoint} / 문제점: ${q.problemPoint}${
+          q.practiceArea ? ` (연습:${q.practiceArea})` : ''
+        }`,
+    )
+    .join('\n');
+};
+
+/** Parse whatever the AI returns into a WeeklySchedule, tolerating small shape drift. */
+const coerceWeeklySchedule = (
+  raw: Record<string, unknown> | null,
+  config: TrainingProgramConfig,
+): WeeklySchedule | null => {
+  if (!raw) return null;
+  const sessionsRaw = Array.isArray(raw.sessions) ? raw.sessions : null;
+  if (!sessionsRaw) return null;
+
+  const sessions: ScheduleSession[] = [];
+  sessionsRaw.forEach((entry, idx) => {
+    if (!entry || typeof entry !== 'object') return;
+    const rec = entry as Record<string, unknown>;
+    const dayOfWeek = Number(rec.dayOfWeek);
+    const durationMinutes = roundToHalfHour(Number(rec.durationMinutes) || config.sessionDurationMinutes);
+    const startTime =
+      typeof rec.startTime === 'string' && /^\d{2}:\d{2}$/.test(rec.startTime)
+        ? rec.startTime
+        : '10:00';
+    const category: TrainingCategory = isTrainingCategory(rec.category)
+      ? rec.category
+      : 'SHORT_GAME';
+    if (Number.isNaN(dayOfWeek) || dayOfWeek < 0 || dayOfWeek > 6) return;
+
+    sessions.push({
+      id: typeof rec.id === 'string' ? rec.id : `sess_${idx}_${Date.now()}`,
+      dayOfWeek,
+      startTime,
+      durationMinutes,
+      category,
+      label: typeof rec.label === 'string' && rec.label ? rec.label : CATEGORY_LABELS[category],
+      note: typeof rec.note === 'string' ? rec.note : undefined,
+    });
+  });
+
+  if (!sessions.length) return null;
+
+  const allocations = summariseAllocations(sessions);
+  return {
+    totalMinutes: sessions.reduce((sum, s) => sum + s.durationMinutes, 0),
+    allocations,
+    sessions,
+    overview: typeof raw.overview === 'string' ? raw.overview : undefined,
+  };
+};
+
+const coerceDiagnosis = (raw: Record<string, unknown> | null): TrainingDiagnosis | null => {
+  if (!raw) return null;
+  const summary = typeof raw.summary === 'string' ? raw.summary : '';
+  const weakRaw = Array.isArray(raw.weakAreas) ? raw.weakAreas : [];
+  const strengthsRaw = Array.isArray(raw.strengths) ? raw.strengths : [];
+  const weakAreas = weakRaw
+    .map((entry) => {
+      if (!entry || typeof entry !== 'object') return null;
+      const rec = entry as Record<string, unknown>;
+      if (!isTrainingCategory(rec.category)) return null;
+      const severityNum = Number(rec.severity);
+      return {
+        category: rec.category,
+        reason: typeof rec.reason === 'string' ? rec.reason : '',
+        severity: Number.isFinite(severityNum) ? Math.max(0, Math.min(1, severityNum)) : 0.5,
+      };
+    })
+    .filter((v): v is NonNullable<typeof v> => v !== null);
+  const strengths = strengthsRaw
+    .map((s) => (typeof s === 'string' ? s : ''))
+    .filter((s) => s.length > 0);
+  if (!summary && !weakAreas.length) return null;
+  return { summary, weakAreas, strengths };
+};
+
+export interface WeeklyScheduleResult {
+  schedule: WeeklySchedule;
+  diagnosis: TrainingDiagnosis;
+}
+
+/**
+ * Analyses a student's records (lessons + quick logs) and produces a
+ * data-driven weekly training schedule the coach can edit.
+ */
+export const generateWeeklySchedule = async (
+  profile: ClientProfile,
+  lessons: Lesson[],
+  quickLogs: QuickLogEntry[],
+  config: TrainingProgramConfig,
+): Promise<WeeklyScheduleResult> => {
+  const fallback = (): WeeklyScheduleResult => ({
+    schedule: buildFallbackSchedule(config),
+    diagnosis: buildHeuristicDiagnosis(lessons, quickLogs),
+  });
+
+  try {
+    const totalWeeklyMinutes = config.frequencyPerWeek * config.sessionDurationMinutes;
+    const lessonContext = summariseLessonsForSchedule(lessons);
+    const quickContext = summariseQuickLogs(quickLogs);
+    const profileInfo = [
+      `이름: ${profile.name}`,
+      profile.handicap != null ? `핸디캡: ${profile.handicap}` : '핸디캡 정보 없음',
+      profile.bestScore != null ? `라베: ${profile.bestScore}` : '',
+      profile.memo ? `메모: ${profile.memo}` : '',
+    ]
+      .filter(Boolean)
+      .join('\n- ');
+
+    const prompt = `당신은 골프 코치 AI입니다. 학생의 기록을 분석해 데이터 기반의 주간 훈련 스케줄을 JSON으로 생성합니다.
+
+**핵심 원칙:**
+- 참고 훈련 비율: 숏게임 70% / 롱게임 30% (숏게임 = SHORT_GAME + PUTTING + CONTROL_SHOT).
+- 학생의 약점이 뚜렷하면 해당 카테고리 시간을 15~30% 늘려 균형을 조정합니다.
+- 사이클: 분석 → 피드백 → 솔루션 → 재분석.
+
+**회원 정보:**
+- ${profileInfo}
+
+**프로그램 설정:**
+- 기간: ${config.startDate} ~ ${config.endDate}
+- 주간 훈련 빈도: ${config.frequencyPerWeek}회
+- 회당 훈련 시간: ${config.sessionDurationMinutes}분 (총 주간 ${totalWeeklyMinutes}분)
+- 향상 목표: ${config.performanceGoal}
+
+**최근 레슨 기록:**
+${lessonContext}
+
+**최근 학생 빠른기록:**
+${quickContext}
+
+**출력 형식:** 아래 JSON 스키마만 반환하세요. 다른 텍스트/마크다운 금지.
+{
+  "diagnosis": {
+    "summary": "학생의 현재 상태 요약 (한국어, 2~3문장)",
+    "weakAreas": [
+      { "category": "SHORT_GAME | PUTTING | CONTROL_SHOT | SWING | TARGETING | BALL_FLIGHT", "reason": "근거 (한국어)", "severity": 0.0~1.0 }
+    ],
+    "strengths": ["유지할 강점 (한국어)"]
+  },
+  "schedule": {
+    "overview": "이번 주 전체 방향 (한국어)",
+    "sessions": [
+      {
+        "dayOfWeek": 0~6 (0=월,6=일),
+        "startTime": "HH:MM",
+        "durationMinutes": 30 단위 정수,
+        "category": "SHORT_GAME | PUTTING | CONTROL_SHOT | SWING | TARGETING | BALL_FLIGHT",
+        "label": "셀에 표시할 짧은 이름 (한국어)",
+        "note": "코치 참고용 상세 (한국어, 옵션)"
+      }
+    ]
+  }
+}
+
+**세션 생성 지침:**
+- 총 세션 수 ≒ ${config.frequencyPerWeek} (허용범위 ±1).
+- 각 세션 duration ≒ ${config.sessionDurationMinutes}분 (30/60/90 등).
+- 약점 카테고리는 최소 1회 이상 등장.
+- 참고 스케줄 예시 (오전 10-12시 숏게임, 12-13시 퍼팅, 14-15시 스윙, 15-16시 타겟팅 등)를 참고하되 학생 기록에 맞게 조정.
+`;
+
+    const result = await invokeBackendAI<unknown>('training_program', { prompt });
+    const text = getJsonTextFromResult(result);
+    const parsed = parseJsonObjectFromText(text);
+    if (!parsed) throw new Error('Weekly schedule JSON parse failed');
+
+    const diagnosis =
+      coerceDiagnosis(parsed.diagnosis as Record<string, unknown> | null) ??
+      buildHeuristicDiagnosis(lessons, quickLogs);
+    const schedule =
+      coerceWeeklySchedule(parsed.schedule as Record<string, unknown> | null, config) ??
+      buildFallbackSchedule(config);
+
+    return { schedule, diagnosis };
+  } catch (error) {
+    log.error('generateWeeklySchedule error:', error);
+    return fallback();
+  }
+};
+
+/** Recompute the allocation summary — used after a coach edits the grid. */
+export const recomputeScheduleAllocations = (schedule: WeeklySchedule): WeeklySchedule => {
+  const allocations = summariseAllocations(schedule.sessions);
+  return {
+    ...schedule,
+    totalMinutes: schedule.sessions.reduce((sum, s) => sum + s.durationMinutes, 0),
+    allocations,
+  };
 };
 
 const MOOD_LABELS: Record<string, string> = {

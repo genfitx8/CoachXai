@@ -25,6 +25,32 @@ vi.mock('../services/geminiService', () => ({
     '## 4주 훈련 프로그램\n\n**1주차** – 기초 점검\n- 빈스윙 50회'
   ),
   generateGolfMissions: vi.fn().mockResolvedValue([]),
+  generateWeeklySchedule: vi.fn().mockResolvedValue({
+    schedule: {
+      totalMinutes: 180,
+      allocations: [
+        { category: 'SHORT_GAME', minutes: 120, ratio: 120 / 180 },
+        { category: 'SWING', minutes: 60, ratio: 60 / 180 },
+      ],
+      sessions: [
+        {
+          id: 'sess_test_1',
+          dayOfWeek: 0,
+          startTime: '10:00',
+          durationMinutes: 60,
+          category: 'SHORT_GAME',
+          label: '숏게임',
+        },
+      ],
+      overview: '테스트 스케줄',
+    },
+    diagnosis: {
+      summary: '테스트 진단',
+      weakAreas: [],
+      strengths: [],
+    },
+  }),
+  recomputeScheduleAllocations: vi.fn((s) => s),
 }));
 
 // ─── Fixtures ─────────────────────────────────────────────────────────────────
@@ -110,12 +136,12 @@ describe('TrainingProgramGenerator – config form', () => {
 
   it('shows lesson record count when lessons exist', () => {
     render(<TrainingProgramGenerator {...defaultProps} />);
-    expect(screen.getByText(/2개 레슨 기록 기반으로/)).toBeTruthy();
+    expect(screen.getByText(/레슨 2건/)).toBeTruthy();
   });
 
   it('shows fallback message when no lesson records exist', () => {
     render(<TrainingProgramGenerator {...defaultProps} lessons={[]} />);
-    expect(screen.getByText(/레슨 기록이 없습니다/)).toBeTruthy();
+    expect(screen.getByText(/레슨\/빠른기록이 없습니다/)).toBeTruthy();
   });
 
   it('renders performance goal options', () => {
@@ -189,6 +215,12 @@ describe('TrainingProgramGenerator – generation', () => {
         expect.objectContaining({ performanceGoal: '드라이버 정확도 향상' })
       );
     });
+
+    // Switch to the markdown-plan tab to verify content
+    await waitFor(() =>
+      screen.getByRole('button', { name: /주차별 계획/ })
+    );
+    fireEvent.click(screen.getByRole('button', { name: /주차별 계획/ }));
 
     await waitFor(() => {
       expect(screen.getByText(/4주 훈련 프로그램/)).toBeTruthy();
