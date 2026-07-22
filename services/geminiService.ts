@@ -16,6 +16,8 @@ import {
   TrainingDiagnosis,
   ScheduleSession,
   CategoryAllocation,
+  DispersionSession,
+  ShotDispersionEntry,
 } from '../types';
 import {
   CoachXLanguage,
@@ -364,6 +366,52 @@ export const analyzeSwingVideo = async (
  * Extracts golf metrics from an image (Launch monitor screen like GDR, Trackman)
  * OR extracts Score from a Scorecard image for a specific user.
  */
+const parseDispersionSession = (raw: unknown): DispersionSession | null => {
+  if (!raw || typeof raw !== 'object') return null;
+  const r = raw as Record<string, unknown>;
+
+  const club = typeof r.club === 'string' ? r.club.trim() : '';
+  const targetDistanceM = toOptionalNumber(r.targetDistanceM);
+  const avgPinDistanceM = toOptionalNumber(r.avgPinDistanceM);
+  if (!club || targetDistanceM === undefined || avgPinDistanceM === undefined) return null;
+
+  const rawShots = Array.isArray(r.shots) ? r.shots : [];
+  const shots: ShotDispersionEntry[] = [];
+  for (const s of rawShots) {
+    if (!s || typeof s !== 'object') continue;
+    const item = s as Record<string, unknown>;
+    const shotNo = toOptionalNumber(item.shotNo);
+    const pinDistanceM = toOptionalNumber(item.pinDistanceM);
+    if (shotNo === undefined || pinDistanceM === undefined) continue;
+    shots.push({
+      shotNo,
+      pinDistanceM,
+      hitTarget: typeof item.hitTarget === 'boolean' ? item.hitTarget : undefined,
+      sideM: toOptionalNumber(item.sideM),
+      carryM: toOptionalNumber(item.carryM),
+      totalM: toOptionalNumber(item.totalM),
+    });
+  }
+
+  const shotCount = toOptionalNumber(r.shotCount) ?? shots.length;
+  const hitCount = toOptionalNumber(r.hitCount) ?? shots.filter((s) => s.hitTarget).length;
+
+  const source =
+    r.source === 'TRACKMAN' || r.source === 'GDR' || r.source === 'KAKAOVX' || r.source === 'OTHER'
+      ? (r.source as DispersionSession['source'])
+      : undefined;
+
+  return {
+    club,
+    targetDistanceM,
+    shotCount,
+    hitCount,
+    avgPinDistanceM,
+    shots,
+    source,
+  };
+};
+
 export const extractGolfData = async (
   imageInput: AnalysisInput,
   clientName?: string // Name to search for in scorecard
@@ -371,6 +419,7 @@ export const extractGolfData = async (
   textAnalysis: string;
   golfData: GolfData | null;
   score?: number;
+  dispersionSession?: DispersionSession;
 }> => {
   try {
     let blob: Blob;
@@ -382,9 +431,10 @@ export const extractGolfData = async (
     const mediaPart = await fileToGenerativePart(blob, imageInput.mimeType);
 
     const prompt = `
-      이 이미지는 두 가지 중 하나입니다:
-      1. **골프 시뮬레이터/런치모니터(GDR, 카카오VX, 트랙맨, GC Quad, Foresight 등)의 데이터 화면**
+      이 이미지는 다음 중 하나입니다:
+      1. **골프 시뮬레이터/런치모니터(GDR, 카카오VX, 트랙맨, GC Quad, Foresight 등)의 데이터 화면 (단일 샷/평균)**
       2. **골프 스코어카드(필드 또는 스크린 게임 결과)**
+      3. **근접샷(Approach/Proximity) 세션 요약 화면** — 특정 목표거리(예: 100m)를 향해 여러 샷을 친 후, 클럽/목표거리/평균 핀 이격거리/타겟 명중률(예: 3/8)/샷별 핀 이격거리 리스트가 표시된 화면. Case 1과 동시에 존재할 수 있습니다.
 
       이미지를 분석하여 다음 작업을 수행하고 JSON으로 응답해주세요.
 
@@ -422,7 +472,21 @@ export const extractGolfData = async (
       - faceAngle (Face Angle, 페이스 앵글)
       - sideTotal (Side Tot./Side Total, 사이드 토탈 거리 — 오른쪽(R)이면 양수(+), 왼쪽(L)이면 음수(-)로 변환)
 
-      **응답 형식 (JSON, 필드는 이미지에서 확인 가능한 것만 포함):**
+      **Case 3(근접샷 세션 요약)일 때 추가로 추출할 데이터** — 화면에 목표거리(예: 100m)와 여러 샷의 핀거리, 명중률이 표시된 경우:
+      - dispersionSession.club: 사용 클럽 라벨 그대로 (예: "52°", "PW", "9I")
+      - dispersionSession.targetDistanceM: 목표 거리(미터, 숫자만)
+      - dispersionSession.shotCount: 총 샷 수. 명중률 표기가 "3/8" 형태면 분모(8)를 사용.
+      - dispersionSession.hitCount: 타겟 명중 수. "3/8" 형태면 분자(3).
+      - dispersionSession.avgPinDistanceM: 평균 핀 이격거리(미터). "평균 핀으로부터", "Avg Distance to Pin" 등의 라벨.
+      - dispersionSession.shots: 화면에 보이는 개별 샷 리스트(순서대로). 각 항목:
+        - shotNo: 샷 번호(정수, 화면의 #4/#5 등 그대로)
+        - pinDistanceM: 해당 샷의 핀 이격거리(미터)
+        - hitTarget: 명중 표시(체크/원형 성공 아이콘)가 있으면 true, 없으면 false, 판별 불가면 생략
+        - sideM: 좌우편차가 표시되면 R을 +, L을 -로 (예: 3.2L → -3.2). 없으면 생략.
+      - dispersionSession.source: 로고나 UI로 식별 가능한 경우 "TRACKMAN" | "GDR" | "KAKAOVX" | "OTHER". 확신 없으면 "OTHER".
+      - Case 3에서도 화면 상단에 현재/평균 샷의 탄도 수치(캐리, 볼스피드 등)가 함께 있으면 metrics에도 채워주세요. (Case 1과 병렬)
+
+      **응답 형식 (JSON, 필드는 이미지에서 확인 가능한 것만 포함. dispersionSession은 Case 3일 때만 포함):**
       \`\`\`json
       {
         "isScorecard": boolean,
@@ -438,8 +502,21 @@ export const extractGolfData = async (
           "clubPath": -0.1,
           "dynamicLoft": 21.7,
           "spinLoft": 22.7,
-          "sideTotal": 12.7,
-          ...
+          "sideTotal": 12.7
+        },
+        "dispersionSession": {
+          "club": "52°",
+          "targetDistanceM": 100,
+          "shotCount": 8,
+          "hitCount": 3,
+          "avgPinDistanceM": 9.2,
+          "shots": [
+            { "shotNo": 4, "pinDistanceM": 8.2, "hitTarget": true },
+            { "shotNo": 5, "pinDistanceM": 10.4, "hitTarget": true },
+            { "shotNo": 6, "pinDistanceM": 5.8, "hitTarget": true },
+            { "shotNo": 7, "pinDistanceM": 8.5, "hitTarget": true }
+          ],
+          "source": "TRACKMAN"
         },
         "comment": "스코어카드: 김철수님의 기록은 85타입니다. / 시뮬레이터: 볼 스피드가 아주 훌륭합니다."
       }
@@ -455,10 +532,12 @@ export const extractGolfData = async (
     if (!text) throw new Error('분석 실패');
 
     const parsedResult = JSON.parse(text);
+    const dispersionSession = parseDispersionSession(parsedResult.dispersionSession);
     return {
       textAnalysis: parsedResult.comment,
       golfData: parsedResult.metrics,
       score: parsedResult.score,
+      ...(dispersionSession ? { dispersionSession } : {}),
     };
   } catch (error) {
     log.error('Golf Data Extraction Error:', error);

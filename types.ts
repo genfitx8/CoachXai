@@ -13,6 +13,34 @@ export interface ClientFeedback {
   updatedAt: number;
 }
 
+/**
+ * A single approach/proximity shot inside a practice session
+ * (e.g. Trackman "Approach" mode where the player aims at a fixed target distance).
+ */
+export interface ShotDispersionEntry {
+  shotNo: number;               // 1-based order in the session
+  pinDistanceM: number;         // distance from the pin at rest (meters)
+  hitTarget?: boolean;          // whether this shot counted as on-target (green/target zone)
+  sideM?: number;               // lateral offset (+ right / - left), meters
+  carryM?: number;              // optional per-shot carry
+  totalM?: number;              // optional per-shot total distance
+}
+
+/**
+ * Session-level proximity/dispersion summary extracted from a launch monitor
+ * screen that shows target distance, hit rate, and per-shot pin distances.
+ * Stored alongside `golfData` (which holds single-shot ball-flight metrics).
+ */
+export interface DispersionSession {
+  club: string;                 // e.g. "52°", "PW", "9I"
+  targetDistanceM: number;      // e.g. 100
+  shotCount: number;            // total shots in the session
+  hitCount: number;             // shots that hit the target
+  avgPinDistanceM: number;      // average distance from pin (meters)
+  shots: ShotDispersionEntry[]; // per-shot list (may be partial if UI hides older shots)
+  source?: 'TRACKMAN' | 'GDR' | 'KAKAOVX' | 'OTHER';
+}
+
 export interface GolfData {
   carryDistance?: number;
   totalDistance?: number;
@@ -144,6 +172,7 @@ export interface Lesson {
   coachNotes: string;
   aiAnalysis?: string;
   golfData?: GolfData; // Added: Extracted launch monitor data
+  dispersionSession?: DispersionSession; // Added: Extracted approach/proximity session summary
   swingSequence?: SwingSequenceItem[]; // Added: Extracted swing sequence images
   tags: string[];
   shareOption?: 'MEDIA_ONLY' | 'FULL'; // Control what the client sees

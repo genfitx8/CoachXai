@@ -162,6 +162,104 @@ export const ClientStats: React.FC<ClientStatsProps> = ({ lessons, onBack }) => 
     return shotSummary.avgTotal - tourAverageDistance;
   }, [shotSummary, tourAverageDistance]);
 
+  // --- APPROACH / DISPERSION LOGIC ---
+
+  const dispersionMonthlyData = useMemo(() => {
+    interface Bucket {
+      month: string;
+      club: string;
+      pinWeightedSum: number;
+      hitCount: number;
+      shotCount: number;
+      sessionCount: number;
+    }
+    const buckets = new Map<string, Bucket>();
+    filteredLessons.forEach(l => {
+      const d = l.dispersionSession;
+      if (!d || d.shotCount <= 0) return;
+      const month = l.date.substring(0, 7); // YYYY-MM
+      const key = `${month}__${d.club}`;
+      let bucket = buckets.get(key);
+      if (!bucket) {
+        bucket = { month, club: d.club, pinWeightedSum: 0, hitCount: 0, shotCount: 0, sessionCount: 0 };
+        buckets.set(key, bucket);
+      }
+      bucket.pinWeightedSum += d.avgPinDistanceM * d.shotCount;
+      bucket.hitCount += d.hitCount;
+      bucket.shotCount += d.shotCount;
+      bucket.sessionCount += 1;
+    });
+    return Array.from(buckets.values())
+      .map(b => ({
+        month: b.month,
+        club: b.club,
+        avgPin: Number((b.pinWeightedSum / b.shotCount).toFixed(1)),
+        hitRate: Math.round((b.hitCount / b.shotCount) * 100),
+        sessions: b.sessionCount,
+        shots: b.shotCount,
+        hits: b.hitCount,
+      }))
+      .sort((a, b) => (a.month === b.month ? a.club.localeCompare(b.club) : a.month.localeCompare(b.month)));
+  }, [filteredLessons]);
+
+  const dispersionClubs = useMemo(
+    () => Array.from(new Set(dispersionMonthlyData.map(d => d.club))).sort(),
+    [dispersionMonthlyData]
+  );
+
+  const dispersionChartData = useMemo(() => {
+    const months = Array.from(new Set(dispersionMonthlyData.map(d => d.month))).sort();
+    return months.map(month => {
+      const row: Record<string, string | number> = { month: month.substring(5) };
+      dispersionClubs.forEach(club => {
+        const entry = dispersionMonthlyData.find(d => d.month === month && d.club === club);
+        if (entry) {
+          row[`${club}_pin`] = entry.avgPin;
+          row[`${club}_hitRate`] = entry.hitRate;
+        }
+      });
+      return row;
+    });
+  }, [dispersionMonthlyData, dispersionClubs]);
+
+  const dispersionSummary = useMemo(() => {
+    if (dispersionMonthlyData.length === 0) return null;
+    const totalShots = dispersionMonthlyData.reduce((a, b) => a + b.shots, 0);
+    const totalHits = dispersionMonthlyData.reduce((a, b) => a + b.hits, 0);
+    const totalSessions = dispersionMonthlyData.reduce((a, b) => a + b.sessions, 0);
+    const pinSum = dispersionMonthlyData.reduce((a, b) => a + b.avgPin * b.shots, 0);
+    const overallAvgPin = totalShots > 0 ? Number((pinSum / totalShots).toFixed(1)) : 0;
+    const overallHitRate = totalShots > 0 ? Math.round((totalHits / totalShots) * 100) : 0;
+
+    const months = Array.from(new Set(dispersionMonthlyData.map(d => d.month))).sort();
+    const currentMonth = months[months.length - 1];
+    const prevMonth = months.length >= 2 ? months[months.length - 2] : null;
+
+    const monthAvg = (month: string) => {
+      const rows = dispersionMonthlyData.filter(d => d.month === month);
+      const shots = rows.reduce((a, b) => a + b.shots, 0);
+      if (shots === 0) return null;
+      const wsum = rows.reduce((a, b) => a + b.avgPin * b.shots, 0);
+      return Number((wsum / shots).toFixed(1));
+    };
+    const currentAvgPin = monthAvg(currentMonth);
+    const prevAvgPin = prevMonth ? monthAvg(prevMonth) : null;
+    const pinDelta =
+      currentAvgPin !== null && prevAvgPin !== null
+        ? Number((currentAvgPin - prevAvgPin).toFixed(1))
+        : null;
+
+    return {
+      totalSessions,
+      totalShots,
+      overallHitRate,
+      overallAvgPin,
+      currentMonth,
+      currentAvgPin,
+      pinDelta,
+    };
+  }, [dispersionMonthlyData]);
+
 
   // --- SCORE DATA LOGIC ---
 
@@ -688,7 +786,7 @@ export const ClientStats: React.FC<ClientStatsProps> = ({ lessons, onBack }) => 
                         </div>
                     )}
                 </>
-            ) : (
+            ) : !dispersionSummary ? (
                 <div className="bg-white rounded-xl p-8 text-center border border-gray-200 shadow-sm mt-4">
                     <TrendingUp className="w-12 h-12 text-gray-300 mx-auto mb-3" />
                     <h3 className="text-lg font-bold text-gray-900">해당 기간 데이터 없음</h3>
@@ -696,6 +794,169 @@ export const ClientStats: React.FC<ClientStatsProps> = ({ lessons, onBack }) => 
                         선택하신 기간 동안의 샷 데이터가 없습니다.<br/>
                         기간을 변경하거나 데이터를 추가해주세요.
                     </p>
+                </div>
+            ) : null}
+
+            {/* --- MONTHLY APPROACH / DISPERSION REPORT --- */}
+            {dispersionSummary && (
+                <div className="space-y-4">
+                    <div className="bg-white rounded-xl shadow-lg border border-emerald-100/50 overflow-hidden">
+                        <div className="bg-gradient-to-r from-teal-600 to-emerald-700 px-4 py-3 border-b border-emerald-600 flex justify-between items-center">
+                            <h3 className="font-bold text-white text-sm flex items-center gap-2">
+                                <Crosshair className="w-4 h-4" /> 월간 근접샷 리포트
+                            </h3>
+                            <span className="text-[10px] bg-white/90 backdrop-blur-sm text-emerald-700 px-2.5 py-1 rounded-full border border-white/20 font-bold shadow-sm">
+                                {dispersionSummary.totalSessions} 세션 · {dispersionSummary.totalShots} 샷
+                            </span>
+                        </div>
+                        <div className="p-4">
+                            <div className="grid grid-cols-3 gap-2 mb-4">
+                                <div className="bg-emerald-50 p-3 rounded-xl border border-emerald-100 text-center">
+                                    <span className="text-[10px] text-emerald-700 block mb-1 font-bold">전체 평균 핀거리</span>
+                                    <div className="text-xl font-black text-emerald-800">
+                                        {dispersionSummary.overallAvgPin}
+                                        <span className="text-xs font-normal text-emerald-600"> m</span>
+                                    </div>
+                                </div>
+                                <div className="bg-blue-50 p-3 rounded-xl border border-blue-100 text-center">
+                                    <span className="text-[10px] text-blue-700 block mb-1 font-bold flex items-center justify-center gap-1">
+                                        <Target className="w-3 h-3" /> 명중률
+                                    </span>
+                                    <div className="text-xl font-black text-blue-800">
+                                        {dispersionSummary.overallHitRate}
+                                        <span className="text-xs font-normal text-blue-600">%</span>
+                                    </div>
+                                </div>
+                                <div className="bg-indigo-50 p-3 rounded-xl border border-indigo-100 text-center">
+                                    <span className="text-[10px] text-indigo-700 block mb-1 font-bold">이번 달 vs 지난 달</span>
+                                    <div className={`text-xl font-black ${
+                                        dispersionSummary.pinDelta === null
+                                            ? 'text-gray-500'
+                                            : dispersionSummary.pinDelta < 0
+                                                ? 'text-emerald-700'
+                                                : dispersionSummary.pinDelta > 0
+                                                    ? 'text-red-600'
+                                                    : 'text-gray-700'
+                                    }`}>
+                                        {dispersionSummary.pinDelta === null
+                                            ? '-'
+                                            : dispersionSummary.pinDelta === 0
+                                                ? '±0'
+                                                : dispersionSummary.pinDelta > 0
+                                                    ? `+${dispersionSummary.pinDelta}`
+                                                    : `${dispersionSummary.pinDelta}`}
+                                        {dispersionSummary.pinDelta !== null && (
+                                            <span className="text-xs font-normal text-gray-500"> m</span>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Monthly Trend Chart */}
+                            {dispersionChartData.length >= 1 && dispersionClubs.length > 0 && (
+                                <div className="mt-2">
+                                    <h4 className="text-xs font-bold text-gray-700 mb-3 border-l-4 border-emerald-500 pl-2">
+                                        클럽별 평균 핀거리 (m, 낮을수록 좋음)
+                                    </h4>
+                                    <div className="h-56 w-full">
+                                        <ResponsiveContainer width="100%" height="100%">
+                                            <LineChart data={dispersionChartData} margin={{ top: 5, right: 10, bottom: 5, left: -20 }}>
+                                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
+                                                <XAxis dataKey="month" tick={{ fontSize: 11 }} stroke="#9ca3af" />
+                                                <YAxis domain={[0, 'auto']} reversed tick={{ fontSize: 11 }} stroke="#9ca3af" />
+                                                <Tooltip
+                                                    contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', fontSize: '12px' }}
+                                                    formatter={(value: number | string, name: string) => [`${value} m`, name.replace('_pin', '')]}
+                                                />
+                                                <Legend wrapperStyle={{ fontSize: '11px' }} />
+                                                {dispersionClubs.map((club, idx) => {
+                                                    const palette = ['#059669', '#3b82f6', '#f59e0b', '#8b5cf6', '#ec4899', '#14b8a6'];
+                                                    return (
+                                                        <Line
+                                                            key={club}
+                                                            type="monotone"
+                                                            dataKey={`${club}_pin`}
+                                                            name={club}
+                                                            stroke={palette[idx % palette.length]}
+                                                            strokeWidth={2}
+                                                            dot={{ r: 4 }}
+                                                            connectNulls
+                                                        />
+                                                    );
+                                                })}
+                                            </LineChart>
+                                        </ResponsiveContainer>
+                                    </div>
+
+                                    <h4 className="text-xs font-bold text-gray-700 mb-3 mt-6 border-l-4 border-blue-500 pl-2">
+                                        클럽별 타겟 명중률 (%)
+                                    </h4>
+                                    <div className="h-56 w-full">
+                                        <ResponsiveContainer width="100%" height="100%">
+                                            <LineChart data={dispersionChartData} margin={{ top: 5, right: 10, bottom: 5, left: -20 }}>
+                                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
+                                                <XAxis dataKey="month" tick={{ fontSize: 11 }} stroke="#9ca3af" />
+                                                <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} stroke="#9ca3af" />
+                                                <Tooltip
+                                                    contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', fontSize: '12px' }}
+                                                    formatter={(value: number | string, name: string) => [`${value}%`, name.replace('_hitRate', '')]}
+                                                />
+                                                <Legend wrapperStyle={{ fontSize: '11px' }} />
+                                                {dispersionClubs.map((club, idx) => {
+                                                    const palette = ['#059669', '#3b82f6', '#f59e0b', '#8b5cf6', '#ec4899', '#14b8a6'];
+                                                    return (
+                                                        <Line
+                                                            key={club}
+                                                            type="monotone"
+                                                            dataKey={`${club}_hitRate`}
+                                                            name={club}
+                                                            stroke={palette[idx % palette.length]}
+                                                            strokeWidth={2}
+                                                            dot={{ r: 4 }}
+                                                            connectNulls
+                                                        />
+                                                    );
+                                                })}
+                                            </LineChart>
+                                        </ResponsiveContainer>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Monthly breakdown table */}
+                            <div className="mt-6">
+                                <h4 className="text-xs font-bold text-gray-700 mb-2 border-l-4 border-gray-500 pl-2">
+                                    월별 · 클럽별 상세
+                                </h4>
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-xs">
+                                        <thead>
+                                            <tr className="text-gray-500 border-b border-gray-200">
+                                                <th className="text-left py-2 px-2 font-medium">월</th>
+                                                <th className="text-left py-2 px-2 font-medium">클럽</th>
+                                                <th className="text-right py-2 px-2 font-medium">평균 핀거리</th>
+                                                <th className="text-right py-2 px-2 font-medium">명중률</th>
+                                                <th className="text-right py-2 px-2 font-medium">세션</th>
+                                                <th className="text-right py-2 px-2 font-medium">샷</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {dispersionMonthlyData.map((row) => (
+                                                <tr key={`${row.month}_${row.club}`} className="border-b border-gray-50 last:border-b-0">
+                                                    <td className="py-2 px-2 text-gray-600">{row.month}</td>
+                                                    <td className="py-2 px-2 text-gray-800 font-medium">{row.club}</td>
+                                                    <td className="py-2 px-2 text-right font-bold text-emerald-700">{row.avgPin} m</td>
+                                                    <td className="py-2 px-2 text-right font-bold text-blue-700">{row.hitRate}%</td>
+                                                    <td className="py-2 px-2 text-right text-gray-500">{row.sessions}</td>
+                                                    <td className="py-2 px-2 text-right text-gray-500">{row.shots}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             )}
         </div>

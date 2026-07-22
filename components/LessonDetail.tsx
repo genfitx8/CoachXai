@@ -8,6 +8,7 @@ import ReactMarkdown from 'react-markdown';
 import { analyzeSwingVideo, analyzeMotionCapture } from '../services/geminiService';
 import { SwingGuideOverlay } from './SwingGuideOverlay';
 import { GolfDataVisualizer } from './GolfDataVisualizer';
+import { DispersionSessionCard } from './DispersionSessionCard';
 import { VideoEditor } from './VideoEditor';
 import { firebaseService } from '../services/firebase';
 import { apiService, resolveMediaUrl } from '../services/apiService';
@@ -1919,6 +1920,14 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
                   clientName={lesson.clientName}
                   clientPhone={lesson.clientPhone}
                   currentClub={lesson.club}
+                  currentDate={lesson.date}
+              />
+          )}
+
+          {/* Approach/Proximity Session Card (Only if dispersion data exists) */}
+          {lesson.dispersionSession && lesson.recordType !== 'SCORE' && (
+              <DispersionSessionCard
+                  session={lesson.dispersionSession}
                   currentDate={lesson.date}
               />
           )}

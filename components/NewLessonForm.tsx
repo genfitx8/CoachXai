@@ -60,6 +60,7 @@ import {
   ScorecardDetail,
   GolfCourse,
   LessonPackage,
+  DispersionSession,
 } from '../types';
 import { firebaseService } from '../services/firebase';
 import { storageService } from '../services/storage';
@@ -1063,6 +1064,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
       let analysisResult = initialData?.aiAnalysis || '';
       let extractedGolfData: GolfData | undefined = initialData?.golfData;
       let extractedScore: number | undefined = initialData?.score;
+      let extractedDispersion: DispersionSession | undefined = initialData?.dispersionSession;
       let scorecardDetail: ScorecardDetail | undefined = undefined;
 
       const mainMedia = mediaItems.length > 0 ? mediaItems[0] : null;
@@ -1139,6 +1141,9 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
             if (dataResult.score) {
               extractedScore = dataResult.score;
             }
+            if (dataResult.dispersionSession) {
+              extractedDispersion = dataResult.dispersionSession;
+            }
           } else {
             setStatusMessage(
               '미디어 자료와 코치님 피드백을 바탕으로 레슨 리포트를 정리하고 있습니다...'
@@ -1174,6 +1179,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
 
       if (recordType === 'SCORE') {
         extractedGolfData = undefined;
+        extractedDispersion = undefined;
       }
 
       // Convert Media Items to MediaItem objects
@@ -1231,6 +1237,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
         coachNotes: notes,
         aiAnalysis: analysisResult || undefined,
         golfData: extractedGolfData,
+        dispersionSession: extractedDispersion,
         tags: tags,
         createdAt: initialData ? initialData.createdAt : Date.now(), // Preserve creation date
         shareOption: 'FULL',
