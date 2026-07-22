@@ -132,6 +132,7 @@ export interface Lesson {
   date: string;
   title: string;
   club?: string; // Added: Golf club used (e.g., '7 Iron', 'Driver')
+  targetDistance?: number; // Added: Target distance for the shot in meters
   score?: number; // Added: Score for 'SCORE' record type
   scorecardDetail?: ScorecardDetail; // Added: Detailed scorecard data
   memberBodyAnalysis?: LessonBodyAnalysis; // Added: Member body analysis captured during lesson
