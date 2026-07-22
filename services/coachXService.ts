@@ -7,6 +7,7 @@
  */
 
 import { Lesson, ClientProfile, CoachProfile } from '../types';
+import { lessonBelongsToClient } from '../utils/clientMatch';
 
 export type CoachXLanguage = 'ko' | 'en' | 'ja' | 'th';
 
@@ -1128,7 +1129,7 @@ export function generateHeuristicResponse(
 
   if (matchedClient) {
     const memberLessons = allLessons.filter(
-      l => l.clientName === matchedClient.name && l.clientPhone === matchedClient.phone
+      l => lessonBelongsToClient(l, matchedClient)
     );
     const reports = buildMemberGrowthReports(memberLessons, [matchedClient], language);
     const report = reports[0];

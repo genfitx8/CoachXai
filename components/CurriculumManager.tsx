@@ -9,12 +9,13 @@ import {
   listCurriculums, getCurriculumProgress, assignCurriculum,
   createCurriculum, deleteCurriculum, createPartLessonRecord,
 } from '../services/curriculumService';
+import { lessonBelongsToClient } from '../utils/clientMatch';
 import { CurriculumViewer } from './CurriculumViewer';
 
 interface CurriculumManagerProps {
   coachProfile: CoachProfile;
   clients: ClientProfile[];
-  lessons: { id: string; title: string; date: string; clientName?: string }[];
+  lessons: { id: string; title: string; date: string; clientName?: string; clientPhone?: string }[];
   onBack: () => void;
 }
 
@@ -363,7 +364,12 @@ export const CurriculumManager: React.FC<CurriculumManagerProps> = ({
   // ── Viewer ────────────────────────────────────────────────────────────────
   if (view === 'viewer' && selectedCurriculum) {
     const clientLessons = selectedClient
-      ? lessons.filter((l) => l.clientName === selectedClient.name)
+      ? lessons.filter((l) =>
+          lessonBelongsToClient(
+            { clientName: l.clientName ?? '', clientPhone: l.clientPhone ?? '' },
+            selectedClient
+          )
+        )
       : lessons;
 
     return (

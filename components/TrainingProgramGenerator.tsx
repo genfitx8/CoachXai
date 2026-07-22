@@ -28,6 +28,7 @@ import {
   generateWeeklySchedule,
 } from '../services/geminiService';
 import { storageService } from '../services/storage';
+import { lessonBelongsToClient } from '../utils/clientMatch';
 import { WeeklyScheduleEditor } from './WeeklyScheduleEditor';
 
 interface TrainingProgramGeneratorProps {
@@ -98,9 +99,7 @@ export const TrainingProgramGenerator: React.FC<TrainingProgramGeneratorProps> =
   const clientLessons = useMemo(
     () =>
       lessons
-        .filter(
-          (l) => l.clientName === client.name && l.clientPhone === client.phone
-        )
+        .filter((l) => lessonBelongsToClient(l, client))
         .sort((a, b) => b.createdAt - a.createdAt),
     [lessons, client]
   );

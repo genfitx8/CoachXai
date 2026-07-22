@@ -3,6 +3,7 @@ import React, { useMemo } from 'react';
 import { GolfData, Lesson } from '../types';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine } from 'recharts';
 import { ArrowUpRight, ArrowDownRight, Minus, TrendingUp } from 'lucide-react';
+import { lessonBelongsToClient } from '../utils/clientMatch';
 
 interface GolfDataVisualizerProps {
   currentData: GolfData;
@@ -27,10 +28,9 @@ export const GolfDataVisualizer: React.FC<GolfDataVisualizerProps> = ({
     if (!currentClub) return [];
 
     const relevantLessons = allLessons.filter(
-      l => l.clientName === clientName && 
-           l.clientPhone === clientPhone && 
-           l.club === currentClub &&
-           l.golfData
+      l => l.club === currentClub &&
+           l.golfData &&
+           lessonBelongsToClient(l, { name: clientName, phone: clientPhone })
     );
 
     // Sort by date ascending

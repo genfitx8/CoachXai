@@ -39,6 +39,7 @@ import { LessonStartPromptModal } from './components/LessonStartPromptModal';
 import { DiagnosisProgramSection } from './components/diagnosis/DiagnosisProgramSection';
 import { DiagnosisResultSection } from './components/diagnosis/DiagnosisResultSection';
 import { CurriculumManager } from './components/CurriculumManager';
+import { lessonBelongsToClient, normalizeName } from './utils/clientMatch';
 import { storageService } from './services/storage';
 import { authService } from './services/authService';
 import { firebaseService } from './services/firebase';
@@ -99,29 +100,16 @@ const isClientSessionProfile = (
 ): user is ClientProfile =>
   role === 'CLIENT' && !!user && typeof user.phone === 'string';
 
-const normalizePhone = (phone: string | null | undefined): string =>
-  (phone ?? '').replace(/[^0-9]/g, '');
-
-const normalizeName = (name: string | null | undefined): string =>
-  (name ?? '').replace(/\s+/g, '').trim();
-
-// Determine whether a lesson belongs to the given client. Matches by
-// normalized phone (digits only) when both sides have one, and falls back
-// to a whitespace-tolerant name comparison. Handles legacy data whose
-// stored clientName drifted from the current profile (extra spaces,
-// non-breaking chars, edited display name).
+// Match a lesson to the currently selected member filter. When we can
+// resolve the filter string to a ClientProfile we defer to the shared
+// tolerant matcher; otherwise fall back to a whitespace-tolerant name
+// comparison so a filter set from stale data still works.
 const matchesClient = (
   lesson: Lesson,
   filterName: string,
   client: ClientProfile | undefined,
 ): boolean => {
-  if (client) {
-    const clientPhone = normalizePhone(client.phone);
-    const lessonPhone = normalizePhone(lesson.clientPhone);
-    if (clientPhone && lessonPhone && clientPhone === lessonPhone) return true;
-    if (normalizeName(lesson.clientName) === normalizeName(client.name)) return true;
-    return false;
-  }
+  if (client) return lessonBelongsToClient(lesson, client);
   return normalizeName(lesson.clientName) === normalizeName(filterName);
 };
 
@@ -960,8 +948,7 @@ const AppContent: React.FC = () => {
     if (clientWithCoach.coachId) {
       const clientLessons = lessons.filter(
         (l) =>
-          l.clientName === clientWithCoach.name &&
-          l.clientPhone === clientWithCoach.phone &&
+          lessonBelongsToClient(l, clientWithCoach) &&
           l.coachId !== clientWithCoach.coachId // Only update lessons that don't already have this coachId
       );
 
@@ -1143,11 +1130,9 @@ const AppContent: React.FC = () => {
       !oldProfile || oldProfile.coachId !== profileWithCoach.coachId;
 
     if (coachIdChanged && profileWithCoach.coachId !== undefined) {
-      // Find all lessons for this client (by name and phone)
-      const clientLessons = lessons.filter(
-        (l) =>
-          l.clientName === profileWithCoach.name &&
-          l.clientPhone === profileWithCoach.phone
+      // Find all lessons for this client (by phone or normalized name)
+      const clientLessons = lessons.filter((l) =>
+        lessonBelongsToClient(l, profileWithCoach)
       );
 
       if (clientLessons.length > 0) {
@@ -1195,8 +1180,7 @@ const AppContent: React.FC = () => {
       // Coach was removed - clear coachId from all lessons
       const clientLessons = lessons.filter(
         (l) =>
-          l.clientName === profileWithCoach.name &&
-          l.clientPhone === profileWithCoach.phone &&
+          lessonBelongsToClient(l, profileWithCoach) &&
           l.coachId !== undefined // Only update lessons that have a coachId
       );
 
@@ -2152,6 +2136,7 @@ const AppContent: React.FC = () => {
               title: l.title ?? '',
               date: l.date ?? '',
               clientName: l.clientName,
+              clientPhone: l.clientPhone,
             }))}
             onBack={() => setCoachView('LIST')}
           />
