@@ -99,6 +99,32 @@ const isClientSessionProfile = (
 ): user is ClientProfile =>
   role === 'CLIENT' && !!user && typeof user.phone === 'string';
 
+const normalizePhone = (phone: string | null | undefined): string =>
+  (phone ?? '').replace(/[^0-9]/g, '');
+
+const normalizeName = (name: string | null | undefined): string =>
+  (name ?? '').replace(/\s+/g, '').trim();
+
+// Determine whether a lesson belongs to the given client. Matches by
+// normalized phone (digits only) when both sides have one, and falls back
+// to a whitespace-tolerant name comparison. Handles legacy data whose
+// stored clientName drifted from the current profile (extra spaces,
+// non-breaking chars, edited display name).
+const matchesClient = (
+  lesson: Lesson,
+  filterName: string,
+  client: ClientProfile | undefined,
+): boolean => {
+  if (client) {
+    const clientPhone = normalizePhone(client.phone);
+    const lessonPhone = normalizePhone(lesson.clientPhone);
+    if (clientPhone && lessonPhone && clientPhone === lessonPhone) return true;
+    if (normalizeName(lesson.clientName) === normalizeName(client.name)) return true;
+    return false;
+  }
+  return normalizeName(lesson.clientName) === normalizeName(filterName);
+};
+
 const diagnosisProgram: DiagnosisProgram = {
   title: 'coachxai 정밀진단 프로그램',
   subtitle: '골퍼 기본정보부터 통합 리포트까지 6단계 프로세스로 진행하는 골프 퍼포먼스 정밀진단 프로그램',
@@ -1472,9 +1498,14 @@ const AppContent: React.FC = () => {
         return false;
       });
 
-      // Filter by selected client if specified
+      // Filter by selected client if specified.
+      // The stored lesson.clientName may differ from the current client.name
+      // due to trimming, whitespace, or later name edits, so we match against
+      // the selected client's profile using normalized name AND phone. Phone
+      // is the more stable identifier when the display name has drifted.
       if (selectedClientFilter) {
-        result = result.filter(l => l.clientName === selectedClientFilter);
+        const selected = clients.find(c => c.name === selectedClientFilter);
+        result = result.filter(l => matchesClient(l, selectedClientFilter, selected));
       }
     }
 
@@ -2054,7 +2085,7 @@ const AppContent: React.FC = () => {
 
         {coachView === 'CLIENT_STATS' && selectedClientFilter && (
           <ClientStats
-            lessons={filteredLessons.filter(l => l.clientName === selectedClientFilter)}
+            lessons={filteredLessons}
             onBack={() => setCoachView('LESSON_LIST')}
           />
         )}
