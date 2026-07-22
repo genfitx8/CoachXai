@@ -208,9 +208,11 @@ export const LessonCard: React.FC<LessonCardProps> = ({ lesson, onClick, onShare
           <h3 className="font-bold text-gray-900 line-clamp-1 group-hover:text-emerald-600 transition-colors text-sm">
             {lesson.title}
           </h3>
-          {lesson.club && (
-              <span className="flex-shrink-0 inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-semibold bg-gradient-to-r from-gray-100 to-gray-200 text-gray-800 border border-gray-300 truncate max-w-[80px] shadow-sm">
+          {(lesson.club || typeof lesson.targetDistance === 'number') && (
+              <span className="flex-shrink-0 inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-semibold bg-gradient-to-r from-gray-100 to-gray-200 text-gray-800 border border-gray-300 truncate max-w-[120px] shadow-sm">
                   {lesson.club}
+                  {lesson.club && typeof lesson.targetDistance === 'number' && ' · '}
+                  {typeof lesson.targetDistance === 'number' && `${lesson.targetDistance}m`}
               </span>
           )}
         </div>

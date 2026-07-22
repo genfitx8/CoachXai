@@ -242,6 +242,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
 
   const [title, setTitle] = useState('');
   const [club, setClub] = useState('');
+  const [targetDistance, setTargetDistance] = useState<number | ''>('');
   const [score, setScore] = useState<number | ''>('');
   const [notes, setNotes] = useState('');
   const [enableAI, setEnableAI] = useState(false); // Toggle for AI Analysis
@@ -339,6 +340,11 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
       setClientPhone(initialData.clientPhone);
       setTitle(initialData.title);
       setClub(initialData.club || '');
+      setTargetDistance(
+        typeof initialData.targetDistance === 'number'
+          ? initialData.targetDistance
+          : ''
+      );
       setNotes(initialData.coachNotes || '');
       setRecordType(initialData.recordType || 'LESSON');
 
@@ -1222,6 +1228,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
         date: initialData ? initialData.date : getLocalISODate(),
         title,
         club: club || undefined,
+        targetDistance: targetDistance === '' ? undefined : Number(targetDistance),
         score: finalScore,
         scorecardDetail,
         swingAngle: undefined,
@@ -2394,6 +2401,23 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
                   </optgroup>
                 ))}
               </select>
+
+              <label className="block text-sm font-bold text-gray-700 mt-4 mb-2">
+                목표 거리 (m)
+              </label>
+              <input
+                type="number"
+                inputMode="numeric"
+                min={0}
+                value={targetDistance}
+                onChange={(e) =>
+                  setTargetDistance(
+                    e.target.value === '' ? '' : Number(e.target.value)
+                  )
+                }
+                placeholder="예: 150"
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl bg-white text-gray-800 focus:ring-2 focus:ring-emerald-700 outline-none"
+              />
             </div>
           )}
 
