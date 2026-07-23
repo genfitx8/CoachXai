@@ -5,6 +5,7 @@ import { Button } from './Button';
 import { generateGolfMissions } from '../services/geminiService';
 import { firebaseService } from '../services/firebase';
 import { storageService } from '../services/storage';
+import { lessonBelongsToClient } from '../utils/clientMatch';
 
 interface GolfAIAgentProps {
   clientProfile: ClientProfile;
@@ -43,11 +44,7 @@ export const GolfAIAgent: React.FC<GolfAIAgentProps> = ({
     setErrorMsg('');
     try {
       const recentLessons = allLessons
-        .filter(
-          (l) =>
-            l.clientName === clientProfile.name &&
-            l.clientPhone === clientProfile.phone
-        )
+        .filter((l) => lessonBelongsToClient(l, clientProfile))
         .sort((a, b) => b.createdAt - a.createdAt)
         .slice(0, 5);
 

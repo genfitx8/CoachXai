@@ -39,6 +39,7 @@ import { LessonStartPromptModal } from './components/LessonStartPromptModal';
 import { DiagnosisProgramSection } from './components/diagnosis/DiagnosisProgramSection';
 import { DiagnosisResultSection } from './components/diagnosis/DiagnosisResultSection';
 import { CurriculumManager } from './components/CurriculumManager';
+import { lessonBelongsToClient, normalizeName } from './utils/clientMatch';
 import { storageService } from './services/storage';
 import { authService } from './services/authService';
 import { firebaseService } from './services/firebase';
@@ -98,6 +99,19 @@ const isClientSessionProfile = (
   user: CoachProfile | ClientProfile | null
 ): user is ClientProfile =>
   role === 'CLIENT' && !!user && typeof user.phone === 'string';
+
+// Match a lesson to the currently selected member filter. When we can
+// resolve the filter string to a ClientProfile we defer to the shared
+// tolerant matcher; otherwise fall back to a whitespace-tolerant name
+// comparison so a filter set from stale data still works.
+const matchesClient = (
+  lesson: Lesson,
+  filterName: string,
+  client: ClientProfile | undefined,
+): boolean => {
+  if (client) return lessonBelongsToClient(lesson, client);
+  return normalizeName(lesson.clientName) === normalizeName(filterName);
+};
 
 const diagnosisProgram: DiagnosisProgram = {
   title: 'coachxai 정밀진단 프로그램',
@@ -934,8 +948,7 @@ const AppContent: React.FC = () => {
     if (clientWithCoach.coachId) {
       const clientLessons = lessons.filter(
         (l) =>
-          l.clientName === clientWithCoach.name &&
-          l.clientPhone === clientWithCoach.phone &&
+          lessonBelongsToClient(l, clientWithCoach) &&
           l.coachId !== clientWithCoach.coachId // Only update lessons that don't already have this coachId
       );
 
@@ -1117,11 +1130,9 @@ const AppContent: React.FC = () => {
       !oldProfile || oldProfile.coachId !== profileWithCoach.coachId;
 
     if (coachIdChanged && profileWithCoach.coachId !== undefined) {
-      // Find all lessons for this client (by name and phone)
-      const clientLessons = lessons.filter(
-        (l) =>
-          l.clientName === profileWithCoach.name &&
-          l.clientPhone === profileWithCoach.phone
+      // Find all lessons for this client (by phone or normalized name)
+      const clientLessons = lessons.filter((l) =>
+        lessonBelongsToClient(l, profileWithCoach)
       );
 
       if (clientLessons.length > 0) {
@@ -1169,8 +1180,7 @@ const AppContent: React.FC = () => {
       // Coach was removed - clear coachId from all lessons
       const clientLessons = lessons.filter(
         (l) =>
-          l.clientName === profileWithCoach.name &&
-          l.clientPhone === profileWithCoach.phone &&
+          lessonBelongsToClient(l, profileWithCoach) &&
           l.coachId !== undefined // Only update lessons that have a coachId
       );
 
@@ -1472,9 +1482,14 @@ const AppContent: React.FC = () => {
         return false;
       });
 
-      // Filter by selected client if specified
+      // Filter by selected client if specified.
+      // The stored lesson.clientName may differ from the current client.name
+      // due to trimming, whitespace, or later name edits, so we match against
+      // the selected client's profile using normalized name AND phone. Phone
+      // is the more stable identifier when the display name has drifted.
       if (selectedClientFilter) {
-        result = result.filter(l => l.clientName === selectedClientFilter);
+        const selected = clients.find(c => c.name === selectedClientFilter);
+        result = result.filter(l => matchesClient(l, selectedClientFilter, selected));
       }
     }
 
@@ -2054,7 +2069,7 @@ const AppContent: React.FC = () => {
 
         {coachView === 'CLIENT_STATS' && selectedClientFilter && (
           <ClientStats
-            lessons={filteredLessons.filter(l => l.clientName === selectedClientFilter)}
+            lessons={filteredLessons}
             onBack={() => setCoachView('LESSON_LIST')}
           />
         )}
@@ -2121,6 +2136,7 @@ const AppContent: React.FC = () => {
               title: l.title ?? '',
               date: l.date ?? '',
               clientName: l.clientName,
+              clientPhone: l.clientPhone,
             }))}
             onBack={() => setCoachView('LIST')}
           />

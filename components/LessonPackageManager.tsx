@@ -13,6 +13,7 @@ import {
 import { LessonPackage, Lesson, ClientProfile } from '../types';
 import { Button } from './Button';
 import { useLanguage } from './LanguageContext';
+import { lessonBelongsToClient } from '../utils/clientMatch';
 
 const MIN_SESSIONS = 1;
 const MAX_SESSIONS = 100;
@@ -62,10 +63,7 @@ export const LessonPackageManager: React.FC<LessonPackageManagerProps> = ({
   const packageLessons = useMemo(
     () =>
       lessons.filter(
-        (l) =>
-          l.clientName === client.name &&
-          l.clientPhone === client.phone &&
-          l.lessonPackageId != null
+        (l) => l.lessonPackageId != null && lessonBelongsToClient(l, client)
       ),
     [lessons, client]
   );
