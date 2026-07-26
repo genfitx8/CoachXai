@@ -123,7 +123,8 @@ export const ClientStats: React.FC<ClientStatsProps> = ({ lessons, onBack }) => 
         headSpeed: l.golfData?.clubHeadSpeed || 0,
         smashFactor: l.golfData?.smashFactor || 0,
         backSpin: l.golfData?.backSpin || 0,
-        sideSpin: l.golfData?.sideSpin || 0 // Added Side Spin
+        sideSpin: l.golfData?.sideSpin || 0, // Added Side Spin
+        sideTotal: typeof l.golfData?.sideTotal === 'number' ? l.golfData.sideTotal : null
       }));
   }, [filteredLessons, selectedClub]);
 
@@ -150,6 +151,61 @@ export const ClientStats: React.FC<ClientStatsProps> = ({ lessons, onBack }) => 
     }
 
     return { avgTotal, maxTotal, avgBallSpeed, avgSmash, count: shotStatsData.length, improvement };
+  }, [shotStatsData]);
+
+  // 핀으로부터 거리(샷 분산도) — sideTotal(좌우 편차)과 캐리 편차를 결합해 산출한 2D 거리
+  const pinDistanceStats = useMemo(() => {
+    if (shotStatsData.length === 0) return null;
+
+    // sideTotal이 기록된 샷만 유효(발사 데이터가 없으면 방향 편차를 알 수 없음)
+    const validShots = shotStatsData.filter(s =>
+      typeof s.sideTotal === 'number' && s.carry > 0
+    );
+    if (validShots.length === 0) return null;
+
+    // 타겟 = 해당 클럽의 평균 캐리(사용자의 기준 비거리)
+    const targetCarry = validShots.reduce((a, s) => a + s.carry, 0) / validShots.length;
+
+    const data = validShots.map(s => {
+      const dCarry = s.carry - targetCarry;
+      const dSide = s.sideTotal as number;
+      const pinDistance = Math.sqrt(dCarry * dCarry + dSide * dSide);
+      return {
+        id: s.id,
+        date: s.date,
+        fullDate: s.fullDate,
+        sideTotal: s.sideTotal as number,
+        carryDelta: parseFloat(dCarry.toFixed(1)),
+        pinDistance: parseFloat(pinDistance.toFixed(1))
+      };
+    });
+
+    const pinDistances = data.map(d => d.pinDistance);
+    const sum = pinDistances.reduce((a, b) => a + b, 0);
+    const avgPinDistance = parseFloat((sum / pinDistances.length).toFixed(1));
+    const minPinDistance = parseFloat(Math.min(...pinDistances).toFixed(1));
+    const maxPinDistance = parseFloat(Math.max(...pinDistances).toFixed(1));
+
+    // 개선도: 전반부 평균 대비 후반부 평균 (음수면 핀에 더 가까워짐 = 향상)
+    let improvement = 0;
+    if (data.length >= 2) {
+      const mid = Math.ceil(data.length / 2);
+      const firstHalf = pinDistances.slice(0, mid);
+      const lastHalf = pinDistances.slice(mid);
+      const firstAvg = firstHalf.reduce((a, b) => a + b, 0) / firstHalf.length;
+      const lastAvg = lastHalf.reduce((a, b) => a + b, 0) / lastHalf.length;
+      improvement = parseFloat((lastAvg - firstAvg).toFixed(1));
+    }
+
+    return {
+      data,
+      avgPinDistance,
+      minPinDistance,
+      maxPinDistance,
+      targetCarry: Math.round(targetCarry),
+      improvement,
+      count: data.length
+    };
   }, [shotStatsData]);
 
   const tourAverageDistance = useMemo(() => {
@@ -685,6 +741,135 @@ export const ClientStats: React.FC<ClientStatsProps> = ({ lessons, onBack }) => 
                                     <div className="flex items-center gap-1"><div className="w-2 h-2 bg-red-500 rounded-full"></div> 좌측(Hook/Draw)</div>
                                 </div>
                             </div>
+
+                            {/* 핀으로부터 거리 (샷 분산도) Chart */}
+                            {pinDistanceStats && (
+                                <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-md hover:shadow-lg transition-shadow">
+                                    <div className="flex items-center justify-between mb-3">
+                                        <h3 className="font-bold text-gray-900 text-sm flex items-center gap-2">
+                                            <span className="w-1.5 h-5 bg-gradient-to-b from-violet-600 to-purple-700 rounded-full shadow-sm"></span>
+                                            핀으로부터 거리
+                                        </h3>
+                                        <span className="text-[10px] text-gray-400 flex items-center gap-1">
+                                            <Crosshair className="w-3 h-3" /> 타겟 {pinDistanceStats.targetCarry}m 기준
+                                        </span>
+                                    </div>
+
+                                    {/* Highlight stat card */}
+                                    <div className="bg-gradient-to-br from-violet-600 via-purple-700 to-fuchsia-700 rounded-xl p-4 text-white shadow-xl shadow-purple-900/15 mb-4">
+                                        <div className="flex items-end justify-between">
+                                            <div>
+                                                <div className="flex items-center gap-1 opacity-90 mb-1 text-xs font-semibold">
+                                                    <Crosshair className="w-3 h-3" /> 평균 핀으로부터 거리
+                                                </div>
+                                                <div className="text-3xl font-bold leading-none">
+                                                    {pinDistanceStats.avgPinDistance}
+                                                    <span className="text-base font-medium opacity-90 ml-1">m</span>
+                                                </div>
+                                            </div>
+                                            {pinDistanceStats.count >= 2 && (
+                                                <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-bold ${
+                                                    pinDistanceStats.improvement < 0
+                                                        ? 'bg-emerald-400/25 text-emerald-50'
+                                                        : pinDistanceStats.improvement > 0
+                                                            ? 'bg-rose-400/25 text-rose-50'
+                                                            : 'bg-white/20 text-white/90'
+                                                }`}>
+                                                    {pinDistanceStats.improvement < 0
+                                                        ? <><TrendingDown className="w-3 h-3" /> {Math.abs(pinDistanceStats.improvement)}m 향상</>
+                                                        : pinDistanceStats.improvement > 0
+                                                            ? <><TrendingUp className="w-3 h-3" /> {pinDistanceStats.improvement}m 증가</>
+                                                            : <><Minus className="w-3 h-3" /> 변화 없음</>}
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        <div className="grid grid-cols-3 gap-2 mt-3 pt-3 border-t border-white/15">
+                                            <div className="text-center">
+                                                <div className="text-[10px] opacity-80 mb-0.5">최소</div>
+                                                <div className="text-sm font-bold">{pinDistanceStats.minPinDistance}m</div>
+                                            </div>
+                                            <div className="text-center border-x border-white/15">
+                                                <div className="text-[10px] opacity-80 mb-0.5">최대</div>
+                                                <div className="text-sm font-bold">{pinDistanceStats.maxPinDistance}m</div>
+                                            </div>
+                                            <div className="text-center">
+                                                <div className="text-[10px] opacity-80 mb-0.5">샷 수</div>
+                                                <div className="text-sm font-bold">{pinDistanceStats.count}회</div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="h-56 w-full">
+                                        <ResponsiveContainer width="100%" height="100%">
+                                            <AreaChart data={pinDistanceStats.data} margin={{ top: 5, right: 10, bottom: 5, left: -20 }}>
+                                                <defs>
+                                                    <linearGradient id="pinDistanceGradient" x1="0" y1="0" x2="0" y2="1">
+                                                        <stop offset="0%" stopColor="#8b5cf6" stopOpacity={0.55} />
+                                                        <stop offset="100%" stopColor="#8b5cf6" stopOpacity={0.02} />
+                                                    </linearGradient>
+                                                </defs>
+                                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
+                                                <XAxis dataKey="date" tick={{ fontSize: 10 }} stroke="#9ca3af" interval="preserveStartEnd" />
+                                                <YAxis
+                                                    domain={[0, 'auto']}
+                                                    tick={{ fontSize: 10 }}
+                                                    stroke="#9ca3af"
+                                                    tickFormatter={(v: number) => `${v}m`}
+                                                />
+                                                <Tooltip
+                                                    contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)', fontSize: '12px' }}
+                                                    formatter={(value: number, name, item: any) => {
+                                                        const p = item?.payload;
+                                                        const side = typeof p?.sideTotal === 'number'
+                                                            ? `${p.sideTotal > 0 ? 'R' : p.sideTotal < 0 ? 'L' : ''} ${Math.abs(p.sideTotal).toFixed(1)}m`
+                                                            : '-';
+                                                        const cd = typeof p?.carryDelta === 'number'
+                                                            ? `${p.carryDelta > 0 ? '+' : ''}${p.carryDelta.toFixed(1)}m`
+                                                            : '-';
+                                                        return [
+                                                            <span key="v">
+                                                                <b>{value}m</b>
+                                                                <span style={{ color: '#9ca3af', marginLeft: 6, fontSize: 10 }}>
+                                                                    (좌우 {side} / 거리편차 {cd})
+                                                                </span>
+                                                            </span>,
+                                                            '핀으로부터 거리'
+                                                        ];
+                                                    }}
+                                                />
+                                                <ReferenceLine
+                                                    y={pinDistanceStats.avgPinDistance}
+                                                    stroke="#a855f7"
+                                                    strokeWidth={1.5}
+                                                    strokeDasharray="4 3"
+                                                    ifOverflow="extendDomain"
+                                                    label={{
+                                                        value: `평균 ${pinDistanceStats.avgPinDistance}m`,
+                                                        fill: '#7c3aed',
+                                                        fontSize: 10,
+                                                        position: 'insideTopRight'
+                                                    }}
+                                                />
+                                                <Area
+                                                    type="monotone"
+                                                    dataKey="pinDistance"
+                                                    name="핀으로부터 거리"
+                                                    stroke="#7c3aed"
+                                                    strokeWidth={2}
+                                                    fill="url(#pinDistanceGradient)"
+                                                    dot={{ r: 3, fill: '#7c3aed', strokeWidth: 0 }}
+                                                    activeDot={{ r: 5, fill: '#7c3aed', stroke: '#fff', strokeWidth: 2 }}
+                                                />
+                                            </AreaChart>
+                                        </ResponsiveContainer>
+                                    </div>
+
+                                    <p className="text-[10px] text-gray-400 mt-2 leading-relaxed">
+                                        * 클럽 평균 캐리({pinDistanceStats.targetCarry}m)를 타겟으로 삼아 좌우 편차(사이드 토탈)와 거리 편차를 결합한 샷 분산도입니다. 값이 작을수록 정확도가 높습니다.
+                                    </p>
+                                </div>
+                            )}
                         </div>
                     )}
                 </>
