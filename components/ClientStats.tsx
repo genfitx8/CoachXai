@@ -24,9 +24,22 @@ const getLocalISODate = (date: Date) => {
     return `${year}-${month}-${day}`;
 };
 
+type ClubOption = {
+  key: string;
+  club: string;
+  targetDistance: number | null;
+  label: string;
+};
+
+const buildClubOptionKey = (club: string, targetDistance: number | null) =>
+  `${club}__${targetDistance ?? 'none'}`;
+
+const buildClubOptionLabel = (club: string, targetDistance: number | null) =>
+  targetDistance !== null ? `${club} · ${targetDistance}m` : club;
+
 export const ClientStats: React.FC<ClientStatsProps> = ({ lessons, onBack }) => {
   const [activeTab, setActiveTab] = useState<StatTab>('SHOT');
-  const [selectedClub, setSelectedClub] = useState<string>('');
+  const [selectedClubKey, setSelectedClubKey] = useState<string>('');
 
   // Tour Average Comparison (PGA for male, LPGA for female)
   const [tourGender, setTourGender] = useState<TourGender>(() => {
@@ -79,38 +92,56 @@ export const ClientStats: React.FC<ClientStatsProps> = ({ lessons, onBack }) => 
 
   // --- SHOT DATA LOGIC ---
 
-  // Extract unique clubs that have golf data WITHIN the selected period
-  const availableClubs = useMemo(() => {
-    const clubs = new Set<string>();
+  // Extract unique club + target distance combinations that have golf data WITHIN the selected period.
+  // Same club with different target distances is treated as a distinct option so charts don't mix them.
+  const availableClubOptions = useMemo<ClubOption[]>(() => {
+    const map = new Map<string, ClubOption>();
     filteredLessons.forEach(l => {
       if (l.golfData && l.recordType !== 'SCORE') {
-        clubs.add(l.club || '미지정');
+        const club = l.club || '미지정';
+        const targetDistance = typeof l.targetDistance === 'number' ? l.targetDistance : null;
+        const key = buildClubOptionKey(club, targetDistance);
+        if (!map.has(key)) {
+          map.set(key, { key, club, targetDistance, label: buildClubOptionLabel(club, targetDistance) });
+        }
       }
     });
-    return Array.from(clubs).sort();
+    return Array.from(map.values()).sort((a, b) => {
+      if (a.club !== b.club) return a.club.localeCompare(b.club);
+      // Nulls first, then ascending target distance
+      if (a.targetDistance === null) return -1;
+      if (b.targetDistance === null) return 1;
+      return a.targetDistance - b.targetDistance;
+    });
   }, [filteredLessons]);
 
-  // Effect to set default club when data is loaded or filtered
+  const selectedClubOption = useMemo(
+    () => availableClubOptions.find(o => o.key === selectedClubKey) ?? null,
+    [availableClubOptions, selectedClubKey]
+  );
+
+  // Effect to set default option when data is loaded or filtered
   useEffect(() => {
     if (activeTab === 'SHOT') {
-        if (availableClubs.length > 0) {
-            // If currently selected club is not in the new list, select the first one
-            if (!selectedClub || !availableClubs.includes(selectedClub)) {
-                setSelectedClub(availableClubs[0]);
+        if (availableClubOptions.length > 0) {
+            if (!selectedClubKey || !availableClubOptions.some(o => o.key === selectedClubKey)) {
+                setSelectedClubKey(availableClubOptions[0].key);
             }
         } else {
-            setSelectedClub('');
+            setSelectedClubKey('');
         }
     }
-  }, [availableClubs, selectedClub, activeTab]);
+  }, [availableClubOptions, selectedClubKey, activeTab]);
 
   const shotStatsData = useMemo(() => {
-    if (!selectedClub) return [];
+    if (!selectedClubOption) return [];
 
     return filteredLessons
       .filter(l => {
+        if (!l.golfData || l.recordType === 'SCORE') return false;
         const clubName = l.club || '미지정';
-        return clubName === selectedClub && l.golfData && l.recordType !== 'SCORE';
+        const lessonTarget = typeof l.targetDistance === 'number' ? l.targetDistance : null;
+        return clubName === selectedClubOption.club && lessonTarget === selectedClubOption.targetDistance;
       })
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
       .map(l => ({
@@ -126,7 +157,7 @@ export const ClientStats: React.FC<ClientStatsProps> = ({ lessons, onBack }) => 
         sideSpin: l.golfData?.sideSpin || 0, // Added Side Spin
         sideTotal: typeof l.golfData?.sideTotal === 'number' ? l.golfData.sideTotal : null
       }));
-  }, [filteredLessons, selectedClub]);
+  }, [filteredLessons, selectedClubOption]);
 
   const shotSummary = useMemo(() => {
     if (shotStatsData.length === 0) return null;
@@ -209,9 +240,9 @@ export const ClientStats: React.FC<ClientStatsProps> = ({ lessons, onBack }) => 
   }, [shotStatsData]);
 
   const tourAverageDistance = useMemo(() => {
-    if (!selectedClub) return null;
-    return getTourAverageDistanceM(selectedClub, tourGender);
-  }, [selectedClub, tourGender]);
+    if (!selectedClubOption) return null;
+    return getTourAverageDistanceM(selectedClubOption.club, tourGender);
+  }, [selectedClubOption, tourGender]);
 
   const tourAverageDiff = useMemo(() => {
     if (!shotSummary || tourAverageDistance === null) return null;
@@ -539,21 +570,21 @@ export const ClientStats: React.FC<ClientStatsProps> = ({ lessons, onBack }) => 
       {activeTab === 'SHOT' && (
         <div className="space-y-6 animate-fade-in">
             {/* Club Selector */}
-            {availableClubs.length > 0 ? (
+            {availableClubOptions.length > 0 ? (
                 <>
                     <div className="overflow-x-auto pb-2 -mx-4 px-4 scrollbar-hide">
                         <div className="flex gap-2">
-                            {availableClubs.map(club => (
+                            {availableClubOptions.map(opt => (
                                 <button
-                                    key={club}
-                                    onClick={() => setSelectedClub(club)}
+                                    key={opt.key}
+                                    onClick={() => setSelectedClubKey(opt.key)}
                                     className={`whitespace-nowrap px-4 py-2 rounded-full text-sm font-bold transition-all border ${
-                                        selectedClub === club 
-                                        ? 'bg-emerald-800 text-white border-emerald-600 shadow-md' 
+                                        selectedClubKey === opt.key
+                                        ? 'bg-emerald-800 text-white border-emerald-600 shadow-md'
                                         : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
                                     }`}
                                 >
-                                    {club}
+                                    {opt.label}
                                 </button>
                             ))}
                         </div>
@@ -591,7 +622,7 @@ export const ClientStats: React.FC<ClientStatsProps> = ({ lessons, onBack }) => 
                                         <Activity className="w-4 h-4" /> 샷 퍼포먼스 리포트
                                     </h3>
                                     <span className="text-[10px] bg-white/90 backdrop-blur-sm text-emerald-700 px-2.5 py-1 rounded-full border border-white/20 font-bold shadow-sm">
-                                        {selectedClub}
+                                        {selectedClubOption?.label ?? ''}
                                     </span>
                                 </div>
                                 <div className="p-4 grid grid-cols-2 gap-4">
