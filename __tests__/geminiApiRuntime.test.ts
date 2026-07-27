@@ -72,7 +72,7 @@ describe('geminiApiRuntime', () => {
       expect(result.text).toBe('Hello from Gemini');
       expect(fetchMock).toHaveBeenCalledWith(
         expect.stringContaining(
-          'generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent'
+          'generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent'
         ),
         expect.objectContaining({ method: 'POST' })
       );
@@ -197,6 +197,76 @@ describe('geminiApiRuntime', () => {
       await expect(
         invokeGeminiApi({ operation: 'test', prompt: 'hi' })
       ).rejects.toThrow(/empty response/i);
+    });
+
+    it('retries on 503 and eventually succeeds', async () => {
+      process.env.GEMINI_API_KEY = FAKE_KEY;
+      const fetchMock = vi
+        .fn()
+        .mockResolvedValueOnce({
+          ok: false,
+          status: 503,
+          json: async () => ({ error: { message: 'temporary unavailable' } }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            candidates: [{ content: { parts: [{ text: 'recovered' }], role: 'model' } }],
+          }),
+        });
+      vi.stubGlobal('fetch', fetchMock);
+
+      const result = await invokeGeminiApi({ operation: 'test', prompt: 'hi' });
+      expect(result.text).toBe('recovered');
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+    });
+
+    it('does not retry on 4xx client errors', async () => {
+      process.env.GEMINI_API_KEY = FAKE_KEY;
+      const fetchMock = vi.fn().mockResolvedValue({
+        ok: false,
+        status: 400,
+        json: async () => ({ error: { message: 'bad request' } }),
+      });
+      vi.stubGlobal('fetch', fetchMock);
+
+      await expect(
+        invokeGeminiApi({ operation: 'test', prompt: 'hi' })
+      ).rejects.toThrow(/400.*bad request/);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('retries on network errors', async () => {
+      process.env.GEMINI_API_KEY = FAKE_KEY;
+      const fetchMock = vi
+        .fn()
+        .mockRejectedValueOnce(new Error('ECONNRESET'))
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            candidates: [{ content: { parts: [{ text: 'ok' }], role: 'model' } }],
+          }),
+        });
+      vi.stubGlobal('fetch', fetchMock);
+
+      const result = await invokeGeminiApi({ operation: 'test', prompt: 'hi' });
+      expect(result.text).toBe('ok');
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+    });
+
+    it('gives up after max retry attempts on persistent 5xx', async () => {
+      process.env.GEMINI_API_KEY = FAKE_KEY;
+      const fetchMock = vi.fn().mockResolvedValue({
+        ok: false,
+        status: 503,
+        json: async () => ({ error: { message: 'still down' } }),
+      });
+      vi.stubGlobal('fetch', fetchMock);
+
+      await expect(
+        invokeGeminiApi({ operation: 'test', prompt: 'hi' })
+      ).rejects.toThrow(/503.*still down/);
+      expect(fetchMock).toHaveBeenCalledTimes(3);
     });
 
     it('passes responseMimeType and temperature in generationConfig', async () => {
