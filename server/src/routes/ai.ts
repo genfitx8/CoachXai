@@ -33,6 +33,42 @@ const isValidRuntimePart = (part: unknown): part is RuntimePart => {
   return false;
 };
 
+// Per-feature default temperatures.
+// Applied only when the client did not send an explicit temperature.
+// Rationale: JSON extraction / OCR-style features need low creativity for
+// accurate readings; conversational / analytical features need higher.
+const DEFAULT_TEMPERATURE_BY_FEATURE: Record<string, number> = {
+  // OCR / structured data extraction — must read numbers accurately.
+  extract_golf_data: 0.1,
+  analyze_trackman_screen: 0.1,
+  analyze_equipment_photo: 0.1,
+  analyze_body_photos: 0.2,
+  swing_phase_timestamps: 0.2,
+  hole_voice_summary: 0.2,
+  motion_capture_analysis: 0.3,
+
+  // Analytical / summarization — mostly deterministic with light phrasing.
+  lesson_summary: 0.4,
+  compare_swings: 0.4,
+  weekly_insight: 0.5,
+  coachx_insights: 0.6,
+
+  // Generative / conversational — needs warmth and variety.
+  training_program: 0.7,
+  golf_missions: 0.7,
+  coachx_chat: 0.7,
+  student_chat: 0.7,
+  coachx_growth_profile: 0.7,
+};
+
+const resolveTemperature = (
+  feature: string,
+  explicit: number | undefined
+): number | undefined => {
+  if (explicit !== undefined) return explicit;
+  return DEFAULT_TEMPERATURE_BY_FEATURE[feature];
+};
+
 const router = Router();
 
 router.get('/status', (_req: Request, res: Response) => {
@@ -73,10 +109,10 @@ router.post('/invoke', async (req: Request, res: Response) => {
         typeof payloadObj.responseMimeType === 'string'
           ? payloadObj.responseMimeType
           : undefined,
-      temperature:
-        typeof payloadObj.temperature === 'number'
-          ? payloadObj.temperature
-          : undefined,
+      temperature: resolveTemperature(
+        feature,
+        typeof payloadObj.temperature === 'number' ? payloadObj.temperature : undefined
+      ),
     };
 
     if (isGeminiApiConfigured()) {
