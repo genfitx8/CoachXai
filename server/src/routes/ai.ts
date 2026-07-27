@@ -109,6 +109,14 @@ router.post('/invoke', async (req: Request, res: Response) => {
         typeof payloadObj.responseMimeType === 'string'
           ? payloadObj.responseMimeType
           : undefined,
+      responseSchema:
+        payloadObj.responseSchema && typeof payloadObj.responseSchema === 'object'
+          ? payloadObj.responseSchema
+          : undefined,
+      systemInstruction:
+        typeof payloadObj.systemInstruction === 'string'
+          ? payloadObj.systemInstruction
+          : undefined,
       temperature: resolveTemperature(
         feature,
         typeof payloadObj.temperature === 'number' ? payloadObj.temperature : undefined

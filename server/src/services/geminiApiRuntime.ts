@@ -64,9 +64,19 @@ export const invokeGeminiApi = async (
 
   const body: Record<string, unknown> = {
     contents: [{ role: 'user', parts: contentParts }],
+    ...(request.systemInstruction
+      ? {
+          systemInstruction: {
+            parts: [{ text: request.systemInstruction }],
+          },
+        }
+      : {}),
     generationConfig: {
       ...(request.responseMimeType
         ? { responseMimeType: request.responseMimeType }
+        : {}),
+      ...(request.responseSchema
+        ? { responseSchema: request.responseSchema }
         : {}),
       ...(request.temperature !== undefined
         ? { temperature: request.temperature }

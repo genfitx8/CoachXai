@@ -9,6 +9,8 @@ export interface AgentRuntimeInvokeRequest {
   prompt?: string;
   parts?: RuntimePart[];
   responseMimeType?: string;
+  responseSchema?: unknown;
+  systemInstruction?: string;
   temperature?: number;
 }
 
@@ -111,11 +113,21 @@ export const invokeAgentRuntime = async (
     );
   }
 
+  // Vertex Agent Platform doesn't have a native systemInstruction field —
+  // fall back to prepending it as a text part so the model still receives it.
+  const effectivePrompt = request.systemInstruction
+    ? request.prompt
+      ? `${request.systemInstruction}\n\n${request.prompt}`
+      : request.systemInstruction
+    : request.prompt;
+
   const contentParts: RuntimePart[] =
     request.parts && request.parts.length > 0
-      ? request.parts
-      : request.prompt
-      ? [{ text: request.prompt }]
+      ? request.systemInstruction
+        ? [{ text: request.systemInstruction }, ...request.parts]
+        : request.parts
+      : effectivePrompt
+      ? [{ text: effectivePrompt }]
       : [];
 
   const body = {
