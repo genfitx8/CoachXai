@@ -36,6 +36,10 @@ import {
   trackmanScreenSchema,
   weeklyInsightSchema,
 } from './geminiSchemas';
+import {
+  buildMemberActivityOverview,
+  formatLessonEntry,
+} from './lessonContext';
 
 const log = createLogger('gemini');
 
@@ -1516,20 +1520,26 @@ export const generateCoachXChatResponse = async (
   try {
     const memberCount = new Set(allLessons.map(l => `${l.clientName}_${l.clientPhone}`)).size;
 
-    // Build a concise lesson context (most recent 15 lessons)
+    // Rich per-lesson context (metrics, motion capture, scorecard, notes),
+    // shared with the student-side chat so coach and student get parity.
+    // Most recent 15 records with client name included in each header.
     const recentLessons = [...allLessons]
       .sort((a, b) => b.createdAt - a.createdAt)
       .slice(0, 15);
 
     const lessonContext = recentLessons.length > 0
-      ? recentLessons.map(l => {
-          const parts = [`[${l.date}] ${l.title}`];
-          if (l.clientName) parts.push(`Member: ${l.clientName}`);
-          if (l.coachNotes) parts.push(`Note: ${l.coachNotes}`);
-          if (l.tags?.length) parts.push(`Tags: ${l.tags.join(', ')}`);
-          return parts.join(' | ');
-        }).join('\n')
-      : 'No lesson records yet.';
+      ? recentLessons
+          .map(l => formatLessonEntry(l, { includeClientName: true, maxNoteLength: 220 }))
+          .join('\n\n')
+      : '기록 없음';
+
+    // Coach-side per-member snapshot: helps the model answer
+    // "who should I focus on?" or "what has X been working on?" without
+    // dumping every lesson.
+    const memberOverview = buildMemberActivityOverview(allLessons, clients, {
+      limit: 10,
+      recentDays: 45,
+    });
 
     const clientContext = clients.length > 0
       ? clients.slice(0, 15).map(c => {
@@ -1569,8 +1579,8 @@ Coach context:
 - Total lesson records: ${allLessons.length}
 - Total members: ${memberCount}
 - Registered clients: ${clientContext}
-
-Recent lesson history (up to 15 most recent):
+${memberOverview ? `\n${memberOverview}\n` : ''}
+Recent lesson history (up to ${recentLessons.length} most recent, richest first):
 ${lessonContext}
 ${conversationBlock}
 --- End of provided data ---
@@ -1578,6 +1588,8 @@ ${conversationBlock}
 Coach's question: "${userMessage}"
 
 IMPORTANT: Answer strictly based on the provided data and conversation history above.
+When a specific member is mentioned, ground your answer in that member's actual
+lessons, metrics, motion-capture, and scorecard from above.
 Do not introduce topics unrelated to the conversation or golf coaching.`;
 
     const result = await invokeBackendAI<unknown>('coachx_chat', {
@@ -2012,67 +2024,7 @@ const buildRichGolferContext = (
     .slice(0, 15);
 
   if (recentLessons.length > 0) {
-    const AREA_KO: Record<string, string> = {
-      DRIVER: '드라이버', IRON: '아이언', SHORT_GAME: '숏게임',
-      PUTTING: '퍼팅', ROUND: '라운드', OTHER: '기타',
-    };
-    const lessonLines = recentLessons.map(l => {
-      const typeLabel =
-        l.recordType === 'SCORE' ? '라운드'
-        : l.recordType === 'PRACTICE' ? '연습'
-        : '레슨';
-      const header = `[${l.date}] ${l.title} (${typeLabel}${l.club ? ` · ${l.club}` : ''})`;
-      const parts: string[] = [header];
-
-      if (l.coachNotes) parts.push(`  코치 노트: ${l.coachNotes.substring(0, 300)}`);
-      if (l.aiAnalysis) parts.push(`  AI 분석: ${l.aiAnalysis.substring(0, 300)}`);
-
-      if (l.golfData) {
-        const gd = l.golfData;
-        const nums: string[] = [];
-        if (gd.ballSpeed != null)     nums.push(`볼속도 ${gd.ballSpeed}km/h`);
-        if (gd.clubHeadSpeed != null) nums.push(`헤드속도 ${gd.clubHeadSpeed}km/h`);
-        if (gd.carryDistance != null) nums.push(`캐리 ${gd.carryDistance}m`);
-        if (gd.totalDistance != null) nums.push(`총거리 ${gd.totalDistance}m`);
-        if (gd.launchAngle != null)   nums.push(`런치앵글 ${gd.launchAngle}°`);
-        if (gd.backSpin != null)      nums.push(`백스핀 ${gd.backSpin}rpm`);
-        if (gd.sideSpin != null)      nums.push(`사이드스핀 ${gd.sideSpin}rpm`);
-        if (gd.smashFactor != null)   nums.push(`스매시팩터 ${gd.smashFactor}`);
-        if (gd.clubPath != null)      nums.push(`클럽패스 ${gd.clubPath}°`);
-        if (gd.faceAngle != null)     nums.push(`페이스앵글 ${gd.faceAngle}°`);
-        if (nums.length) parts.push(`  구질 데이터: ${nums.join(' | ')}`);
-      }
-
-      if (l.motionCaptureData?.measurements?.length) {
-        const mc = l.motionCaptureData;
-        const nums: string[] = [];
-        mc.measurements.forEach(m => {
-          const p = m.swingPhase ? `[${m.swingPhase}] ` : '';
-          if (m.headLift != null && m.headLift !== 0)            nums.push(`${p}머리들림 ${m.headLift}cm`);
-          if (m.hipSlide != null && m.hipSlide !== 0)            nums.push(`${p}힙슬라이드 ${m.hipSlide}cm`);
-          if (m.upperBodyPush != null && m.upperBodyPush !== 0)  nums.push(`${p}상체밀림 ${m.upperBodyPush}cm`);
-          if (m.headLateralSway != null && m.headLateralSway !== 0) nums.push(`${p}머리흔들림 ${m.headLateralSway}cm`);
-          if (m.upperBodyLift != null && m.upperBodyLift !== 0)  nums.push(`${p}상체들림 ${m.upperBodyLift}cm`);
-        });
-        if (nums.length) parts.push(`  모션캡처: ${nums.slice(0, 6).join(' | ')}`);
-        if (mc.aiAnalysis) parts.push(`  모션 분석: ${mc.aiAnalysis.substring(0, 200)}`);
-      }
-
-      if (l.scorecardDetail) {
-        const sc = l.scorecardDetail;
-        parts.push(`  스코어카드: ${sc.courseName} | ${sc.totalScore}타 | 퍼팅 ${sc.totalPutts}개`);
-        const badHoles = sc.holes
-          .filter(h => h.score > h.par + 2)
-          .map(h => `홀${h.holeNumber}(${h.score}타·${h.putts}퍼팅)`);
-        if (badHoles.length) parts.push(`  어려웠던 홀: ${badHoles.slice(0, 6).join(', ')}`);
-        const gir = sc.holes.filter(h => h.score <= h.par).length;
-        parts.push(`  파온: ${gir}홀/${sc.holes.length}홀`);
-      }
-
-      if (l.tags?.length) parts.push(`  태그: ${l.tags.join(', ')}`);
-
-      return parts.join('\n');
-    });
+    const lessonLines = recentLessons.map(l => formatLessonEntry(l));
     sections.push(`[레슨·연습·라운드 기록 (최근 ${recentLessons.length}개)]\n${lessonLines.join('\n\n')}`);
   }
 
