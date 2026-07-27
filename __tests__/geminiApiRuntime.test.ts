@@ -294,5 +294,79 @@ describe('geminiApiRuntime', () => {
       expect(callBody.generationConfig.responseMimeType).toBe('application/json');
       expect(callBody.generationConfig.temperature).toBe(0.5);
     });
+
+    it('passes systemInstruction as a top-level field, not in contents', async () => {
+      process.env.GEMINI_API_KEY = FAKE_KEY;
+      const fetchMock = vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          candidates: [{ content: { parts: [{ text: 'ok' }], role: 'model' } }],
+        }),
+      });
+      vi.stubGlobal('fetch', fetchMock);
+
+      await invokeGeminiApi({
+        operation: 'chat',
+        prompt: 'user question',
+        systemInstruction: 'You are a helpful golf coach.',
+      });
+
+      const callBody = JSON.parse(fetchMock.mock.calls[0][1].body as string) as {
+        systemInstruction: { parts: Array<{ text: string }> };
+        contents: Array<{ role: string; parts: Array<{ text: string }> }>;
+      };
+      expect(callBody.systemInstruction).toEqual({
+        parts: [{ text: 'You are a helpful golf coach.' }],
+      });
+      // User prompt must NOT be polluted with the system instruction.
+      expect(callBody.contents[0].parts[0]).toEqual({ text: 'user question' });
+    });
+
+    it('omits systemInstruction field when not provided', async () => {
+      process.env.GEMINI_API_KEY = FAKE_KEY;
+      const fetchMock = vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          candidates: [{ content: { parts: [{ text: 'ok' }], role: 'model' } }],
+        }),
+      });
+      vi.stubGlobal('fetch', fetchMock);
+
+      await invokeGeminiApi({ operation: 'chat', prompt: 'hi' });
+
+      const callBody = JSON.parse(fetchMock.mock.calls[0][1].body as string) as Record<
+        string,
+        unknown
+      >;
+      expect(callBody.systemInstruction).toBeUndefined();
+    });
+
+    it('passes responseSchema in generationConfig', async () => {
+      process.env.GEMINI_API_KEY = FAKE_KEY;
+      const fetchMock = vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          candidates: [{ content: { parts: [{ text: '{}' }], role: 'model' } }],
+        }),
+      });
+      vi.stubGlobal('fetch', fetchMock);
+
+      const schema = {
+        type: 'OBJECT',
+        properties: { summary: { type: 'STRING' } },
+        required: ['summary'],
+      };
+      await invokeGeminiApi({
+        operation: 'json_op',
+        prompt: 'return json',
+        responseMimeType: 'application/json',
+        responseSchema: schema,
+      });
+
+      const callBody = JSON.parse(fetchMock.mock.calls[0][1].body as string) as {
+        generationConfig: { responseSchema: unknown };
+      };
+      expect(callBody.generationConfig.responseSchema).toEqual(schema);
+    });
   });
 });
