@@ -1,8 +1,8 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import {
   ChevronLeft, Send, Sparkles, Bot, Mic, MicOff,
   Calendar, Clock, User, CheckCircle, X, MessageSquare,
-  CalendarCheck, Layers,
+  CalendarCheck, Layers, Search,
 } from 'lucide-react';
 import { CoachProfile, ClientProfile, Lesson } from '../types';
 import { generateCoachXChatResponse } from '../services/geminiService';
@@ -217,6 +217,19 @@ export const CoachXAssistant: React.FC<CoachXAssistantProps> = ({
     type: null, step: null, date: null, hour: null, clientId: null, clientName: null,
   });
   const [isBookingLoading, setIsBookingLoading] = useState(false);
+  const [clientSearch, setClientSearch] = useState('');
+
+  useEffect(() => {
+    if (booking.step !== 'client') setClientSearch('');
+  }, [booking.step]);
+
+  const filteredClients = useMemo(() => {
+    const q = clientSearch.trim().toLowerCase();
+    if (!q) return coachClients;
+    return coachClients.filter(c =>
+      c.name.toLowerCase().includes(q) || (c.phone ?? '').toLowerCase().includes(q)
+    );
+  }, [coachClients, clientSearch]);
 
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -524,22 +537,57 @@ export const CoachXAssistant: React.FC<CoachXAssistantProps> = ({
 
         {/* Client picker */}
         {booking.step === 'client' && (
-          <div className="p-3 space-y-1.5 max-h-52 overflow-y-auto">
-            <button
-              onClick={() => handleClientSelect(null, null)}
-              className="w-full py-2.5 px-3 text-sm rounded-xl bg-gray-700/60 hover:bg-gray-600/60 border border-white/10 text-gray-400 hover:text-gray-200 transition-colors text-left"
-            >
-              건너뛰기 (회원 없음)
-            </button>
-            {coachClients.map(c => (
+          <div className="p-3 space-y-2">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+              {clientSearch && (
+                <button
+                  onClick={() => setClientSearch('')}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-white/10 text-gray-400 hover:text-white transition-colors"
+                  aria-label="검색어 지우기"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+              <input
+                type="text"
+                value={clientSearch}
+                onChange={(e) => setClientSearch(e.target.value)}
+                placeholder="회원 이름 또는 전화번호 검색"
+                aria-label="회원 검색"
+                className="w-full pl-9 pr-8 py-2 text-sm rounded-xl bg-gray-900/60 border border-white/10 text-gray-100 placeholder-gray-500 focus:outline-none focus:border-violet-500/60"
+              />
+            </div>
+            <div className="space-y-1.5 max-h-52 overflow-y-auto">
               <button
-                key={c.phone}
-                onClick={() => handleClientSelect(c.phone, c.name)}
-                className="w-full py-2.5 px-3 text-sm rounded-xl bg-gray-700/80 hover:bg-violet-700/60 border border-white/10 hover:border-violet-500/50 text-gray-200 hover:text-white transition-colors text-left"
+                onClick={() => handleClientSelect(null, null)}
+                className="w-full py-2.5 px-3 text-sm rounded-xl bg-gray-700/60 hover:bg-gray-600/60 border border-white/10 text-gray-400 hover:text-gray-200 transition-colors text-left"
               >
-                {c.name}
+                건너뛰기 (회원 없음)
               </button>
-            ))}
+              {filteredClients.length === 0 ? (
+                <p className="py-4 text-center text-xs text-gray-500">
+                  {coachClients.length === 0
+                    ? '등록된 회원이 없어요.'
+                    : `"${clientSearch}"에 해당하는 회원이 없어요.`}
+                </p>
+              ) : (
+                filteredClients.map(c => (
+                  <button
+                    key={c.phone}
+                    onClick={() => handleClientSelect(c.phone, c.name)}
+                    className="w-full py-2.5 px-3 text-sm rounded-xl bg-gray-700/80 hover:bg-violet-700/60 border border-white/10 hover:border-violet-500/50 text-gray-200 hover:text-white transition-colors text-left"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-medium">{c.name}</span>
+                      {c.phone && (
+                        <span className="text-xs text-gray-400 truncate">{c.phone}</span>
+                      )}
+                    </div>
+                  </button>
+                ))
+              )}
+            </div>
           </div>
         )}
 
