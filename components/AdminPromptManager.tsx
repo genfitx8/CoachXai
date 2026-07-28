@@ -150,25 +150,31 @@ export const AdminPromptManager: React.FC<AdminPromptManagerProps> = ({
     setGeneratedSummary(null);
   };
 
-  const handleGenerateFromDocument = async (file: File) => {
+  const handleGenerateFromDocuments = async (files: File[]) => {
+    if (files.length === 0) return;
     setIsGeneratingPrompt(true);
     setGeneratedSummary(null);
     try {
       const result = await generateSystemPromptFromDocument({
-        file,
-        mimeType: file.type || 'application/pdf',
+        files: files.map((f) => ({
+          file: f,
+          mimeType: f.type || 'application/pdf',
+          fileName: f.name,
+        })),
         target: form.target,
         existingSystemPrompt: form.systemPrompt.trim() || undefined,
       });
       // Replace the current systemPrompt with the AI-generated one. Coach can
       // review and edit before saving — nothing is persisted at this point.
       setForm((f) => ({ ...f, systemPrompt: result.systemPrompt }));
-      // Also stage the source document as an attachment so it's saved alongside
-      // the template (evidence of provenance for later re-generation).
-      setPendingFiles((prev) => [...prev, file]);
-      setGeneratedSummary(result.summary);
+      // Also stage every source document as an attachment so it's saved
+      // alongside the template (evidence of provenance for later re-generation).
+      setPendingFiles((prev) => [...prev, ...files]);
+      setGeneratedSummary(
+        `${files.length}개 문서 · ${result.summary}`
+      );
     } catch (e) {
-      console.error('Failed to generate system prompt from document:', e);
+      console.error('Failed to generate system prompt from documents:', e);
       alert('문서에서 프롬프트를 생성하지 못했습니다. 파일 형식(PDF/텍스트 권장)과 크기를 확인해 주세요.');
     } finally {
       setIsGeneratingPrompt(false);
@@ -498,11 +504,14 @@ export const AdminPromptManager: React.FC<AdminPromptManagerProps> = ({
                 <input
                   ref={generateFromDocRef}
                   type="file"
+                  multiple
                   accept="application/pdf,text/plain,text/markdown,.md,.txt,.pdf"
                   className="hidden"
                   onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) handleGenerateFromDocument(file);
+                    const picked = e.target.files;
+                    if (picked && picked.length > 0) {
+                      handleGenerateFromDocuments(Array.from(picked));
+                    }
                     e.target.value = '';
                   }}
                 />
@@ -511,7 +520,7 @@ export const AdminPromptManager: React.FC<AdminPromptManagerProps> = ({
                   onClick={() => generateFromDocRef.current?.click()}
                   disabled={isGeneratingPrompt}
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-gradient-to-r from-purple-500 to-indigo-500 text-white hover:from-purple-600 hover:to-indigo-600 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
-                  title="PDF·텍스트 문서를 업로드하면 Gemini가 이 target에 맞는 systemPrompt 초안을 생성합니다"
+                  title="PDF·텍스트 문서를 1개 이상 업로드하면 Gemini가 이 target에 맞는 systemPrompt 초안을 생성합니다. 여러 문서를 한 번에 선택하면 한 개의 시스템 프롬프트로 통합됩니다."
                 >
                   <Wand2 className="w-3.5 h-3.5" />
                   {isGeneratingPrompt ? '생성 중…' : '🪄 파일에서 생성'}

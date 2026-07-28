@@ -131,4 +131,81 @@ describe('generateSystemPromptFromDocument', () => {
       })
     ).rejects.toThrow();
   });
+
+  // ─── PR B2: multi-document merge ───────────────────────────────────────
+  it('accepts multiple files and sends each as a separate inlineData part', async () => {
+    const fetchMock = vi.spyOn(global, 'fetch').mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        ok: true,
+        result: {
+          text: JSON.stringify({
+            systemPrompt: '3개 문서를 통합한 프롬프트',
+            summary: '3개 문서에서 원칙과 용어를 통합했습니다.',
+          }),
+        },
+      }),
+    } as Response);
+
+    const result = await generateSystemPromptFromDocument({
+      files: [
+        { file: makeFakePdf(), mimeType: 'application/pdf', fileName: '스윙지도.pdf' },
+        { file: makeFakePdf(), mimeType: 'application/pdf', fileName: '멘탈지도.pdf' },
+        { file: new Blob(['plain text notes'], { type: 'text/plain' }), mimeType: 'text/plain', fileName: 'notes.txt' },
+      ],
+      target: 'lesson_summary',
+    });
+
+    expect(result.systemPrompt).toContain('통합');
+
+    const [, init] = fetchMock.mock.calls[0];
+    const body = JSON.parse((init as RequestInit).body as string);
+    // Each source file becomes a separate inlineData part.
+    expect(body.payload.mediaParts).toHaveLength(3);
+    // Prompt reveals the source list so the model can cross-reference.
+    expect(body.payload.prompt).toContain('스윙지도.pdf');
+    expect(body.payload.prompt).toContain('멘탈지도.pdf');
+    expect(body.payload.prompt).toContain('notes.txt');
+    // Multi-doc fusion guidance is included.
+    expect(body.payload.prompt).toContain('하나의 응집된 systemPrompt');
+  });
+
+  it('rejects when the files array is empty', async () => {
+    await expect(
+      generateSystemPromptFromDocument({
+        files: [],
+        target: 'lesson_summary',
+      })
+    ).rejects.toThrow(/최소 1개/);
+  });
+
+  it('legacy single-file shape still works (backwards compat)', async () => {
+    const fetchMock = vi.spyOn(global, 'fetch').mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        ok: true,
+        result: {
+          text: JSON.stringify({
+            systemPrompt: 'legacy-compat prompt',
+            summary: 'ok',
+          }),
+        },
+      }),
+    } as Response);
+
+    const result = await generateSystemPromptFromDocument({
+      file: makeFakePdf(),
+      mimeType: 'application/pdf',
+      target: 'coachx_chat',
+    });
+
+    expect(result.systemPrompt).toBe('legacy-compat prompt');
+    const [, init] = fetchMock.mock.calls[0];
+    const body = JSON.parse((init as RequestInit).body as string);
+    expect(body.payload.mediaParts).toHaveLength(1);
+    // Single-doc mode should NOT include multi-doc fusion guidance.
+    expect(body.payload.prompt).not.toContain('하나의 응집된 systemPrompt');
+  });
 });
