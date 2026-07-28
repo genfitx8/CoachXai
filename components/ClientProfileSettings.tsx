@@ -220,12 +220,13 @@ export const ClientProfileSettings: React.FC<ClientProfileSettingsProps> = ({ pr
   };
 
   // Coach Assignment Handlers
-  // designatedCoach는 App.tsx에서 coachId 기반으로 자동 설정됨
+  // Set designatedCoach locally on assign so the UI shows the coach name
+  // immediately; the server will re-resolve it authoritatively on save.
   const handleCoachAssign = (coach: { id: string; name: string }) => {
       setFormData(prev => ({
           ...prev,
-          coachId: coach.id
-          // designatedCoach는 저장 시 자동으로 설정됨
+          coachId: coach.id,
+          designatedCoach: coach.name,
       }));
   };
 
@@ -233,8 +234,8 @@ export const ClientProfileSettings: React.FC<ClientProfileSettingsProps> = ({ pr
       if (confirm(t('confirm_remove_coach'))) {
           setFormData(prev => ({
               ...prev,
-              coachId: undefined
-              // designatedCoach도 함께 제거됨
+              coachId: undefined,
+              designatedCoach: undefined,
           }));
       }
   };
