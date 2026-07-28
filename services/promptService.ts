@@ -150,29 +150,38 @@ export const promptService = {
   },
 
   /**
-   * Get the active template for a given target, or null if none is active.
+   * Get the active template for a given target.
+   *
+   * When `coachId` is provided, resolution prefers a coach-scoped active
+   * template; if none exists it falls back to the global active template.
+   * Returns null if neither exists.
    */
   getActive: async (
     target: PromptTarget,
-    isFirebaseMode: boolean
+    isFirebaseMode: boolean,
+    coachId?: string
   ): Promise<PromptTemplate | null> => {
     if (isFirebaseMode) {
-      return firebaseService.getActivePromptTemplate(target);
+      return firebaseService.getActivePromptTemplate(target, coachId);
     }
-    return storageService.getActivePromptTemplate(target);
+    return storageService.getActivePromptTemplate(target, coachId);
   },
 
   /**
    * Returns the system-prompt string to pass to Gemini.
-   * If an admin-managed template is active for this target it is used;
-   * otherwise the built-in fallback is returned.
+   *
+   * Resolution order:
+   *   1. coach-scoped active template (if coachId provided)
+   *   2. global active template
+   *   3. BUILTIN_SYSTEM_PROMPTS fallback
    */
   getActiveSystemPrompt: async (
     target: PromptTarget,
-    isFirebaseMode: boolean
+    isFirebaseMode: boolean,
+    coachId?: string
   ): Promise<string> => {
     try {
-      const template = await promptService.getActive(target, isFirebaseMode);
+      const template = await promptService.getActive(target, isFirebaseMode, coachId);
       if (template?.systemPrompt?.trim()) {
         return template.systemPrompt.trim();
       }

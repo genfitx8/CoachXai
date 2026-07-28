@@ -1020,17 +1020,36 @@ export const firebaseService = {
     }
   },
 
-  getActivePromptTemplate: async (target: PromptTarget): Promise<PromptTemplate | null> => {
+  getActivePromptTemplate: async (
+    target: PromptTarget,
+    coachId?: string
+  ): Promise<PromptTemplate | null> => {
     if (!db) return null;
     try {
-      const q = query(
+      // Coach-scoped active first (if a coachId was passed).
+      if (coachId) {
+        const coachQ = query(
+          collection(db, 'prompt_templates'),
+          where('target', '==', target),
+          where('coachId', '==', coachId),
+          where('isActive', '==', true)
+        );
+        const coachSnap = await getDocs(coachQ);
+        if (!coachSnap.empty) {
+          return coachSnap.docs[0].data() as PromptTemplate;
+        }
+      }
+      // Fall back to the global active template (coachId absent in Firestore
+      // for global rows; the missing-field predicate is expressed as == null).
+      const globalQ = query(
         collection(db, 'prompt_templates'),
         where('target', '==', target),
+        where('coachId', '==', null),
         where('isActive', '==', true)
       );
-      const snap = await getDocs(q);
-      if (snap.empty) return null;
-      return snap.docs[0].data() as PromptTemplate;
+      const globalSnap = await getDocs(globalQ);
+      if (globalSnap.empty) return null;
+      return globalSnap.docs[0].data() as PromptTemplate;
     } catch (e) {
       log.error('Failed to fetch active prompt template:', e);
       return null;
@@ -1039,14 +1058,21 @@ export const firebaseService = {
 
   savePromptTemplate: async (template: PromptTemplate): Promise<void> => {
     if (!db) throw new Error('Firebase not initialized');
-    // Deactivate other templates for the same target if this one is active
+    // Deactivate siblings in the SAME (target, coachId) scope only.
+    // Global templates (coachId absent) and coach-scoped templates
+    // coexist on different layers.
     if (template.isActive) {
       try {
-        const q = query(
-          collection(db, 'prompt_templates'),
+        const constraints = [
           where('target', '==', template.target),
-          where('isActive', '==', true)
-        );
+          where('isActive', '==', true),
+        ];
+        if (template.coachId) {
+          constraints.push(where('coachId', '==', template.coachId));
+        } else {
+          constraints.push(where('coachId', '==', null));
+        }
+        const q = query(collection(db, 'prompt_templates'), ...constraints);
         const snap = await getDocs(q);
         const batch = writeBatch(db);
         snap.docs.forEach((d) => {
@@ -1059,7 +1085,13 @@ export const firebaseService = {
         log.error('Failed to deactivate other prompt templates:', e);
       }
     }
-    const cleaned = removeUndefinedFields(template);
+    // Normalise: Firestore stores absent coachId as null so equality queries
+    // against global rows work; the client-side type keeps it optional.
+    const normalised: PromptTemplate & { coachId: string | null } = {
+      ...template,
+      coachId: template.coachId ?? null,
+    };
+    const cleaned = removeUndefinedFields(normalised);
     await setDoc(doc(db, 'prompt_templates', template.id), cleaned);
   },
 
