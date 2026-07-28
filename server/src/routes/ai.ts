@@ -59,6 +59,10 @@ const DEFAULT_TEMPERATURE_BY_FEATURE: Record<string, number> = {
   coachx_chat: 0.7,
   student_chat: 0.7,
   coachx_growth_profile: 0.7,
+
+  // Meta-extraction — reading a coach's document to produce a systemPrompt.
+  // Moderate temp: enough creativity to phrase well, low enough to stay faithful.
+  generate_system_prompt: 0.4,
 };
 
 const resolveTemperature = (

@@ -119,3 +119,35 @@ export const trackmanScreenSchema = {
     totalDistance: { type: 'NUMBER', nullable: true },
   },
 } as const;
+
+/**
+ * Result of extracting a coach's methodology from an uploaded document and
+ * turning it into a runnable system prompt for a specific AI feature (target).
+ * - `systemPrompt`: the drop-in text a coach can save as PromptTemplate.systemPrompt
+ * - `summary`: 1–2 sentences a coach can skim to trust what was extracted
+ * - `principles`: 3–8 bullet points distilled from the document (for reference)
+ * - `preferredTerminology`: words the coach uses (term → what it means)
+ */
+export const generateSystemPromptFromDocumentSchema = {
+  type: 'OBJECT',
+  properties: {
+    systemPrompt: { type: 'STRING' },
+    summary: { type: 'STRING' },
+    principles: {
+      type: 'ARRAY',
+      items: { type: 'STRING' },
+    },
+    preferredTerminology: {
+      type: 'ARRAY',
+      items: {
+        type: 'OBJECT',
+        properties: {
+          term: { type: 'STRING' },
+          meaning: { type: 'STRING' },
+        },
+        required: ['term', 'meaning'],
+      },
+    },
+  },
+  required: ['systemPrompt', 'summary'],
+} as const;

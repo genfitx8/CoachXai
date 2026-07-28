@@ -19,8 +19,10 @@ import {
   Globe2,
   UserCircle2,
   Lock,
+  Wand2,
 } from 'lucide-react';
 import { promptService } from '../services/promptService';
+import { generateSystemPromptFromDocument } from '../services/geminiService';
 import { useLanguage } from './LanguageContext';
 
 interface AdminPromptManagerProps {
@@ -104,7 +106,10 @@ export const AdminPromptManager: React.FC<AdminPromptManagerProps> = ({
   const [uploadingFor, setUploadingFor] = useState<string | null>(null);
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const [scopeFilter, setScopeFilter] = useState<ScopeFilter>(SCOPE_ALL);
+  const [isGeneratingPrompt, setIsGeneratingPrompt] = useState(false);
+  const [generatedSummary, setGeneratedSummary] = useState<string | null>(null);
   const formFileRef = useRef<HTMLInputElement>(null);
+  const generateFromDocRef = useRef<HTMLInputElement>(null);
 
   const coachById = useMemo(
     () => new Map(coaches.map((c) => [c.id, c])),
@@ -142,6 +147,32 @@ export const AdminPromptManager: React.FC<AdminPromptManagerProps> = ({
     setEditingId(null);
     setIsEditing(false);
     setPendingFiles([]);
+    setGeneratedSummary(null);
+  };
+
+  const handleGenerateFromDocument = async (file: File) => {
+    setIsGeneratingPrompt(true);
+    setGeneratedSummary(null);
+    try {
+      const result = await generateSystemPromptFromDocument({
+        file,
+        mimeType: file.type || 'application/pdf',
+        target: form.target,
+        existingSystemPrompt: form.systemPrompt.trim() || undefined,
+      });
+      // Replace the current systemPrompt with the AI-generated one. Coach can
+      // review and edit before saving — nothing is persisted at this point.
+      setForm((f) => ({ ...f, systemPrompt: result.systemPrompt }));
+      // Also stage the source document as an attachment so it's saved alongside
+      // the template (evidence of provenance for later re-generation).
+      setPendingFiles((prev) => [...prev, file]);
+      setGeneratedSummary(result.summary);
+    } catch (e) {
+      console.error('Failed to generate system prompt from document:', e);
+      alert('문서에서 프롬프트를 생성하지 못했습니다. 파일 형식(PDF/텍스트 권장)과 크기를 확인해 주세요.');
+    } finally {
+      setIsGeneratingPrompt(false);
+    }
   };
 
   const handleEdit = (template: PromptTemplate) => {
@@ -459,9 +490,34 @@ export const AdminPromptManager: React.FC<AdminPromptManagerProps> = ({
           )}
 
           <div>
-            <label className="block text-xs font-bold text-gray-500 mb-1">
-              {t('admin_prompt_system_label')} <span className="font-normal text-gray-400">(Gemini에 전달되는 역할/규칙 지시문)</span>
-            </label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-xs font-bold text-gray-500">
+                {t('admin_prompt_system_label')} <span className="font-normal text-gray-400">(Gemini에 전달되는 역할/규칙 지시문)</span>
+              </label>
+              <div>
+                <input
+                  ref={generateFromDocRef}
+                  type="file"
+                  accept="application/pdf,text/plain,text/markdown,.md,.txt,.pdf"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handleGenerateFromDocument(file);
+                    e.target.value = '';
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => generateFromDocRef.current?.click()}
+                  disabled={isGeneratingPrompt}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-gradient-to-r from-purple-500 to-indigo-500 text-white hover:from-purple-600 hover:to-indigo-600 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+                  title="PDF·텍스트 문서를 업로드하면 Gemini가 이 target에 맞는 systemPrompt 초안을 생성합니다"
+                >
+                  <Wand2 className="w-3.5 h-3.5" />
+                  {isGeneratingPrompt ? '생성 중…' : '🪄 파일에서 생성'}
+                </button>
+              </div>
+            </div>
             <textarea
               value={form.systemPrompt}
               onChange={(e) => setForm((f) => ({ ...f, systemPrompt: e.target.value }))}
@@ -472,6 +528,25 @@ export const AdminPromptManager: React.FC<AdminPromptManagerProps> = ({
             <p className="text-xs text-gray-400 mt-1">
               {form.systemPrompt.length}자
             </p>
+            {generatedSummary && (
+              <div className="mt-2 flex items-start gap-2 text-xs bg-purple-50 border border-purple-200 text-purple-800 rounded-lg p-2.5">
+                <Sparkles className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
+                <div className="flex-1">
+                  <p className="font-bold mb-0.5">문서에서 프롬프트 초안 생성 완료</p>
+                  <p className="opacity-90">{generatedSummary}</p>
+                  <p className="mt-1 text-purple-500 text-[11px]">
+                    ↑ 위 textarea에서 직접 편집하고 저장하세요. 원본 문서는 첨부로 함께 저장됩니다.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setGeneratedSummary(null)}
+                  className="p-0.5 text-purple-400 hover:text-purple-700"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </div>
+            )}
           </div>
 
           <div>
