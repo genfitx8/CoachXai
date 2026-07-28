@@ -666,6 +666,20 @@ export interface PromptTemplate {
   isActive: boolean;
   /** Language scope for this template. 'all' means used for every language. */
   language?: 'ko' | 'en' | 'ja' | 'all';
+  /**
+   * Coach scope for this template.
+   * - `undefined`: global template (applies when no coach-specific one is active).
+   * - `<coach id>`: only applies when the caller's coachId matches.
+   *
+   * Runtime resolution order:
+   *   coach-scoped active → global active → BUILTIN_SYSTEM_PROMPTS.
+   *
+   * Activation exclusivity is scoped: a coach-scoped active template does NOT
+   * deactivate the global active template for the same target (they coexist
+   * on different "layers"). Two active templates for the SAME (target, coachId)
+   * pair are the ones that mutually exclude.
+   */
+  coachId?: string;
   attachments: PromptAttachment[];
   createdAt: number;
   updatedAt: number;

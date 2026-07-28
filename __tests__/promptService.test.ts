@@ -223,3 +223,136 @@ describe('BUILTIN_SYSTEM_PROMPTS coverage', () => {
     expect(result).toBe('코치 김철수의 커스텀 레슨 요약 프롬프트');
   });
 });
+
+describe('coachId scoping', () => {
+  it('coach-scoped active wins over global active for the same target', async () => {
+    const globalT = makeTemplate({
+      target: 'lesson_summary',
+      isActive: true,
+      systemPrompt: '전역 기본 프롬프트',
+    });
+    const coachT = makeTemplate({
+      target: 'lesson_summary',
+      isActive: true,
+      coachId: 'coach-A',
+      systemPrompt: '코치A 전용 프롬프트',
+    });
+    storageService.savePromptTemplate(globalT);
+    storageService.savePromptTemplate(coachT);
+
+    const forCoachA = await promptService.getActiveSystemPrompt(
+      'lesson_summary',
+      false,
+      'coach-A'
+    );
+    expect(forCoachA).toBe('코치A 전용 프롬프트');
+  });
+
+  it('falls back to global active when coachId has no scoped template', async () => {
+    const globalT = makeTemplate({
+      target: 'lesson_summary',
+      isActive: true,
+      systemPrompt: '전역 기본 프롬프트',
+    });
+    storageService.savePromptTemplate(globalT);
+
+    const forCoachB = await promptService.getActiveSystemPrompt(
+      'lesson_summary',
+      false,
+      'coach-B'
+    );
+    expect(forCoachB).toBe('전역 기본 프롬프트');
+  });
+
+  it('falls back to BUILTIN when neither coach-scoped nor global active exists', async () => {
+    const forCoachC = await promptService.getActiveSystemPrompt(
+      'lesson_summary',
+      false,
+      'coach-C'
+    );
+    expect(forCoachC).toBe(BUILTIN_SYSTEM_PROMPTS.lesson_summary);
+  });
+
+  it('saving a coach-scoped active template does not deactivate the global one', async () => {
+    const globalT = makeTemplate({
+      target: 'lesson_summary',
+      isActive: true,
+      systemPrompt: '전역',
+    });
+    storageService.savePromptTemplate(globalT);
+
+    const coachT = makeTemplate({
+      target: 'lesson_summary',
+      isActive: true,
+      coachId: 'coach-A',
+      systemPrompt: '코치A 전용',
+    });
+    storageService.savePromptTemplate(coachT);
+
+    // Global still active for callers without coachId (and other coaches).
+    const stillGlobal = await promptService.getActiveSystemPrompt('lesson_summary', false);
+    expect(stillGlobal).toBe('전역');
+    const otherCoach = await promptService.getActiveSystemPrompt(
+      'lesson_summary',
+      false,
+      'coach-B'
+    );
+    expect(otherCoach).toBe('전역');
+  });
+
+  it('saving a coach-scoped active template deactivates other actives for the SAME coach+target', async () => {
+    const first = makeTemplate({
+      id: 'first',
+      target: 'lesson_summary',
+      isActive: true,
+      coachId: 'coach-A',
+      systemPrompt: '첫 번째 버전',
+    });
+    storageService.savePromptTemplate(first);
+
+    const second = makeTemplate({
+      id: 'second',
+      target: 'lesson_summary',
+      isActive: true,
+      coachId: 'coach-A',
+      systemPrompt: '두 번째 버전',
+    });
+    storageService.savePromptTemplate(second);
+
+    const stored = storageService.getPromptTemplates();
+    const firstStored = stored.find((t) => t.id === 'first');
+    const secondStored = stored.find((t) => t.id === 'second');
+    expect(firstStored?.isActive).toBe(false);
+    expect(secondStored?.isActive).toBe(true);
+
+    const active = await promptService.getActiveSystemPrompt(
+      'lesson_summary',
+      false,
+      'coach-A'
+    );
+    expect(active).toBe('두 번째 버전');
+  });
+
+  it('activating a global template does not deactivate a coach-scoped active', async () => {
+    const coachT = makeTemplate({
+      id: 'coach-t',
+      target: 'lesson_summary',
+      isActive: true,
+      coachId: 'coach-A',
+      systemPrompt: '코치A 전용',
+    });
+    storageService.savePromptTemplate(coachT);
+
+    const globalT = makeTemplate({
+      id: 'global-t',
+      target: 'lesson_summary',
+      isActive: true,
+      systemPrompt: '나중에 추가한 전역',
+    });
+    storageService.savePromptTemplate(globalT);
+
+    const stored = storageService.getPromptTemplates();
+    const coachStored = stored.find((t) => t.id === 'coach-t');
+    expect(coachStored?.isActive).toBe(true);
+  });
+});

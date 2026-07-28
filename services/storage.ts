@@ -684,9 +684,14 @@ export const storageService = {
   savePromptTemplate: (template: PromptTemplate): void => {
     try {
       const all = storageService.getPromptTemplates();
-      // If marking this template active, deactivate other templates for the same target
+      // If marking this template active, deactivate siblings in the SAME
+      // (target, coachId) scope. Global templates (coachId=undefined) and
+      // coach-scoped templates live on separate layers and don't collide.
       let updated = all.map((t) =>
-        t.id !== template.id && t.target === template.target && template.isActive
+        t.id !== template.id &&
+        t.target === template.target &&
+        (t.coachId ?? null) === (template.coachId ?? null) &&
+        template.isActive
           ? { ...t, isActive: false }
           : t
       );
@@ -714,10 +719,20 @@ export const storageService = {
     }
   },
 
-  getActivePromptTemplate: (target: PromptTarget): PromptTemplate | null => {
+  getActivePromptTemplate: (
+    target: PromptTarget,
+    coachId?: string
+  ): PromptTemplate | null => {
     try {
       const all = storageService.getPromptTemplates();
-      return all.find((t) => t.target === target && t.isActive) ?? null;
+      // Coach-scoped active first; if none, fall back to a global active one.
+      if (coachId) {
+        const coachScoped = all.find(
+          (t) => t.target === target && t.coachId === coachId && t.isActive
+        );
+        if (coachScoped) return coachScoped;
+      }
+      return all.find((t) => t.target === target && !t.coachId && t.isActive) ?? null;
     } catch (e) {
       return null;
     }

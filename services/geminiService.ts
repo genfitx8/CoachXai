@@ -287,7 +287,8 @@ export const parseEquipmentPhotoAnalysisResponse = (
 export const analyzeSwingVideo = async (
   mediaInputs: AnalysisInput[],
   userNotes: string,
-  swingAngle?: 'FRONT' | 'SIDE'
+  swingAngle?: 'FRONT' | 'SIDE',
+  coachId?: string
 ): Promise<string> => {
   const fallback = () => {
     const note = userNotes?.trim();
@@ -324,7 +325,11 @@ export const analyzeSwingVideo = async (
         : '알 수 없음(자동 감지)';
 
     const isFirebaseMode = firebaseService.isInitialized();
-    const systemInstruction = await promptService.getActiveSystemPrompt('lesson_summary', isFirebaseMode);
+    const systemInstruction = await promptService.getActiveSystemPrompt(
+      'lesson_summary',
+      isFirebaseMode,
+      coachId
+    );
 
     const prompt = `**리포트 참고 자료:**
 - **촬영 앵글**: ${angleText}
@@ -526,7 +531,8 @@ export const compareSwings = async (
   oldVideoUrl: string,
   newVideoUrl: string,
   oldDate: string,
-  newDate: string
+  newDate: string,
+  coachId?: string
 ): Promise<ComparisonResult> => {
   const fallback = (): ComparisonResult => ({
     improvementScore: 50,
@@ -554,7 +560,11 @@ export const compareSwings = async (
       : '두 개의 골프 스윙 데이터(영상 또는 사진). 시각적으로 비교하여 회원이 얼마나 발전했는지 분석하세요.';
 
     const isFirebaseMode = firebaseService.isInitialized();
-    const systemInstruction = await promptService.getActiveSystemPrompt('compare_swings', isFirebaseMode);
+    const systemInstruction = await promptService.getActiveSystemPrompt(
+      'compare_swings',
+      isFirebaseMode,
+      coachId
+    );
 
     const prompt = `${dataDescription}
 - 첫 번째 데이터: ${oldDate} (과거)
@@ -872,7 +882,8 @@ export const generateGolfMissions = async (
 export const generateTrainingProgram = async (
   profile: ClientProfile,
   lessons: Lesson[],
-  config: TrainingProgramConfig
+  config: TrainingProgramConfig,
+  coachId?: string
 ): Promise<string> => {
   // Fallback plan used when AI runtime is unavailable or when there are too few lesson records.
   const fallbackPlan = (goal: string) => `## 훈련 프로그램 (기본 플랜)
@@ -936,7 +947,11 @@ export const generateTrainingProgram = async (
     const weeks = Math.max(1, Math.round((end - start) / msPerWeek));
 
     const isFirebaseMode = firebaseService.isInitialized();
-    const systemInstruction = await promptService.getActiveSystemPrompt('training_program', isFirebaseMode);
+    const systemInstruction = await promptService.getActiveSystemPrompt(
+      'training_program',
+      isFirebaseMode,
+      coachId
+    );
 
     const prompt = `**회원 정보:**
 - 이름: ${profile.name}
@@ -1470,7 +1485,8 @@ export const generateCoachXChatResponse = async (
   allLessons: Lesson[],
   clients: ClientProfile[],
   language: CoachXLanguage = 'ko',
-  conversationHistory: { role: 'user' | 'assistant'; content: string }[] = []
+  conversationHistory: { role: 'user' | 'assistant'; content: string }[] = [],
+  coachId?: string
 ): Promise<string> => {
   const fallback = () => generateHeuristicResponse(userMessage, allLessons, clients, language);
 
@@ -1515,7 +1531,11 @@ export const generateCoachXChatResponse = async (
 
     // Load admin-managed system prompt; fall back to built-in if none is active
     const isFirebaseMode = firebaseService.isInitialized();
-    const systemPrompt = await promptService.getActiveSystemPrompt('coachx_chat', isFirebaseMode);
+    const systemPrompt = await promptService.getActiveSystemPrompt(
+      'coachx_chat',
+      isFirebaseMode,
+      coachId
+    );
 
     // Format prior conversation turns (exclude the current message; last 10 turns max)
     const historyToInclude = conversationHistory.slice(-10);
@@ -1627,7 +1647,11 @@ export const generateCoachXInsights = async (
 
     // Load admin-managed system prompt; fall back to built-in if none is active
     const isFirebaseMode = firebaseService.isInitialized();
-    const systemPrompt = await promptService.getActiveSystemPrompt('coachx_insights', isFirebaseMode);
+    const systemPrompt = await promptService.getActiveSystemPrompt(
+      'coachx_insights',
+      isFirebaseMode,
+      coachProfile.id
+    );
 
     const systemInstruction = `${systemPrompt}
 
@@ -1772,7 +1796,8 @@ Member growth trends: ${trendSummary}`;
  */
 export const analyzeMotionCapture = async (
   imageInputs: AnalysisInput[],
-  coachNotes?: string
+  coachNotes?: string,
+  coachId?: string
 ): Promise<MotionCaptureData> => {
   const mediaParts = await Promise.all(
     imageInputs.map(async (input) => {
@@ -1784,7 +1809,11 @@ export const analyzeMotionCapture = async (
   );
 
   const isFirebaseMode = firebaseService.isInitialized();
-  const systemInstruction = await promptService.getActiveSystemPrompt('motion_capture', isFirebaseMode);
+  const systemInstruction = await promptService.getActiveSystemPrompt(
+    'motion_capture',
+    isFirebaseMode,
+    coachId
+  );
 
   const prompt = `이 이미지들은 골프 스윙 3D 모션 캡처 시스템(K-Motion, Swing Catalyst 등)의 화면 캡처입니다.
 화면 오른쪽 패널에는 스켈레톤 모델과 다음 7가지 측정값이 표시됩니다:
@@ -2076,8 +2105,14 @@ export const generateStudentChatResponse = async (
         '\n'
       : '';
 
+    // Student inherits their designated coach's style: pass the coach's id so
+    // the coach-scoped active template (if any) wins over the global default.
     const isFirebaseMode = firebaseService.isInitialized();
-    const baseSystemPrompt = await promptService.getActiveSystemPrompt('student_chat', isFirebaseMode);
+    const baseSystemPrompt = await promptService.getActiveSystemPrompt(
+      'student_chat',
+      isFirebaseMode,
+      coachProfile?.id
+    );
 
     const systemInstruction = `${baseSystemPrompt}
 
