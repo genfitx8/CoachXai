@@ -1243,7 +1243,44 @@ const AppContent: React.FC = () => {
 
     const isFb = apiService.isAvailable();
     if (isFb) {
-      await apiService.saveClients([profileWithCoach]);
+      // When a client updates their own profile, hit /api/clients/me — the
+      // coach-scoped PUT /api/clients/:id would reject them (their JWT id is
+      // their client id, not a coach id, so the coach_id ownership check
+      // never matches). This is the fix that lets students actually assign
+      // themselves a designated coach.
+      const isSelfClientUpdate =
+        userRole === 'CLIENT' &&
+        currentUser &&
+        'name' in currentUser &&
+        currentUser.name === profileWithCoach.name &&
+        currentUser.phone === profileWithCoach.phone;
+
+      if (isSelfClientUpdate) {
+        try {
+          const saved = await apiService.updateMyClientProfile({
+            name: profileWithCoach.name,
+            email: profileWithCoach.email,
+            phone: profileWithCoach.phone,
+            coachId: profileWithCoach.coachId ?? null,
+            designatedCoach: profileWithCoach.designatedCoach ?? null,
+            pushToken: profileWithCoach.pushToken,
+          } as Partial<ClientProfile>);
+          // Merge server-authoritative fields (id, coachId resolved by server)
+          // back into local state so subsequent updates target the right row.
+          const merged: ClientProfile = { ...profileWithCoach, ...saved };
+          setClients((prev) =>
+            prev.map((c) =>
+              c.name === merged.name && c.phone === merged.phone ? merged : c
+            )
+          );
+          setCurrentUser(merged);
+        } catch (e) {
+          console.error('[App] Failed to update client via /api/clients/me:', e);
+          throw e;
+        }
+      } else {
+        await apiService.saveClients([profileWithCoach]);
+      }
     } else {
       const updatedList = clients.map((c) =>
         c.name === profileWithCoach.name && c.phone === profileWithCoach.phone

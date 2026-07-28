@@ -354,12 +354,14 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
   // Implement the coach search logic here
   const handleCoachSearchByName = async (term: string) => {
       let coaches: CoachProfile[] = [];
-      if (firebaseService.isInitialized()) {
+      if (apiService.isAvailable()) {
+          coaches = await apiService.searchCoachesByName(term);
+      } else if (firebaseService.isInitialized()) {
           coaches = await firebaseService.searchCoachesByName(term);
       } else {
           coaches = storageService.searchCoachesByName(term);
       }
-      
+
       return coaches.map(c => ({
           id: c.id,
           name: c.name,

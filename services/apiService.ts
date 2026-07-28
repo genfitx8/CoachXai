@@ -285,6 +285,11 @@ export const apiService = {
     return data.client;
   },
 
+  async updateMyClientProfile(patch: Partial<ClientProfile>): Promise<ClientProfile> {
+    const data = await req<{ client: ClientProfile }>('PUT', '/api/clients/me', patch);
+    return data.client;
+  },
+
   async getClients(): Promise<ClientProfile[]> {
     const data = await req<{ clients: ClientProfile[] }>('GET', '/api/clients');
     return data.clients;
@@ -368,6 +373,21 @@ export const apiService = {
       return data.coach;
     } catch {
       return null;
+    }
+  },
+
+  async searchCoachesByName(name: string): Promise<CoachProfile[]> {
+    const trimmed = name.trim();
+    if (!trimmed) return [];
+    try {
+      const data = await req<{ coaches: CoachProfile[] }>(
+        'GET',
+        `/api/coaches/search?q=${encodeURIComponent(trimmed)}`
+      );
+      return data.coaches ?? [];
+    } catch (e) {
+      console.warn('[apiService] searchCoachesByName failed:', e);
+      return [];
     }
   },
 

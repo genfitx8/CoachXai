@@ -60,6 +60,76 @@ describe('apiService getCoaches', () => {
     );
   });
 
+  it('searchCoachesByName calls /api/coaches/search with the trimmed query', async () => {
+    const coaches = [
+      { id: 'coach-a', name: '홍길동', phone: '01012345678' },
+      { id: 'coach-b', name: '홍코치', phone: '01098765432' },
+    ];
+
+    const fetchMock = vi.fn(async (url: string) => {
+      if (url === `${MOCK_BASE_URL}/api/coaches/search?q=%ED%99%8D`) {
+        return new Response(JSON.stringify({ coaches }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      return new Response(null, { status: 404 });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { apiService } = await import('../services/apiService');
+    const result = await apiService.searchCoachesByName('  홍  ');
+
+    expect(result).toEqual(coaches);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledWith(
+      `${MOCK_BASE_URL}/api/coaches/search?q=%ED%99%8D`,
+      expect.objectContaining({ method: 'GET' })
+    );
+  });
+
+  it('searchCoachesByName returns [] for empty input without calling fetch', async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { apiService } = await import('../services/apiService');
+    const result = await apiService.searchCoachesByName('   ');
+
+    expect(result).toEqual([]);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('updateMyClientProfile PUTs /api/clients/me with the payload', async () => {
+    const updated = {
+      id: 'client-1',
+      name: '학생',
+      phone: '01011112222',
+      coachId: 'coach-a',
+      designatedCoach: '홍길동',
+    };
+
+    const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
+      if (url === `${MOCK_BASE_URL}/api/clients/me` && init?.method === 'PUT') {
+        return new Response(JSON.stringify({ client: updated }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      return new Response(null, { status: 404 });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { apiService } = await import('../services/apiService');
+    const result = await apiService.updateMyClientProfile({
+      coachId: 'coach-a',
+      designatedCoach: '홍길동',
+    });
+
+    expect(result).toEqual(updated);
+    const body = JSON.parse((fetchMock.mock.calls[0][1] as RequestInit).body as string);
+    expect(body).toEqual({ coachId: 'coach-a', designatedCoach: '홍길동' });
+  });
+
   it('falls back to /api/coaches/me when /api/coaches is unavailable', async () => {
     const meCoach = { id: 'coach-me', name: '나코치', email: 'me@example.com' };
 

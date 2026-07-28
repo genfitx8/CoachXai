@@ -60,6 +60,38 @@ router.get('/', listCoachesLimiter, authMiddleware, requireCoachRole, async (_re
   }
 });
 
+// GET /api/coaches/search?q=<name>
+// Accessible by any authenticated user (coaches and clients) so students
+// can search for a coach to assign to their own profile.
+router.get('/search', listCoachesLimiter, authMiddleware, async (req: Request, res: Response) => {
+  try {
+    const rawQuery = typeof req.query.q === 'string' ? req.query.q : '';
+    const term = rawQuery.trim();
+    if (term.length < 1) {
+      res.json({ coaches: [] });
+      return;
+    }
+    const like = `%${term.toLowerCase()}%`;
+    const result = await pool.query(
+      `SELECT id, name, phone FROM coaches
+        WHERE LOWER(name) LIKE $1
+        ORDER BY name ASC
+        LIMIT 20`,
+      [like]
+    );
+    res.json({
+      coaches: result.rows.map((row) => ({
+        id: row.id,
+        name: row.name,
+        phone: row.phone,
+      })),
+    });
+  } catch (err) {
+    console.error('[coaches] GET /search error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // GET /api/coaches/me
 router.get('/me', coachSelfLimiter, authMiddleware, requireCoachRole, async (req: Request, res: Response) => {
   try {
