@@ -24,6 +24,7 @@ interface LessonDetailProps {
   onUpdate: (lesson: Lesson) => void;
   onDelete?: () => void;
   onEdit?: (lesson: Lesson) => void; // Added for full editing
+  onRecordAnotherLesson?: () => void; // Start a new lesson record for the same member
 }
 
 const SEQUENCE_LABELS = [
@@ -55,7 +56,7 @@ export async function persistAdditionalMediaSourceForOffline(params: {
   }
 }
 
-export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons = [], role = 'COACH', onBack, onUpdate, onDelete, onEdit }) => {
+export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons = [], role = 'COACH', onBack, onUpdate, onDelete, onEdit, onRecordAnotherLesson }) => {
   const { t } = useLanguage();
   // resolvedMainUrl is always null on mount; the IDB effect below resolves it.
   // Using null here avoids a double-blob-URL problem: if resolveSync() were
@@ -2149,9 +2150,18 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
 
           {/* Bottom Back & Delete Buttons */}
           <div className="pt-4 flex flex-col gap-2">
-              <Button 
-                onClick={onBack} 
-                variant="secondary" 
+              {!isClientView && onRecordAnotherLesson && (
+                  <Button
+                    onClick={onRecordAnotherLesson}
+                    className="w-full py-3 font-bold"
+                    data-testid="record-another-lesson-button"
+                  >
+                      <Plus className="w-4 h-4 mr-2" /> {lesson.clientName}님 다른 레슨 기록하기
+                  </Button>
+              )}
+              <Button
+                onClick={onBack}
+                variant="secondary"
                 className="w-full py-3 text-gray-600 bg-white border border-gray-200 hover:bg-gray-50 shadow-sm"
               >
                   <ArrowLeft className="w-4 h-4 mr-2" /> 목록으로 돌아가기

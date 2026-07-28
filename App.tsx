@@ -902,6 +902,22 @@ const AppContent: React.FC = () => {
     setCoachView('NEW');
   };
 
+  const handleRecordAnotherLessonForClient = (lesson: Lesson) => {
+    const matchedClient =
+      clients.find(
+        (c) => c.name === lesson.clientName && c.phone === lesson.clientPhone
+      ) ?? {
+        name: lesson.clientName,
+        phone: lesson.clientPhone,
+        coachId:
+          currentUser && 'id' in currentUser ? currentUser.id : undefined,
+      };
+    setIsEditingLesson(false);
+    setSelectedLesson(null);
+    setPrefilledSuggestionClient(matchedClient);
+    setCoachView('NEW');
+  };
+
   // Helper: Get coach name by coachId
   const getCoachNameById = (coachId?: string): string | undefined => {
     if (!coachId) return undefined;
@@ -1907,6 +1923,7 @@ const AppContent: React.FC = () => {
             onUpdate={handleUpdateLesson}
             onDelete={() => handleDeleteLesson(selectedLesson.id)}
             onEdit={handleEditLesson}
+            onRecordAnotherLesson={() => handleRecordAnotherLessonForClient(selectedLesson)}
           />
         )}
 
