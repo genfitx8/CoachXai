@@ -877,7 +877,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             )}
 
             {activeTab === 'AI_PROMPTS' && (
-                <AdminPromptManager isFirebaseMode={isFbConnected} />
+                <AdminPromptManager isFirebaseMode={isFbConnected} coaches={coaches} />
             )}
 
             {activeTab === 'CURRICULUM_TEMPLATES' && (
