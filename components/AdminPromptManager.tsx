@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { PromptTemplate, PromptAttachment, PromptTarget } from '../types';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { CoachProfile, PromptTemplate, PromptAttachment, PromptTarget } from '../types';
 import { Button } from './Button';
 import {
   Plus,
@@ -16,13 +16,28 @@ import {
   AlertTriangle,
   Download,
   Sparkles,
+  Globe2,
+  UserCircle2,
+  Lock,
 } from 'lucide-react';
 import { promptService } from '../services/promptService';
 import { useLanguage } from './LanguageContext';
 
 interface AdminPromptManagerProps {
   isFirebaseMode: boolean;
+  /**
+   * Coach roster for the coach-scope selector. Coaches without a PRO
+   * subscription are shown but disabled — only PRO coaches can own
+   * personal template overrides.
+   * When empty or omitted the scope selector is hidden and everything
+   * runs in single-coach (global) mode.
+   */
+  coaches?: CoachProfile[];
 }
+
+const SCOPE_ALL = 'all' as const;
+const SCOPE_GLOBAL = 'global' as const;
+type ScopeFilter = typeof SCOPE_ALL | typeof SCOPE_GLOBAL | string; // string = coachId
 
 const TARGET_LABELS: Record<PromptTarget, string> = {
   coachx_chat: 'Coachx Chat',
@@ -67,10 +82,17 @@ const EMPTY_TEMPLATE = (): Omit<PromptTemplate, 'id' | 'createdAt' | 'updatedAt'
   developerNote: '',
   isActive: false,
   language: 'all',
+  coachId: undefined,
   attachments: [],
 });
 
-export const AdminPromptManager: React.FC<AdminPromptManagerProps> = ({ isFirebaseMode }) => {
+const isProCoach = (coach: CoachProfile): boolean =>
+  coach.subscriptionPlan === 'PRO';
+
+export const AdminPromptManager: React.FC<AdminPromptManagerProps> = ({
+  isFirebaseMode,
+  coaches = [],
+}) => {
   const { t } = useLanguage();
   const [templates, setTemplates] = useState<PromptTemplate[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -81,7 +103,17 @@ export const AdminPromptManager: React.FC<AdminPromptManagerProps> = ({ isFireba
   const [form, setForm] = useState(EMPTY_TEMPLATE());
   const [uploadingFor, setUploadingFor] = useState<string | null>(null);
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  const [scopeFilter, setScopeFilter] = useState<ScopeFilter>(SCOPE_ALL);
   const formFileRef = useRef<HTMLInputElement>(null);
+
+  const coachById = useMemo(
+    () => new Map(coaches.map((c) => [c.id, c])),
+    [coaches]
+  );
+  const proCoaches = useMemo(() => coaches.filter(isProCoach), [coaches]);
+  // Only show the coach-scope selector when at least one coach is on PRO.
+  // In single-coach mode (or an all-FREE roster) everything stays global.
+  const isCoachScopingAvailable = proCoaches.length > 0;
 
   useEffect(() => {
     loadTemplates();
@@ -120,6 +152,7 @@ export const AdminPromptManager: React.FC<AdminPromptManagerProps> = ({ isFireba
       developerNote: template.developerNote ?? '',
       isActive: template.isActive,
       language: template.language ?? 'all',
+      coachId: template.coachId,
       attachments: template.attachments,
     });
     setEditingId(template.id);
@@ -141,6 +174,16 @@ export const AdminPromptManager: React.FC<AdminPromptManagerProps> = ({ isFireba
     setIsSaving(true);
     try {
       const now = Date.now();
+      // Guard: only accept coachId for coaches that actually exist and are
+      // PRO. Falls back to global scope silently if the id becomes stale.
+      const requestedCoachId = form.coachId;
+      const scopedCoachId =
+        requestedCoachId &&
+        coachById.get(requestedCoachId) &&
+        isProCoach(coachById.get(requestedCoachId)!)
+          ? requestedCoachId
+          : undefined;
+
       const template: PromptTemplate = {
         id: editingId ?? crypto.randomUUID(),
         name: form.name.trim(),
@@ -149,6 +192,7 @@ export const AdminPromptManager: React.FC<AdminPromptManagerProps> = ({ isFireba
         developerNote: form.developerNote?.trim() || undefined,
         isActive: form.isActive,
         language: form.language,
+        coachId: scopedCoachId,
         attachments: form.attachments,
         createdAt: editingId
           ? (templates.find((t) => t.id === editingId)?.createdAt ?? now)
@@ -341,6 +385,79 @@ export const AdminPromptManager: React.FC<AdminPromptManagerProps> = ({ isFireba
             </div>
           </div>
 
+          {/* Scope selector — only shown when at least one coach is on PRO.
+              Single-coach / all-FREE deployments stay implicitly global. */}
+          {isCoachScopingAvailable && (
+            <div className="border border-indigo-100 bg-indigo-50/40 rounded-lg p-4">
+              <label className="block text-xs font-bold text-gray-500 mb-2">
+                적용 범위 (Scope){' '}
+                <span className="font-normal text-gray-400">
+                  — 특정 코치를 선택하면 그 코치(및 그 코치를 지정한 학생)에게만 이 프롬프트가 적용됩니다.
+                </span>
+              </label>
+              <div className="flex flex-wrap gap-2 mb-3">
+                <button
+                  type="button"
+                  onClick={() => setForm((f) => ({ ...f, coachId: undefined }))}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition-colors ${
+                    !form.coachId
+                      ? 'bg-indigo-600 text-white border-indigo-600'
+                      : 'bg-white text-gray-600 border-gray-300 hover:border-indigo-300'
+                  }`}
+                >
+                  <Globe2 className="w-3.5 h-3.5" /> 전역 (모든 코치)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    // Auto-select the first PRO coach so the button reflects intent.
+                    if (proCoaches[0]) {
+                      setForm((f) => ({ ...f, coachId: proCoaches[0].id }));
+                    }
+                  }}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition-colors ${
+                    form.coachId
+                      ? 'bg-indigo-600 text-white border-indigo-600'
+                      : 'bg-white text-gray-600 border-gray-300 hover:border-indigo-300'
+                  }`}
+                >
+                  <UserCircle2 className="w-3.5 h-3.5" /> 특정 코치
+                </button>
+              </div>
+              {form.coachId && (
+                <select
+                  value={form.coachId}
+                  onChange={(e) => setForm((f) => ({ ...f, coachId: e.target.value }))}
+                  className="w-full md:w-1/2 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm bg-white"
+                >
+                  {coaches.map((c) => {
+                    const disabled = !isProCoach(c);
+                    return (
+                      <option key={c.id} value={c.id} disabled={disabled}>
+                        {c.name}
+                        {disabled ? ' — FREE 플랜 (PRO 필요)' : ''}
+                      </option>
+                    );
+                  })}
+                </select>
+              )}
+              {form.coachId && !coachById.get(form.coachId) && (
+                <p className="text-xs text-red-500 mt-2 flex items-center gap-1">
+                  <AlertTriangle className="w-3 h-3" />
+                  선택된 코치를 찾을 수 없습니다. 저장 시 전역으로 저장됩니다.
+                </p>
+              )}
+              {form.coachId &&
+                coachById.get(form.coachId) &&
+                !isProCoach(coachById.get(form.coachId)!) && (
+                  <p className="text-xs text-amber-600 mt-2 flex items-center gap-1">
+                    <Lock className="w-3 h-3" />
+                    해당 코치는 PRO 플랜이 아닙니다. 저장 시 전역으로 저장됩니다.
+                  </p>
+                )}
+            </div>
+          )}
+
           <div>
             <label className="block text-xs font-bold text-gray-500 mb-1">
               {t('admin_prompt_system_label')} <span className="font-normal text-gray-400">(Gemini에 전달되는 역할/규칙 지시문)</span>
@@ -441,6 +558,49 @@ export const AdminPromptManager: React.FC<AdminPromptManagerProps> = ({ isFireba
         </div>
       )}
 
+      {/* Scope filter — only useful when coach scoping is available. */}
+      {isCoachScopingAvailable && templates.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs font-bold text-gray-500 mr-1">범위 필터:</span>
+          <button
+            type="button"
+            onClick={() => setScopeFilter(SCOPE_ALL)}
+            className={`px-3 py-1 rounded-full text-xs font-bold border transition-colors ${
+              scopeFilter === SCOPE_ALL
+                ? 'bg-gray-800 text-white border-gray-800'
+                : 'bg-white text-gray-600 border-gray-300 hover:border-gray-400'
+            }`}
+          >
+            전체
+          </button>
+          <button
+            type="button"
+            onClick={() => setScopeFilter(SCOPE_GLOBAL)}
+            className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold border transition-colors ${
+              scopeFilter === SCOPE_GLOBAL
+                ? 'bg-indigo-600 text-white border-indigo-600'
+                : 'bg-white text-gray-600 border-gray-300 hover:border-indigo-300'
+            }`}
+          >
+            <Globe2 className="w-3 h-3" /> 전역만
+          </button>
+          {proCoaches.map((c) => (
+            <button
+              key={c.id}
+              type="button"
+              onClick={() => setScopeFilter(c.id)}
+              className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold border transition-colors ${
+                scopeFilter === c.id
+                  ? 'bg-indigo-600 text-white border-indigo-600'
+                  : 'bg-white text-gray-600 border-gray-300 hover:border-indigo-300'
+              }`}
+            >
+              <UserCircle2 className="w-3 h-3" /> {c.name}
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* Template list */}
       {isLoading ? (
         <div className="text-center py-10 text-gray-400 text-sm">{t('loading')}</div>
@@ -454,9 +614,15 @@ export const AdminPromptManager: React.FC<AdminPromptManagerProps> = ({ isFireba
         </div>
       ) : (
         <div className="space-y-3">
-          {/* Group by target */}
+          {/* Group by target, filtered by scope. */}
           {ALL_TARGETS.map((target) => {
-            const group = templates.filter((tmpl) => tmpl.target === target);
+            const group = templates
+              .filter((tmpl) => tmpl.target === target)
+              .filter((tmpl) => {
+                if (scopeFilter === SCOPE_ALL) return true;
+                if (scopeFilter === SCOPE_GLOBAL) return !tmpl.coachId;
+                return tmpl.coachId === scopeFilter;
+              });
             if (group.length === 0) return null;
             return (
               <div key={target}>
@@ -471,6 +637,9 @@ export const AdminPromptManager: React.FC<AdminPromptManagerProps> = ({ isFireba
                     <PromptCard
                       key={template.id}
                       template={template}
+                      coachName={
+                        template.coachId ? coachById.get(template.coachId)?.name : undefined
+                      }
                       isExpanded={expandedId === template.id}
                       isUploadingAttachment={uploadingFor === template.id}
                       onToggleExpand={() =>
@@ -501,6 +670,8 @@ export const AdminPromptManager: React.FC<AdminPromptManagerProps> = ({ isFireba
 
 interface PromptCardProps {
   template: PromptTemplate;
+  /** Resolved coach name for coachId; undefined for a global template. */
+  coachName?: string;
   isExpanded: boolean;
   isUploadingAttachment: boolean;
   onToggleExpand: () => void;
@@ -515,6 +686,7 @@ interface PromptCardProps {
 
 const PromptCard: React.FC<PromptCardProps> = ({
   template,
+  coachName,
   isExpanded,
   isUploadingAttachment,
   onToggleExpand,
@@ -562,6 +734,23 @@ const PromptCard: React.FC<PromptCardProps> = ({
             {template.isActive && (
               <span className="text-[10px] font-bold px-1.5 py-0.5 bg-indigo-100 text-indigo-700 rounded-full">
                 ACTIVE
+              </span>
+            )}
+            {/* Scope badge — global vs coach-scoped */}
+            {template.coachId ? (
+              <span
+                className="text-[10px] font-bold px-1.5 py-0.5 bg-purple-100 text-purple-700 rounded-full flex items-center gap-0.5"
+                title="이 코치(및 그 코치를 지정한 학생)에게만 적용됩니다"
+              >
+                <UserCircle2 className="w-2.5 h-2.5" />
+                {coachName ?? '알 수 없는 코치'}
+              </span>
+            ) : (
+              <span
+                className="text-[10px] font-bold px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded-full flex items-center gap-0.5"
+                title="모든 코치에게 적용되는 전역 프롬프트"
+              >
+                <Globe2 className="w-2.5 h-2.5" /> 전역
               </span>
             )}
             {template.language && template.language !== 'all' && (
