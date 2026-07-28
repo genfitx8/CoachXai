@@ -32,6 +32,7 @@ import {
   coachXGrowthProfileSchema,
   coachXInsightsSchema,
   extractGolfDataSchema,
+  generateSystemPromptFromDocumentSchema,
   motionCaptureSchema,
   trackmanScreenSchema,
   weeklyInsightSchema,
@@ -2154,4 +2155,125 @@ ${conversationBlock}--- 제공 데이터 끝 ---
     };
     return fallbacks[language] ?? fallbacks['ko'];
   }
+};
+
+// ─── Phase B: Prompt generation from uploaded documents ─────────────────────
+
+/**
+ * Short description of what each PromptTarget is responsible for, in the
+ * coach's language. Used to steer the meta-extractor so the produced
+ * systemPrompt is calibrated to the right AI feature.
+ */
+const TARGET_DESCRIPTIONS_FOR_EXTRACTION: Record<import('../types').PromptTarget, string> = {
+  coachx_chat: '코치가 CoachX AI에게 자기 회원·레슨에 대해 물어볼 때 응답하는 대화형 코칭 어시스턴트',
+  coachx_insights: '코치 대시보드에 표시되는 3~5개 코칭 인사이트(JSON 배열)를 생성',
+  weekly_insight: '회원 주간 연습 인사이트(summary/keyPatterns/recommendedFocus JSON) 생성',
+  coach_material: '코치가 다음 레슨에 쓸 교재/드릴 초안 생성',
+  lesson_summary: '레슨 영상·이미지·오디오를 바탕으로 회원에게 공유할 레슨 리포트(마크다운) 생성',
+  compare_swings: 'Before/After 두 스윙(영상·이미지·오디오) 비교 분석(JSON) 생성',
+  motion_capture: 'K-Motion 등 3D 모션캡처 화면을 읽고 수치 + 마크다운 코칭 피드백 생성',
+  training_program: '회원별 맞춤 주간 훈련 프로그램(마크다운) 생성',
+  student_chat: '학생 전용 CoachX AI가 자기 기록 데이터를 근거로 골프 관련 질문에 답변',
+};
+
+export interface GeneratedSystemPromptResult {
+  /** Drop-in text a coach can paste into PromptTemplate.systemPrompt. */
+  systemPrompt: string;
+  /** 1–2 sentence summary of what was extracted (for coach to skim). */
+  summary: string;
+  /** Optional distilled principles from the document. */
+  principles?: string[];
+  /** Optional coach-preferred terminology extracted from the document. */
+  preferredTerminology?: { term: string; meaning: string }[];
+}
+
+/**
+ * Read a coach's uploaded methodology document and produce a runnable
+ * systemPrompt tailored to a specific AI feature (target).
+ *
+ * The doc is sent to Gemini as inlineData — PDFs and text-based formats
+ * are handled natively; DOCX must be converted to PDF or plain text
+ * before calling.
+ */
+export const generateSystemPromptFromDocument = async (params: {
+  file: Blob;
+  mimeType: string;
+  target: import('../types').PromptTarget;
+  /** Optional: current systemPrompt the coach already has, if any. */
+  existingSystemPrompt?: string;
+}): Promise<GeneratedSystemPromptResult> => {
+  const { file, mimeType, target, existingSystemPrompt } = params;
+  const mediaPart = await fileToGenerativePart(file, mimeType);
+
+  const targetDescription = TARGET_DESCRIPTIONS_FOR_EXTRACTION[target];
+
+  const systemInstruction = `당신은 골프 코치의 강의자료·방법론 문서를 읽고,
+Gemini에 전달할 시스템 프롬프트(systemInstruction)를 작성하는 프롬프트 엔지니어입니다.
+
+작성 원칙:
+- 문서에 실제로 담긴 방법론·원칙·표현·톤·용어를 최대한 반영합니다.
+- 문서에 없는 내용을 지어내지 않습니다.
+- systemPrompt는 그대로 붙여 넣어 바로 쓸 수 있는 형태로 작성합니다 (마크다운 지원).
+- 코치의 어투와 우선순위를 시스템 프롬프트의 원칙 섹션으로 정리합니다.
+- 문서에 반복해서 나오는 용어는 preferredTerminology로 정리합니다.
+- summary는 코치가 검토용으로 훑을 1~2문장 요약입니다.`;
+
+  const existingBlock = existingSystemPrompt
+    ? `\n\n[코치가 지금 쓰고 있는 systemPrompt — 참고. 문서 내용을 반영해 개선/재작성하되, 문서와 충돌이 없다면 기존 어투를 유지]\n${existingSystemPrompt}`
+    : '';
+
+  const prompt = `대상 AI 기능(target): ${target}
+이 기능이 하는 일: ${targetDescription}
+
+첨부 문서를 정독해서, 이 코치의 방법론을 반영한 systemPrompt를
+"${target}" 기능이 매 요청마다 받게 될 시스템 지시문으로 작성해 주세요.${existingBlock}
+
+응답은 JSON 스키마를 따르며, 다음 필드를 포함합니다:
+- systemPrompt: 붙여넣어 바로 쓸 수 있는 시스템 프롬프트 (마크다운 가능, 300~1200자 권장)
+- summary: 코치가 훑을 1~2문장 (예: "문서에서 XX 원칙과 YY 용어 4개를 추출해 반영했습니다")
+- principles: 3~8개의 원칙 bullet (systemPrompt에도 이미 포함되어야 함)
+- preferredTerminology: 코치가 반복적으로 쓰는 용어와 의미`;
+
+  const result = await invokeBackendAI<unknown>('generate_system_prompt', {
+    prompt,
+    systemInstruction,
+    mediaParts: [mediaPart],
+    responseMimeType: 'application/json',
+    responseSchema: generateSystemPromptFromDocumentSchema,
+    temperature: 0.4,
+  });
+
+  const text = getJsonTextFromResult(result);
+  const parsed = parseJsonObjectFromText(text);
+  if (!parsed) {
+    throw new Error('AI가 유효한 응답을 반환하지 않았습니다.');
+  }
+
+  const systemPrompt = typeof parsed.systemPrompt === 'string' ? parsed.systemPrompt.trim() : '';
+  const summary = typeof parsed.summary === 'string' ? parsed.summary.trim() : '';
+  if (!systemPrompt) {
+    throw new Error('AI 응답에 systemPrompt가 비어 있습니다.');
+  }
+
+  const principles = Array.isArray(parsed.principles)
+    ? (parsed.principles.filter((p): p is string => typeof p === 'string' && p.trim().length > 0))
+    : undefined;
+
+  const preferredTerminology = Array.isArray(parsed.preferredTerminology)
+    ? parsed.preferredTerminology
+        .filter(
+          (t): t is { term: string; meaning: string } =>
+            !!t &&
+            typeof t === 'object' &&
+            typeof (t as Record<string, unknown>).term === 'string' &&
+            typeof (t as Record<string, unknown>).meaning === 'string'
+        )
+    : undefined;
+
+  return {
+    systemPrompt,
+    summary: summary || '문서에서 방법론을 추출했습니다.',
+    principles,
+    preferredTerminology,
+  };
 };
