@@ -627,7 +627,12 @@ export type PromptTarget =
   | 'coachx_chat'
   | 'coachx_insights'
   | 'weekly_insight'
-  | 'coach_material';
+  | 'coach_material'
+  | 'lesson_summary'
+  | 'compare_swings'
+  | 'motion_capture'
+  | 'training_program'
+  | 'student_chat';
 
 /** A file attached to a PromptTemplate for additional AI context. */
 export interface PromptAttachment {

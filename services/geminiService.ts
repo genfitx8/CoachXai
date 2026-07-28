@@ -323,44 +323,19 @@ export const analyzeSwingVideo = async (
         ? '측면(Side View)'
         : '알 수 없음(자동 감지)';
 
-    const prompt = `
-      당신은 코치가 회원에게 전달할 레슨 리포트를 정리해주는 AI입니다.
-      업로드된 자료를 바탕으로, 평가/판정 중심이 아닌 **회원 친화적인 레슨 요약 리포트**를 작성해주세요.
+    const isFirebaseMode = firebaseService.isInitialized();
+    const systemInstruction = await promptService.getActiveSystemPrompt('lesson_summary', isFirebaseMode);
 
-      **리포트 참고 자료:**
-      - **촬영 앵글**: ${angleText}
-      - **오디오 데이터**: 레슨 현장의 대화 및 타구음
-      - **비주얼 데이터**: 스윙 영상 및 이미지
-      - **추가 메모**: "${userNotes}"
-
-      **작성 원칙:**
-      1. 회원이 바로 이해할 수 있는 쉬운 표현을 사용하세요.
-      2. 분석/진단/평가/판정 느낌의 과한 표현은 피하고, 관찰된 내용 중심으로 정리하세요.
-      3. 코치가 실제로 전달한 교정 포인트를 중심으로 정리하세요.
-      4. 정보가 불충분하면 단정하지 말고 "추가 확인이 필요"하다고 부드럽게 표현하세요.
-      5. 오디오가 포함된 경우, 반드시 **전체 녹음본이 끝난 뒤 확보된 전체 맥락**을 기준으로 요약하세요.
-      6. 여러 미디어/음성 조각이 있어도 최종 결과는 **하나의 통합 레슨 리포트**로 작성하세요.
-      7. "AI 분석" 같은 표현 대신 회원에게 공유 가능한 "레슨 리포트" 톤을 유지하세요.
-      8. 아래 형식을 준수해 마크다운으로 출력하세요.
-
-      ---
-
-      ## 📝 오늘의 레슨 요약
-      (오늘 어떤 동작과 흐름을 중심으로 레슨했는지 3~5문장으로 정리)
-
-      ## 🎯 핵심 코칭 포인트
-      - (교정/유지가 필요한 핵심 포인트를 3개 내외로 정리)
-      - (각 항목은 회원이 이해하기 쉬운 문장으로 작성)
-
-      ---
-
-      *회원에게 바로 공유할 수 있는 톤으로 정리해주세요.*
-    `;
+    const prompt = `**리포트 참고 자료:**
+- **촬영 앵글**: ${angleText}
+- **오디오 데이터**: 레슨 현장의 대화 및 타구음
+- **비주얼 데이터**: 스윙 영상 및 이미지
+- **추가 메모**: "${userNotes}"`;
 
     const result = await invokeBackendAI<unknown>('lesson_summary', {
       prompt,
+      systemInstruction,
       mediaParts,
-      temperature: 0.4,
     });
 
     const text = getResponseText(result);
@@ -574,40 +549,28 @@ export const compareSwings = async (
     const isAudioComparison =
       oldMime.startsWith('audio/') || newMime.startsWith('audio/');
 
-    let prompt = '';
+    const dataDescription = isAudioComparison
+      ? '두 개의 레슨 데이터(하나 또는 둘 다 음성 녹음). 코치의 피드백 변화 등을 비교하여 회원이 어떤 부분에서 발전했거나 변화했는지 분석하세요.'
+      : '두 개의 골프 스윙 데이터(영상 또는 사진). 시각적으로 비교하여 회원이 얼마나 발전했는지 분석하세요.';
 
-    if (isAudioComparison) {
-      prompt = `
-          당신은 전문적인 골프 코치입니다. 
-          두 개의 레슨 데이터가 있습니다. (하나 또는 둘 다 음성 녹음일 수 있습니다.)
-          첫 번째 데이터: ${oldDate} (과거)
-          두 번째 데이터: ${newDate} (최근)
-          
-          이 두 레슨의 내용을 비교하여(코치의 피드백 변화 등) 사용자가 어떤 부분에서 발전했거나 변화했는지 분석해주세요.
-       `;
-    } else {
-      prompt = `
-          당신은 전문적인 골프 코치입니다. 
-          두 개의 골프 스윙 데이터(영상 또는 사진)가 있습니다.
-          첫 번째 데이터: ${oldDate} (과거)
-          두 번째 데이터: ${newDate} (최근)
-          
-          이 두 스윙을 시각적으로 비교하여 사용자가 얼마나 발전했는지 분석해주세요.
-       `;
-    }
+    const isFirebaseMode = firebaseService.isInitialized();
+    const systemInstruction = await promptService.getActiveSystemPrompt('compare_swings', isFirebaseMode);
 
-    const commonPrompt = `
-      다음 JSON 형식으로 정확하게 출력해주세요 (마크다운 코드 블록 없이 순수 JSON만 출력):
-      {
-        "improvementScore": 0에서 100 사이의 숫자 (발전 정도),
-        "summary": "발전 사항에 대한 한 줄 요약",
-        "keyChanges": ["변경점1", "변경점2", "변경점3"],
-        "coachComment": "격려와 구체적인 피드백이 담긴 긴 코멘트 (마크다운 지원)"
-      }
-    `;
+    const prompt = `${dataDescription}
+- 첫 번째 데이터: ${oldDate} (과거)
+- 두 번째 데이터: ${newDate} (최근)
+
+다음 JSON 형식으로 정확하게 출력하세요 (마크다운 코드 블록 없이 순수 JSON만 출력):
+{
+  "improvementScore": 0에서 100 사이의 숫자 (발전 정도),
+  "summary": "발전 사항에 대한 한 줄 요약",
+  "keyChanges": ["변경점1", "변경점2", "변경점3"],
+  "coachComment": "격려와 구체적인 피드백이 담긴 긴 코멘트 (마크다운 지원)"
+}`;
 
     const result = await invokeBackendAI<unknown>('compare_swings', {
-      prompt: prompt + commonPrompt,
+      prompt,
+      systemInstruction,
       mediaParts: [
         oldMediaPart,
         newMediaPart,
@@ -972,10 +935,10 @@ export const generateTrainingProgram = async (
     const end = new Date(config.endDate).getTime();
     const weeks = Math.max(1, Math.round((end - start) / msPerWeek));
 
-    const prompt = `
-당신은 전문 골프 코치 AI입니다. 아래 회원 정보와 레슨 기록을 바탕으로 맞춤형 훈련 프로그램을 작성해주세요.
+    const isFirebaseMode = firebaseService.isInitialized();
+    const systemInstruction = await promptService.getActiveSystemPrompt('training_program', isFirebaseMode);
 
-**회원 정보:**
+    const prompt = `**회원 정보:**
 - 이름: ${profile.name}
 - ${handicapInfo}
 ${bestScoreInfo ? `- ${bestScoreInfo}` : ''}
@@ -990,18 +953,12 @@ ${goalInfo ? `- ${goalInfo}` : ''}
 **최근 레슨 기록 요약:**
 ${lessonContext}
 
-**작성 지침:**
-1. 주차별로 구체적인 훈련 계획을 작성해주세요 (1주차, 2주차, ...).
-2. 각 주차에는 주요 훈련 포커스와 구체적인 드릴/연습 방법을 포함해주세요.
-3. 레슨 기록에서 발견된 약점이나 반복적으로 지적된 부분을 우선 반영해주세요.
-4. 1회 세션에서 할 수 있는 훈련량으로 현실적으로 조정해주세요 (${config.sessionDurationMinutes}분 기준).
-5. 마크다운 형식으로 작성하고, 읽기 쉽고 실용적으로 구성해주세요.
-6. 한국어로 작성해주세요.
+주차별로(1주차, 2주차, …) 구체적 훈련 계획을 마크다운으로 작성해 주세요. ${config.sessionDurationMinutes}분 세션 기준으로 현실적인 훈련량을 유지하세요.`;
 
-프로그램을 작성해주세요:
-`;
-
-    const result = await invokeBackendAI<unknown>('training_program', { prompt });
+    const result = await invokeBackendAI<unknown>('training_program', {
+      prompt,
+      systemInstruction,
+    });
     const text = getResponseText(result);
     if (!text) throw new Error('Training program generation failed');
     return text;
@@ -1826,8 +1783,10 @@ export const analyzeMotionCapture = async (
     })
   );
 
-  const prompt = `
-이 이미지들은 골프 스윙 3D 모션 캡처 시스템(K-Motion, Swing Catalyst 등)의 화면 캡처입니다.
+  const isFirebaseMode = firebaseService.isInitialized();
+  const systemInstruction = await promptService.getActiveSystemPrompt('motion_capture', isFirebaseMode);
+
+  const prompt = `이 이미지들은 골프 스윙 3D 모션 캡처 시스템(K-Motion, Swing Catalyst 등)의 화면 캡처입니다.
 화면 오른쪽 패널에는 스켈레톤 모델과 다음 7가지 측정값이 표시됩니다:
 - 고개가 앞으로 쏠림 (Head forward tilt, cm, 방향: 앞/뒤)
 - 머리 좌우로 흔들림 (Head lateral sway, cm, 방향: 좌/우/정)
@@ -1838,42 +1797,20 @@ export const analyzeMotionCapture = async (
 - 상체 상부 들림 (Upper body rise, cm, 방향: 상/하)
 
 각 이미지의 화면 하단 타임라인에서 현재 시간(초)을 읽을 수 있습니다.
-
-**지시사항:**
-1. 각 이미지에서 위 7가지 측정값과 타임라인 시간을 추출하세요.
-2. 방향 텍스트를 부호로 변환하세요: 앞/우/상 = 양수, 뒤/좌/하/정 = 0 또는 음수 (정은 0).
-3. 스윙 단계는 타임라인 시간을 기준으로 추정하세요 (예: 0초 근처 = 어드레스 또는 임팩트, 음수 = 백스윙).
-4. 측정값을 바탕으로 골프 코칭 분석을 마크다운으로 작성하세요.
+스윙 단계는 타임라인 시간을 기준으로 추정하세요 (예: 0초 근처 = 어드레스 또는 임팩트, 음수 = 백스윙).
 ${coachNotes ? `\n코치 메모: "${coachNotes}"` : ''}
 
-**응답은 반드시 아래 JSON 형식으로만 출력하세요 (다른 텍스트 없이):**
-{
-  "measurements": [
-    {
-      "swingPhase": "스윙 단계명",
-      "timeSeconds": 0.0,
-      "headForwardTilt": 0,
-      "headLateralSway": 0,
-      "upperBodyPush": 0,
-      "headLift": 0,
-      "upperBodyLateralMove": 0,
-      "hipSlide": 0,
-      "upperBodyLift": 0
-    }
-  ],
-  "aiAnalysis": "## 모션 데이터 분석\\n\\n[마크다운 형식의 코칭 피드백]"
-}
-
+각 이미지에서 측정값과 타임라인을 추출해 measurements 배열에 담고, 종합 코칭 피드백을 aiAnalysis에 마크다운으로 작성하세요.
 aiAnalysis에는 다음을 포함하세요:
 - 주요 이슈 (수치가 큰 항목 중심)
 - 스윙 단계별 주목할 패턴
 - 구체적인 교정 방향 및 연습 방법
-- 전반적인 평가 (회원 친화적 톤)
-`;
+- 전반적인 평가 (회원 친화적 톤)`;
 
   try {
     const result = await invokeBackendAI<unknown>('motion_capture_analysis', {
       prompt,
+      systemInstruction,
       mediaParts,
       responseMimeType: 'application/json',
       responseSchema: motionCaptureSchema,
@@ -2139,28 +2076,10 @@ export const generateStudentChatResponse = async (
         '\n'
       : '';
 
-    const systemInstruction = `당신은 학생 전용 AI 골프 코칭 어시스턴트 "CoachX AI"입니다.
+    const isFirebaseMode = firebaseService.isInitialized();
+    const baseSystemPrompt = await promptService.getActiveSystemPrompt('student_chat', isFirebaseMode);
 
-【역할 범위 — 아래 주제만 답변하세요】
-• 골프 스윙, 기술, 연습 방법
-• 제공된 기록 데이터 기반의 개인화된 분석
-• 코치 예약, 스케줄, 연락처 (제공된 코치 정보 기준)
-• 숙제·미션 관련 질문
-
-골프·코칭과 무관한 질문(날씨, 음식, 일반 상식 등)은 정중히 거절하고
-골프 관련 주제로 안내하세요. 절대 엉뚱한 내용을 지어내지 마세요.
-
-답변 원칙:
-- 이전 대화 내역이 있으면 반드시 맥락을 이어받아 답변하세요
-- 제공된 기록 데이터 외 정보는 지어내지 마세요; 데이터가 없으면 솔직히 말하세요
-- 기록 데이터를 직접 참조하여 날짜나 수치를 언급하며 구체적으로 답변하세요
-- 반복되는 문제 패턴(태그, 코치 노트, 연습 일지의 문제점)이 있다면 명확히 짚어주세요
-- 구질 데이터(볼속도, 비거리, 클럽패스, 페이스앵글 등)가 있으면 수치를 활용해 분석하세요
-- 모션캡처 수치가 있으면 신체 움직임의 원인과 교정 방법을 연결해 설명하세요
-- 스코어카드 데이터가 있으면 퍼팅 수, 파온율, 어려웠던 홀 등을 구체적으로 활용하세요
-- 연습 일지의 자기 보고 내용과 레슨 데이터를 교차 분석하세요
-- 코치 스케줄이나 연락처 질문은 코치 정보를 정확히 활용하세요
-- 800자 이내로 명확하고 실용적으로 답변하세요
+    const systemInstruction = `${baseSystemPrompt}
 
 언어 지시: ${LANG_INSTRUCTION[language]}`;
 
