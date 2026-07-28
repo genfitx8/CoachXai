@@ -177,3 +177,49 @@ describe('storageService prompt attachment helpers', () => {
     expect(found?.attachments).toHaveLength(0);
   });
 });
+
+describe('BUILTIN_SYSTEM_PROMPTS coverage', () => {
+  // Each PromptTarget must have a built-in fallback so getActiveSystemPrompt
+  // never returns undefined for a valid target.
+  it.each([
+    'coachx_chat',
+    'coachx_insights',
+    'weekly_insight',
+    'coach_material',
+    'lesson_summary',
+    'compare_swings',
+    'motion_capture',
+    'training_program',
+    'student_chat',
+  ] as const)('has a non-empty built-in for %s', (target) => {
+    const prompt = BUILTIN_SYSTEM_PROMPTS[target];
+    expect(typeof prompt).toBe('string');
+    expect(prompt.trim().length).toBeGreaterThan(0);
+  });
+
+  it('resolves fallback for each newly-added target via getActiveSystemPrompt', async () => {
+    const newTargets = [
+      'lesson_summary',
+      'compare_swings',
+      'motion_capture',
+      'training_program',
+      'student_chat',
+    ] as const;
+    for (const target of newTargets) {
+      const result = await promptService.getActiveSystemPrompt(target, false);
+      expect(result).toBe(BUILTIN_SYSTEM_PROMPTS[target]);
+    }
+  });
+
+  it('overrides the built-in when an active template is stored for a new target', async () => {
+    const template = makeTemplate({
+      target: 'lesson_summary',
+      isActive: true,
+      systemPrompt: '코치 김철수의 커스텀 레슨 요약 프롬프트',
+    });
+    storageService.savePromptTemplate(template);
+
+    const result = await promptService.getActiveSystemPrompt('lesson_summary', false);
+    expect(result).toBe('코치 김철수의 커스텀 레슨 요약 프롬프트');
+  });
+});

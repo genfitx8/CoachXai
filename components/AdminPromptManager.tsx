@@ -29,6 +29,11 @@ const TARGET_LABELS: Record<PromptTarget, string> = {
   coachx_insights: 'Coachx Insights',
   weekly_insight: 'Weekly Insight',
   coach_material: 'Coach Material',
+  lesson_summary: 'Lesson Summary',
+  compare_swings: 'Swing Comparison',
+  motion_capture: 'Motion Capture Analysis',
+  training_program: 'Training Program',
+  student_chat: 'Student Chat',
 };
 
 const TARGET_DESCRIPTIONS: Record<PromptTarget, string> = {
@@ -36,6 +41,11 @@ const TARGET_DESCRIPTIONS: Record<PromptTarget, string> = {
   coachx_insights: 'Controls the structured JSON insights generated on the Coachx dashboard.',
   weekly_insight: 'Controls how weekly practice insights are generated for members.',
   coach_material: 'Controls how coaching material drafts are generated.',
+  lesson_summary: '레슨 영상/이미지 업로드 후 자동 생성되는 회원 친화적 리포트의 톤과 형식을 제어합니다.',
+  compare_swings: 'Before/After 스윙 비교 분석의 관점·톤을 제어합니다 (improvementScore 산정 방식 포함).',
+  motion_capture: 'K-Motion 등 모션캡처 화면을 해석해 코칭 피드백을 작성하는 방식을 제어합니다.',
+  training_program: '회원별 맞춤 훈련 프로그램(주차별 계획, 드릴, 훈련량)을 생성하는 방식을 제어합니다.',
+  student_chat: '학생 CoachX 대화 어시스턴트의 응답 스코프·톤·규칙을 제어합니다.',
 };
 
 const ALL_TARGETS: PromptTarget[] = [
@@ -43,6 +53,11 @@ const ALL_TARGETS: PromptTarget[] = [
   'coachx_insights',
   'weekly_insight',
   'coach_material',
+  'lesson_summary',
+  'compare_swings',
+  'motion_capture',
+  'training_program',
+  'student_chat',
 ];
 
 const EMPTY_TEMPLATE = (): Omit<PromptTemplate, 'id' | 'createdAt' | 'updatedAt'> => ({
