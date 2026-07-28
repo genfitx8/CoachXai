@@ -2187,23 +2187,57 @@ export interface GeneratedSystemPromptResult {
   preferredTerminology?: { term: string; meaning: string }[];
 }
 
-/**
- * Read a coach's uploaded methodology document and produce a runnable
- * systemPrompt tailored to a specific AI feature (target).
- *
- * The doc is sent to Gemini as inlineData — PDFs and text-based formats
- * are handled natively; DOCX must be converted to PDF or plain text
- * before calling.
- */
-export const generateSystemPromptFromDocument = async (params: {
+export interface StyleSourceDocument {
   file: Blob;
   mimeType: string;
-  target: import('../types').PromptTarget;
-  /** Optional: current systemPrompt the coach already has, if any. */
-  existingSystemPrompt?: string;
-}): Promise<GeneratedSystemPromptResult> => {
-  const { file, mimeType, target, existingSystemPrompt } = params;
-  const mediaPart = await fileToGenerativePart(file, mimeType);
+  /** Optional display name — helps the model reference the source. */
+  fileName?: string;
+}
+
+/**
+ * Read one or more coach methodology documents and produce a runnable
+ * systemPrompt tailored to a specific AI feature (target).
+ *
+ * Docs are sent to Gemini as inlineData — PDFs and text-based formats
+ * are handled natively; DOCX must be converted to PDF or plain text
+ * before calling. When multiple docs are provided they are FUSED into a
+ * single coherent systemPrompt (methodology + tone + terminology from
+ * across all sources).
+ *
+ * Accepts either the legacy single-file shape (`{ file, mimeType }`)
+ * or the new multi-file shape (`{ files }`). The legacy shape is kept
+ * for backwards compat with earlier callers.
+ */
+export const generateSystemPromptFromDocument = async (
+  params:
+    | {
+        // Legacy single-file API (PR B1). Prefer `files` below for new callers.
+        file: Blob;
+        mimeType: string;
+        target: import('../types').PromptTarget;
+        existingSystemPrompt?: string;
+      }
+    | {
+        files: StyleSourceDocument[];
+        target: import('../types').PromptTarget;
+        existingSystemPrompt?: string;
+      }
+): Promise<GeneratedSystemPromptResult> => {
+  const target = params.target;
+  const existingSystemPrompt = params.existingSystemPrompt;
+
+  const sources: StyleSourceDocument[] =
+    'files' in params
+      ? params.files
+      : [{ file: params.file, mimeType: params.mimeType }];
+
+  if (sources.length === 0) {
+    throw new Error('최소 1개 이상의 문서가 필요합니다.');
+  }
+
+  const mediaParts = await Promise.all(
+    sources.map((s) => fileToGenerativePart(s.file, s.mimeType))
+  );
 
   const targetDescription = TARGET_DESCRIPTIONS_FOR_EXTRACTION[target];
 
@@ -2222,22 +2256,32 @@ Gemini에 전달할 시스템 프롬프트(systemInstruction)를 작성하는 �
     ? `\n\n[코치가 지금 쓰고 있는 systemPrompt — 참고. 문서 내용을 반영해 개선/재작성하되, 문서와 충돌이 없다면 기존 어투를 유지]\n${existingSystemPrompt}`
     : '';
 
+  // Multi-doc: give the model an index so it can cross-reference sources
+  // when principles/terminology come from different documents.
+  const docIndex = sources
+    .map((s, i) => `문서 ${i + 1}${s.fileName ? `: ${s.fileName}` : ''}`)
+    .join('\n');
+  const multiDocBlock =
+    sources.length > 1
+      ? `\n\n첨부된 문서 목록 (${sources.length}개, 아래 순서대로 inline 첨부):\n${docIndex}\n\n여러 문서에 걸친 방법론·원칙·용어를 하나의 응집된 systemPrompt로 통합해 주세요. 서로 모순되는 지침이 있으면 문서 순서(위쪽이 우선)를 따르되 요약에 명시해 주세요.`
+      : '';
+
   const prompt = `대상 AI 기능(target): ${target}
 이 기능이 하는 일: ${targetDescription}
 
-첨부 문서를 정독해서, 이 코치의 방법론을 반영한 systemPrompt를
-"${target}" 기능이 매 요청마다 받게 될 시스템 지시문으로 작성해 주세요.${existingBlock}
+첨부 ${sources.length === 1 ? '문서' : `문서 ${sources.length}개`}를 정독해서, 이 코치의 방법론을 반영한 systemPrompt를
+"${target}" 기능이 매 요청마다 받게 될 시스템 지시문으로 작성해 주세요.${multiDocBlock}${existingBlock}
 
 응답은 JSON 스키마를 따르며, 다음 필드를 포함합니다:
 - systemPrompt: 붙여넣어 바로 쓸 수 있는 시스템 프롬프트 (마크다운 가능, 300~1200자 권장)
-- summary: 코치가 훑을 1~2문장 (예: "문서에서 XX 원칙과 YY 용어 4개를 추출해 반영했습니다")
+- summary: 코치가 훑을 1~2문장 (예: "문서 ${sources.length}개에서 XX 원칙과 YY 용어 4개를 추출해 반영했습니다")
 - principles: 3~8개의 원칙 bullet (systemPrompt에도 이미 포함되어야 함)
 - preferredTerminology: 코치가 반복적으로 쓰는 용어와 의미`;
 
   const result = await invokeBackendAI<unknown>('generate_system_prompt', {
     prompt,
     systemInstruction,
-    mediaParts: [mediaPart],
+    mediaParts,
     responseMimeType: 'application/json',
     responseSchema: generateSystemPromptFromDocumentSchema,
     temperature: 0.4,
