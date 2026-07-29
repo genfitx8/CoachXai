@@ -20,9 +20,11 @@ import {
   UserCircle2,
   Lock,
   Wand2,
+  MessageCircle,
 } from 'lucide-react';
 import { promptService } from '../services/promptService';
 import { generateSystemPromptFromDocument } from '../services/geminiService';
+import { CoachInterviewModal, CoachInterviewCompletion } from './CoachInterviewModal';
 import { useLanguage } from './LanguageContext';
 
 interface AdminPromptManagerProps {
@@ -108,6 +110,7 @@ export const AdminPromptManager: React.FC<AdminPromptManagerProps> = ({
   const [scopeFilter, setScopeFilter] = useState<ScopeFilter>(SCOPE_ALL);
   const [isGeneratingPrompt, setIsGeneratingPrompt] = useState(false);
   const [generatedSummary, setGeneratedSummary] = useState<string | null>(null);
+  const [isInterviewOpen, setIsInterviewOpen] = useState(false);
   const formFileRef = useRef<HTMLInputElement>(null);
   const generateFromDocRef = useRef<HTMLInputElement>(null);
 
@@ -148,6 +151,16 @@ export const AdminPromptManager: React.FC<AdminPromptManagerProps> = ({
     setIsEditing(false);
     setPendingFiles([]);
     setGeneratedSummary(null);
+  };
+
+  const handleInterviewComplete = (completion: CoachInterviewCompletion) => {
+    // Same downstream as the document flow: fill the textarea with the AI's
+    // synthesised systemPrompt, stage the transcript as an attachment, and
+    // show a summary banner.
+    setForm((f) => ({ ...f, systemPrompt: completion.result.systemPrompt }));
+    setPendingFiles((prev) => [...prev, completion.transcriptFile]);
+    setGeneratedSummary(`인터뷰 · ${completion.result.summary}`);
+    setIsInterviewOpen(false);
   };
 
   const handleGenerateFromDocuments = async (files: File[]) => {
@@ -515,16 +528,28 @@ export const AdminPromptManager: React.FC<AdminPromptManagerProps> = ({
                     e.target.value = '';
                   }}
                 />
-                <button
-                  type="button"
-                  onClick={() => generateFromDocRef.current?.click()}
-                  disabled={isGeneratingPrompt}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-gradient-to-r from-purple-500 to-indigo-500 text-white hover:from-purple-600 hover:to-indigo-600 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
-                  title="PDF·텍스트 문서를 1개 이상 업로드하면 Gemini가 이 target에 맞는 systemPrompt 초안을 생성합니다. 여러 문서를 한 번에 선택하면 한 개의 시스템 프롬프트로 통합됩니다."
-                >
-                  <Wand2 className="w-3.5 h-3.5" />
-                  {isGeneratingPrompt ? '생성 중…' : '🪄 파일에서 생성'}
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsInterviewOpen(true)}
+                    disabled={isGeneratingPrompt}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-white text-indigo-600 border border-indigo-300 hover:bg-indigo-50 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+                    title="AI가 코치님에게 질문을 던져 방법론을 대화로 이끌어냅니다. 문서가 없어도 스타일 프롬프트를 만들 수 있어요."
+                  >
+                    <MessageCircle className="w-3.5 h-3.5" />
+                    💬 인터뷰로 생성
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => generateFromDocRef.current?.click()}
+                    disabled={isGeneratingPrompt}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-gradient-to-r from-purple-500 to-indigo-500 text-white hover:from-purple-600 hover:to-indigo-600 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+                    title="PDF·텍스트 문서를 1개 이상 업로드하면 Gemini가 이 target에 맞는 systemPrompt 초안을 생성합니다. 여러 문서를 한 번에 선택하면 한 개의 시스템 프롬프트로 통합됩니다."
+                  >
+                    <Wand2 className="w-3.5 h-3.5" />
+                    {isGeneratingPrompt ? '생성 중…' : '🪄 파일에서 생성'}
+                  </button>
+                </div>
               </div>
             </div>
             <textarea
@@ -743,6 +768,17 @@ export const AdminPromptManager: React.FC<AdminPromptManagerProps> = ({
             );
           })}
         </div>
+      )}
+
+      {/* Interview modal — mounts only while open so its opener AI call fires
+          on demand and the transcript state is discarded on close. */}
+      {isInterviewOpen && (
+        <CoachInterviewModal
+          target={form.target}
+          existingSystemPrompt={form.systemPrompt.trim() || undefined}
+          onClose={() => setIsInterviewOpen(false)}
+          onComplete={handleInterviewComplete}
+        />
       )}
     </div>
   );
