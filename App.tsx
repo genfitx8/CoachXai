@@ -359,29 +359,35 @@ const AppContent: React.FC = () => {
 
         // Sync any clients that exist only in localStorage (e.g. added while offline
         // or on a device that wasn't connected to the API) up to the server so they
-        // become visible on all devices.
+        // become visible on all devices. Restrict to clients this coach actually owns
+        // — POST /api/clients always assigns the caller as coach, so uploading a
+        // stranger's local record (or leftover mock data) would silently claim them.
         if (role === 'COACH') {
-          const localClients = storageService.getClients();
-          const unsyncedClients = localClients.filter(
-            (lc) =>
-              !fetchedClients.some(
-                (ac) => ac.name === lc.name && ac.phone === lc.phone
-              )
-          );
-          if (unsyncedClients.length > 0) {
-            try {
-              // Strip local IDs so the server assigns its own UUIDs.
-              const clientsToCreate: ClientProfile[] = unsyncedClients.map(
-                ({ id: _id, ...rest }) => rest as ClientProfile
-              );
-              await apiService.saveClients(clientsToCreate);
-              // Reload so we have the server-assigned IDs in state.
-              fetchedClients = await apiService.getClients();
-              console.log(
-                `[App] Synced ${unsyncedClients.length} local-only client(s) to server`
-              );
-            } catch (syncErr) {
-              console.warn('[App] Failed to sync local clients to server:', syncErr);
+          const currentCoachId = authService.getCoachProfile()?.id;
+          if (currentCoachId) {
+            const localClients = storageService.getClients();
+            const unsyncedClients = localClients.filter(
+              (lc) =>
+                lc.coachId === currentCoachId &&
+                !fetchedClients.some(
+                  (ac) => ac.name === lc.name && ac.phone === lc.phone
+                )
+            );
+            if (unsyncedClients.length > 0) {
+              try {
+                // Strip local IDs so the server assigns its own UUIDs.
+                const clientsToCreate: ClientProfile[] = unsyncedClients.map(
+                  ({ id: _id, ...rest }) => rest as ClientProfile
+                );
+                await apiService.saveClients(clientsToCreate);
+                // Reload so we have the server-assigned IDs in state.
+                fetchedClients = await apiService.getClients();
+                console.log(
+                  `[App] Synced ${unsyncedClients.length} local-only client(s) to server`
+                );
+              } catch (syncErr) {
+                console.warn('[App] Failed to sync local clients to server:', syncErr);
+              }
             }
           }
         }
