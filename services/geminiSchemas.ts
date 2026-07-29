@@ -121,6 +121,21 @@ export const trackmanScreenSchema = {
 } as const;
 
 /**
+ * Result of an AI-guided interview turn. The model reads the transcript so
+ * far and decides what to ask next, or signals that it has enough info to
+ * synthesise a systemPrompt (isFinal=true).
+ */
+export const interviewQuestionSchema = {
+  type: 'OBJECT',
+  properties: {
+    question: { type: 'STRING' },
+    isFinal: { type: 'BOOLEAN' },
+    rationale: { type: 'STRING' },
+  },
+  required: ['question', 'isFinal'],
+} as const;
+
+/**
  * Result of extracting a coach's methodology from an uploaded document and
  * turning it into a runnable system prompt for a specific AI feature (target).
  * - `systemPrompt`: the drop-in text a coach can save as PromptTemplate.systemPrompt

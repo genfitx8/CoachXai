@@ -33,6 +33,7 @@ import {
   coachXInsightsSchema,
   extractGolfDataSchema,
   generateSystemPromptFromDocumentSchema,
+  interviewQuestionSchema,
   motionCaptureSchema,
   trackmanScreenSchema,
   weeklyInsightSchema,
@@ -2319,5 +2320,141 @@ Gemini에 전달할 시스템 프롬프트(systemInstruction)를 작성하는 �
     summary: summary || '문서에서 방법론을 추출했습니다.',
     principles,
     preferredTerminology,
+  };
+};
+
+// ─── Phase B3: Interview-mode prompt building ───────────────────────────────
+
+export interface InterviewTurn {
+  question: string;
+  answer: string;
+}
+
+export interface InterviewNextQuestionResult {
+  /** The next question to ask the coach. */
+  question: string;
+  /** True when the interviewer thinks there's enough signal to synthesise a prompt. */
+  isFinal: boolean;
+  /** Optional short reason the interviewer chose this question (dev-facing). */
+  rationale?: string;
+}
+
+/**
+ * Ask Gemini what to ask a coach next given the interview transcript so far.
+ *
+ * The first call passes an empty transcript and gets an opening question
+ * tailored to the target. Subsequent calls append the coach's answers and
+ * receive follow-up questions that dig deeper into their methodology.
+ *
+ * When the model believes the transcript already contains enough signal
+ * (typically after 5–8 substantive Q&A pairs) it returns isFinal=true so
+ * the UI can suggest wrapping up.
+ */
+export const generateInterviewQuestion = async (params: {
+  target: import('../types').PromptTarget;
+  transcript: InterviewTurn[];
+  existingSystemPrompt?: string;
+}): Promise<InterviewNextQuestionResult> => {
+  const { target, transcript, existingSystemPrompt } = params;
+  const targetDescription = TARGET_DESCRIPTIONS_FOR_EXTRACTION[target];
+
+  const systemInstruction = `당신은 골프 코치의 방법론을 인터뷰하는 시니어 코치입니다.
+목표: 이 코치의 스타일·원칙·용어·톤을 끌어내서, 나중에 그것을 시스템 프롬프트로 변환할 수 있게 만드는 것.
+
+인터뷰 원칙:
+- 매번 하나의 질문만 던집니다. 다중 질문 금지.
+- 이미 답변받은 내용을 반복해 묻지 않습니다.
+- 대상 AI 기능(target)에 필요한 정보를 우선 확보합니다.
+- 추상적 원칙보다 구체적인 실전 예시("슬라이스 회원을 처음 만났을 때 첫 30초에 뭘 하시나요?")를 유도합니다.
+- 코치가 실제로 쓰는 어투/용어를 짧게 답변에서 재사용해 라포를 형성합니다.
+- 5~8개 정도의 실질적 Q&A가 쌓였고 target에 필요한 핵심 축(원칙·톤·용어·예시)이 다뤄졌으면 isFinal=true로 설정합니다.
+- 답변이 너무 짧아 정보가 부족하면 더 구체적으로 재질문합니다.`;
+
+  const transcriptBlock =
+    transcript.length === 0
+      ? '지금까지의 대화: 없음 (첫 질문)'
+      : `지금까지의 대화 (오래된 순):\n${transcript
+          .map((t, i) => `Q${i + 1}. ${t.question}\nA${i + 1}. ${t.answer || '(스킵)'}`)
+          .join('\n\n')}`;
+
+  const existingBlock = existingSystemPrompt
+    ? `\n\n[코치가 지금 쓰고 있는 systemPrompt — 참고. 인터뷰 질문은 이 프롬프트를 보완/개선할 정보에 초점]\n${existingSystemPrompt}`
+    : '';
+
+  const prompt = `대상 AI 기능(target): ${target}
+이 기능이 하는 일: ${targetDescription}
+
+${transcriptBlock}${existingBlock}
+
+원칙에 따라 다음 질문 하나를 한국어로 만들어 주세요.
+isFinal=true 시 question 필드에는 짧게 "완료" 대신, "지금까지의 답변으로 프롬프트를 만들 준비가 됐습니다. 마지막으로 덧붙이고 싶은 게 있나요?" 같은 마무리 질문을 넣습니다.`;
+
+  const result = await invokeBackendAI<unknown>('generate_interview_question', {
+    prompt,
+    systemInstruction,
+    responseMimeType: 'application/json',
+    responseSchema: interviewQuestionSchema,
+    temperature: 0.7,
+  });
+
+  const text = getJsonTextFromResult(result);
+  const parsed = parseJsonObjectFromText(text);
+  if (!parsed || typeof parsed.question !== 'string' || !parsed.question.trim()) {
+    throw new Error('AI가 유효한 질문을 반환하지 않았습니다.');
+  }
+
+  return {
+    question: parsed.question.trim(),
+    isFinal: parsed.isFinal === true,
+    rationale: typeof parsed.rationale === 'string' ? parsed.rationale : undefined,
+  };
+};
+
+/**
+ * Turn a completed interview transcript into a systemPrompt by feeding it
+ * to the existing document→prompt pipeline as a synthetic text "document".
+ * Reuses generateSystemPromptFromDocument so B1/B2/B3 all converge on the
+ * same downstream synthesis + provenance behaviour.
+ */
+export const finalizeInterviewToSystemPrompt = async (params: {
+  target: import('../types').PromptTarget;
+  transcript: InterviewTurn[];
+  existingSystemPrompt?: string;
+}): Promise<GeneratedSystemPromptResult & { transcriptBlob: Blob; transcriptFileName: string }> => {
+  const { target, transcript, existingSystemPrompt } = params;
+
+  if (transcript.length === 0) {
+    throw new Error('빈 인터뷰로는 프롬프트를 생성할 수 없습니다.');
+  }
+
+  const now = new Date();
+  const stamp = now.toISOString().slice(0, 10);
+  const header = `# 코치 인터뷰 대화록\n생성 시각: ${now.toISOString()}\n대상 target: ${target}\n총 Q&A: ${transcript.length}건\n\n`;
+  const body = transcript
+    .map(
+      (t, i) =>
+        `## Q${i + 1}. ${t.question}\n\n${t.answer.trim() || '(코치가 스킵함)'}\n`
+    )
+    .join('\n');
+  const transcriptText = header + body;
+  const transcriptBlob = new Blob([transcriptText], { type: 'text/plain' });
+  const transcriptFileName = `coach-interview-${target}-${stamp}.txt`;
+
+  const result = await generateSystemPromptFromDocument({
+    files: [
+      {
+        file: transcriptBlob,
+        mimeType: 'text/plain',
+        fileName: transcriptFileName,
+      },
+    ],
+    target,
+    existingSystemPrompt,
+  });
+
+  return {
+    ...result,
+    transcriptBlob,
+    transcriptFileName,
   };
 };

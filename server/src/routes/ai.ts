@@ -63,6 +63,10 @@ const DEFAULT_TEMPERATURE_BY_FEATURE: Record<string, number> = {
   // Meta-extraction — reading a coach's document to produce a systemPrompt.
   // Moderate temp: enough creativity to phrase well, low enough to stay faithful.
   generate_system_prompt: 0.4,
+
+  // Interview mode — AI asks coach one question at a time to extract
+  // methodology. Higher temp keeps the questions varied and probing.
+  generate_interview_question: 0.7,
 };
 
 const resolveTemperature = (
