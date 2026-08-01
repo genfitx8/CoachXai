@@ -9,8 +9,36 @@ lerna-debug.log*
 
 node_modules
 dist
+dist-coach
+dist-student
 dist-ssr
 *.local
+
+# Transient symlink written by scripts/cap-run.mjs — never commit
+capacitor.config.ts
+capacitor.config.ts.bak-*
+
+# Local Android build outputs / IDE state
+native/**/android/.gradle/
+native/**/android/build/
+native/**/android/app/build/
+native/**/android/local.properties
+native/**/android/.idea/
+native/**/android/**/*.iml
+
+# Local iOS Xcode state and CocoaPods artifacts
+native/**/ios/App/Pods/
+native/**/ios/App/Podfile.lock
+native/**/ios/App/build/
+native/**/ios/App/App.xcodeproj/xcuserdata/
+native/**/ios/App/App.xcworkspace/xcuserdata/
+native/**/ios/DerivedData/
+
+# Signing material — must never be committed
+*.keystore
+*.jks
+*.mobileprovision
+*.p12
 
 # Editor directories and files
 .vscode/*

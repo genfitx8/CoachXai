@@ -23,6 +23,18 @@ import {
 } from 'lucide-react';
 import { useLanguage } from './LanguageContext';
 import { AUTH_USER_TYPE_STORAGE_KEY } from '../constants/auth';
+import { APP_VARIANT, IS_COACH_APP, IS_STUDENT_APP } from '../utils/appVariant';
+
+// In the split coach/student native builds we lock the login to a single
+// role. The web / dev / test build (APP_VARIANT === null) keeps the tab
+// switcher and every entry point exposed.
+const FORCED_TAB: 'COACH' | 'CLIENT' | null = IS_COACH_APP
+  ? 'COACH'
+  : IS_STUDENT_APP
+    ? 'CLIENT'
+    : null;
+const SHOW_TAB_SWITCHER = FORCED_TAB === null;
+const SHOW_ADMIN_ENTRY = APP_VARIANT === null || IS_COACH_APP;
 
 const SAVED_LOGIN_ID_KEY = 'swingnote_saved_login_id';
 const REMEMBER_PASSWORD_PREF_KEY = 'swingnote_remember_password';
@@ -66,6 +78,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
   const PASSWORD_RECOVERY_MESSAGE = '등록된 이메일로 비밀번호 안내 메일을 발송했습니다.';
   const { t, language, setLanguage } = useLanguage();
   const [activeTab, setActiveTab] = useState<'COACH' | 'CLIENT'>(() => {
+    if (FORCED_TAB) return FORCED_TAB;
     try {
       const savedTab = localStorage.getItem(AUTH_USER_TYPE_STORAGE_KEY);
       return savedTab === 'CLIENT' || savedTab === 'COACH' ? savedTab : 'COACH';
@@ -397,30 +410,32 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
           </div>
 
           <div className="p-7">
-            {/* Role tabs */}
-            <div className="mb-5 grid grid-cols-2 gap-1.5 rounded-xl bg-bg-inset p-1.5">
-              {(['COACH', 'CLIENT'] as const).map((tab) => {
-                const active = activeTab === tab;
-                return (
-                  <button
-                    key={tab}
-                    type="button"
-                    aria-pressed={active}
-                    onClick={() => {
-                      setActiveTab(tab);
-                      setError(null);
-                    }}
-                    className={`h-10 rounded-lg text-sm font-semibold transition-all ${
-                      active
-                        ? 'bg-primary-600/25 text-primary-300 shadow-elev-1 ring-1 ring-inset ring-primary-500/40'
-                        : 'text-ink-muted hover:text-ink-medium hover:bg-bg-overlay/50'
-                    }`}
-                  >
-                    {tab === 'COACH' ? t('signup_coach') : t('signup_client')}
-                  </button>
-                );
-              })}
-            </div>
+            {/* Role tabs (hidden in the split coach/student native builds) */}
+            {SHOW_TAB_SWITCHER && (
+              <div className="mb-5 grid grid-cols-2 gap-1.5 rounded-xl bg-bg-inset p-1.5">
+                {(['COACH', 'CLIENT'] as const).map((tab) => {
+                  const active = activeTab === tab;
+                  return (
+                    <button
+                      key={tab}
+                      type="button"
+                      aria-pressed={active}
+                      onClick={() => {
+                        setActiveTab(tab);
+                        setError(null);
+                      }}
+                      className={`h-10 rounded-lg text-sm font-semibold transition-all ${
+                        active
+                          ? 'bg-primary-600/25 text-primary-300 shadow-elev-1 ring-1 ring-inset ring-primary-500/40'
+                          : 'text-ink-muted hover:text-ink-medium hover:bg-bg-overlay/50'
+                      }`}
+                    >
+                      {tab === 'COACH' ? t('signup_coach') : t('signup_client')}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
 
             {error && <ErrorAlert message={error} />}
 
@@ -733,29 +748,32 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
             <p className="mt-2 text-sm leading-relaxed text-ink-muted">{t('app_desc')}</p>
           </div>
 
-          {/* Login type tabs */}
-          <div
-            className="mx-8 mb-6 grid grid-cols-2 gap-1.5 rounded-xl bg-bg-inset p-1.5"
-          >
-            {(['COACH', 'CLIENT'] as const).map((tab) => {
-              const active = activeTab === tab;
-              return (
-                <button
-                  key={tab}
-                  type="button"
-                  aria-pressed={active}
-                  onClick={() => handleTabChange(tab)}
-                  className={`h-10 rounded-lg text-sm font-semibold transition-all ${
-                    active
-                      ? 'bg-primary-600/25 text-primary-300 shadow-elev-1 ring-1 ring-inset ring-primary-500/40'
-                      : 'text-ink-muted hover:text-ink-medium hover:bg-bg-overlay/50'
-                  }`}
-                >
-                  {tab === 'COACH' ? t('coach_login') : t('client_login')}
-                </button>
-              );
-            })}
-          </div>
+          {/* Login type tabs (hidden in the split coach/student native builds) */}
+          {SHOW_TAB_SWITCHER && (
+            <div
+              className="mx-8 mb-6 grid grid-cols-2 gap-1.5 rounded-xl bg-bg-inset p-1.5"
+            >
+              {(['COACH', 'CLIENT'] as const).map((tab) => {
+                const active = activeTab === tab;
+                return (
+                  <button
+                    key={tab}
+                    type="button"
+                    aria-pressed={active}
+                    onClick={() => handleTabChange(tab)}
+                    className={`h-10 rounded-lg text-sm font-semibold transition-all ${
+                      active
+                        ? 'bg-primary-600/25 text-primary-300 shadow-elev-1 ring-1 ring-inset ring-primary-500/40'
+                        : 'text-ink-muted hover:text-ink-medium hover:bg-bg-overlay/50'
+                    }`}
+                  >
+                    {tab === 'COACH' ? t('coach_login') : t('client_login')}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+          {!SHOW_TAB_SWITCHER && <div className="mb-6" />}
 
           <div className="px-8 pb-8">
             {error && <ErrorAlert message={error} />}
@@ -880,30 +898,32 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
         </Card>
       </div>
 
-      {/* Footer admin links */}
-      <div className="absolute inset-x-0 bottom-4 z-20 flex items-center justify-center gap-3 px-4">
-        <button
-          type="button"
-          onClick={() => {
-            setIsBranchAdminMode(true);
-            resetForm();
-          }}
-          className="text-xs text-ink-faint transition-colors hover:text-ink-medium"
-        >
-          지점 관리자 로그인
-        </button>
-        <span className="text-ink-faint/50" aria-hidden="true">·</span>
-        <button
-          type="button"
-          onClick={() => {
-            setIsAdminMode(true);
-            resetForm();
-          }}
-          className="text-xs text-ink-faint transition-colors hover:text-ink-medium"
-        >
-          {t('admin_login')}
-        </button>
-      </div>
+      {/* Footer admin links — hidden in the student-only build */}
+      {SHOW_ADMIN_ENTRY && (
+        <div className="absolute inset-x-0 bottom-4 z-20 flex items-center justify-center gap-3 px-4">
+          <button
+            type="button"
+            onClick={() => {
+              setIsBranchAdminMode(true);
+              resetForm();
+            }}
+            className="text-xs text-ink-faint transition-colors hover:text-ink-medium"
+          >
+            지점 관리자 로그인
+          </button>
+          <span className="text-ink-faint/50" aria-hidden="true">·</span>
+          <button
+            type="button"
+            onClick={() => {
+              setIsAdminMode(true);
+              resetForm();
+            }}
+            className="text-xs text-ink-faint transition-colors hover:text-ink-medium"
+          >
+            {t('admin_login')}
+          </button>
+        </div>
+      )}
 
       {/* Find account modal */}
       <Modal
