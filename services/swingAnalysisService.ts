@@ -1,11 +1,13 @@
 import { PoseLandmarker, FilesetResolver } from '@mediapipe/tasks-vision';
 import { SkeletonKeypoint } from '../types/postureAnalysis';
 import {
+  CameraView,
   SwingAnalysis,
   SwingAnalysisProgress,
   SwingEvent,
   SwingEventName,
   SwingFrame,
+  SwingSummary,
 } from '../types/swingAnalysis';
 import { createLogger } from '../utils/logger';
 
@@ -195,70 +197,172 @@ function argExtremum(
 }
 
 /**
- * Simple deterministic segmentation from the angle timeline:
- *   Address = first stable window (low shoulderRotation variance)
- *   Top     = frame with max |shoulderRotation - address baseline|
- *   Impact  = after Top, frame where shoulderRotation crosses baseline back,
- *             picked by maximum wrist-height drop rate.
- *   Finish  = last stable window after impact.
+ * NaN-safe centered moving-average smoother. Preserves gaps: any output that
+ * would be computed from zero valid samples stays NaN so downstream logic can
+ * detect missing signal instead of interpolating over it.
  */
-function segmentEvents(frames: SwingFrame[]): {
+function smooth(values: number[], halfWindow: number): number[] {
+  const out: number[] = new Array(values.length);
+  for (let i = 0; i < values.length; i++) {
+    let sum = 0;
+    let n = 0;
+    const lo = Math.max(0, i - halfWindow);
+    const hi = Math.min(values.length - 1, i + halfWindow);
+    for (let j = lo; j <= hi; j++) {
+      const v = values[j];
+      if (v == null || Number.isNaN(v)) continue;
+      sum += v;
+      n += 1;
+    }
+    out[i] = n === 0 ? NaN : sum / n;
+  }
+  return out;
+}
+
+/**
+ * First-difference velocity (per-frame). Returns NaN wherever either side is
+ * missing so we never pretend to know velocity across a gap.
+ */
+function derivative(values: number[], dt: number): number[] {
+  const out: number[] = new Array(values.length).fill(NaN);
+  for (let i = 1; i < values.length; i++) {
+    const a = values[i - 1];
+    const b = values[i];
+    if (a == null || b == null || Number.isNaN(a) || Number.isNaN(b)) continue;
+    out[i] = (b - a) / dt;
+  }
+  return out;
+}
+
+/**
+ * Infer camera perspective from address-window worldLandmarks. Face-on has
+ * shoulders spanning mostly along X (little Z); down-the-line has them along
+ * Z. Falls back to 'unknown' when both spans are similar or landmarks missing.
+ */
+function detectCameraView(addressFrames: SwingFrame[]): CameraView {
+  let xSum = 0;
+  let zSum = 0;
+  let n = 0;
+  for (const f of addressFrames) {
+    const world = f.worldKeypoints;
+    if (!world) continue;
+    const ls = world[11];
+    const rs = world[12];
+    if (!ls || !rs || ls.z == null || rs.z == null) continue;
+    xSum += Math.abs(rs.x - ls.x);
+    zSum += Math.abs(rs.z - ls.z);
+    n += 1;
+  }
+  if (n === 0) return 'unknown';
+  const xSpan = xSum / n;
+  const zSpan = zSum / n;
+  if (xSpan <= 0 && zSpan <= 0) return 'unknown';
+  const ratio = zSpan / Math.max(xSpan, 1e-4);
+  if (ratio < 0.35) return 'face_on';
+  if (ratio > 1.3) return 'down_the_line';
+  return 'unknown';
+}
+
+/**
+ * Deterministic segmentation with smoothing + velocity-aware impact:
+ *   Address = first stable window (smoothed rotation range < 5°)
+ *   Top     = frame with max |smoothedRot - address baseline|
+ *   Impact  = post-Top frame that both (a) sits near the baseline crossing and
+ *             (b) shows max downward wrist velocity — the two agree at real
+ *             impact and diverge on noisy short swings, so we score both.
+ *   Finish  = last stable rotation window after impact.
+ */
+function segmentEvents(
+  frames: SwingFrame[],
+  sampledFps: number,
+): {
   events: Partial<Record<SwingEventName, SwingEvent>>;
   warnings: string[];
 } {
   const warnings: string[] = [];
-  const shoulderRot = frames.map((f) => f.angles.shoulderRotation ?? NaN);
-  const wristY = frames.map((f) => f.angles.wristY ?? NaN);
-  const hasAny = shoulderRot.some((v) => !Number.isNaN(v));
-  if (!hasAny || frames.length < 8) {
+  const rawRot = frames.map((f) => f.angles.shoulderRotation ?? NaN);
+  const rawWristY = frames.map((f) => f.angles.wristY ?? NaN);
+  if (!rawRot.some((v) => !Number.isNaN(v)) || frames.length < 8) {
     return { events: {}, warnings: ['프레임 수가 부족하거나 3D 좌표가 없어 이벤트를 감지할 수 없습니다.'] };
   }
 
-  // Address: first window of 4 consecutive frames with rotation range <5°.
+  // ~100ms smoothing window: enough to kill single-frame flicker without
+  // washing out the fast downswing (~200ms peak).
+  const halfWin = Math.max(1, Math.round(sampledFps * 0.05));
+  const rot = smooth(rawRot, halfWin);
+  const wristY = smooth(rawWristY, halfWin);
+  const dt = sampledFps > 0 ? 1 / sampledFps : 1 / 30;
+  const wristVy = derivative(wristY, dt);
+
+  // Address: first 4-frame window where smoothed rotation range < 5°.
   let addressIdx = 0;
   for (let i = 0; i + 3 < frames.length; i++) {
-    const w = shoulderRot.slice(i, i + 4).filter((v) => !Number.isNaN(v));
+    const w = rot.slice(i, i + 4).filter((v) => !Number.isNaN(v));
     if (w.length < 3) continue;
-    const range = Math.max(...w) - Math.min(...w);
-    if (range < 5) {
+    if (Math.max(...w) - Math.min(...w) < 5) {
       addressIdx = i;
       break;
     }
   }
-  const addressRot = shoulderRot[addressIdx] ?? 0;
+  const addressRot = rot[addressIdx] ?? 0;
 
-  // Top: frame with maximum absolute rotation delta from address.
-  const rotDelta = shoulderRot.map((v) => (Number.isNaN(v) ? NaN : Math.abs(v - addressRot)));
+  // Top: max absolute delta from address baseline.
+  const rotDelta = rot.map((v) => (Number.isNaN(v) ? NaN : Math.abs(v - addressRot)));
   const topIdx = argExtremum(rotDelta, addressIdx + 1, frames.length - 1, 'max');
   if (rotDelta[topIdx] < 25) {
     warnings.push('회전량이 작아 백스윙 톱을 확실히 감지하지 못했습니다.');
   }
 
-  // Impact: after top, first zero-crossing of (rotation - addressRot) as it
-  // returns; if none found, use wrist-Y minimum (lowest wrist point) after top.
-  let impactIdx = -1;
-  const signAtTop = Math.sign(shoulderRot[topIdx] - addressRot);
+  // Impact candidates:
+  //   crossIdx = first sign-flip of (rot - addressRot) after top
+  //   velIdx   = frame with maximum downward wrist velocity after top
+  //              (worldLandmarks Y is +down in MediaPipe → wristVy>0 = falling)
+  const signAtTop = Math.sign(rot[topIdx] - addressRot);
+  let crossIdx = -1;
   for (let i = topIdx + 1; i < frames.length; i++) {
-    if (Number.isNaN(shoulderRot[i])) continue;
-    if (Math.sign(shoulderRot[i] - addressRot) !== signAtTop) {
-      impactIdx = i;
+    if (Number.isNaN(rot[i])) continue;
+    if (Math.sign(rot[i] - addressRot) !== signAtTop) {
+      crossIdx = i;
       break;
     }
   }
-  if (impactIdx === -1) {
+  const velIdx = argExtremum(wristVy, topIdx + 1, frames.length - 1, 'max');
+  const velHasSignal =
+    velIdx > topIdx && !Number.isNaN(wristVy[velIdx]) && wristVy[velIdx] > 0;
+
+  let impactIdx = -1;
+  if (crossIdx > 0 && velHasSignal) {
+    // Both signals available → pick whichever gives the tighter estimate;
+    // if they disagree by more than ~120ms, warn and trust wrist velocity
+    // (rotation baseline drifts on tilted cameras).
+    const gapFrames = Math.abs(crossIdx - velIdx);
+    const gapMs = (gapFrames / Math.max(sampledFps, 1)) * 1000;
+    if (gapMs > 120) {
+      warnings.push('회전 신호와 손목 속도가 서로 다른 임팩트를 가리킵니다. 손목 속도를 사용합니다.');
+      impactIdx = velIdx;
+    } else {
+      // Small disagreement: average the two (round to nearest frame).
+      impactIdx = Math.round((crossIdx + velIdx) / 2);
+    }
+  } else if (crossIdx > 0) {
+    impactIdx = crossIdx;
+  } else if (velHasSignal) {
+    impactIdx = velIdx;
+  } else {
     impactIdx = argExtremum(wristY, topIdx + 1, frames.length - 1, 'max');
     if (Number.isNaN(wristY[impactIdx])) {
       warnings.push('임팩트 지점을 감지하지 못했습니다.');
+      impactIdx = -1;
     }
   }
 
-  // Finish: last stable window (rotation range <5° in 4 frames) after impact.
+  // Finish: last stable rotation window after impact.
   let finishIdx = frames.length - 1;
-  for (let i = frames.length - 4; i > impactIdx + 1; i--) {
-    const w = shoulderRot.slice(i, i + 4).filter((v) => !Number.isNaN(v));
+  const finishSearchFrom = impactIdx > 0 ? impactIdx + 1 : topIdx + 1;
+  for (let i = frames.length - 4; i > finishSearchFrom; i--) {
+    const w = rot.slice(i, i + 4).filter((v) => !Number.isNaN(v));
     if (w.length < 3) continue;
-    const range = Math.max(...w) - Math.min(...w);
-    if (range < 5) {
+    if (Math.max(...w) - Math.min(...w) < 5) {
       finishIdx = i;
       break;
     }
@@ -279,6 +383,28 @@ function segmentEvents(frames: SwingFrame[]): {
   if (impact) events.impact = impact;
   if (finish) events.finish = finish;
   return { events, warnings };
+}
+
+function buildSummary(
+  frames: SwingFrame[],
+  events: Partial<Record<SwingEventName, SwingEvent>>,
+): SwingSummary {
+  const addressWindow = events.address
+    ? frames.slice(events.address.frameIndex, events.address.frameIndex + 4)
+    : frames.slice(0, 4);
+  const cameraView = detectCameraView(addressWindow);
+
+  const summary: SwingSummary = { cameraView };
+  if (events.address && events.top) {
+    summary.backswingMs = Math.round((events.top.t - events.address.t) * 1000);
+  }
+  if (events.top && events.impact) {
+    summary.downswingMs = Math.round((events.impact.t - events.top.t) * 1000);
+  }
+  if (summary.backswingMs && summary.downswingMs && summary.downswingMs > 0) {
+    summary.tempoRatio = +(summary.backswingMs / summary.downswingMs).toFixed(2);
+  }
+  return summary;
 }
 
 export interface AnalyzeSwingOptions {
@@ -356,16 +482,19 @@ export const swingAnalysisService = {
       }
 
       onProgress?.({ processedFrames: desired, totalFrames: desired, stage: 'segmenting' });
-      const { events, warnings } = segmentEvents(frames);
       const sampledFps = desired / span;
+      const { events, warnings } = segmentEvents(frames, sampledFps);
+      const summary = buildSummary(frames, events);
 
       onProgress?.({ processedFrames: desired, totalFrames: desired, stage: 'done' });
       log.info('Swing analysis completed', {
         frames: frames.length,
         sampledFps,
         detected: Object.keys(events),
+        cameraView: summary.cameraView,
+        tempoRatio: summary.tempoRatio,
       });
-      return { videoUrl, frames, sampledFps, events, warnings };
+      return { videoUrl, frames, sampledFps, events, warnings, summary };
     } finally {
       video.src = '';
       video.removeAttribute('src');

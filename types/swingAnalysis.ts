@@ -23,6 +23,22 @@ export interface SwingEvent {
   metrics: Record<string, number>;
 }
 
+export type CameraView = 'face_on' | 'down_the_line' | 'unknown';
+
+export interface SwingSummary {
+  /** Detected camera perspective, inferred from address-window landmarks. */
+  cameraView: CameraView;
+  /** Backswing (address → top) duration in milliseconds, if both events found. */
+  backswingMs?: number;
+  /** Downswing (top → impact) duration in milliseconds, if both events found. */
+  downswingMs?: number;
+  /**
+   * Ratio backswing:downswing (target on tour ≈ 3.0). Undefined when either
+   * segment was not detected.
+   */
+  tempoRatio?: number;
+}
+
 export interface SwingAnalysis {
   /** Video source (blob URL or original URL) used for the run. */
   videoUrl: string;
@@ -34,6 +50,8 @@ export interface SwingAnalysis {
   events: Partial<Record<SwingEventName, SwingEvent>>;
   /** Warnings surfaced to the user (low confidence, missing top, etc.). */
   warnings: string[];
+  /** Aggregate summary (camera view, tempo). */
+  summary: SwingSummary;
 }
 
 export interface SwingAnalysisProgress {

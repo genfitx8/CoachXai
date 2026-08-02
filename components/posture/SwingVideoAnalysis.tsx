@@ -2,11 +2,13 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Upload, Loader2, AlertTriangle, Target, RefreshCw, X } from 'lucide-react';
 import { swingAnalysisService } from '../../services/swingAnalysisService';
 import {
+  CameraView,
   SwingAnalysis,
   SwingAnalysisProgress,
   SwingEvent,
   SwingEventName,
   SwingFrame,
+  SwingSummary,
 } from '../../types/swingAnalysis';
 import { SkeletonKeypoint } from '../../types/postureAnalysis';
 
@@ -142,6 +144,63 @@ const MetricRow: React.FC<{ label: string; value: string }> = ({ label, value })
     <span className="font-semibold text-slate-100">{value}</span>
   </div>
 );
+
+const VIEW_LABEL: Record<CameraView, string> = {
+  face_on: '정면 (Face-On)',
+  down_the_line: '측면 (Down-the-Line)',
+  unknown: '뷰 미상',
+};
+
+const VIEW_COLOR: Record<CameraView, string> = {
+  face_on: 'text-emerald-300 bg-emerald-900/40 border-emerald-800/60',
+  down_the_line: 'text-blue-300 bg-blue-900/40 border-blue-800/60',
+  unknown: 'text-slate-400 bg-slate-800/60 border-slate-700/60',
+};
+
+interface SummaryBarProps {
+  summary: SwingSummary;
+}
+
+const SummaryBar: React.FC<SummaryBarProps> = ({ summary }) => {
+  const tempoTone =
+    summary.tempoRatio == null
+      ? 'text-slate-400'
+      : summary.tempoRatio >= 2.5 && summary.tempoRatio <= 3.5
+      ? 'text-emerald-400'
+      : 'text-yellow-400';
+  return (
+    <div className="rounded-lg bg-slate-900 border border-slate-800 p-3 flex flex-wrap gap-2 items-center">
+      <span
+        className={`text-[10px] font-semibold px-2 py-1 rounded border ${VIEW_COLOR[summary.cameraView]}`}
+      >
+        {VIEW_LABEL[summary.cameraView]}
+      </span>
+      <div className="flex items-center gap-3 text-xs text-slate-300 ml-auto">
+        <div className="flex items-center gap-1.5">
+          <span className="text-slate-500">백스윙</span>
+          <span className="font-semibold">
+            {summary.backswingMs != null ? `${summary.backswingMs}ms` : '—'}
+          </span>
+        </div>
+        <span className="text-slate-700">|</span>
+        <div className="flex items-center gap-1.5">
+          <span className="text-slate-500">다운스윙</span>
+          <span className="font-semibold">
+            {summary.downswingMs != null ? `${summary.downswingMs}ms` : '—'}
+          </span>
+        </div>
+        <span className="text-slate-700">|</span>
+        <div className="flex items-center gap-1.5">
+          <span className="text-slate-500">템포</span>
+          <span className={`font-semibold ${tempoTone}`}>
+            {summary.tempoRatio != null ? `${summary.tempoRatio.toFixed(2)} : 1` : '—'}
+          </span>
+          <span className="text-slate-600 text-[10px]">(투어 ≈ 3.0)</span>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 interface SwingVideoAnalysisProps {
   /** Optional preset video URL. If omitted the user picks a file. */
@@ -303,6 +362,7 @@ export const SwingVideoAnalysis: React.FC<SwingVideoAnalysisProps> = ({
         {/* Results */}
         {analysis && (
           <div className="space-y-4">
+            <SummaryBar summary={analysis.summary} />
             {analysis.warnings.length > 0 && (
               <div className="rounded-lg bg-yellow-950/30 border border-yellow-900/50 p-3 space-y-1">
                 {analysis.warnings.map((w, i) => (
