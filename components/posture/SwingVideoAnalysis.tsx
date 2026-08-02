@@ -232,9 +232,14 @@ const EventSnapshot: React.FC<EventSnapshotProps> = ({ event, frame, videoUrl, o
           <>
             <MetricRow
               label="척추 기울기"
-              value={metricAngle('spineTilt3D')}
-              tone={impactTone(undefined, 0, 0)}
-              hint="목표 30–40°"
+              value={metricAngle(
+                event.metrics.spineTiltCorrected != null ? 'spineTiltCorrected' : 'spineTilt3D',
+              )}
+              hint={
+                event.metrics.spineTiltCorrected != null
+                  ? '목표 30–40° (중력 정렬)'
+                  : '목표 30–40°'
+              }
             />
             <MetricRow
               label="무릎 굽힘"
@@ -368,10 +373,15 @@ const SummaryBar: React.FC<SummaryBarProps> = ({ summary }) => {
           {HAND_LABEL[summary.handedness]}
         </span>
       )}
-      {summary.swingPlaneAngle != null && (
+      {(summary.swingPlaneAngleCorrected ?? summary.swingPlaneAngle) != null && (
         <span className="text-[10px] font-semibold px-2 py-1 rounded border border-slate-700 bg-slate-800/70 text-slate-300">
           스윙 플레인{' '}
-          <span className={planeTone}>{summary.swingPlaneAngle.toFixed(1)}°</span>
+          <span className={planeTone}>
+            {(summary.swingPlaneAngleCorrected ?? summary.swingPlaneAngle)!.toFixed(1)}°
+          </span>
+          {summary.gravityAligned && summary.swingPlaneAngleCorrected != null && (
+            <span className="ml-1 text-[9px] text-emerald-500 font-normal">중력정렬</span>
+          )}
         </span>
       )}
       {summary.attackAngle != null && (

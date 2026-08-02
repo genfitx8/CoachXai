@@ -52,6 +52,18 @@ export interface SwingSummary {
    * is degenerate.
    */
   swingPlaneAngle?: number;
+  /**
+   * Swing plane inclination measured against a gravity vector estimated from
+   * the address stance, instead of the raw camera Y-axis. Preferred when the
+   * camera is handheld / tilted — cancels the pitch/roll of the phone.
+   */
+  swingPlaneAngleCorrected?: number;
+  /**
+   * True when a stable gravity vector was recovered from the address window
+   * and the corrected metrics can be trusted. When false, corrected values
+   * fall back to raw camera-relative measurements.
+   */
+  gravityAligned?: boolean;
 }
 
 export interface SwingAnalysis {

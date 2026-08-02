@@ -517,20 +517,16 @@ function computeAttackAngle(
 }
 
 /**
- * Swing-plane inclination from horizontal, degrees.
- *
- * We fit a plane through three lead-wrist positions — Top, mid-downswing, and
- * Impact — via cross-product, then measure the plane's normal against
- * vertical. The 3-point fit is deliberately simple: the real wrist arc is
- * curved, but its dominant plane is stable enough that adding more samples
- * mostly buys noise from occluded top-of-swing frames.
+ * Unit normal of the lead-wrist swing plane (Top → mid → Impact), or undefined
+ * when the arc is degenerate. Extracted so both raw and gravity-corrected
+ * plane-tilt calculations can share the same normal.
  */
-function computeSwingPlaneAngle(
+function computeSwingPlaneNormal(
   frames: SwingFrame[],
   topIdx: number,
   impactIdx: number,
   handedness: Handedness,
-): number | undefined {
+): Vec3 | undefined {
   if (topIdx < 0 || impactIdx <= topIdx) return undefined;
   const midIdx = Math.round((topIdx + impactIdx) / 2);
   if (midIdx === topIdx || midIdx === impactIdx) return undefined;
@@ -548,8 +544,92 @@ function computeSwingPlaneAngle(
   };
   const len = Math.hypot(normal.x, normal.y, normal.z);
   if (len < 1e-6) return undefined;
-  // Plane tilt from horizontal = angle between plane normal and vertical Y.
-  return +toDeg(Math.acos(Math.abs(normal.y / len))).toFixed(1);
+  return { x: normal.x / len, y: normal.y / len, z: normal.z / len };
+}
+
+function computeSwingPlaneAngle(
+  frames: SwingFrame[],
+  topIdx: number,
+  impactIdx: number,
+  handedness: Handedness,
+): number | undefined {
+  const n = computeSwingPlaneNormal(frames, topIdx, impactIdx, handedness);
+  if (!n) return undefined;
+  // Plane tilt from horizontal = angle between plane normal and camera Y.
+  return +toDeg(Math.acos(Math.abs(n.y))).toFixed(1);
+}
+
+/** Unsigned angle in degrees between two 3D vectors. */
+function angleBetween(a: Vec3, b: Vec3): number {
+  const la = Math.hypot(a.x, a.y, a.z);
+  const lb = Math.hypot(b.x, b.y, b.z);
+  if (la === 0 || lb === 0) return NaN;
+  const cos = (a.x * b.x + a.y * b.y + a.z * b.z) / (la * lb);
+  return toDeg(Math.acos(Math.max(-1, Math.min(1, cos))));
+}
+
+/**
+ * Estimate an "up" (gravity) unit vector in world coordinates from the address
+ * window. The vector from ankle-midpoint to hip-midpoint approximates vertical
+ * because the golfer's legs are nearly upright at address; averaging over a
+ * few frames cancels landmark jitter. Returns undefined when the required
+ * landmarks are missing across the whole window.
+ */
+function estimateGravityFromAddress(
+  frames: SwingFrame[],
+  addressIdx: number,
+  windowLen = 4,
+): Vec3 | undefined {
+  const window = frames.slice(addressIdx, addressIdx + windowLen);
+  let sx = 0;
+  let sy = 0;
+  let sz = 0;
+  let n = 0;
+  for (const f of window) {
+    const w = f.worldKeypoints;
+    if (!w) continue;
+    const lh = toVec3(w[23]);
+    const rh = toVec3(w[24]);
+    const la = toVec3(w[27]);
+    const ra = toVec3(w[28]);
+    if (!lh || !rh || !la || !ra) continue;
+    const hipC = midpoint(lh, rh);
+    const ankC = midpoint(la, ra);
+    sx += hipC.x - ankC.x;
+    sy += hipC.y - ankC.y;
+    sz += hipC.z - ankC.z;
+    n += 1;
+  }
+  if (n === 0) return undefined;
+  const len = Math.hypot(sx, sy, sz);
+  if (len < 1e-6) return undefined;
+  return { x: sx / len, y: sy / len, z: sz / len };
+}
+
+/**
+ * Write a `spineTiltCorrected` metric (degrees from true vertical) onto each
+ * event. This is the semantically clean spine tilt — 0° at fully upright, ~30°
+ * at a typical driver address — and doesn't drift with camera pitch/roll the
+ * way the raw `spineTilt3D` does.
+ */
+function annotateCorrectedSpineTilt(
+  events: Partial<Record<SwingEventName, SwingEvent>>,
+  frames: SwingFrame[],
+  gravity: Vec3,
+): void {
+  for (const evt of Object.values(events)) {
+    if (!evt) continue;
+    const w = frames[evt.frameIndex]?.worldKeypoints;
+    if (!w) continue;
+    const ls = toVec3(w[11]);
+    const rs = toVec3(w[12]);
+    const lh = toVec3(w[23]);
+    const rh = toVec3(w[24]);
+    if (!ls || !rs || !lh || !rh) continue;
+    const spine = subtract(midpoint(ls, rs), midpoint(lh, rh));
+    const tilt = angleBetween(spine, gravity);
+    if (Number.isFinite(tilt)) evt.metrics.spineTiltCorrected = +tilt.toFixed(1);
+  }
 }
 
 function buildSummary(
@@ -585,6 +665,34 @@ function buildSummary(
   if (events.impact) {
     const attack = computeAttackAngle(frames, events.impact.frameIndex, handedness);
     if (attack != null) summary.attackAngle = attack;
+  }
+
+  // Gravity correction: recover the true vertical from the address stance and
+  // republish the tilt-sensitive metrics against it. Silently no-op on shots
+  // where the address landmarks are too incomplete.
+  const gravity = events.address
+    ? estimateGravityFromAddress(frames, events.address.frameIndex)
+    : undefined;
+  if (gravity) {
+    summary.gravityAligned = true;
+    annotateCorrectedSpineTilt(events, frames, gravity);
+    if (events.top && events.impact) {
+      const normal = computeSwingPlaneNormal(
+        frames,
+        events.top.frameIndex,
+        events.impact.frameIndex,
+        handedness,
+      );
+      if (normal) {
+        const raw = angleBetween(normal, gravity);
+        // Normal can point either way; fold to [0, 90] before converting to a
+        // plane tilt from horizontal.
+        const normalVsUp = Math.min(raw, 180 - raw);
+        summary.swingPlaneAngleCorrected = +(90 - normalVsUp).toFixed(1);
+      }
+    }
+  } else {
+    summary.gravityAligned = false;
   }
   return summary;
 }
@@ -683,4 +791,21 @@ export const swingAnalysisService = {
       video.load();
     }
   },
+};
+
+/** Internal helpers exposed for unit tests. Do not import from app code. */
+export const __testing__ = {
+  smooth,
+  derivative,
+  angle3D,
+  angleBetween,
+  detectCameraView,
+  detectHandedness,
+  computeAttackAngle,
+  computeSwingPlaneAngle,
+  computeSwingPlaneNormal,
+  computeGolfAngles,
+  segmentEvents,
+  buildSummary,
+  estimateGravityFromAddress,
 };
