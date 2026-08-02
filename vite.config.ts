@@ -10,6 +10,23 @@ export default defineConfig(({ mode }) => {
     process.env.GEMINI_API_KEY ||
     process.env.API_KEY ||
     '';
+
+  // Only lock the build to a variant when VITE_APP_VARIANT is explicitly
+  // set. Unset means the web/dev/test build where every role is available.
+  const rawVariant = (
+    process.env.VITE_APP_VARIANT ||
+    env.VITE_APP_VARIANT ||
+    ''
+  ).toLowerCase();
+  const variant: 'coach' | 'student' | null =
+    rawVariant === 'coach' || rawVariant === 'student' ? rawVariant : null;
+  const outDir =
+    variant === 'student'
+      ? 'dist-student'
+      : variant === 'coach'
+        ? 'dist-coach'
+        : 'dist';
+
   return {
     server: {
       port: 3000,
@@ -22,9 +39,16 @@ export default defineConfig(({ mode }) => {
       },
     },
     plugins: [react()],
+    build: {
+      outDir,
+      emptyOutDir: true,
+    },
     define: {
       'process.env.API_KEY': JSON.stringify(geminiKey),
       'process.env.GEMINI_API_KEY': JSON.stringify(geminiKey),
+      ...(variant
+        ? { 'import.meta.env.VITE_APP_VARIANT': JSON.stringify(variant) }
+        : {}),
     },
     resolve: {
       alias: {

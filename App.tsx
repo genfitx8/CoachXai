@@ -93,6 +93,12 @@ import {
   Dumbbell,
 } from 'lucide-react';
 import { LanguageProvider, useLanguage } from './components/LanguageContext';
+import {
+  APP_VARIANT,
+  IS_COACH_APP,
+  IS_STUDENT_APP,
+  isRoleAllowedInThisApp,
+} from './utils/appVariant';
 
 const isClientSessionProfile = (
   role: 'COACH' | 'CLIENT' | 'ADMIN' | 'BRANCH_ADMIN' | null,
@@ -262,7 +268,11 @@ const AppContent: React.FC = () => {
 
       // 2. Restore Session
       const session = authService.restoreSession();
-      if (session) {
+      if (session && !isRoleAllowedInThisApp(session.role)) {
+        // Wrong-variant session (e.g. a coach session in the student app):
+        // clear it and force a fresh login instead of misrouting the user.
+        authService.logout();
+      } else if (session) {
         sessionRole = session.role;
         setUserRole(session.role);
         if (session.role === 'CLIENT' && session.clientData) {
@@ -512,6 +522,19 @@ const AppContent: React.FC = () => {
     role: 'COACH' | 'CLIENT' | 'ADMIN' | 'BRANCH_ADMIN',
     data: any
   ) => {
+    // In the split coach/student app builds, refuse a session that doesn't
+    // match the app variant so a coach can't sign into the student app and
+    // vice versa. The web build stays open to all roles.
+    if (!isRoleAllowedInThisApp(role)) {
+      const msg =
+        APP_VARIANT === 'coach'
+          ? '이 앱은 코치 전용입니다. 회원용 CoachX AI 앱을 사용해 주세요.'
+          : '이 앱은 회원 전용입니다. 코치는 CoachX AI Coach 앱을 사용해 주세요.';
+      if (typeof window !== 'undefined') window.alert(msg);
+      authService.logout();
+      return;
+    }
+
     setUserRole(role);
 
     let clientIdentity = undefined;
