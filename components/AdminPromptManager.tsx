@@ -53,6 +53,7 @@ const TARGET_LABELS: Record<PromptTarget, string> = {
   motion_capture: 'Motion Capture Analysis',
   training_program: 'Training Program',
   student_chat: 'Student Chat',
+  shot_analysis: 'Shot Analysis (샷 종합 분석)',
 };
 
 const TARGET_DESCRIPTIONS: Record<PromptTarget, string> = {
@@ -65,6 +66,7 @@ const TARGET_DESCRIPTIONS: Record<PromptTarget, string> = {
   motion_capture: 'K-Motion 등 모션캡처 화면을 해석해 코칭 피드백을 작성하는 방식을 제어합니다.',
   training_program: '회원별 맞춤 훈련 프로그램(주차별 계획, 드릴, 훈련량)을 생성하는 방식을 제어합니다.',
   student_chat: '학생 CoachX 대화 어시스턴트의 응답 스코프·톤·규칙을 제어합니다.',
+  shot_analysis: '골퍼의 볼·클럽·모션·신체·키네마틱 데이터를 종합해 코스 공략, 런치/스핀 최적화, 클럽/모션 원인 진단, 키네마틱 시퀀스까지 담긴 마크다운 리포트를 생성하는 방식을 제어합니다.',
 };
 
 const ALL_TARGETS: PromptTarget[] = [
@@ -77,6 +79,7 @@ const ALL_TARGETS: PromptTarget[] = [
   'motion_capture',
   'training_program',
   'student_chat',
+  'shot_analysis',
 ];
 
 const EMPTY_TEMPLATE = (): Omit<PromptTemplate, 'id' | 'createdAt' | 'updatedAt'> => ({

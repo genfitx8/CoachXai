@@ -67,6 +67,10 @@ const DEFAULT_TEMPERATURE_BY_FEATURE: Record<string, number> = {
   // Interview mode — AI asks coach one question at a time to extract
   // methodology. Higher temp keeps the questions varied and probing.
   generate_interview_question: 0.7,
+
+  // Shot data synthesis — data-heavy analytical report. Low temp keeps
+  // numbers and conclusions faithful to the input data.
+  shot_analysis: 0.3,
 };
 
 const resolveTemperature = (

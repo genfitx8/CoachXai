@@ -2175,6 +2175,7 @@ const TARGET_DESCRIPTIONS_FOR_EXTRACTION: Record<import('../types').PromptTarget
   motion_capture: 'K-Motion 등 3D 모션캡처 화면을 읽고 수치 + 마크다운 코칭 피드백 생성',
   training_program: '회원별 맞춤 주간 훈련 프로그램(마크다운) 생성',
   student_chat: '학생 전용 CoachX AI가 자기 기록 데이터를 근거로 골프 관련 질문에 답변',
+  shot_analysis: '골퍼의 볼·클럽·모션·신체·키네마틱 데이터를 종합해 코스 공략·런치/스핀 최적화·클럽/모션 원인·키네마틱 시퀀스까지 담긴 마크다운 리포트 생성',
 };
 
 export interface GeneratedSystemPromptResult {
@@ -2456,5 +2457,306 @@ export const finalizeInterviewToSystemPrompt = async (params: {
     ...result,
     transcriptBlob,
     transcriptFileName,
+  };
+};
+
+// ─── Shot data synthesis ────────────────────────────────────────────────────
+
+/**
+ * Snapshot of a golfer's shots for a single club — post filtering.
+ * Callers can either pre-compute the aggregate themselves, or hand raw
+ * shots to analyzeShotStrategy and let it do a basic outlier-robust
+ * summary (IQR-based, which the built-in prompt also references so the
+ * model applies the same "consistent shots" mental model).
+ */
+export interface ShotAggregate {
+  club: string;
+  sampleSize: number;
+  carryDistance?: { median: number; iqr: [number, number] };
+  totalDistance?: { median: number; iqr: [number, number] };
+  ballSpeed?: { median: number; iqr: [number, number] };
+  clubHeadSpeed?: { median: number; iqr: [number, number] };
+  launchAngle?: { median: number; iqr: [number, number] };
+  spinRate?: { median: number; iqr: [number, number] };
+  smashFactor?: { median: number; iqr: [number, number] };
+  clubPath?: { median: number; iqr: [number, number] };
+  faceAngle?: { median: number; iqr: [number, number] };
+  attackAngle?: { median: number; iqr: [number, number] };
+  dynamicLoft?: { median: number; iqr: [number, number] };
+  spinLoft?: { median: number; iqr: [number, number] };
+  sideTotal?: { median: number; iqr: [number, number] };
+}
+
+const median = (values: number[]): number => {
+  if (values.length === 0) return NaN;
+  const sorted = [...values].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 === 0
+    ? (sorted[mid - 1] + sorted[mid]) / 2
+    : sorted[mid];
+};
+
+const quantile = (sorted: number[], p: number): number => {
+  if (sorted.length === 0) return NaN;
+  const idx = (sorted.length - 1) * p;
+  const lo = Math.floor(idx);
+  const hi = Math.ceil(idx);
+  if (lo === hi) return sorted[lo];
+  return sorted[lo] + (sorted[hi] - sorted[lo]) * (idx - lo);
+};
+
+/**
+ * Compute a robust median + IQR summary for a numeric field. IQR is used
+ * both as the "consistent-shot window" and as the outlier filter (values
+ * beyond 1.5 × IQR from the median are considered miss-shots and dropped
+ * from the median re-calculation). Returns undefined when there aren't
+ * enough valid samples to compute anything meaningful.
+ */
+const robustSummary = (
+  rawValues: Array<number | null | undefined>
+): { median: number; iqr: [number, number] } | undefined => {
+  const values = rawValues.filter(
+    (v): v is number => typeof v === 'number' && Number.isFinite(v)
+  );
+  if (values.length < 3) {
+    // Too few samples for outlier filtering; return the plain median if any.
+    if (values.length === 0) return undefined;
+    const m = median(values);
+    return { median: m, iqr: [Math.min(...values), Math.max(...values)] };
+  }
+  const sorted = [...values].sort((a, b) => a - b);
+  const q1 = quantile(sorted, 0.25);
+  const q3 = quantile(sorted, 0.75);
+  const iqr = q3 - q1;
+  const lower = q1 - 1.5 * iqr;
+  const upper = q3 + 1.5 * iqr;
+  const inliers = sorted.filter((v) => v >= lower && v <= upper);
+  const source = inliers.length >= 3 ? inliers : sorted;
+  return {
+    median: median(source),
+    iqr: [quantile(source, 0.25), quantile(source, 0.75)],
+  };
+};
+
+const round1 = (n: number): number => Math.round(n * 10) / 10;
+
+const formatRobustSummary = (
+  label: string,
+  unit: string,
+  summary: ReturnType<typeof robustSummary>
+): string | null => {
+  if (!summary) return null;
+  const m = round1(summary.median);
+  const lo = round1(summary.iqr[0]);
+  const hi = round1(summary.iqr[1]);
+  return `${label} median ${m}${unit} (IQR ${lo}–${hi})`;
+};
+
+/**
+ * Build a `ShotAggregate` per club from raw lessons. Uses IQR-based
+ * outlier trimming so severe miss-shots don't skew the "consistent shot"
+ * summary the coaching methodology wants.
+ */
+export const summariseShotsByClub = (lessons: Lesson[]): ShotAggregate[] => {
+  const buckets = new Map<string, Lesson[]>();
+  for (const l of lessons) {
+    if (!l.club || !l.golfData) continue;
+    const key = l.club;
+    const arr = buckets.get(key);
+    if (arr) arr.push(l);
+    else buckets.set(key, [l]);
+  }
+  const aggregates: ShotAggregate[] = [];
+  for (const [club, arr] of buckets.entries()) {
+    if (arr.length === 0) continue;
+    const carry = robustSummary(arr.map((l) => l.golfData?.carryDistance ?? null));
+    const total = robustSummary(arr.map((l) => l.golfData?.totalDistance ?? null));
+    const ballSpeed = robustSummary(arr.map((l) => l.golfData?.ballSpeed ?? null));
+    const clubHeadSpeed = robustSummary(arr.map((l) => l.golfData?.clubHeadSpeed ?? null));
+    const launchAngle = robustSummary(arr.map((l) => l.golfData?.launchAngle ?? null));
+    const spinRate = robustSummary(arr.map((l) => l.golfData?.spinRate ?? null));
+    const smashFactor = robustSummary(arr.map((l) => l.golfData?.smashFactor ?? null));
+    const clubPath = robustSummary(arr.map((l) => l.golfData?.clubPath ?? null));
+    const faceAngle = robustSummary(arr.map((l) => l.golfData?.faceAngle ?? null));
+    const attackAngle = robustSummary(arr.map((l) => l.golfData?.attackAngle ?? null));
+    const dynamicLoft = robustSummary(arr.map((l) => l.golfData?.dynamicLoft ?? null));
+    const spinLoft = robustSummary(arr.map((l) => l.golfData?.spinLoft ?? null));
+    const sideTotal = robustSummary(arr.map((l) => l.golfData?.sideTotal ?? null));
+    aggregates.push({
+      club,
+      sampleSize: arr.length,
+      carryDistance: carry,
+      totalDistance: total,
+      ballSpeed,
+      clubHeadSpeed,
+      launchAngle,
+      spinRate,
+      smashFactor,
+      clubPath,
+      faceAngle,
+      attackAngle,
+      dynamicLoft,
+      spinLoft,
+      sideTotal,
+    });
+  }
+  // Rough tour-order sort so the report reads driver → wedge → putter.
+  const CLUB_ORDER = ['드라이버', 'DRIVER', '3W', '5W', 'UT', 'U', '3I', '4I', '5I', '6I', '7I', '8I', '9I', 'PW', 'AW', 'SW', 'LW', 'P', '퍼터'];
+  aggregates.sort((a, b) => {
+    const ai = CLUB_ORDER.findIndex((k) => a.club.toUpperCase().includes(k.toUpperCase()));
+    const bi = CLUB_ORDER.findIndex((k) => b.club.toUpperCase().includes(k.toUpperCase()));
+    return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
+  });
+  return aggregates;
+};
+
+const formatShotAggregate = (agg: ShotAggregate): string => {
+  const lines: string[] = [
+    `[${agg.club}] 샘플 ${agg.sampleSize}개 (IQR 기준 이상치 필터 적용)`,
+  ];
+  const bits: (string | null)[] = [
+    formatRobustSummary('  캐리', 'm', agg.carryDistance),
+    formatRobustSummary('  토탈', 'm', agg.totalDistance),
+    formatRobustSummary('  볼속도', 'km/h', agg.ballSpeed),
+    formatRobustSummary('  헤드속도', 'km/h', agg.clubHeadSpeed),
+    formatRobustSummary('  런치앵글', '°', agg.launchAngle),
+    formatRobustSummary('  스핀량', 'rpm', agg.spinRate),
+    formatRobustSummary('  스매시팩터', '', agg.smashFactor),
+    formatRobustSummary('  어택앵글', '°', agg.attackAngle),
+    formatRobustSummary('  클럽패스', '°', agg.clubPath),
+    formatRobustSummary('  페이스앵글', '°', agg.faceAngle),
+    formatRobustSummary('  다이나믹로프트', '°', agg.dynamicLoft),
+    formatRobustSummary('  스핀로프트', '°', agg.spinLoft),
+    formatRobustSummary('  사이드토탈', 'm', agg.sideTotal),
+  ];
+  for (const b of bits) if (b) lines.push(b);
+  return lines.join('\n');
+};
+
+const formatBodyAnalysisForShot = (
+  clientProfile: ClientProfile,
+  lessons: Lesson[]
+): string | null => {
+  const body =
+    clientProfile.memberBodyAnalysis ??
+    lessons.find((l) => l.memberBodyAnalysis)?.memberBodyAnalysis;
+  if (!body) return null;
+  const lines = [`체형: ${body.bodyType} | 스윙 유형: ${body.swingType}`];
+  const highImpact = body.structuralFactors
+    ?.filter((f) => f.impact === '상' || f.impact === '하')
+    .map((f) => `${f.name}(${f.impact})`)
+    .join(', ');
+  if (highImpact) lines.push(`주요 구조 특성: ${highImpact}`);
+  if (body.coachComment) lines.push(`코치 의견: ${body.coachComment}`);
+  return lines.join('\n');
+};
+
+const formatMotionForShot = (lessons: Lesson[]): string | null => {
+  const withMotion = lessons.filter(
+    (l) => l.motionCaptureData?.measurements?.length
+  );
+  if (withMotion.length === 0) return null;
+  const latest = withMotion.sort((a, b) => b.createdAt - a.createdAt)[0];
+  const mc = latest.motionCaptureData!;
+  const rows: string[] = [];
+  for (const m of mc.measurements.slice(0, 5)) {
+    const p = m.swingPhase ? `[${m.swingPhase}] ` : '';
+    const nums: string[] = [];
+    if (m.headLift != null && m.headLift !== 0) nums.push(`머리들림 ${m.headLift}cm`);
+    if (m.hipSlide != null && m.hipSlide !== 0) nums.push(`힙슬라이드 ${m.hipSlide}cm`);
+    if (m.upperBodyPush != null && m.upperBodyPush !== 0) nums.push(`상체밀림 ${m.upperBodyPush}cm`);
+    if (m.headLateralSway != null && m.headLateralSway !== 0) nums.push(`머리흔들림 ${m.headLateralSway}cm`);
+    if (m.upperBodyLift != null && m.upperBodyLift !== 0) nums.push(`상체들림 ${m.upperBodyLift}cm`);
+    if (nums.length) rows.push(`${p}${nums.join(' | ')}`);
+  }
+  if (rows.length === 0) return null;
+  return `가장 최근 모션 측정 (${latest.date}):\n${rows.join('\n')}`;
+};
+
+export interface ShotStrategyReport {
+  markdown: string;
+  /** How many lessons contributed golf data to this analysis. */
+  contributingLessonCount: number;
+  /** Distinct clubs the report covers. */
+  clubsAnalysed: string[];
+}
+
+/**
+ * Produce a comprehensive shot-strategy report for a golfer, following
+ * the built-in `shot_analysis` methodology (course strategy → launch/spin
+ * optimisation → club optimisation → motion causation → body-aware next
+ * step → kinematic sequence).
+ *
+ * The AI is given robust (IQR-based) per-club aggregates that already
+ * drop miss-shots, along with body and motion context, so its analysis
+ * is grounded in the golfer's actual consistent shots — not raw averages.
+ */
+export const analyzeShotStrategy = async (params: {
+  clientProfile: ClientProfile;
+  lessons: Lesson[];
+  coachId?: string;
+  /** Optional: caller can override the auto-aggregation with their own. */
+  aggregates?: ShotAggregate[];
+}): Promise<ShotStrategyReport> => {
+  const { clientProfile, lessons, coachId } = params;
+
+  const lessonsWithData = lessons.filter((l) => l.golfData && l.club);
+  const aggregates =
+    params.aggregates ??
+    summariseShotsByClub(lessonsWithData);
+
+  if (aggregates.length === 0) {
+    throw new Error('분석할 클럽별 볼 데이터가 없습니다.');
+  }
+
+  const isFirebaseMode = firebaseService.isInitialized();
+  const systemInstruction = await promptService.getActiveSystemPrompt(
+    'shot_analysis',
+    isFirebaseMode,
+    coachId
+  );
+
+  const profileLines = [
+    `이름: ${clientProfile.name}`,
+    clientProfile.handicap != null ? `핸디캡: ${clientProfile.handicap}` : '핸디캡: 미입력',
+    clientProfile.bestScore != null ? `베스트: ${clientProfile.bestScore}` : '',
+    clientProfile.memo ? `메모: ${clientProfile.memo}` : '',
+  ].filter(Boolean).join('\n- ');
+
+  const aggregateBlock = aggregates.map(formatShotAggregate).join('\n\n');
+  const bodyBlock = formatBodyAnalysisForShot(clientProfile, lessonsWithData);
+  const motionBlock = formatMotionForShot(lessonsWithData);
+
+  const prompt = `분석 대상 골퍼
+- ${profileLines}
+- 볼 데이터가 있는 레슨·연습 기록: ${lessonsWithData.length}건
+- 커버 클럽: ${aggregates.map((a) => `${a.club}(${a.sampleSize})`).join(', ')}
+
+=== 클럽별 볼·클럽 데이터 요약 (median + IQR, 이상치 이미 필터됨) ===
+${aggregateBlock}
+
+${bodyBlock ? `=== 신체 분석 ===\n${bodyBlock}\n` : '(신체 분석 데이터 없음)\n'}
+${motionBlock ? `=== 모션 데이터 (최근 측정) ===\n${motionBlock}\n` : '(모션 데이터 없음 — 관련 진단은 확률적 추정으로 표시)\n'}
+
+시스템 지시(원칙)에 따라 마크다운 종합 리포트를 작성해 주세요.
+- 각 섹션 헤더 형식 유지
+- 클럽별 캐리·토탈 탄착 좌표는 median 기준으로 추정하되, IQR 폭을 "산포"로 설명
+- 핀 위치별 공략은 실제 sideTotal/spinRate 부호가 있으면 그것을 근거로
+- 데이터가 없는 섹션은 "데이터 부족" 표시`;
+
+  const result = await invokeBackendAI<unknown>('shot_analysis', {
+    prompt,
+    systemInstruction,
+  });
+
+  const markdown = getResponseText(result) ?? '';
+  if (!markdown.trim()) {
+    throw new Error('AI가 빈 응답을 반환했습니다.');
+  }
+
+  return {
+    markdown,
+    contributingLessonCount: lessonsWithData.length,
+    clubsAnalysed: aggregates.map((a) => a.club),
   };
 };
