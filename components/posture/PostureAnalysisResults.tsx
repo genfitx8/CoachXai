@@ -10,6 +10,7 @@ import {
   Activity,
   TrendingUp,
   ZoomIn,
+  Target,
 } from 'lucide-react';
 
 interface PostureAnalysisResultsProps {
@@ -168,6 +169,44 @@ const OverallScoreRing: React.FC<{ score: number }> = ({ score }) => {
   );
 };
 
+/* ── 3D golf biomechanic tile ── */
+interface GolfMetricTileProps {
+  label: string;
+  value: number | undefined;
+  unit?: string;
+  targetLabel: string;
+  inRange: (v: number) => boolean;
+}
+
+const GolfMetricTile: React.FC<GolfMetricTileProps> = ({
+  label,
+  value,
+  unit = '°',
+  targetLabel,
+  inRange,
+}) => {
+  const hasValue = typeof value === 'number' && Number.isFinite(value);
+  const ok = hasValue && inRange(value as number);
+  const color = !hasValue ? 'text-slate-500' : ok ? 'text-emerald-400' : 'text-yellow-400';
+  const dotColor = !hasValue ? 'bg-slate-600' : ok ? 'bg-emerald-500' : 'bg-yellow-400';
+
+  return (
+    <div className="rounded-lg bg-slate-800/60 border border-slate-700/70 px-3 py-3">
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-[11px] text-slate-400 uppercase tracking-wider">{label}</span>
+        <span className={`w-2 h-2 rounded-full ${dotColor}`} />
+      </div>
+      <div className="flex items-baseline gap-1">
+        <span className={`text-2xl font-bold ${color}`}>
+          {hasValue ? (value as number).toFixed(1) : '—'}
+        </span>
+        {hasValue && <span className="text-xs text-slate-500">{unit}</span>}
+      </div>
+      <p className="mt-1.5 text-[10px] text-slate-500 leading-tight">{targetLabel}</p>
+    </div>
+  );
+};
+
 /* ── Main results component ── */
 export const PostureAnalysisResults: React.FC<PostureAnalysisResultsProps> = ({
   result,
@@ -270,6 +309,54 @@ export const PostureAnalysisResults: React.FC<PostureAnalysisResultsProps> = ({
             </div>
           </div>
         </section>
+
+        {/* ── 골프 3D 바이오메카닉 (베타) ── */}
+        {(frontSkeleton.worldKeypoints || sideSkeleton.worldKeypoints) && (
+          <section className="rounded-xl bg-slate-900 border border-slate-800 overflow-hidden">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-slate-800">
+              <div className="flex items-center gap-2">
+                <Target size={15} className="text-emerald-400" />
+                <h2 className="text-sm font-semibold text-slate-200">골프 3D 바이오메카닉</h2>
+              </div>
+              <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-900/50 text-emerald-300 border border-emerald-800/60">
+                BETA
+              </span>
+            </div>
+            <div className="p-4 grid grid-cols-2 md:grid-cols-4 gap-3">
+              <GolfMetricTile
+                label="척추 기울기"
+                value={sideSkeleton.angles.spineTilt3D ?? frontSkeleton.angles.spineTilt3D}
+                targetLabel="어드레스 목표: 30–40°"
+                inRange={(v) => v >= 25 && v <= 45}
+              />
+              <GolfMetricTile
+                label="어깨 회전"
+                value={frontSkeleton.angles.shoulderRotation ?? sideSkeleton.angles.shoulderRotation}
+                targetLabel="어드레스 목표: ±10°"
+                inRange={(v) => Math.abs(v) <= 10}
+              />
+              <GolfMetricTile
+                label="골반 회전"
+                value={frontSkeleton.angles.pelvisRotation ?? sideSkeleton.angles.pelvisRotation}
+                targetLabel="어드레스 목표: ±10°"
+                inRange={(v) => Math.abs(v) <= 10}
+              />
+              <GolfMetricTile
+                label="X-Factor"
+                value={
+                  frontSkeleton.angles.hipShoulderSeparation ??
+                  sideSkeleton.angles.hipShoulderSeparation
+                }
+                targetLabel="어드레스 근사 0°, 백스윙 톱 40°+"
+                inRange={(v) => Math.abs(v) <= 15}
+              />
+            </div>
+            <p className="px-4 pb-4 text-[11px] text-slate-500 leading-relaxed">
+              MediaPipe Heavy 모델의 미터 단위 3D 좌표에서 실시간 계산됩니다. 현재는 정지 자세(어드레스)
+              기준이며, 스윙 동영상 기반 톱/임팩트 이벤트 분석은 Phase B에서 지원 예정입니다.
+            </p>
+          </section>
+        )}
 
         {/* ── 발견된 문제점 ── */}
         {problemAreas.length > 0 && (
