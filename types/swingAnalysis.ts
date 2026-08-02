@@ -37,6 +37,13 @@ export interface SwingSummary {
    * segment was not detected.
    */
   tempoRatio?: number;
+  /**
+   * Swing plane inclination from horizontal in degrees, computed from the
+   * lead-wrist arc (Top → mid-downswing → Impact). Typical driver plane
+   * ~45–55°, irons steeper. Undefined when Top/Impact are missing or the arc
+   * is degenerate.
+   */
+  swingPlaneAngle?: number;
 }
 
 export interface SwingAnalysis {

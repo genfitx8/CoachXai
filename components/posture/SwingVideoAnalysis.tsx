@@ -125,7 +125,15 @@ const EventSnapshot: React.FC<EventSnapshotProps> = ({ event, frame, videoUrl })
     return `${sign}${v.toFixed(1)}°`;
   };
 
-  const isImpact = event.name === 'impact';
+  const kneeFlex = event.metrics.kneeFlex;
+  const kneeTone: MetricTone | undefined =
+    typeof kneeFlex !== 'number'
+      ? undefined
+      : kneeFlex >= 150 && kneeFlex <= 170
+      ? 'ok'
+      : kneeFlex >= 140 && kneeFlex < 178
+      ? 'warn'
+      : 'bad';
 
   return (
     <div className="rounded-lg bg-slate-900 border border-slate-800 overflow-hidden">
@@ -141,7 +149,7 @@ const EventSnapshot: React.FC<EventSnapshotProps> = ({ event, frame, videoUrl })
         />
       </div>
       <div className="grid grid-cols-2 gap-2 p-3 text-[11px]">
-        {isImpact ? (
+        {event.name === 'impact' ? (
           <>
             <MetricRow
               label="머리 드리프트"
@@ -170,6 +178,23 @@ const EventSnapshot: React.FC<EventSnapshotProps> = ({ event, frame, videoUrl })
               hint="어드레스 대비 척추 각 변화"
             />
             <MetricRow label="X-Factor" value={metricAngle('hipShoulderSeparation')} />
+          </>
+        ) : event.name === 'address' ? (
+          <>
+            <MetricRow
+              label="척추 기울기"
+              value={metricAngle('spineTilt3D')}
+              tone={impactTone(undefined, 0, 0)}
+              hint="목표 30–40°"
+            />
+            <MetricRow
+              label="무릎 굽힘"
+              value={metricAngle('kneeFlex')}
+              tone={kneeTone}
+              hint="목표 150–170°"
+            />
+            <MetricRow label="어깨 라인" value={metricSignedDeg('shoulderRotation')} />
+            <MetricRow label="골반 라인" value={metricSignedDeg('pelvisRotation')} />
           </>
         ) : (
           <>
@@ -243,6 +268,12 @@ const SummaryBar: React.FC<SummaryBarProps> = ({ summary }) => {
       : summary.tempoRatio >= 2.5 && summary.tempoRatio <= 3.5
       ? 'text-emerald-400'
       : 'text-yellow-400';
+  const planeTone =
+    summary.swingPlaneAngle == null
+      ? 'text-slate-400'
+      : summary.swingPlaneAngle >= 40 && summary.swingPlaneAngle <= 70
+      ? 'text-emerald-400'
+      : 'text-yellow-400';
   return (
     <div className="rounded-lg bg-slate-900 border border-slate-800 p-3 flex flex-wrap gap-2 items-center">
       <span
@@ -250,6 +281,12 @@ const SummaryBar: React.FC<SummaryBarProps> = ({ summary }) => {
       >
         {VIEW_LABEL[summary.cameraView]}
       </span>
+      {summary.swingPlaneAngle != null && (
+        <span className="text-[10px] font-semibold px-2 py-1 rounded border border-slate-700 bg-slate-800/70 text-slate-300">
+          스윙 플레인{' '}
+          <span className={planeTone}>{summary.swingPlaneAngle.toFixed(1)}°</span>
+        </span>
+      )}
       <div className="flex items-center gap-3 text-xs text-slate-300 ml-auto">
         <div className="flex items-center gap-1.5">
           <span className="text-slate-500">백스윙</span>

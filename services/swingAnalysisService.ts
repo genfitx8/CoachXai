@@ -93,6 +93,17 @@ function rotationAroundVertical(left: Vec3, right: Vec3): number {
   return toDeg(Math.atan2(v.z, v.x));
 }
 
+/** Interior angle (deg) at vertex `b` between segments b→a and b→c, in 3D. */
+function angle3D(a: Vec3, b: Vec3, c: Vec3): number {
+  const ba = subtract(a, b);
+  const bc = subtract(c, b);
+  const lenA = Math.hypot(ba.x, ba.y, ba.z);
+  const lenC = Math.hypot(bc.x, bc.y, bc.z);
+  if (lenA === 0 || lenC === 0) return NaN;
+  const cos = (ba.x * bc.x + ba.y * bc.y + ba.z * bc.z) / (lenA * lenC);
+  return toDeg(Math.acos(Math.max(-1, Math.min(1, cos))));
+}
+
 function computeGolfAngles(world: SkeletonKeypoint[]): Record<string, number> {
   const angles: Record<string, number> = {};
   const ls = toVec3(world[11]);
@@ -122,6 +133,19 @@ function computeGolfAngles(world: SkeletonKeypoint[]): Record<string, number> {
   const rw = world[16];
   if (lw && rw) {
     angles.wristY = (lw.y + rw.y) / 2;
+  }
+
+  // Mean knee flexion (3D). Address ~150–165°; less = deeper squat, 180° = fully
+  // extended. Loss of knee flex through impact is a "stand-up" fault.
+  const lk = toVec3(world[25]);
+  const rk = toVec3(world[26]);
+  const la = toVec3(world[27]);
+  const ra = toVec3(world[28]);
+  const lKnee = lh && lk && la ? angle3D(lh, lk, la) : NaN;
+  const rKnee = rh && rk && ra ? angle3D(rh, rk, ra) : NaN;
+  const valid = [lKnee, rKnee].filter((v) => Number.isFinite(v));
+  if (valid.length > 0) {
+    angles.kneeFlex = valid.reduce((s, v) => s + v, 0) / valid.length;
   }
 
   return angles;
@@ -437,6 +461,42 @@ function enrichImpactDiagnostics(
   }
 }
 
+/**
+ * Swing-plane inclination from horizontal, degrees.
+ *
+ * We fit a plane through three lead-wrist positions — Top, mid-downswing, and
+ * Impact — via cross-product, then measure the plane's normal against
+ * vertical. The 3-point fit is deliberately simple: the real wrist arc is
+ * curved, but its dominant plane is stable enough that adding more samples
+ * mostly buys noise from occluded top-of-swing frames. Handedness is not yet
+ * detected — we assume right-handed (lead wrist = left, landmark 15).
+ */
+function computeSwingPlaneAngle(
+  frames: SwingFrame[],
+  topIdx: number,
+  impactIdx: number,
+): number | undefined {
+  if (topIdx < 0 || impactIdx <= topIdx) return undefined;
+  const midIdx = Math.round((topIdx + impactIdx) / 2);
+  if (midIdx === topIdx || midIdx === impactIdx) return undefined;
+  const leadWrist = 15;
+  const p1 = toVec3(frames[topIdx]?.worldKeypoints?.[leadWrist]);
+  const p2 = toVec3(frames[midIdx]?.worldKeypoints?.[leadWrist]);
+  const p3 = toVec3(frames[impactIdx]?.worldKeypoints?.[leadWrist]);
+  if (!p1 || !p2 || !p3) return undefined;
+  const v1 = subtract(p2, p1);
+  const v2 = subtract(p3, p1);
+  const normal = {
+    x: v1.y * v2.z - v1.z * v2.y,
+    y: v1.z * v2.x - v1.x * v2.z,
+    z: v1.x * v2.y - v1.y * v2.x,
+  };
+  const len = Math.hypot(normal.x, normal.y, normal.z);
+  if (len < 1e-6) return undefined;
+  // Plane tilt from horizontal = angle between plane normal and vertical Y.
+  return +toDeg(Math.acos(Math.abs(normal.y / len))).toFixed(1);
+}
+
 function buildSummary(
   frames: SwingFrame[],
   events: Partial<Record<SwingEventName, SwingEvent>>,
@@ -455,6 +515,10 @@ function buildSummary(
   }
   if (summary.backswingMs && summary.downswingMs && summary.downswingMs > 0) {
     summary.tempoRatio = +(summary.backswingMs / summary.downswingMs).toFixed(2);
+  }
+  if (events.top && events.impact) {
+    const plane = computeSwingPlaneAngle(frames, events.top.frameIndex, events.impact.frameIndex);
+    if (plane != null) summary.swingPlaneAngle = plane;
   }
   return summary;
 }
