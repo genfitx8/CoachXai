@@ -382,7 +382,59 @@ function segmentEvents(
   if (top) events.top = top;
   if (impact) events.impact = impact;
   if (finish) events.finish = finish;
+  enrichImpactDiagnostics(events, frames);
   return { events, warnings };
+}
+
+/**
+ * Add impact-event diagnostics that are meaningful only as a delta from
+ * address: head sway (mm), hip Z-drift toward the camera / early extension
+ * (mm), and spine-tilt loss (deg). Delta-form is deliberate — camera tilt
+ * cancels out, so these read correctly on handheld shots the raw absolute
+ * angles are unreliable on.
+ */
+function enrichImpactDiagnostics(
+  events: Partial<Record<SwingEventName, SwingEvent>>,
+  frames: SwingFrame[],
+): void {
+  const { address, impact } = events;
+  if (!address || !impact) return;
+  const aWorld = frames[address.frameIndex]?.worldKeypoints;
+  const iWorld = frames[impact.frameIndex]?.worldKeypoints;
+  if (!aWorld || !iWorld) return;
+
+  const aNose = toVec3(aWorld[0]);
+  const iNose = toVec3(iWorld[0]);
+  if (aNose && iNose) {
+    // Horizontal (X) drift of the head from address to impact. Good players
+    // hold the head fairly still (<50 mm); large sways correlate with fat/thin
+    // contact.
+    impact.metrics.headSwayMm = Math.abs(iNose.x - aNose.x) * 1000;
+  }
+
+  const aLh = toVec3(aWorld[23]);
+  const aRh = toVec3(aWorld[24]);
+  const iLh = toVec3(iWorld[23]);
+  const iRh = toVec3(iWorld[24]);
+  if (aLh && aRh && iLh && iRh) {
+    // MediaPipe world Z points away from the camera; hips drifting toward the
+    // camera during the downswing (early extension) shows up as a NEGATIVE Z
+    // delta. Report the magnitude so higher = worse, with sign preserved in a
+    // second key for downstream consumers that care about direction.
+    const aZ = (aLh.z + aRh.z) / 2;
+    const iZ = (iLh.z + iRh.z) / 2;
+    const dz = iZ - aZ;
+    impact.metrics.earlyExtensionMm = Math.abs(dz) * 1000;
+    impact.metrics.hipDriftZSignedMm = dz * 1000;
+  }
+
+  const aSpine = address.metrics.spineTilt3D;
+  const iSpine = impact.metrics.spineTilt3D;
+  if (typeof aSpine === 'number' && typeof iSpine === 'number') {
+    // Change in forward spine tilt from address to impact. Losing posture
+    // (standing up through impact) shows up as a negative delta.
+    impact.metrics.spineTiltDelta = iSpine - aSpine;
+  }
 }
 
 function buildSummary(

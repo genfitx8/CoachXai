@@ -110,10 +110,22 @@ const EventSnapshot: React.FC<EventSnapshotProps> = ({ event, frame, videoUrl })
     );
   }
 
-  const metric = (key: string) => {
+  const metricAngle = (key: string) => {
     const v = event.metrics[key];
     return typeof v === 'number' && Number.isFinite(v) ? `${v.toFixed(1)}°` : '—';
   };
+  const metricMm = (key: string) => {
+    const v = event.metrics[key];
+    return typeof v === 'number' && Number.isFinite(v) ? `${v.toFixed(0)}mm` : '—';
+  };
+  const metricSignedDeg = (key: string) => {
+    const v = event.metrics[key];
+    if (typeof v !== 'number' || !Number.isFinite(v)) return '—';
+    const sign = v > 0 ? '+' : '';
+    return `${sign}${v.toFixed(1)}°`;
+  };
+
+  const isImpact = event.name === 'impact';
 
   return (
     <div className="rounded-lg bg-slate-900 border border-slate-800 overflow-hidden">
@@ -129,19 +141,82 @@ const EventSnapshot: React.FC<EventSnapshotProps> = ({ event, frame, videoUrl })
         />
       </div>
       <div className="grid grid-cols-2 gap-2 p-3 text-[11px]">
-        <MetricRow label="X-Factor" value={metric('hipShoulderSeparation')} />
-        <MetricRow label="척추 기울기" value={metric('spineTilt3D')} />
-        <MetricRow label="어깨 회전" value={metric('shoulderRotation')} />
-        <MetricRow label="골반 회전" value={metric('pelvisRotation')} />
+        {isImpact ? (
+          <>
+            <MetricRow
+              label="머리 드리프트"
+              value={metricMm('headSwayMm')}
+              tone={impactTone(event.metrics.headSwayMm, 50, 100)}
+              hint="어드레스 대비 X 이동"
+            />
+            <MetricRow
+              label="얼리 익스텐션"
+              value={metricMm('earlyExtensionMm')}
+              tone={impactTone(event.metrics.earlyExtensionMm, 40, 80)}
+              hint="어드레스 대비 골반 Z 이동"
+            />
+            <MetricRow
+              label="자세 유지"
+              value={metricSignedDeg('spineTiltDelta')}
+              tone={
+                event.metrics.spineTiltDelta == null
+                  ? undefined
+                  : Math.abs(event.metrics.spineTiltDelta) <= 5
+                  ? 'ok'
+                  : Math.abs(event.metrics.spineTiltDelta) <= 12
+                  ? 'warn'
+                  : 'bad'
+              }
+              hint="어드레스 대비 척추 각 변화"
+            />
+            <MetricRow label="X-Factor" value={metricAngle('hipShoulderSeparation')} />
+          </>
+        ) : (
+          <>
+            <MetricRow label="X-Factor" value={metricAngle('hipShoulderSeparation')} />
+            <MetricRow label="척추 기울기" value={metricAngle('spineTilt3D')} />
+            <MetricRow label="어깨 회전" value={metricAngle('shoulderRotation')} />
+            <MetricRow label="골반 회전" value={metricAngle('pelvisRotation')} />
+          </>
+        )}
       </div>
     </div>
   );
 };
 
-const MetricRow: React.FC<{ label: string; value: string }> = ({ label, value }) => (
-  <div className="flex items-center justify-between rounded bg-slate-800/50 px-2 py-1.5">
-    <span className="text-slate-400">{label}</span>
-    <span className="font-semibold text-slate-100">{value}</span>
+function impactTone(
+  value: number | undefined,
+  okMax: number,
+  warnMax: number,
+): 'ok' | 'warn' | 'bad' | undefined {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return undefined;
+  if (value <= okMax) return 'ok';
+  if (value <= warnMax) return 'warn';
+  return 'bad';
+}
+
+type MetricTone = 'ok' | 'warn' | 'bad';
+
+const TONE_COLOR: Record<MetricTone, string> = {
+  ok: 'text-emerald-400',
+  warn: 'text-yellow-400',
+  bad: 'text-red-400',
+};
+
+const MetricRow: React.FC<{
+  label: string;
+  value: string;
+  tone?: MetricTone;
+  hint?: string;
+}> = ({ label, value, tone, hint }) => (
+  <div className="rounded bg-slate-800/50 px-2 py-1.5">
+    <div className="flex items-center justify-between">
+      <span className="text-slate-400">{label}</span>
+      <span className={`font-semibold ${tone ? TONE_COLOR[tone] : 'text-slate-100'}`}>
+        {value}
+      </span>
+    </div>
+    {hint && <div className="mt-0.5 text-[10px] text-slate-500 leading-tight">{hint}</div>}
   </div>
 );
 
