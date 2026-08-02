@@ -11,6 +11,8 @@ import {
   SwingSummary,
 } from '../types/swingAnalysis';
 import { createLogger } from '../utils/logger';
+import { midpoint, subtract, toDeg, toVec3, type Vec3 } from '../utils/vec3';
+import { clubHeadAugmentSummary } from './clubHeadTrackingService';
 
 const log = createLogger('swingAnalysisService');
 
@@ -68,25 +70,6 @@ async function initializeVideoLandmarker(): Promise<PoseLandmarker> {
   } finally {
     isInitializing = false;
   }
-}
-
-type Vec3 = { x: number; y: number; z: number };
-
-function toVec3(kp: SkeletonKeypoint | undefined): Vec3 | undefined {
-  if (!kp || kp.z == null) return undefined;
-  return { x: kp.x, y: kp.y, z: kp.z };
-}
-
-function midpoint(a: Vec3, b: Vec3): Vec3 {
-  return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2, z: (a.z + b.z) / 2 };
-}
-
-function subtract(a: Vec3, b: Vec3): Vec3 {
-  return { x: a.x - b.x, y: a.y - b.y, z: a.z - b.z };
-}
-
-function toDeg(rad: number): number {
-  return (rad * 180) / Math.PI;
 }
 
 function rotationAroundVertical(left: Vec3, right: Vec3): number {
@@ -694,6 +677,7 @@ function buildSummary(
   } else {
     summary.gravityAligned = false;
   }
+  clubHeadAugmentSummary(summary, frames, events);
   return summary;
 }
 
