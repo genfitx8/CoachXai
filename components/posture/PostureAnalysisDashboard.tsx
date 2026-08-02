@@ -2,10 +2,11 @@ import React, { useState } from 'react';
 import { PostureCapture, PostureAnalysisResult, PostureSession } from '../../types/postureAnalysis';
 import { DualCameraCapture } from './DualCameraCapture';
 import { PostureAnalysisResults } from './PostureAnalysisResults';
+import { SwingVideoAnalysis } from './SwingVideoAnalysis';
 import { skeletonAnalysisService } from '../../services/skeletonAnalysisService';
 import {
   Scan, ArrowLeft, Camera, Upload, Zap, CheckCircle2,
-  RotateCcw, Play, ZoomIn, AlertCircle,
+  RotateCcw, Play, ZoomIn, AlertCircle, Video,
 } from 'lucide-react';
 import { PostureAnalyzingView } from './PostureAnalyzingView';
 
@@ -15,7 +16,7 @@ interface PostureAnalysisDashboardProps {
   onComplete?: (result: PostureAnalysisResult) => void;
 }
 
-type ViewMode = 'intro' | 'capture' | 'preview' | 'analyzing' | 'results';
+type ViewMode = 'intro' | 'capture' | 'preview' | 'analyzing' | 'results' | 'swing_video';
 
 export const PostureAnalysisDashboard: React.FC<PostureAnalysisDashboardProps> = ({
   memberName,
@@ -171,6 +172,36 @@ export const PostureAnalysisDashboard: React.FC<PostureAnalysisDashboardProps> =
             <Scan size={24} />
             분석 시작하기
           </button>
+
+          <button
+            onClick={() => setViewMode('swing_video')}
+            className="mt-3 w-full flex items-center justify-center gap-2 py-3 rounded-2xl border border-emerald-800/70 bg-slate-900 hover:bg-slate-800 text-emerald-300 font-semibold transition-colors"
+          >
+            <Video size={18} />
+            스윙 비디오 분석 (BETA)
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  /* ── SWING VIDEO ── */
+  if (viewMode === 'swing_video') {
+    return (
+      <div className="min-h-screen bg-slate-950 text-slate-100">
+        <div className="sticky top-0 z-10 flex items-center justify-between px-4 py-3 bg-slate-900 border-b border-slate-800">
+          <button
+            onClick={() => setViewMode('intro')}
+            className="flex items-center gap-1.5 text-slate-400 hover:text-slate-100 transition-colors text-sm"
+          >
+            <ArrowLeft size={18} />
+            돌아가기
+          </button>
+          <h1 className="text-base font-bold">스윙 비디오 분석</h1>
+          <span className="text-xs text-slate-500">{memberName}</span>
+        </div>
+        <div className="max-w-3xl mx-auto px-4 py-6">
+          <SwingVideoAnalysis />
         </div>
       </div>
     );
