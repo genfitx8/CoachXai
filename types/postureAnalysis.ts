@@ -17,6 +17,11 @@ export interface PostureCapture {
 
 export interface SkeletonAnalysis {
   keypoints: SkeletonKeypoint[];
+  /**
+   * Metric 3D world coordinates (meters, origin at pelvis center) when the
+   * upstream pose model exposes them. Optional so legacy callers keep working.
+   */
+  worldKeypoints?: SkeletonKeypoint[];
   angles: Record<string, number>;
   deviations: Record<string, number>;
   confidence: number;

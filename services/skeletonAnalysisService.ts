@@ -58,8 +58,12 @@ async function initializePoseLandmarker(): Promise<PoseLandmarker> {
 
     poseLandmarker = await PoseLandmarker.createFromOptions(vision, {
       baseOptions: {
+        // Heavy = highest-accuracy variant MediaPipe ships (Lite < Full < Heavy).
+        // Trade-off: larger download (~30MB) and slower inference; worth it for
+        // golf biomechanics where a few pixels of wrist/hip drift changes the
+        // computed spine tilt and X-factor.
         modelAssetPath:
-          'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task',
+          'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_heavy/float16/1/pose_landmarker_heavy.task',
         delegate: 'GPU',
       },
       runningMode: 'IMAGE',
@@ -67,6 +71,7 @@ async function initializePoseLandmarker(): Promise<PoseLandmarker> {
       minPoseDetectionConfidence: 0.5,
       minPosePresenceConfidence: 0.5,
       minTrackingConfidence: 0.5,
+      outputSegmentationMasks: false,
     });
 
     log.info('Pose landmarker initialized successfully');
@@ -86,6 +91,69 @@ function calculateAngle(p1: { x: number; y: number }, p2: { x: number; y: number
     angle = 360 - angle;
   }
   return angle;
+}
+
+type Vec3 = { x: number; y: number; z: number };
+
+function subtract(a: Vec3, b: Vec3): Vec3 {
+  return { x: a.x - b.x, y: a.y - b.y, z: a.z - b.z };
+}
+
+function midpoint(a: Vec3, b: Vec3): Vec3 {
+  return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2, z: (a.z + b.z) / 2 };
+}
+
+function toDeg(rad: number): number {
+  return (rad * 180) / Math.PI;
+}
+
+// Rotation of a shoulder/hip line about the vertical (Y) axis, projected onto
+// the ground (X-Z) plane. Positive = right side further from camera.
+function rotationAroundVertical(left: Vec3, right: Vec3): number {
+  const v = subtract(right, left);
+  return toDeg(Math.atan2(v.z, v.x));
+}
+
+/**
+ * Golf-specific biomechanic angles computed from MediaPipe worldLandmarks
+ * (metric 3D, origin at pelvis). Requires all four shoulder+hip landmarks.
+ */
+function toVec3(kp: SkeletonKeypoint | undefined): Vec3 | undefined {
+  if (!kp || kp.z == null) return undefined;
+  return { x: kp.x, y: kp.y, z: kp.z };
+}
+
+function computeGolfWorldAngles(world: SkeletonKeypoint[]): Record<string, number> {
+  const angles: Record<string, number> = {};
+  const ls = toVec3(world[11]);
+  const rs = toVec3(world[12]);
+  const lh = toVec3(world[23]);
+  const rh = toVec3(world[24]);
+  if (!ls || !rs || !lh || !rh) return angles;
+
+  const shoulderCenter = midpoint(ls, rs);
+  const hipCenter = midpoint(lh, rh);
+
+  // Spine tilt away from vertical (side-bend + forward lean combined).
+  const spineVec = subtract(shoulderCenter, hipCenter);
+  const spineLen = Math.hypot(spineVec.x, spineVec.y, spineVec.z);
+  if (spineLen > 0) {
+    // Angle between spine vector and vertical (+Y).
+    const cos = spineVec.y / spineLen;
+    angles.spineTilt3D = toDeg(Math.acos(Math.max(-1, Math.min(1, cos))));
+  }
+
+  // Pelvis and shoulder rotation about the vertical axis (address = ~0°).
+  const shoulderRot = rotationAroundVertical(ls, rs);
+  const pelvisRot = rotationAroundVertical(lh, rh);
+  angles.shoulderRotation = shoulderRot;
+  angles.pelvisRotation = pelvisRot;
+
+  // X-factor: shoulder-turn minus hip-turn (top of backswing target ≈ 40°+ for
+  // a modern tour swing; used later for driver distance diagnostics).
+  angles.hipShoulderSeparation = shoulderRot - pelvisRot;
+
+  return angles;
 }
 
 async function analyzePoseFromImage(imageData: string): Promise<SkeletonAnalysis> {
@@ -109,6 +177,20 @@ async function analyzePoseFromImage(imageData: string): Promise<SkeletonAnalysis
           confidence: lm.visibility ?? 0.5,
           name: LANDMARK_NAMES[index] || `point_${index}`,
         }));
+
+        // Metric 3D coordinates (meters, pelvis-centered). Heavy model exposes
+        // these alongside normalized landmarks; used for biomechanic angles
+        // where pixel-space z is unreliable.
+        const worldLandmarksRaw = result.worldLandmarks?.[0];
+        const worldKeypoints: SkeletonKeypoint[] | undefined = worldLandmarksRaw
+          ? worldLandmarksRaw.map((lm, index) => ({
+              x: lm.x,
+              y: lm.y,
+              z: lm.z,
+              confidence: lm.visibility ?? 0.5,
+              name: LANDMARK_NAMES[index] || `point_${index}`,
+            }))
+          : undefined;
 
         // Calculate important angles
         const angles: Record<string, number> = {};
@@ -148,6 +230,10 @@ async function analyzePoseFromImage(imageData: string): Promise<SkeletonAnalysis
           angles.rightKneeAngle = calculateAngle(keypoints[24], keypoints[26], keypoints[28]);
         }
 
+        if (worldKeypoints) {
+          Object.assign(angles, computeGolfWorldAngles(worldKeypoints));
+        }
+
         // Calculate deviations
         const deviations: Record<string, number> = {};
         if (angles.shoulderAlignment) {
@@ -161,6 +247,7 @@ async function analyzePoseFromImage(imageData: string): Promise<SkeletonAnalysis
 
         resolve({
           keypoints,
+          worldKeypoints,
           angles,
           deviations,
           confidence: avgConfidence,
