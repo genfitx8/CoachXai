@@ -3,6 +3,7 @@ import { Upload, Loader2, AlertTriangle, Target, RefreshCw, X } from 'lucide-rea
 import { swingAnalysisService } from '../../services/swingAnalysisService';
 import {
   CameraView,
+  Handedness,
   SwingAnalysis,
   SwingAnalysisProgress,
   SwingEvent,
@@ -31,10 +32,18 @@ const POSE_CONNECTIONS: Array<[number, number]> = [
   [24, 26], [26, 28],
 ];
 
+interface OverlayLine {
+  start: { x: number; y: number };
+  end: { x: number; y: number };
+  color: string;
+  label?: string;
+}
+
 function drawKeypoints(
   canvas: HTMLCanvasElement,
   bg: HTMLVideoElement | HTMLImageElement | null,
   keypoints: SkeletonKeypoint[],
+  overlay?: OverlayLine,
 ) {
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
@@ -68,15 +77,55 @@ function drawKeypoints(
     ctx.arc(kp.x * canvas.width, kp.y * canvas.height, 4, 0, 2 * Math.PI);
     ctx.fill();
   });
+  if (overlay) {
+    const sx = overlay.start.x * canvas.width;
+    const sy = overlay.start.y * canvas.height;
+    const ex = overlay.end.x * canvas.width;
+    const ey = overlay.end.y * canvas.height;
+    ctx.save();
+    ctx.strokeStyle = overlay.color;
+    ctx.lineWidth = 4;
+    ctx.setLineDash([10, 6]);
+    // Extend the segment a little beyond both endpoints so the plane reads as
+    // a "line" rather than a chord between two dots.
+    const dx = ex - sx;
+    const dy = ey - sy;
+    ctx.beginPath();
+    ctx.moveTo(sx - dx * 0.15, sy - dy * 0.15);
+    ctx.lineTo(ex + dx * 0.15, ey + dy * 0.15);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = overlay.color;
+    [
+      { x: sx, y: sy },
+      { x: ex, y: ey },
+    ].forEach((p) => {
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 6, 0, 2 * Math.PI);
+      ctx.fill();
+    });
+    if (overlay.label) {
+      ctx.font = 'bold 14px sans-serif';
+      ctx.fillStyle = overlay.color;
+      ctx.strokeStyle = 'rgba(0,0,0,0.7)';
+      ctx.lineWidth = 3;
+      const midX = (sx + ex) / 2;
+      const midY = (sy + ey) / 2;
+      ctx.strokeText(overlay.label, midX + 8, midY - 8);
+      ctx.fillText(overlay.label, midX + 8, midY - 8);
+    }
+    ctx.restore();
+  }
 }
 
 interface EventSnapshotProps {
   event: SwingEvent | undefined;
   frame: SwingFrame | undefined;
   videoUrl: string;
+  overlay?: OverlayLine;
 }
 
-const EventSnapshot: React.FC<EventSnapshotProps> = ({ event, frame, videoUrl }) => {
+const EventSnapshot: React.FC<EventSnapshotProps> = ({ event, frame, videoUrl, overlay }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -88,7 +137,7 @@ const EventSnapshot: React.FC<EventSnapshotProps> = ({ event, frame, videoUrl })
     video.playsInline = true;
     video.crossOrigin = 'anonymous';
     const onSeeked = () => {
-      drawKeypoints(canvas, video, frame.keypoints);
+      drawKeypoints(canvas, video, frame.keypoints, overlay);
       video.removeEventListener('seeked', onSeeked);
       video.src = '';
     };
@@ -100,7 +149,7 @@ const EventSnapshot: React.FC<EventSnapshotProps> = ({ event, frame, videoUrl })
       video.removeEventListener('seeked', onSeeked);
       video.src = '';
     };
-  }, [event, frame, videoUrl]);
+  }, [event, frame, videoUrl, overlay]);
 
   if (!event || !frame) {
     return (
@@ -220,6 +269,33 @@ function impactTone(
   return 'bad';
 }
 
+/**
+ * Build an overlay line showing the swing plane trace: dashed segment from the
+ * top-of-swing lead-wrist position to the impact lead-wrist position, drawn on
+ * the impact snapshot. Handedness-aware; returns undefined when either event
+ * or the wrist landmarks are missing.
+ */
+function swingPlaneOverlay(analysis: SwingAnalysis): OverlayLine | undefined {
+  const { top, impact } = analysis.events;
+  if (!top || !impact) return undefined;
+  const leadIdx = analysis.summary.handedness === 'left' ? 16 : 15;
+  const topFrame = analysis.frames[top.frameIndex];
+  const impactFrame = analysis.frames[impact.frameIndex];
+  const start = topFrame?.keypoints[leadIdx];
+  const end = impactFrame?.keypoints[leadIdx];
+  if (!start || !end || start.confidence < 0.3 || end.confidence < 0.3) return undefined;
+  const label =
+    analysis.summary.swingPlaneAngle != null
+      ? `Plane ${analysis.summary.swingPlaneAngle.toFixed(1)}°`
+      : undefined;
+  return {
+    start: { x: start.x, y: start.y },
+    end: { x: end.x, y: end.y },
+    color: '#f472b6',
+    label,
+  };
+}
+
 type MetricTone = 'ok' | 'warn' | 'bad';
 
 const TONE_COLOR: Record<MetricTone, string> = {
@@ -257,6 +333,12 @@ const VIEW_COLOR: Record<CameraView, string> = {
   unknown: 'text-slate-400 bg-slate-800/60 border-slate-700/60',
 };
 
+const HAND_LABEL: Record<Handedness, string> = {
+  right: '오른손잡이',
+  left: '왼손잡이',
+  unknown: '핸드 미상',
+};
+
 interface SummaryBarProps {
   summary: SwingSummary;
 }
@@ -281,10 +363,30 @@ const SummaryBar: React.FC<SummaryBarProps> = ({ summary }) => {
       >
         {VIEW_LABEL[summary.cameraView]}
       </span>
+      {summary.handedness && (
+        <span className="text-[10px] font-semibold px-2 py-1 rounded border border-slate-700 bg-slate-800/70 text-slate-300">
+          {HAND_LABEL[summary.handedness]}
+        </span>
+      )}
       {summary.swingPlaneAngle != null && (
         <span className="text-[10px] font-semibold px-2 py-1 rounded border border-slate-700 bg-slate-800/70 text-slate-300">
           스윙 플레인{' '}
           <span className={planeTone}>{summary.swingPlaneAngle.toFixed(1)}°</span>
+        </span>
+      )}
+      {summary.attackAngle != null && (
+        <span className="text-[10px] font-semibold px-2 py-1 rounded border border-slate-700 bg-slate-800/70 text-slate-300">
+          어택 앵글{' '}
+          <span
+            className={
+              summary.attackAngle >= -6 && summary.attackAngle <= 6
+                ? 'text-emerald-400'
+                : 'text-yellow-400'
+            }
+          >
+            {summary.attackAngle > 0 ? '+' : ''}
+            {summary.attackAngle.toFixed(1)}°
+          </span>
         </span>
       )}
       <div className="flex items-center gap-3 text-xs text-slate-300 ml-auto">
@@ -489,12 +591,17 @@ export const SwingVideoAnalysis: React.FC<SwingVideoAnalysisProps> = ({
               {EVENT_ORDER.map((name) => {
                 const evt = analysis.events[name];
                 const frame = evt ? analysis.frames[evt.frameIndex] : undefined;
+                const overlay =
+                  name === 'impact'
+                    ? swingPlaneOverlay(analysis)
+                    : undefined;
                 return (
                   <EventSnapshot
                     key={name}
                     event={evt}
                     frame={frame}
                     videoUrl={analysis.videoUrl}
+                    overlay={overlay}
                   />
                 );
               })}

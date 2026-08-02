@@ -2,6 +2,7 @@ import { PoseLandmarker, FilesetResolver } from '@mediapipe/tasks-vision';
 import { SkeletonKeypoint } from '../types/postureAnalysis';
 import {
   CameraView,
+  Handedness,
   SwingAnalysis,
   SwingAnalysisProgress,
   SwingEvent,
@@ -462,24 +463,78 @@ function enrichImpactDiagnostics(
 }
 
 /**
+ * Detect handedness by comparing arm extension at Top. The lead arm stays
+ * (almost) straight through the backswing while the trail arm folds — so the
+ * arm with the larger elbow angle at Top is the lead arm. Right-handed player
+ * → lead is left arm. Returns 'unknown' when the two arms are within 10° of
+ * each other or landmarks are missing.
+ */
+function detectHandedness(frames: SwingFrame[], topIdx: number): Handedness {
+  const world = frames[topIdx]?.worldKeypoints;
+  if (!world) return 'unknown';
+  const ls = toVec3(world[11]);
+  const le = toVec3(world[13]);
+  const lw = toVec3(world[15]);
+  const rs = toVec3(world[12]);
+  const re = toVec3(world[14]);
+  const rw = toVec3(world[16]);
+  if (!ls || !le || !lw || !rs || !re || !rw) return 'unknown';
+  const lElbow = angle3D(ls, le, lw);
+  const rElbow = angle3D(rs, re, rw);
+  if (!Number.isFinite(lElbow) || !Number.isFinite(rElbow)) return 'unknown';
+  const diff = lElbow - rElbow;
+  if (Math.abs(diff) < 10) return 'unknown';
+  return diff > 0 ? 'right' : 'left';
+}
+
+/** Landmark index of the player's lead wrist given detected handedness. */
+function leadWristIndex(handedness: Handedness): number {
+  return handedness === 'left' ? 16 : 15;
+}
+
+/**
+ * Attack angle at impact: angle of the lead-wrist velocity vector from
+ * horizontal, in degrees. Uses a symmetric 2-frame delta around impact. In
+ * MediaPipe world coords +Y is down, so a negative dy means the wrist is
+ * rising → positive attack angle.
+ */
+function computeAttackAngle(
+  frames: SwingFrame[],
+  impactIdx: number,
+  handedness: Handedness,
+): number | undefined {
+  if (impactIdx <= 0 || impactIdx >= frames.length - 1) return undefined;
+  const idx = leadWristIndex(handedness);
+  const pre = toVec3(frames[impactIdx - 1]?.worldKeypoints?.[idx]);
+  const post = toVec3(frames[impactIdx + 1]?.worldKeypoints?.[idx]);
+  if (!pre || !post) return undefined;
+  const dx = post.x - pre.x;
+  const dy = post.y - pre.y;
+  const dz = post.z - pre.z;
+  const horizontal = Math.hypot(dx, dz);
+  if (horizontal < 1e-6 && Math.abs(dy) < 1e-6) return undefined;
+  return +toDeg(Math.atan2(-dy, horizontal)).toFixed(1);
+}
+
+/**
  * Swing-plane inclination from horizontal, degrees.
  *
  * We fit a plane through three lead-wrist positions — Top, mid-downswing, and
  * Impact — via cross-product, then measure the plane's normal against
  * vertical. The 3-point fit is deliberately simple: the real wrist arc is
  * curved, but its dominant plane is stable enough that adding more samples
- * mostly buys noise from occluded top-of-swing frames. Handedness is not yet
- * detected — we assume right-handed (lead wrist = left, landmark 15).
+ * mostly buys noise from occluded top-of-swing frames.
  */
 function computeSwingPlaneAngle(
   frames: SwingFrame[],
   topIdx: number,
   impactIdx: number,
+  handedness: Handedness,
 ): number | undefined {
   if (topIdx < 0 || impactIdx <= topIdx) return undefined;
   const midIdx = Math.round((topIdx + impactIdx) / 2);
   if (midIdx === topIdx || midIdx === impactIdx) return undefined;
-  const leadWrist = 15;
+  const leadWrist = leadWristIndex(handedness);
   const p1 = toVec3(frames[topIdx]?.worldKeypoints?.[leadWrist]);
   const p2 = toVec3(frames[midIdx]?.worldKeypoints?.[leadWrist]);
   const p3 = toVec3(frames[impactIdx]?.worldKeypoints?.[leadWrist]);
@@ -516,9 +571,20 @@ function buildSummary(
   if (summary.backswingMs && summary.downswingMs && summary.downswingMs > 0) {
     summary.tempoRatio = +(summary.backswingMs / summary.downswingMs).toFixed(2);
   }
+  const handedness = events.top ? detectHandedness(frames, events.top.frameIndex) : 'unknown';
+  summary.handedness = handedness;
   if (events.top && events.impact) {
-    const plane = computeSwingPlaneAngle(frames, events.top.frameIndex, events.impact.frameIndex);
+    const plane = computeSwingPlaneAngle(
+      frames,
+      events.top.frameIndex,
+      events.impact.frameIndex,
+      handedness,
+    );
     if (plane != null) summary.swingPlaneAngle = plane;
+  }
+  if (events.impact) {
+    const attack = computeAttackAngle(frames, events.impact.frameIndex, handedness);
+    if (attack != null) summary.attackAngle = attack;
   }
   return summary;
 }

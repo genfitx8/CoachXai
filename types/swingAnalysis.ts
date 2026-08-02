@@ -24,10 +24,18 @@ export interface SwingEvent {
 }
 
 export type CameraView = 'face_on' | 'down_the_line' | 'unknown';
+export type Handedness = 'right' | 'left' | 'unknown';
 
 export interface SwingSummary {
   /** Detected camera perspective, inferred from address-window landmarks. */
   cameraView: CameraView;
+  /** Player handedness, inferred from arm extension at Top. */
+  handedness?: Handedness;
+  /**
+   * Attack angle at impact in degrees (positive = ascending, negative =
+   * descending). Computed from lead-wrist trajectory around impact.
+   */
+  attackAngle?: number;
   /** Backswing (address → top) duration in milliseconds, if both events found. */
   backswingMs?: number;
   /** Downswing (top → impact) duration in milliseconds, if both events found. */
