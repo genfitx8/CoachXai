@@ -1,14 +1,27 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { Lesson } from '../types';
+import { ClientProfile, Lesson } from '../types';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine, AreaChart, Area, BarChart, Bar, Cell } from 'recharts';
-import { ArrowLeft, TrendingUp, TrendingDown, Minus, Target, Wind, Calendar, Trophy, Flag, Activity, LayoutDashboard, Crosshair, Filter, CalendarDays, RefreshCw, Percent, CircleDot, Mic, GitCompareArrows } from 'lucide-react';
+import { ArrowLeft, TrendingUp, TrendingDown, Minus, Target, Wind, Calendar, Trophy, Flag, Activity, LayoutDashboard, Crosshair, Filter, CalendarDays, RefreshCw, Percent, CircleDot, Mic, GitCompareArrows, Sparkles, AlertTriangle } from 'lucide-react';
 import { Button } from './Button';
 import { getTourAverageDistanceM, getTourLabel, TourGender } from '../constants/tourAverages';
+import { analyzeShotStrategy, ShotStrategyReport } from '../services/geminiService';
+import { renderMarkdown } from '../utils/renderMarkdown';
 
 interface ClientStatsProps {
   lessons: Lesson[];
   onBack: () => void;
+  /**
+   * Optional. When provided, unlocks the AI "샷 종합 분석 리포트" card that
+   * calls analyzeShotStrategy — the report needs the golfer's profile (name,
+   * handicap, body analysis) to ground its output. Omit to hide the card.
+   */
+  clientProfile?: ClientProfile;
+  /**
+   * Optional coach id. Passed through to the shot_analysis prompt lookup so
+   * a coach-scoped systemPrompt (Phase A2/A3) wins over the global default.
+   */
+  coachId?: string;
 }
 
 const TOUR_GENDER_STORAGE_KEY = 'coachxai_stats_tour_gender';
@@ -37,9 +50,42 @@ const buildClubOptionKey = (club: string, targetDistance: number | null) =>
 const buildClubOptionLabel = (club: string, targetDistance: number | null) =>
   targetDistance !== null ? `${club} · ${targetDistance}m` : club;
 
-export const ClientStats: React.FC<ClientStatsProps> = ({ lessons, onBack }) => {
+export const ClientStats: React.FC<ClientStatsProps> = ({ lessons, onBack, clientProfile, coachId }) => {
   const [activeTab, setActiveTab] = useState<StatTab>('SHOT');
   const [selectedClubKey, setSelectedClubKey] = useState<string>('');
+
+  // AI shot_analysis report state.
+  const [aiReport, setAiReport] = useState<ShotStrategyReport | null>(null);
+  const [isGeneratingReport, setIsGeneratingReport] = useState(false);
+  const [reportError, setReportError] = useState<string | null>(null);
+
+  const canGenerateReport = useMemo(
+    () => Boolean(clientProfile) && lessons.some((l) => l.golfData && l.club),
+    [clientProfile, lessons]
+  );
+
+  const handleGenerateReport = async () => {
+    if (!clientProfile) return;
+    setIsGeneratingReport(true);
+    setReportError(null);
+    try {
+      const report = await analyzeShotStrategy({
+        clientProfile,
+        lessons,
+        coachId,
+      });
+      setAiReport(report);
+    } catch (e) {
+      console.error('[ClientStats] shot_analysis error:', e);
+      setReportError(
+        e instanceof Error
+          ? e.message
+          : '리포트를 생성하지 못했습니다. 잠시 후 다시 시도해 주세요.'
+      );
+    } finally {
+      setIsGeneratingReport(false);
+    }
+  };
 
   // Tour Average Comparison (PGA for male, LPGA for female)
   const [tourGender, setTourGender] = useState<TourGender>(() => {
@@ -569,6 +615,81 @@ export const ClientStats: React.FC<ClientStatsProps> = ({ lessons, onBack }) => 
       {/* ... (SHOT DATA VIEW and SCORE DATA VIEW remain same) ... */}
       {activeTab === 'SHOT' && (
         <div className="space-y-6 animate-fade-in">
+            {/* AI 종합 분석 리포트 (shot_analysis target).
+                Hidden when there's no clientProfile (public/embed contexts).
+                Rendered regardless of club data availability — the button
+                inside handles the "데이터 부족" state itself. */}
+            {clientProfile && (
+                <div className="bg-white rounded-xl shadow-lg border border-purple-100/60 overflow-hidden">
+                    <div className="bg-gradient-to-r from-purple-600 to-indigo-600 px-4 py-3 border-b border-indigo-500 flex justify-between items-center">
+                        <h3 className="font-bold text-white text-sm flex items-center gap-2">
+                            <Sparkles className="w-4 h-4" /> AI 종합 분석 리포트
+                        </h3>
+                        <span className="text-[10px] bg-white/90 text-purple-700 px-2.5 py-1 rounded-full font-bold">
+                            코치 방법론 반영
+                        </span>
+                    </div>
+                    <div className="p-4 space-y-3">
+                        {!aiReport && !isGeneratingReport && !reportError && (
+                            <>
+                                <p className="text-xs text-gray-600 leading-relaxed">
+                                    {clientProfile.name}님의 볼·클럽·모션·신체 데이터를 종합해
+                                    <strong className="text-purple-700"> 코스 공략, 런치·스핀 최적화, 클럽/모션 원인 진단, 키네마틱 시퀀스</strong>까지
+                                    마크다운 리포트로 생성합니다. IQR 기반으로 미스샷은 자동 제외됩니다.
+                                </p>
+                                <Button
+                                    onClick={handleGenerateReport}
+                                    disabled={!canGenerateReport}
+                                    icon={<Sparkles className="w-4 h-4" />}
+                                >
+                                    {canGenerateReport ? '종합 분석 리포트 생성' : '분석할 볼 데이터가 부족합니다'}
+                                </Button>
+                            </>
+                        )}
+                        {isGeneratingReport && (
+                            <div className="flex items-center gap-2 text-sm text-purple-700 py-6 justify-center">
+                                <Sparkles className="w-4 h-4 animate-pulse" />
+                                AI가 코치님의 방법론을 따라 분석 중입니다…
+                            </div>
+                        )}
+                        {reportError && (
+                            <div className="text-xs bg-red-50 border border-red-200 text-red-700 rounded-lg p-2.5 flex items-start gap-2">
+                                <AlertTriangle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
+                                <div className="flex-1">
+                                    <p>{reportError}</p>
+                                    <button
+                                        type="button"
+                                        onClick={handleGenerateReport}
+                                        className="mt-1 text-red-600 font-bold underline text-xs"
+                                    >
+                                        다시 시도
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+                        {aiReport && (
+                            <div className="space-y-3">
+                                <div className="flex items-center justify-between text-[11px] text-gray-500">
+                                    <span>
+                                        {aiReport.contributingLessonCount}건의 볼데이터 · 클럽 {aiReport.clubsAnalysed.length}종 분석
+                                    </span>
+                                    <button
+                                        type="button"
+                                        onClick={handleGenerateReport}
+                                        className="text-purple-600 font-bold hover:text-purple-800"
+                                    >
+                                        다시 생성
+                                    </button>
+                                </div>
+                                <div className="prose prose-sm max-w-none prose-headings:text-gray-800 prose-headings:font-bold prose-p:text-gray-700 prose-p:leading-relaxed prose-li:text-gray-700 prose-strong:text-purple-700">
+                                    {renderMarkdown(aiReport.markdown)}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
+
             {/* Club Selector */}
             {availableClubOptions.length > 0 ? (
                 <>

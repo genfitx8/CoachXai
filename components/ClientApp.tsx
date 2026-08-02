@@ -732,6 +732,8 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
             <ClientStats
                 lessons={allMyLessons}
                 onBack={handleBackToList}
+                clientProfile={clientProfile}
+                coachId={clientProfile.coachId}
             />
         )}
 
