@@ -632,7 +632,8 @@ export type PromptTarget =
   | 'compare_swings'
   | 'motion_capture'
   | 'training_program'
-  | 'student_chat';
+  | 'student_chat'
+  | 'shot_analysis';
 
 /** A file attached to a PromptTemplate for additional AI context. */
 export interface PromptAttachment {

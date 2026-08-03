@@ -2154,6 +2154,10 @@ const AppContent: React.FC = () => {
           <ClientStats
             lessons={filteredLessons}
             onBack={() => setCoachView('LESSON_LIST')}
+            clientProfile={selectedDiagnosisClient ?? undefined}
+            coachId={
+              currentUser && 'id' in currentUser ? (currentUser as CoachProfile).id : undefined
+            }
           />
         )}
 
