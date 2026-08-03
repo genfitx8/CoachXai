@@ -39,11 +39,18 @@ interface OverlayLine {
   label?: string;
 }
 
+interface ClubHeadMarker {
+  x: number;
+  y: number;
+  label?: string;
+}
+
 function drawKeypoints(
   canvas: HTMLCanvasElement,
   bg: HTMLVideoElement | HTMLImageElement | null,
   keypoints: SkeletonKeypoint[],
   overlay?: OverlayLine,
+  clubHead?: ClubHeadMarker,
 ) {
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
@@ -116,6 +123,31 @@ function drawKeypoints(
     }
     ctx.restore();
   }
+  if (clubHead) {
+    const cx = clubHead.x * canvas.width;
+    const cy = clubHead.y * canvas.height;
+    ctx.save();
+    // Outer glow ring.
+    ctx.strokeStyle = '#fde047';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(cx, cy, 12, 0, 2 * Math.PI);
+    ctx.stroke();
+    // Solid center.
+    ctx.fillStyle = '#facc15';
+    ctx.beginPath();
+    ctx.arc(cx, cy, 6, 0, 2 * Math.PI);
+    ctx.fill();
+    if (clubHead.label) {
+      ctx.font = 'bold 12px sans-serif';
+      ctx.fillStyle = '#fde047';
+      ctx.strokeStyle = 'rgba(0,0,0,0.75)';
+      ctx.lineWidth = 3;
+      ctx.strokeText(clubHead.label, cx + 14, cy + 4);
+      ctx.fillText(clubHead.label, cx + 14, cy + 4);
+    }
+    ctx.restore();
+  }
 }
 
 interface EventSnapshotProps {
@@ -123,9 +155,16 @@ interface EventSnapshotProps {
   frame: SwingFrame | undefined;
   videoUrl: string;
   overlay?: OverlayLine;
+  clubHead?: ClubHeadMarker;
 }
 
-const EventSnapshot: React.FC<EventSnapshotProps> = ({ event, frame, videoUrl, overlay }) => {
+const EventSnapshot: React.FC<EventSnapshotProps> = ({
+  event,
+  frame,
+  videoUrl,
+  overlay,
+  clubHead,
+}) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -137,7 +176,7 @@ const EventSnapshot: React.FC<EventSnapshotProps> = ({ event, frame, videoUrl, o
     video.playsInline = true;
     video.crossOrigin = 'anonymous';
     const onSeeked = () => {
-      drawKeypoints(canvas, video, frame.keypoints, overlay);
+      drawKeypoints(canvas, video, frame.keypoints, overlay, clubHead);
       video.removeEventListener('seeked', onSeeked);
       video.src = '';
     };
@@ -149,7 +188,7 @@ const EventSnapshot: React.FC<EventSnapshotProps> = ({ event, frame, videoUrl, o
       video.removeEventListener('seeked', onSeeked);
       video.src = '';
     };
-  }, [event, frame, videoUrl, overlay]);
+  }, [event, frame, videoUrl, overlay, clubHead]);
 
   if (!event || !frame) {
     return (
@@ -232,9 +271,14 @@ const EventSnapshot: React.FC<EventSnapshotProps> = ({ event, frame, videoUrl, o
           <>
             <MetricRow
               label="척추 기울기"
-              value={metricAngle('spineTilt3D')}
-              tone={impactTone(undefined, 0, 0)}
-              hint="목표 30–40°"
+              value={metricAngle(
+                event.metrics.spineTiltCorrected != null ? 'spineTiltCorrected' : 'spineTilt3D',
+              )}
+              hint={
+                event.metrics.spineTiltCorrected != null
+                  ? '목표 30–40° (중력 정렬)'
+                  : '목표 30–40°'
+              }
             />
             <MetricRow
               label="무릎 굽힘"
@@ -368,10 +412,15 @@ const SummaryBar: React.FC<SummaryBarProps> = ({ summary }) => {
           {HAND_LABEL[summary.handedness]}
         </span>
       )}
-      {summary.swingPlaneAngle != null && (
+      {(summary.swingPlaneAngleCorrected ?? summary.swingPlaneAngle) != null && (
         <span className="text-[10px] font-semibold px-2 py-1 rounded border border-slate-700 bg-slate-800/70 text-slate-300">
           스윙 플레인{' '}
-          <span className={planeTone}>{summary.swingPlaneAngle.toFixed(1)}°</span>
+          <span className={planeTone}>
+            {(summary.swingPlaneAngleCorrected ?? summary.swingPlaneAngle)!.toFixed(1)}°
+          </span>
+          {summary.gravityAligned && summary.swingPlaneAngleCorrected != null && (
+            <span className="ml-1 text-[9px] text-emerald-500 font-normal">중력정렬</span>
+          )}
         </span>
       )}
       {summary.attackAngle != null && (
@@ -386,6 +435,45 @@ const SummaryBar: React.FC<SummaryBarProps> = ({ summary }) => {
           >
             {summary.attackAngle > 0 ? '+' : ''}
             {summary.attackAngle.toFixed(1)}°
+          </span>
+        </span>
+      )}
+      {summary.clubHeadSpeedKmh != null && (
+        <span className="text-[10px] font-semibold px-2 py-1 rounded border border-slate-700 bg-slate-800/70 text-slate-300">
+          헤드 스피드{' '}
+          <span
+            className={
+              summary.clubHeadSpeedKmh >= 150
+                ? 'text-emerald-400'
+                : summary.clubHeadSpeedKmh >= 120
+                ? 'text-yellow-400'
+                : 'text-slate-400'
+            }
+          >
+            {summary.clubHeadSpeedKmh.toFixed(0)} km/h
+          </span>
+          <span className="ml-1 text-[9px] text-slate-500 font-normal">기하 추정</span>
+        </span>
+      )}
+      {summary.clubPathAtImpactDeg != null && (
+        <span className="text-[10px] font-semibold px-2 py-1 rounded border border-slate-700 bg-slate-800/70 text-slate-300">
+          클럽 패스{' '}
+          <span
+            className={
+              Math.abs(summary.clubPathAtImpactDeg) <= 5
+                ? 'text-emerald-400'
+                : 'text-yellow-400'
+            }
+          >
+            {summary.clubPathAtImpactDeg > 0 ? '+' : ''}
+            {summary.clubPathAtImpactDeg.toFixed(1)}°
+          </span>
+          <span className="ml-1 text-[9px] text-slate-500 font-normal">
+            {summary.clubPathAtImpactDeg > 1
+              ? 'in-to-out'
+              : summary.clubPathAtImpactDeg < -1
+              ? 'out-to-in'
+              : ''}
           </span>
         </span>
       )}
@@ -595,6 +683,17 @@ export const SwingVideoAnalysis: React.FC<SwingVideoAnalysisProps> = ({
                   name === 'impact'
                     ? swingPlaneOverlay(analysis)
                     : undefined;
+                const clubHead =
+                  name === 'impact' && analysis.summary.impactClubHead
+                    ? {
+                        x: analysis.summary.impactClubHead.x2d,
+                        y: analysis.summary.impactClubHead.y2d,
+                        label:
+                          analysis.summary.clubHeadSpeedKmh != null
+                            ? `${analysis.summary.clubHeadSpeedKmh.toFixed(0)} km/h`
+                            : 'CLUB',
+                      }
+                    : undefined;
                 return (
                   <EventSnapshot
                     key={name}
@@ -602,6 +701,7 @@ export const SwingVideoAnalysis: React.FC<SwingVideoAnalysisProps> = ({
                     frame={frame}
                     videoUrl={analysis.videoUrl}
                     overlay={overlay}
+                    clubHead={clubHead}
                   />
                 );
               })}

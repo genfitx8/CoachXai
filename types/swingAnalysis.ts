@@ -25,6 +25,22 @@ export interface SwingEvent {
 
 export type CameraView = 'face_on' | 'down_the_line' | 'unknown';
 export type Handedness = 'right' | 'left' | 'unknown';
+export type ClubType = 'driver' | 'iron' | 'wedge';
+export type ClubHeadDetectionMethod = 'geometric' | 'flow' | 'ml';
+
+export interface ClubHeadPosition {
+  /** World-coord position in meters (MediaPipe pelvis-relative frame). */
+  x: number;
+  y: number;
+  z: number;
+  /** Normalized 2D coordinates for canvas overlay ([0, 1]). */
+  x2d: number;
+  y2d: number;
+  /** 0-1 confidence in the estimate. */
+  confidence: number;
+  /** How this position was obtained — geometric baseline, optical flow, or ML detector. */
+  method: ClubHeadDetectionMethod;
+}
 
 export interface SwingSummary {
   /** Detected camera perspective, inferred from address-window landmarks. */
@@ -52,6 +68,35 @@ export interface SwingSummary {
    * is degenerate.
    */
   swingPlaneAngle?: number;
+  /**
+   * Swing plane inclination measured against a gravity vector estimated from
+   * the address stance, instead of the raw camera Y-axis. Preferred when the
+   * camera is handheld / tilted — cancels the pitch/roll of the phone.
+   */
+  swingPlaneAngleCorrected?: number;
+  /**
+   * True when a stable gravity vector was recovered from the address window
+   * and the corrected metrics can be trusted. When false, corrected values
+   * fall back to raw camera-relative measurements.
+   */
+  gravityAligned?: boolean;
+  /**
+   * Estimated club head position at impact (Phase C.1 = geometric baseline
+   * from lead-arm single-lever assumption). Replaced by ML detector output
+   * in Phase C.2 without callers changing.
+   */
+  impactClubHead?: ClubHeadPosition;
+  /**
+   * Estimated club head speed at impact in km/h. World-coord velocity
+   * magnitude from head positions at (impact-1, impact+1) / 2Δt.
+   */
+  clubHeadSpeedKmh?: number;
+  /**
+   * Club path angle at impact in degrees, projected onto the ground plane.
+   * Positive = in-to-out (for right-handed player, target = +X). Undefined
+   * when target direction is ambiguous (e.g. cameraView == unknown).
+   */
+  clubPathAtImpactDeg?: number;
 }
 
 export interface SwingAnalysis {
