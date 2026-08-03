@@ -1,0 +1,71 @@
+name: Build Android APKs
+
+# 코치·회원 앱을 각각 debug APK로 빌드해 워크플로우 산출물(Artifact)로
+# 업로드합니다. debug APK는 Android 기본 debug keystore로 자동 서명되어
+# 별도 서명 없이 실기기·에뮬레이터에 바로 설치됩니다. 스토어 업로드용
+# release AAB가 아니라 실기기 테스트/사내 배포용입니다.
+
+on:
+  push:
+    branches: [main, 'claude/**']
+    paths-ignore:
+      - '**.md'
+      - '.gitignore'
+  workflow_dispatch:
+    # Actions 탭에서 수동 실행 버튼을 노출
+
+jobs:
+  build:
+    name: Build ${{ matrix.variant }} debug APK
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        variant: [coach, student]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools platforms;android-35 build-tools;35.0.0'
+
+      - name: Install npm dependencies
+        run: npm ci
+
+      - name: Build web assets for ${{ matrix.variant }}
+        run: npm run build:${{ matrix.variant }}
+
+      - name: Sync Capacitor for ${{ matrix.variant }}
+        run: node scripts/cap-run.mjs ${{ matrix.variant }} sync android
+
+      - name: Build debug APK
+        working-directory: native/${{ matrix.variant }}/android
+        run: ./gradlew assembleDebug --no-daemon --stacktrace
+
+      - name: Rename APK
+        run: |
+          mv native/${{ matrix.variant }}/android/app/build/outputs/apk/debug/app-debug.apk \
+             CoachX-AI-${{ matrix.variant }}-debug.apk
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: coachxai-${{ matrix.variant }}-apk
+          path: CoachX-AI-${{ matrix.variant }}-debug.apk
+          if-no-files-found: error
+          retention-days: 30
