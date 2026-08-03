@@ -1,4 +1,4 @@
-import { Lesson, ClientProfile, Homework, HomeworkTemplate, NotificationMessage, GolfCourse, CoachProfile, LessonReservation, Branch, BranchAdminAccount, Bay, BayPriceRule, BayReservation, LessonPackage, TrainingProgram, QuickLogEntry, WeeklyInsight, PromptTemplate, PromptTarget, PromptAttachment } from '../types';
+import { Lesson, ClientProfile, Homework, HomeworkTemplate, NotificationMessage, GolfCourse, CoachProfile, LessonReservation, Branch, BranchAdminAccount, Bay, BayPriceRule, BayReservation, LessonPackage, TrainingProgram, QuickLogEntry, WeeklyInsight, PromptTemplate, PromptTarget, PromptAttachment, CoachStyleExemplar } from '../types';
 import { createLogger } from '../utils/logger';
 
 const log = createLogger('storage');
@@ -22,6 +22,7 @@ const STORAGE_KEYS = {
   QUICK_LOGS: 'swingnote_quick_logs',
   WEEKLY_INSIGHTS: 'swingnote_weekly_insights',
   PROMPT_TEMPLATES: 'swingnote_prompt_templates',
+  COACH_STYLE_EXEMPLARS: 'coachxai_style_exemplars',
 };
 
 export const storageService = {
@@ -771,6 +772,45 @@ export const storageService = {
       localStorage.setItem(STORAGE_KEYS.PROMPT_TEMPLATES, JSON.stringify(updated));
     } catch (e) {
       log.error('Failed to delete prompt attachment', e);
+    }
+  },
+
+  // ── Coach Style Exemplar Methods (Phase C) ──────────────────────────────────
+
+  getCoachStyleExemplars: (): CoachStyleExemplar[] => {
+    try {
+      const data = localStorage.getItem(STORAGE_KEYS.COACH_STYLE_EXEMPLARS);
+      return data ? JSON.parse(data) : [];
+    } catch (e) {
+      log.error('Failed to read coach style exemplars', e);
+      return [];
+    }
+  },
+
+  saveCoachStyleExemplar: (exemplar: CoachStyleExemplar): void => {
+    try {
+      const all = storageService.getCoachStyleExemplars();
+      const idx = all.findIndex((x) => x.id === exemplar.id);
+      if (idx >= 0) all[idx] = exemplar;
+      else all.push(exemplar);
+      localStorage.setItem(
+        STORAGE_KEYS.COACH_STYLE_EXEMPLARS,
+        JSON.stringify(all)
+      );
+    } catch (e) {
+      log.error('Failed to save coach style exemplar', e);
+    }
+  },
+
+  deleteCoachStyleExemplar: (exemplarId: string): void => {
+    try {
+      const all = storageService.getCoachStyleExemplars();
+      localStorage.setItem(
+        STORAGE_KEYS.COACH_STYLE_EXEMPLARS,
+        JSON.stringify(all.filter((x) => x.id !== exemplarId))
+      );
+    } catch (e) {
+      log.error('Failed to delete coach style exemplar', e);
     }
   },
 };

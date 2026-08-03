@@ -2,11 +2,13 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { ClientProfile, Lesson } from '../types';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine, AreaChart, Area, BarChart, Bar, Cell } from 'recharts';
-import { ArrowLeft, TrendingUp, TrendingDown, Minus, Target, Wind, Calendar, Trophy, Flag, Activity, LayoutDashboard, Crosshair, Filter, CalendarDays, RefreshCw, Percent, CircleDot, Mic, GitCompareArrows, Sparkles, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, TrendingUp, TrendingDown, Minus, Target, Wind, Calendar, Trophy, Flag, Activity, LayoutDashboard, Crosshair, Filter, CalendarDays, RefreshCw, Percent, CircleDot, Mic, GitCompareArrows, Sparkles, AlertTriangle, Star } from 'lucide-react';
 import { Button } from './Button';
 import { getTourAverageDistanceM, getTourLabel, TourGender } from '../constants/tourAverages';
 import { analyzeShotStrategy, ShotStrategyReport } from '../services/geminiService';
 import { renderMarkdown } from '../utils/renderMarkdown';
+import { coachStyleService, tierForSource } from '../services/coachStyleService';
+import { firebaseService } from '../services/firebase';
 
 interface ClientStatsProps {
   lessons: Lesson[];
@@ -58,6 +60,10 @@ export const ClientStats: React.FC<ClientStatsProps> = ({ lessons, onBack, clien
   const [aiReport, setAiReport] = useState<ShotStrategyReport | null>(null);
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
   const [reportError, setReportError] = useState<string | null>(null);
+  // Exemplar capture state — one save per generated report (identified by
+  // its markdown body). Regenerating clears the flag so coach can re-star.
+  const [savedExemplarId, setSavedExemplarId] = useState<string | null>(null);
+  const [isSavingExemplar, setIsSavingExemplar] = useState(false);
 
   const canGenerateReport = useMemo(
     () => Boolean(clientProfile) && lessons.some((l) => l.golfData && l.club),
@@ -68,6 +74,9 @@ export const ClientStats: React.FC<ClientStatsProps> = ({ lessons, onBack, clien
     if (!clientProfile) return;
     setIsGeneratingReport(true);
     setReportError(null);
+    // A new generation invalidates the previous "starred" state — the
+    // exemplar was tied to the previous output.
+    setSavedExemplarId(null);
     try {
       const report = await analyzeShotStrategy({
         clientProfile,
@@ -84,6 +93,58 @@ export const ClientStats: React.FC<ClientStatsProps> = ({ lessons, onBack, clien
       );
     } finally {
       setIsGeneratingReport(false);
+    }
+  };
+
+  const handleStarReport = async () => {
+    if (!aiReport || !clientProfile) return;
+    setIsSavingExemplar(true);
+    try {
+      const id = (typeof crypto !== 'undefined' && 'randomUUID' in crypto)
+        ? crypto.randomUUID()
+        : `exemplar_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+      // Compact input snapshot — later phases will use this as the "이 상황일 때"
+      // side of a few-shot pair, so we keep it short but recognisable.
+      const inputSnapshot = [
+        `회원: ${clientProfile.name}${clientProfile.handicap != null ? ` · 핸디캡 ${clientProfile.handicap}` : ''}`,
+        `분석 클럽: ${aiReport.clubsAnalysed.join(', ')}`,
+        `볼데이터 표본: ${aiReport.contributingLessonCount}건`,
+      ].join('\n');
+
+      const exemplar = {
+        id,
+        coachId,
+        target: 'shot_analysis' as const,
+        input: inputSnapshot,
+        output: aiReport.markdown,
+        source: 'starred' as const,
+        tier: tierForSource('starred'),
+        reason: '코치가 통계 화면에서 직접 별표',
+        createdAt: Date.now(),
+      };
+      const isFirebaseMode = firebaseService.isInitialized();
+      await coachStyleService.save(exemplar, isFirebaseMode);
+      setSavedExemplarId(id);
+    } catch (e) {
+      console.error('[ClientStats] failed to save exemplar:', e);
+      alert('리포트를 즐겨찾기에 저장하지 못했습니다.');
+    } finally {
+      setIsSavingExemplar(false);
+    }
+  };
+
+  const handleUnstarReport = async () => {
+    if (!savedExemplarId) return;
+    setIsSavingExemplar(true);
+    try {
+      const isFirebaseMode = firebaseService.isInitialized();
+      await coachStyleService.delete(savedExemplarId, isFirebaseMode);
+      setSavedExemplarId(null);
+    } catch (e) {
+      console.error('[ClientStats] failed to remove exemplar:', e);
+      alert('별표를 해제하지 못했습니다.');
+    } finally {
+      setIsSavingExemplar(false);
     }
   };
 
@@ -669,17 +730,42 @@ export const ClientStats: React.FC<ClientStatsProps> = ({ lessons, onBack, clien
                         )}
                         {aiReport && (
                             <div className="space-y-3">
-                                <div className="flex items-center justify-between text-[11px] text-gray-500">
+                                <div className="flex items-center justify-between text-[11px] text-gray-500 gap-2">
                                     <span>
                                         {aiReport.contributingLessonCount}건의 볼데이터 · 클럽 {aiReport.clubsAnalysed.length}종 분석
                                     </span>
-                                    <button
-                                        type="button"
-                                        onClick={handleGenerateReport}
-                                        className="text-purple-600 font-bold hover:text-purple-800"
-                                    >
-                                        다시 생성
-                                    </button>
+                                    <div className="flex items-center gap-3">
+                                        <button
+                                            type="button"
+                                            onClick={savedExemplarId ? handleUnstarReport : handleStarReport}
+                                            disabled={isSavingExemplar}
+                                            aria-pressed={!!savedExemplarId}
+                                            aria-label={savedExemplarId ? '즐겨찾기 해제' : '이 리포트를 즐겨찾기로 저장'}
+                                            title={
+                                                savedExemplarId
+                                                    ? '즐겨찾기 해제 (앞으로 이 스타일을 학습 재료에서 제외)'
+                                                    : '이 리포트를 코치 스타일 학습 재료로 저장'
+                                            }
+                                            className={`inline-flex items-center gap-1 font-bold disabled:opacity-50 ${
+                                                savedExemplarId
+                                                    ? 'text-amber-500 hover:text-amber-600'
+                                                    : 'text-gray-400 hover:text-amber-500'
+                                            }`}
+                                        >
+                                            <Star
+                                                className="w-3.5 h-3.5"
+                                                fill={savedExemplarId ? 'currentColor' : 'none'}
+                                            />
+                                            {savedExemplarId ? '즐겨찾기 됨' : '즐겨찾기'}
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={handleGenerateReport}
+                                            className="text-purple-600 font-bold hover:text-purple-800"
+                                        >
+                                            다시 생성
+                                        </button>
+                                    </div>
                                 </div>
                                 <div className="prose prose-sm max-w-none prose-headings:text-gray-800 prose-headings:font-bold prose-p:text-gray-700 prose-p:leading-relaxed prose-li:text-gray-700 prose-strong:text-purple-700">
                                     {renderMarkdown(aiReport.markdown)}
