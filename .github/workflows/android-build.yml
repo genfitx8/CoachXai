@@ -69,3 +69,41 @@ jobs:
           path: CoachX-AI-${{ matrix.variant }}-debug.apk
           if-no-files-found: error
           retention-days: 30
+
+  release:
+    # APK 두 개를 GitHub Release에 붙여 폰에서 링크로 바로 받을 수 있게 함
+    name: Publish APKs as GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download coach APK
+        uses: actions/download-artifact@v4
+        with:
+          name: coachxai-coach-apk
+          path: apks
+      - name: Download student APK
+        uses: actions/download-artifact@v4
+        with:
+          name: coachxai-student-apk
+          path: apks
+      - name: List
+        run: ls -la apks
+      - name: Create / update rolling release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: android-${{ github.ref_name }}
+          name: "Android APKs — ${{ github.ref_name }}"
+          body: |
+            브랜치 `${{ github.ref_name }}`의 debug APK 두 벌.
+            폰 브라우저에서 아래 두 파일을 직접 받아서 설치하세요.
+            (설정 → "출처를 알 수 없는 앱 설치 허용" 필요)
+
+            - `CoachX-AI-coach-debug.apk` — 코치 앱 (`com.coachxai.coach`)
+            - `CoachX-AI-student-debug.apk` — 회원 앱 (`com.coachxai.student`)
+
+            커밋: `${{ github.sha }}`
+          files: apks/*.apk
+          prerelease: true
+          make_latest: false
