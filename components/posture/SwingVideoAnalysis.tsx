@@ -45,12 +45,18 @@ interface ClubHeadMarker {
   label?: string;
 }
 
+interface TrajectoryOverlay {
+  points: Array<{ x: number; y: number }>;
+  color: string;
+}
+
 function drawKeypoints(
   canvas: HTMLCanvasElement,
   bg: HTMLVideoElement | HTMLImageElement | null,
   keypoints: SkeletonKeypoint[],
   overlay?: OverlayLine,
   clubHead?: ClubHeadMarker,
+  trajectory?: TrajectoryOverlay,
 ) {
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
@@ -123,6 +129,29 @@ function drawKeypoints(
     }
     ctx.restore();
   }
+  if (trajectory && trajectory.points.length >= 2) {
+    ctx.save();
+    ctx.strokeStyle = trajectory.color;
+    ctx.lineWidth = 3;
+    ctx.globalAlpha = 0.85;
+    ctx.beginPath();
+    const first = trajectory.points[0];
+    ctx.moveTo(first.x * canvas.width, first.y * canvas.height);
+    for (let i = 1; i < trajectory.points.length; i++) {
+      const p = trajectory.points[i];
+      ctx.lineTo(p.x * canvas.width, p.y * canvas.height);
+    }
+    ctx.stroke();
+    // Small tick marks at each sample so users can count frames along the arc.
+    ctx.fillStyle = trajectory.color;
+    ctx.globalAlpha = 1;
+    for (const p of trajectory.points) {
+      ctx.beginPath();
+      ctx.arc(p.x * canvas.width, p.y * canvas.height, 3, 0, 2 * Math.PI);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
   if (clubHead) {
     const cx = clubHead.x * canvas.width;
     const cy = clubHead.y * canvas.height;
@@ -156,6 +185,7 @@ interface EventSnapshotProps {
   videoUrl: string;
   overlay?: OverlayLine;
   clubHead?: ClubHeadMarker;
+  trajectory?: TrajectoryOverlay;
 }
 
 const EventSnapshot: React.FC<EventSnapshotProps> = ({
@@ -164,6 +194,7 @@ const EventSnapshot: React.FC<EventSnapshotProps> = ({
   videoUrl,
   overlay,
   clubHead,
+  trajectory,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -176,7 +207,7 @@ const EventSnapshot: React.FC<EventSnapshotProps> = ({
     video.playsInline = true;
     video.crossOrigin = 'anonymous';
     const onSeeked = () => {
-      drawKeypoints(canvas, video, frame.keypoints, overlay, clubHead);
+      drawKeypoints(canvas, video, frame.keypoints, overlay, clubHead, trajectory);
       video.removeEventListener('seeked', onSeeked);
       video.src = '';
     };
@@ -188,7 +219,7 @@ const EventSnapshot: React.FC<EventSnapshotProps> = ({
       video.removeEventListener('seeked', onSeeked);
       video.src = '';
     };
-  }, [event, frame, videoUrl, overlay, clubHead]);
+  }, [event, frame, videoUrl, overlay, clubHead, trajectory]);
 
   if (!event || !frame) {
     return (
@@ -452,6 +483,12 @@ const SummaryBar: React.FC<SummaryBarProps> = ({ summary }) => {
           >
             {summary.clubHeadSpeedKmh.toFixed(0)} km/h
           </span>
+          {summary.maxClubHeadSpeedKmh != null &&
+            summary.maxClubHeadSpeedKmh > summary.clubHeadSpeedKmh + 0.5 && (
+              <span className="ml-1 text-[9px] text-cyan-400 font-normal">
+                max {summary.maxClubHeadSpeedKmh.toFixed(0)}
+              </span>
+            )}
           <span className="ml-1 text-[9px] text-slate-500 font-normal">기하 추정</span>
         </span>
       )}
@@ -694,6 +731,16 @@ export const SwingVideoAnalysis: React.FC<SwingVideoAnalysisProps> = ({
                             : 'CLUB',
                       }
                     : undefined;
+                const trajectory =
+                  name === 'impact' && analysis.summary.impactZoneTrajectory
+                    ? {
+                        points: analysis.summary.impactZoneTrajectory.positions.map((p) => ({
+                          x: p.x2d,
+                          y: p.y2d,
+                        })),
+                        color: '#22d3ee',
+                      }
+                    : undefined;
                 return (
                   <EventSnapshot
                     key={name}
@@ -702,6 +749,7 @@ export const SwingVideoAnalysis: React.FC<SwingVideoAnalysisProps> = ({
                     videoUrl={analysis.videoUrl}
                     overlay={overlay}
                     clubHead={clubHead}
+                    trajectory={trajectory}
                   />
                 );
               })}
