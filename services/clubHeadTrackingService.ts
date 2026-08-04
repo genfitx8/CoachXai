@@ -1,5 +1,6 @@
 import type {
   ClubHeadPosition,
+  ClubHeadTrajectory,
   ClubType,
   Handedness,
   SwingEvent,
@@ -205,13 +206,65 @@ export function computeClubPathAngle(
 }
 
 /**
+ * Estimate the club head trajectory in the impact zone (±windowFrames around
+ * impact). The geometric detector's single-lever assumption is only reliable
+ * within a handful of frames of impact, so we deliberately clip the window
+ * — extending further introduces misleading positions in mid-swing where the
+ * shaft has hinged away from the arm line.
+ *
+ * Returns undefined when fewer than 2 usable positions can be sampled.
+ */
+export function estimateImpactZoneTrajectory(
+  frames: SwingFrame[],
+  impactIdx: number,
+  windowFrames: number,
+  ctx: ClubTrackingContext,
+  detector: ClubHeadDetector = geometricImpactDetector,
+): ClubHeadTrajectory | undefined {
+  if (impactIdx < 0 || impactIdx >= frames.length) return undefined;
+  const lo = Math.max(0, impactIdx - windowFrames);
+  const hi = Math.min(frames.length - 1, impactIdx + windowFrames);
+  const positions: ClubHeadPosition[] = [];
+  const frameIndices: number[] = [];
+  for (let i = lo; i <= hi; i++) {
+    const p = detector.detectAt(frames, i, ctx);
+    if (!p) continue;
+    positions.push(p);
+    frameIndices.push(i);
+  }
+  if (positions.length < 2) return undefined;
+
+  let maxSpeedKmh: number | undefined;
+  for (let i = 1; i < positions.length; i++) {
+    const dt = frames[frameIndices[i]].t - frames[frameIndices[i - 1]].t;
+    if (dt <= 0) continue;
+    const a = positions[i - 1];
+    const b = positions[i];
+    const speed = Math.hypot(b.x - a.x, b.y - a.y, b.z - a.z) / dt;
+    const kmh = speed * 3.6;
+    // Same 400 km/h ceiling as the point speed estimator — anything past that
+    // is landmark jitter, not a real swing.
+    if (!Number.isFinite(kmh) || kmh < 0 || kmh > 400) continue;
+    if (maxSpeedKmh == null || kmh > maxSpeedKmh) maxSpeedKmh = kmh;
+  }
+  return {
+    positions,
+    frameIndices,
+    maxSpeedKmh: maxSpeedKmh != null ? +maxSpeedKmh.toFixed(1) : undefined,
+  };
+}
+
+/**
  * Augment a SwingSummary in place with club head metrics when address and
- * impact events are both detected. No-op otherwise.
+ * impact events are both detected. No-op otherwise. Callers can pass a
+ * non-default detector (e.g. `MLClubHeadDetector`) to change the source of
+ * every head estimate — the geometric baseline stays the default.
  */
 export function clubHeadAugmentSummary(
   summary: SwingSummary,
   frames: SwingFrame[],
   events: Partial<Record<SwingEventName, SwingEvent>>,
+  detector: ClubHeadDetector = geometricImpactDetector,
 ): void {
   const impact = events.impact;
   const address = events.address;
@@ -220,9 +273,9 @@ export function clubHeadAugmentSummary(
     handedness: summary.handedness ?? 'unknown',
     club: 'driver',
   };
-  const head = estimateClubHeadAtImpact(frames, impact.frameIndex, ctx);
+  const head = estimateClubHeadAtImpact(frames, impact.frameIndex, ctx, detector);
   if (head) summary.impactClubHead = head;
-  const speed = computeClubHeadSpeedKmh(frames, impact.frameIndex, ctx);
+  const speed = computeClubHeadSpeedKmh(frames, impact.frameIndex, ctx, detector);
   if (speed != null) summary.clubHeadSpeedKmh = speed;
   if (address) {
     const path = computeClubPathAngle(
@@ -230,8 +283,20 @@ export function clubHeadAugmentSummary(
       impact.frameIndex,
       address.frameIndex,
       ctx,
+      detector,
     );
     if (path != null) summary.clubPathAtImpactDeg = path;
+  }
+  const trajectory = estimateImpactZoneTrajectory(
+    frames,
+    impact.frameIndex,
+    3,
+    ctx,
+    detector,
+  );
+  if (trajectory) {
+    summary.impactZoneTrajectory = trajectory;
+    if (trajectory.maxSpeedKmh != null) summary.maxClubHeadSpeedKmh = trajectory.maxSpeedKmh;
   }
 }
 
@@ -241,5 +306,6 @@ export const __testing__ = {
   estimateClubHeadAtImpact,
   computeClubHeadSpeedKmh,
   computeClubPathAngle,
+  estimateImpactZoneTrajectory,
   CLUB_LENGTHS_M,
 };

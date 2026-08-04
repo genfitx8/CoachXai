@@ -12,7 +12,10 @@ import {
 } from '../types/swingAnalysis';
 import { createLogger } from '../utils/logger';
 import { midpoint, subtract, toDeg, toVec3, type Vec3 } from '../utils/vec3';
-import { clubHeadAugmentSummary } from './clubHeadTrackingService';
+import {
+  clubHeadAugmentSummary,
+  type ClubHeadDetector,
+} from './clubHeadTrackingService';
 
 const log = createLogger('swingAnalysisService');
 
@@ -618,6 +621,7 @@ function annotateCorrectedSpineTilt(
 function buildSummary(
   frames: SwingFrame[],
   events: Partial<Record<SwingEventName, SwingEvent>>,
+  clubHeadDetector?: ClubHeadDetector,
 ): SwingSummary {
   const addressWindow = events.address
     ? frames.slice(events.address.frameIndex, events.address.frameIndex + 4)
@@ -677,7 +681,7 @@ function buildSummary(
   } else {
     summary.gravityAligned = false;
   }
-  clubHeadAugmentSummary(summary, frames, events);
+  clubHeadAugmentSummary(summary, frames, events, clubHeadDetector);
   return summary;
 }
 
@@ -686,6 +690,12 @@ export interface AnalyzeSwingOptions {
   /** Optional trim window (seconds) — defaults to full video. */
   startTime?: number;
   endTime?: number;
+  /**
+   * Optional club head detector. Defaults to the geometric baseline. Pass an
+   * MLClubHeadDetector (or any ClubHeadDetector) here to swap in a smarter
+   * tracker without changing the pipeline.
+   */
+  clubHeadDetector?: ClubHeadDetector;
 }
 
 export const swingAnalysisService = {
@@ -758,7 +768,7 @@ export const swingAnalysisService = {
       onProgress?.({ processedFrames: desired, totalFrames: desired, stage: 'segmenting' });
       const sampledFps = desired / span;
       const { events, warnings } = segmentEvents(frames, sampledFps);
-      const summary = buildSummary(frames, events);
+      const summary = buildSummary(frames, events, options.clubHeadDetector);
 
       onProgress?.({ processedFrames: desired, totalFrames: desired, stage: 'done' });
       log.info('Swing analysis completed', {

@@ -7,6 +7,7 @@ const {
   geometricImpactDetector,
   computeClubHeadSpeedKmh,
   computeClubPathAngle,
+  estimateImpactZoneTrajectory,
   CLUB_LENGTHS_M,
 } = __testing__;
 
@@ -235,5 +236,61 @@ describe('computeClubPathAngle', () => {
     const angle = computeClubPathAngle(frames, 2, 0, { handedness: 'right' });
     expect(angle).toBeDefined();
     expect(Math.abs(angle!)).toBeCloseTo(90, 0);
+  });
+});
+
+describe('estimateImpactZoneTrajectory', () => {
+  function poseFrame(t: number, xShift: number): ReturnType<typeof makeFrame> {
+    return makeFrame(t, {
+      11: { x: xShift, y: -0.5, z: 0 },
+      15: { x: xShift, y: 0.4, z: 0 },
+      16: { x: xShift, y: 0.4, z: 0 },
+    });
+  }
+
+  it('samples ±window frames around impact and reports max speed', () => {
+    // Head moves 0.05 m every 0.03 s → 1.667 m/s = 6 km/h between consecutive
+    // frames (constant, since geometry translates uniformly with the shoulder).
+    const frames = [
+      poseFrame(0.0, 0.0),
+      poseFrame(0.03, 0.05),
+      poseFrame(0.06, 0.1),
+      poseFrame(0.09, 0.15),
+      poseFrame(0.12, 0.2),
+    ];
+    const traj = estimateImpactZoneTrajectory(frames, 2, 2, { handedness: 'right' });
+    expect(traj).toBeDefined();
+    expect(traj!.positions.length).toBe(5);
+    expect(traj!.frameIndices).toEqual([0, 1, 2, 3, 4]);
+    expect(traj!.maxSpeedKmh).toBeCloseTo(6, 0);
+  });
+
+  it('clips the window at timeline boundaries', () => {
+    const frames = [
+      poseFrame(0.0, 0.0),
+      poseFrame(0.03, 0.05),
+      poseFrame(0.06, 0.1),
+    ];
+    // impactIdx=0, window=3 → clip to [0, 2].
+    const traj = estimateImpactZoneTrajectory(frames, 0, 3, { handedness: 'right' });
+    expect(traj).toBeDefined();
+    expect(traj!.frameIndices).toEqual([0, 1, 2]);
+  });
+
+  it('skips frames where the detector returns undefined', () => {
+    const frames = [
+      poseFrame(0.0, 0.0),
+      makeFrame(0.03, {}), // missing landmarks → detector returns undefined
+      poseFrame(0.06, 0.1),
+      poseFrame(0.09, 0.15),
+    ];
+    const traj = estimateImpactZoneTrajectory(frames, 2, 2, { handedness: 'right' });
+    expect(traj).toBeDefined();
+    expect(traj!.frameIndices).toEqual([0, 2, 3]);
+  });
+
+  it('returns undefined when fewer than 2 usable frames exist', () => {
+    const frames = [poseFrame(0.0, 0.0), makeFrame(0.03, {})];
+    expect(estimateImpactZoneTrajectory(frames, 0, 2, { handedness: 'right' })).toBeUndefined();
   });
 });

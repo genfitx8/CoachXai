@@ -42,6 +42,15 @@ export interface ClubHeadPosition {
   method: ClubHeadDetectionMethod;
 }
 
+export interface ClubHeadTrajectory {
+  /** Head positions ordered by ascending frame index. */
+  positions: ClubHeadPosition[];
+  /** Absolute frame indices into SwingAnalysis.frames aligned with `positions`. */
+  frameIndices: number[];
+  /** Maximum instantaneous 3D speed observed across the trajectory (km/h). */
+  maxSpeedKmh?: number;
+}
+
 export interface SwingSummary {
   /** Detected camera perspective, inferred from address-window landmarks. */
   cameraView: CameraView;
@@ -97,6 +106,17 @@ export interface SwingSummary {
    * when target direction is ambiguous (e.g. cameraView == unknown).
    */
   clubPathAtImpactDeg?: number;
+  /**
+   * Club head trajectory across the impact zone (±N frames around impact,
+   * where the single-lever assumption holds). Enables path overlay + a max
+   * speed estimate that's less noisy than the single-frame delta.
+   */
+  impactZoneTrajectory?: ClubHeadTrajectory;
+  /**
+   * Peak club head speed observed inside the impact zone (km/h). Typically
+   * ≥ `clubHeadSpeedKmh` since it scans a wider window.
+   */
+  maxClubHeadSpeedKmh?: number;
 }
 
 export interface SwingAnalysis {
