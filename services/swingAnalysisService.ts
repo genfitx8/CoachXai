@@ -23,11 +23,69 @@ const log = createLogger('swingAnalysisService');
 const HEAVY_MODEL_URL =
   'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_heavy/float16/1/pose_landmarker_heavy.task';
 
-// Cap the number of frames we run inference on. A driver swing is ~1.2s; even
-// generous 5s clips at 30fps stay under 150. Higher costs GPU time with no
-// diagnostic value.
-const MAX_FRAMES = 300;
-const TARGET_FPS = 30;
+// Cap the number of frames we run inference on. A driver swing is ~1.2s;
+// generous 4s clips at 120fps stay near 480. Higher costs GPU time with
+// diminishing diagnostic value.
+const MAX_FRAMES = 500;
+/**
+ * Sampling ceiling. iPhone slo-mo shoots at 240fps native; we down-sample to
+ * 120 because MediaPipe Heavy takes ~50–80ms per frame on GPU and beyond
+ * 120fps the extra samples don't meaningfully improve peak detection
+ * (parabolic sub-frame refinement already gives ~±3ms precision at 30fps).
+ */
+const TARGET_FPS_CAP = 120;
+/** Default when native fps detection isn't available (Firefox, older Safari). */
+const TARGET_FPS_DEFAULT = 30;
+
+/**
+ * Detect the source video's native frame rate using
+ * `requestVideoFrameCallback` (Chrome / Edge / iOS Safari 15+). Falls back to
+ * `TARGET_FPS_DEFAULT` when the API isn't present. Rounds to the nearest
+ * typical camera rate so a noisy 29.7 becomes 30 cleanly.
+ */
+async function detectVideoFps(
+  video: HTMLVideoElement,
+  probeMs = 400,
+): Promise<number> {
+  const rvfc =
+    typeof video.requestVideoFrameCallback === 'function'
+      ? video.requestVideoFrameCallback.bind(video)
+      : null;
+  if (!rvfc) return TARGET_FPS_DEFAULT;
+
+  return new Promise<number>((resolve) => {
+    const timeout = window.setTimeout(() => resolve(TARGET_FPS_DEFAULT), probeMs + 1200);
+    let start: number | null = null;
+    let count = 0;
+    const onFrame = (now: number) => {
+      if (start === null) start = now;
+      count += 1;
+      const elapsed = now - start;
+      if (elapsed >= probeMs && count >= 4) {
+        window.clearTimeout(timeout);
+        // count-1 intervals between count frames.
+        const rawFps = ((count - 1) / elapsed) * 1000;
+        const candidates = [24, 25, 30, 48, 50, 60, 90, 120, 200, 240];
+        const rounded = candidates.reduce((prev, curr) =>
+          Math.abs(curr - rawFps) < Math.abs(prev - rawFps) ? curr : prev,
+        );
+        resolve(rounded);
+      } else {
+        rvfc(onFrame);
+      }
+    };
+    // Kick off playback muted; browsers block unmuted autoplay.
+    video.muted = true;
+    video.currentTime = 0;
+    video
+      .play()
+      .then(() => rvfc(onFrame))
+      .catch(() => {
+        window.clearTimeout(timeout);
+        resolve(TARGET_FPS_DEFAULT);
+      });
+  });
+}
 
 const LANDMARK_NAMES = [
   'nose', 'left_eye_inner', 'left_eye', 'left_eye_outer',
@@ -863,10 +921,18 @@ export const swingAnalysisService = {
     const landmarker = await initializeVideoLandmarker();
     const video = await loadVideoElement(videoUrl);
     try {
+      const nativeFps = await detectVideoFps(video);
+      // After the fps probe the video is played briefly; pause and rewind so
+      // the sampling loop starts from a clean state.
+      video.pause();
+      video.currentTime = 0;
+      const chosenFps = Math.min(nativeFps, TARGET_FPS_CAP);
+      log.info('Video fps detected', { nativeFps, chosenFps });
+
       const start = Math.max(0, options.startTime ?? 0);
       const end = Math.min(video.duration || 0, options.endTime ?? video.duration ?? 0);
       const span = Math.max(0.1, end - start);
-      const desired = Math.min(MAX_FRAMES, Math.max(8, Math.round(span * TARGET_FPS)));
+      const desired = Math.min(MAX_FRAMES, Math.max(8, Math.round(span * chosenFps)));
       const dt = span / desired;
 
       const canvas = document.createElement('canvas');
@@ -928,11 +994,12 @@ export const swingAnalysisService = {
       log.info('Swing analysis completed', {
         frames: frames.length,
         sampledFps,
+        nativeFps,
         detected: Object.keys(events),
         cameraView: summary.cameraView,
         tempoRatio: summary.tempoRatio,
       });
-      return { videoUrl, frames, sampledFps, events, warnings, summary };
+      return { videoUrl, frames, sampledFps, nativeFps, events, warnings, summary };
     } finally {
       video.src = '';
       video.removeAttribute('src');

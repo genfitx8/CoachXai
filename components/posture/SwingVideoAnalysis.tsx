@@ -1328,6 +1328,18 @@ export const SwingVideoAnalysis: React.FC<SwingVideoAnalysisProps> = ({
             <DiagnosticsSection analysis={analysis} />
             <p className="text-[11px] text-slate-500 leading-relaxed">
               총 {analysis.frames.length}프레임 (실효 {analysis.sampledFps.toFixed(1)}fps) 분석 완료.
+              {typeof analysis.nativeFps === 'number' && (
+                <>
+                  {' '}
+                  {analysis.nativeFps >= 120 ? (
+                    <span className="text-emerald-300">
+                      슬로모 감지: 네이티브 {analysis.nativeFps}fps → {Math.min(analysis.nativeFps, 120)}fps 분석.
+                    </span>
+                  ) : (
+                    <span>네이티브 {analysis.nativeFps}fps.</span>
+                  )}
+                </>
+              )}{' '}
               현재는 정면 카메라 기준 회전 신호로 이벤트를 감지합니다. 스윙 플레인, 클럽 헤드 트래킹은 후속 단계에서 추가됩니다.
             </p>
           </div>
