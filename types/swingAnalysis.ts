@@ -199,6 +199,14 @@ export interface SwingAnalysis {
   frames: SwingFrame[];
   /** Sample rate actually achieved (frames per second). */
   sampledFps: number;
+  /**
+   * Detected source video frame rate. Undefined when the browser's
+   * `requestVideoFrameCallback` isn't available (e.g. some Firefox / older
+   * Safari builds). When the source is a 240fps iPhone slo-mo capture, this
+   * lets the UI show "slo-mo detected" and callers understand why more
+   * frames were processed than usual.
+   */
+  nativeFps?: number;
   /** Detected swing events; may be a partial subset if segmentation was unsure. */
   events: Partial<Record<SwingEventName, SwingEvent>>;
   /** Warnings surfaced to the user (low confidence, missing top, etc.). */
