@@ -258,6 +258,44 @@ export const CoachAIHome: React.FC<CoachAIHomeProps> = ({
             </div>
           )}
 
+          {/* Swing analysis featured card (only before first user message) */}
+          {!userHasSent && !isTyping && (
+            <a
+              href="/swing.html"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="group flex items-center gap-3 rounded-2xl border border-emerald-400/40 bg-gradient-to-br from-emerald-500/15 via-emerald-500/5 to-transparent p-4 transition-all hover:border-emerald-300/70 hover:from-emerald-500/25 hover:shadow-lg hover:shadow-emerald-500/10 animate-fade-in"
+            >
+              <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl border border-emerald-300/40 bg-emerald-500/20">
+                <Target className="h-5 w-5 text-emerald-200" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <h3 className="text-sm font-bold text-white">
+                    {language === 'en'
+                      ? 'Swing Video Analysis'
+                      : language === 'ja'
+                        ? 'スイング動画解析'
+                        : '스윙 영상 분석'}
+                  </h3>
+                  <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-emerald-500/25 text-emerald-100 border border-emerald-400/40">
+                    BETA
+                  </span>
+                </div>
+                <p className="mt-0.5 text-[11px] text-white/60 leading-relaxed">
+                  {language === 'en'
+                    ? 'Upload a swing video for instant 3D biomechanics + fault diagnosis.'
+                    : language === 'ja'
+                      ? 'スイング動画をアップロード → 3D動作解析 + 欠点診断が即座に'
+                      : '스윙 영상 업로드 → 3D 바이오메카닉 + 결점 진단 즉시'}
+                </p>
+              </div>
+              <span className="text-white/40 group-hover:text-emerald-200 transition-colors flex-shrink-0">
+                →
+              </span>
+            </a>
+          )}
+
           {/* Quick chips (only before first user message) */}
           {!userHasSent && !isTyping && (
             <div className="flex flex-wrap gap-2 pt-1 animate-fade-in">
