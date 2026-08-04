@@ -694,6 +694,44 @@ function segmentEvents(
   const impact = impactIdx >= 0 ? build('impact', impactIdx) : undefined;
   const finish = build('finish', finishIdx);
 
+  // ── Half-phase markers: wrist-Y midpoint between parent events ─────────
+  // A frame where the wrist Y sits halfway between address/top/impact/finish
+  // is a good proxy for "lead arm parallel to ground" — that moment coaches
+  // pause on for hand path and swing plane checks. Search inside the parent
+  // bracket (exclusive) so the half marker can never collide with its
+  // parents. Skipped when either parent is missing or the bracket is too
+  // short (<3 frames) to place a distinct marker.
+  const halfMarker = (fromIdx: number, toIdx: number): number => {
+    if (fromIdx < 0 || toIdx < 0 || toIdx - fromIdx < 3) return -1;
+    const yStart = wristY[fromIdx];
+    const yEnd = wristY[toIdx];
+    if (!Number.isFinite(yStart) || !Number.isFinite(yEnd)) {
+      // Fall back to time midpoint when wristY is unavailable at a boundary.
+      return Math.round((fromIdx + toIdx) / 2);
+    }
+    const target = (yStart + yEnd) / 2;
+    let bestIdx = -1;
+    let bestDelta = Infinity;
+    for (let i = fromIdx + 1; i < toIdx; i++) {
+      const y = wristY[i];
+      if (!Number.isFinite(y)) continue;
+      const d = Math.abs(y - target);
+      if (d < bestDelta) {
+        bestDelta = d;
+        bestIdx = i;
+      }
+    }
+    return bestIdx > 0 ? bestIdx : Math.round((fromIdx + toIdx) / 2);
+  };
+
+  const halfBackIdx = addressIdx >= 0 && topIdx > 0 ? halfMarker(addressIdx, topIdx) : -1;
+  const midDownIdx = topIdx > 0 && impactIdx > 0 ? halfMarker(topIdx, impactIdx) : -1;
+  const followIdx = impactIdx > 0 && finishIdx > 0 ? halfMarker(impactIdx, finishIdx) : -1;
+
+  const halfBackswing = halfBackIdx > 0 ? build('half_backswing', halfBackIdx) : undefined;
+  const midDownswing = midDownIdx > 0 ? build('mid_downswing', midDownIdx) : undefined;
+  const followThrough = followIdx > 0 ? build('follow_through', followIdx) : undefined;
+
   // Sub-frame refinement matters most for Impact (peak speed, drives every
   // downstream physics metric) and Top (wrist-Y min, transition timing).
   // Refine each against the signal that actually picked it, not a proxy.
@@ -701,8 +739,11 @@ function segmentEvents(
   refine(top, wristY, 'min');
   if (address) events.address = address;
   if (takeaway) events.takeaway = takeaway;
+  if (halfBackswing) events.half_backswing = halfBackswing;
   if (top) events.top = top;
+  if (midDownswing) events.mid_downswing = midDownswing;
   if (impact) events.impact = impact;
+  if (followThrough) events.follow_through = followThrough;
   if (finish) events.finish = finish;
   enrichImpactDiagnostics(events, frames);
   return { events, warnings };

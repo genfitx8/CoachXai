@@ -32,13 +32,25 @@ import { SkeletonKeypoint } from '../../types/postureAnalysis';
 
 const EVENT_LABEL: Record<SwingEventName, string> = {
   address: '어드레스',
-  takeaway: '백스윙',
+  takeaway: '백스윙 시작',
+  half_backswing: '하프 백스윙',
   top: '백스윙 톱',
+  mid_downswing: '다운스윙',
   impact: '임팩트',
+  follow_through: '팔로우 스루',
   finish: '피니시',
 };
 
-const EVENT_ORDER: SwingEventName[] = ['address', 'takeaway', 'top', 'impact', 'finish'];
+const EVENT_ORDER: SwingEventName[] = [
+  'address',
+  'takeaway',
+  'half_backswing',
+  'top',
+  'mid_downswing',
+  'impact',
+  'follow_through',
+  'finish',
+];
 
 const POSE_CONNECTIONS: Array<[number, number]> = [
   [11, 12],
@@ -730,7 +742,7 @@ const PlaybackSection: React.FC<{ analysis: SwingAnalysis }> = ({ analysis }) =>
 
         {/* Event jump buttons */}
         <div className="flex flex-wrap gap-2">
-          {(['address', 'takeaway', 'top', 'impact', 'finish'] as SwingEventName[]).map((name) => {
+          {EVENT_ORDER.map((name) => {
             const evt = analysis.events[name];
             if (!evt) return null;
             const active = Math.abs(currentT - evt.t) < 0.05;

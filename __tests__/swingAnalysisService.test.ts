@@ -454,6 +454,34 @@ describe('segmentEvents — integration', () => {
     expect(warnings.some((w) => w.includes('이례적'))).toBe(false);
   });
 
+  it('emits half_backswing / mid_downswing / follow_through between their parents', () => {
+    const fps = 60;
+    const frames = buildSyntheticSwing(fps);
+    const { events } = segmentEvents(frames, fps);
+    expect(events.half_backswing).toBeDefined();
+    expect(events.mid_downswing).toBeDefined();
+    expect(events.follow_through).toBeDefined();
+
+    const a = events.address!.frameIndex;
+    const tk = events.takeaway!.frameIndex;
+    const hb = events.half_backswing!.frameIndex;
+    const tp = events.top!.frameIndex;
+    const md = events.mid_downswing!.frameIndex;
+    const im = events.impact!.frameIndex;
+    const ft = events.follow_through!.frameIndex;
+    const fn = events.finish!.frameIndex;
+
+    // Full 8-event ordering address ≤ takeaway < half < top < mid < impact
+    // < follow < finish. The half markers sit strictly between their parents.
+    expect(a).toBeLessThanOrEqual(tk);
+    expect(tk).toBeLessThan(hb);
+    expect(hb).toBeLessThan(tp);
+    expect(tp).toBeLessThan(md);
+    expect(md).toBeLessThan(im);
+    expect(im).toBeLessThan(ft);
+    expect(ft).toBeLessThan(fn);
+  });
+
   it('warns and uses frame 0 as address when the clip starts mid-motion', () => {
     const fps = 60;
     const full = buildSyntheticSwing(fps);
