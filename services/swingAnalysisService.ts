@@ -48,6 +48,23 @@ const LANDMARK_NAMES = [
 let videoLandmarker: PoseLandmarker | null = null;
 let isInitializing = false;
 
+/**
+ * MediaPipe's VIDEO-mode landmarker requires strictly monotonic timestamps
+ * across every `detectForVideo` call for the lifetime of the instance. Since
+ * we cache the landmarker across analysis runs (heavy model, ~30 MB), each
+ * new run must pick timestamps larger than any we've ever sent — otherwise
+ * MediaPipe throws "Packet timestamp mismatch". This counter is bumped every
+ * frame and never reset.
+ */
+let mpTimestampMs = 0;
+
+/** Return a strictly increasing timestamp (ms) for `detectForVideo`. */
+function nextMonotonicTimestamp(seedMs: number): number {
+  const next = Math.max(mpTimestampMs + 1, seedMs);
+  mpTimestampMs = next;
+  return next;
+}
+
 async function initializeVideoLandmarker(): Promise<PoseLandmarker> {
   if (videoLandmarker) return videoLandmarker;
   if (isInitializing) {
@@ -798,7 +815,7 @@ export const swingAnalysisService = {
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
         // Timestamp must be strictly increasing across detectForVideo calls; ms
         // scale is sufficient.
-        const tMs = Math.round(t * 1000) + i;
+        const tMs = nextMonotonicTimestamp(Math.round(t * 1000) + i);
         const result = landmarker.detectForVideo(canvas, tMs);
         if (!result.landmarks?.[0]) {
           frames.push({ t, keypoints: [], angles: {}, confidence: 0 });
