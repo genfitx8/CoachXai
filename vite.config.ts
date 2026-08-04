@@ -42,6 +42,15 @@ export default defineConfig(({ mode }) => {
     build: {
       outDir,
       emptyOutDir: true,
+      rollupOptions: {
+        input: {
+          // Main coach app.
+          main: path.resolve(__dirname, 'index.html'),
+          // Standalone golf swing analysis (no auth / server / routing) —
+          // served at /swing.html.
+          swing: path.resolve(__dirname, 'swing.html'),
+        },
+      },
     },
     define: {
       'process.env.API_KEY': JSON.stringify(geminiKey),
