@@ -26,12 +26,13 @@ import { SkeletonKeypoint } from '../../types/postureAnalysis';
 
 const EVENT_LABEL: Record<SwingEventName, string> = {
   address: '어드레스',
+  takeaway: '백스윙',
   top: '백스윙 톱',
   impact: '임팩트',
   finish: '피니시',
 };
 
-const EVENT_ORDER: SwingEventName[] = ['address', 'top', 'impact', 'finish'];
+const EVENT_ORDER: SwingEventName[] = ['address', 'takeaway', 'top', 'impact', 'finish'];
 
 const POSE_CONNECTIONS: Array<[number, number]> = [
   [11, 12],
@@ -840,7 +841,7 @@ export const SwingVideoAnalysis: React.FC<SwingVideoAnalysisProps> = ({
                 ))}
               </div>
             )}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
               {EVENT_ORDER.map((name) => {
                 const evt = analysis.events[name];
                 const frame = evt ? analysis.frames[evt.frameIndex] : undefined;

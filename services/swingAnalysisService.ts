@@ -275,13 +275,57 @@ function detectCameraView(addressFrames: SwingFrame[]): CameraView {
 }
 
 /**
- * Deterministic segmentation with smoothing + velocity-aware impact:
- *   Address = first stable window (smoothed rotation range < 5°)
- *   Top     = frame with max |smoothedRot - address baseline|
- *   Impact  = post-Top frame that both (a) sits near the baseline crossing and
- *             (b) shows max downward wrist velocity — the two agree at real
- *             impact and diverge on noisy short swings, so we score both.
- *   Finish  = last stable rotation window after impact.
+ * Extract a per-frame lead-wrist 3D position (or 2D fallback) so segmentation
+ * can drive off "how fast are the hands moving right now?" — the most
+ * camera-view-independent signal in a golf swing. Uses `worldKeypoints`
+ * (metric meters) when available and falls back to normalized 2D
+ * `keypoints` (pixel space, unitless) with a coarser threshold.
+ */
+type WristTrack = {
+  positions: Array<{ x: number; y: number; z: number } | null>;
+  /** True when we're working in metric world coords; thresholds differ. */
+  is3D: boolean;
+};
+
+function extractWristTrack(frames: SwingFrame[]): WristTrack {
+  const positions: WristTrack['positions'] = [];
+  let has3D = false;
+  for (const f of frames) {
+    const w = f.worldKeypoints;
+    if (w) {
+      const lw = toVec3(w[15]);
+      const rw = toVec3(w[16]);
+      if (lw && rw) {
+        positions.push({ x: (lw.x + rw.x) / 2, y: (lw.y + rw.y) / 2, z: (lw.z + rw.z) / 2 });
+        has3D = true;
+        continue;
+      }
+    }
+    // 2D fallback (normalized 0..1). Use z=0 so speed magnitude reduces to 2D.
+    const lw2 = f.keypoints[15];
+    const rw2 = f.keypoints[16];
+    if (lw2 && rw2 && lw2.confidence >= 0.3 && rw2.confidence >= 0.3) {
+      positions.push({ x: (lw2.x + rw2.x) / 2, y: (lw2.y + rw2.y) / 2, z: 0 });
+    } else {
+      positions.push(null);
+    }
+  }
+  return { positions, is3D: has3D };
+}
+
+/**
+ * Deterministic segmentation driven by wrist speed magnitude — a signal that
+ * survives DTL vs face-on camera changes far better than shoulder rotation.
+ *
+ *   Address  = first stable window where wrist speed sits below STILL threshold
+ *   Takeaway = first frame after Address where speed crosses MOVING threshold
+ *   Top      = local minimum of wrist speed between Takeaway and Impact
+ *              (natural pause where backswing hands off to downswing)
+ *   Impact   = peak wrist speed after Takeaway (the fastest moment of the swing)
+ *   Finish   = last stable window where speed drops back below STILL threshold
+ *
+ * Falls back to rotation-based heuristics only when wrist landmarks are
+ * completely missing across the timeline.
  */
 function segmentEvents(
   frames: SwingFrame[],
@@ -291,92 +335,114 @@ function segmentEvents(
   warnings: string[];
 } {
   const warnings: string[] = [];
-  const rawRot = frames.map((f) => f.angles.shoulderRotation ?? NaN);
-  const rawWristY = frames.map((f) => f.angles.wristY ?? NaN);
-  if (!rawRot.some((v) => !Number.isNaN(v)) || frames.length < 8) {
-    return { events: {}, warnings: ['프레임 수가 부족하거나 3D 좌표가 없어 이벤트를 감지할 수 없습니다.'] };
+  if (frames.length < 8) {
+    return { events: {}, warnings: ['프레임 수가 부족해 이벤트를 감지할 수 없습니다.'] };
   }
 
-  // ~100ms smoothing window: enough to kill single-frame flicker without
-  // washing out the fast downswing (~200ms peak).
-  const halfWin = Math.max(1, Math.round(sampledFps * 0.05));
-  const rot = smooth(rawRot, halfWin);
-  const wristY = smooth(rawWristY, halfWin);
-  const dt = sampledFps > 0 ? 1 / sampledFps : 1 / 30;
-  const wristVy = derivative(wristY, dt);
+  const track = extractWristTrack(frames);
+  const validCount = track.positions.filter((p) => p !== null).length;
+  if (validCount < frames.length * 0.4) {
+    return {
+      events: {},
+      warnings: ['손목 랜드마크 감지 실패가 많아 이벤트를 감지할 수 없습니다. 전신이 화면에 잘 들어오도록 촬영해 주세요.'],
+    };
+  }
 
-  // Address: first 4-frame window where smoothed rotation range < 5°.
+  const dt = sampledFps > 0 ? 1 / sampledFps : 1 / 30;
+
+  // Per-frame speed magnitude (m/s in 3D mode, unit/s in 2D fallback mode).
+  const rawSpeed: number[] = new Array(frames.length).fill(NaN);
+  for (let i = 1; i < frames.length; i++) {
+    const a = track.positions[i - 1];
+    const b = track.positions[i];
+    if (!a || !b) continue;
+    rawSpeed[i] = Math.hypot(b.x - a.x, b.y - a.y, b.z - a.z) / dt;
+  }
+  // Smoothing over ~100ms cancels landmark flicker without hiding the
+  // hundred-millisecond speed spike at impact.
+  const halfWin = Math.max(1, Math.round(sampledFps * 0.05));
+  const speed = smooth(rawSpeed, halfWin);
+  const wristY = smooth(
+    track.positions.map((p) => (p ? p.y : NaN)),
+    halfWin,
+  );
+
+  // Thresholds scale with the coord system. World coords in meters →
+  // realistic address speed <0.4 m/s, backswing >0.8 m/s. Normalized 2D →
+  // tighter (frame heights are 1.0).
+  const STILL = track.is3D ? 0.4 : 0.08;
+  const MOVING = track.is3D ? 0.9 : 0.18;
+
+  // ── Address: first 4-frame window with all speeds < STILL ────────────────
   let addressIdx = 0;
   for (let i = 0; i + 3 < frames.length; i++) {
-    const w = rot.slice(i, i + 4).filter((v) => !Number.isNaN(v));
-    if (w.length < 3) continue;
-    if (Math.max(...w) - Math.min(...w) < 5) {
-      addressIdx = i;
+    const win = speed.slice(i, i + 4).filter((v) => !Number.isNaN(v));
+    if (win.length < 3) continue;
+    if (Math.max(...win) < STILL) {
+      addressIdx = i + 1; // center-ish of the still window
       break;
     }
   }
-  const addressRot = rot[addressIdx] ?? 0;
 
-  // Top: max absolute delta from address baseline.
-  const rotDelta = rot.map((v) => (Number.isNaN(v) ? NaN : Math.abs(v - addressRot)));
-  const topIdx = argExtremum(rotDelta, addressIdx + 1, frames.length - 1, 'max');
-  if (rotDelta[topIdx] < 25) {
-    warnings.push('회전량이 작아 백스윙 톱을 확실히 감지하지 못했습니다.');
-  }
-
-  // Impact candidates:
-  //   crossIdx = first sign-flip of (rot - addressRot) after top
-  //   velIdx   = frame with maximum downward wrist velocity after top
-  //              (worldLandmarks Y is +down in MediaPipe → wristVy>0 = falling)
-  const signAtTop = Math.sign(rot[topIdx] - addressRot);
-  let crossIdx = -1;
-  for (let i = topIdx + 1; i < frames.length; i++) {
-    if (Number.isNaN(rot[i])) continue;
-    if (Math.sign(rot[i] - addressRot) !== signAtTop) {
-      crossIdx = i;
+  // ── Takeaway: first frame after Address where speed exceeds MOVING ─────
+  let takeawayIdx = -1;
+  for (let i = addressIdx + 1; i < frames.length; i++) {
+    if (Number.isNaN(speed[i])) continue;
+    if (speed[i] > MOVING) {
+      takeawayIdx = i;
       break;
     }
   }
-  const velIdx = argExtremum(wristVy, topIdx + 1, frames.length - 1, 'max');
-  const velHasSignal =
-    velIdx > topIdx && !Number.isNaN(wristVy[velIdx]) && wristVy[velIdx] > 0;
+  if (takeawayIdx < 0) {
+    warnings.push('백스윙 시작을 감지하지 못했습니다. 스윙 전체가 영상에 담겼는지 확인해 주세요.');
+  }
 
-  let impactIdx = -1;
-  if (crossIdx > 0 && velHasSignal) {
-    // Both signals available → pick whichever gives the tighter estimate;
-    // if they disagree by more than ~120ms, warn and trust wrist velocity
-    // (rotation baseline drifts on tilted cameras).
-    const gapFrames = Math.abs(crossIdx - velIdx);
-    const gapMs = (gapFrames / Math.max(sampledFps, 1)) * 1000;
-    if (gapMs > 120) {
-      warnings.push('회전 신호와 손목 속도가 서로 다른 임팩트를 가리킵니다. 손목 속도를 사용합니다.');
-      impactIdx = velIdx;
-    } else {
-      // Small disagreement: average the two (round to nearest frame).
-      impactIdx = Math.round((crossIdx + velIdx) / 2);
-    }
-  } else if (crossIdx > 0) {
-    impactIdx = crossIdx;
-  } else if (velHasSignal) {
-    impactIdx = velIdx;
-  } else {
-    impactIdx = argExtremum(wristY, topIdx + 1, frames.length - 1, 'max');
-    if (Number.isNaN(wristY[impactIdx])) {
-      warnings.push('임팩트 지점을 감지하지 못했습니다.');
-      impactIdx = -1;
+  // ── Impact: peak speed after Takeaway (or after Address if takeaway lost) ─
+  const impactSearchStart = takeawayIdx > 0 ? takeawayIdx + 1 : addressIdx + 1;
+  let impactIdx = argExtremum(speed, impactSearchStart, frames.length - 1, 'max');
+  if (Number.isNaN(speed[impactIdx]) || speed[impactIdx] < MOVING) {
+    warnings.push('임팩트 지점의 손목 속도가 낮아 신뢰도가 떨어집니다.');
+    impactIdx = -1;
+  }
+
+  // ── Top: local speed minimum between Takeaway and Impact ────────────────
+  // Cross-check against wrist-Y extremum (min y = highest wrist in MediaPipe
+  // world coords) — the two should be within ~150ms of each other on a real
+  // swing.
+  let topIdx = -1;
+  if (takeawayIdx > 0 && impactIdx > 0 && impactIdx - takeawayIdx > 3) {
+    const speedMinIdx = argExtremum(speed, takeawayIdx + 1, impactIdx - 1, 'min');
+    const yMinIdx = argExtremum(wristY, takeawayIdx + 1, impactIdx - 1, 'min');
+    if (
+      speedMinIdx > 0 &&
+      yMinIdx > 0 &&
+      Math.abs(speedMinIdx - yMinIdx) * (1 / sampledFps) < 0.15
+    ) {
+      // Both agree → average for stability.
+      topIdx = Math.round((speedMinIdx + yMinIdx) / 2);
+    } else if (speedMinIdx > 0) {
+      topIdx = speedMinIdx;
+    } else if (yMinIdx > 0) {
+      topIdx = yMinIdx;
     }
   }
 
-  // Finish: last stable rotation window after impact.
+  // ── Finish: last stable window (speed < STILL) after Impact ─────────────
   let finishIdx = frames.length - 1;
-  const finishSearchFrom = impactIdx > 0 ? impactIdx + 1 : topIdx + 1;
+  const finishSearchFrom = impactIdx > 0 ? impactIdx + 2 : takeawayIdx + 2;
   for (let i = frames.length - 4; i > finishSearchFrom; i--) {
-    const w = rot.slice(i, i + 4).filter((v) => !Number.isNaN(v));
-    if (w.length < 3) continue;
-    if (Math.max(...w) - Math.min(...w) < 5) {
+    const win = speed.slice(i, i + 4).filter((v) => !Number.isNaN(v));
+    if (win.length < 3) continue;
+    if (Math.max(...win) < STILL) {
       finishIdx = i;
       break;
     }
+  }
+
+  if (!track.is3D) {
+    warnings.push(
+      '3D 랜드마크를 얻지 못해 2D 좌표로 감지했습니다. 정확도가 다소 떨어질 수 있습니다.',
+    );
   }
 
   const build = (name: SwingEventName, idx: number): SwingEvent | undefined => {
@@ -386,10 +452,12 @@ function segmentEvents(
 
   const events: Partial<Record<SwingEventName, SwingEvent>> = {};
   const address = build('address', addressIdx);
-  const top = build('top', topIdx);
+  const takeaway = takeawayIdx >= 0 ? build('takeaway', takeawayIdx) : undefined;
+  const top = topIdx >= 0 ? build('top', topIdx) : undefined;
   const impact = impactIdx >= 0 ? build('impact', impactIdx) : undefined;
   const finish = build('finish', finishIdx);
   if (address) events.address = address;
+  if (takeaway) events.takeaway = takeaway;
   if (top) events.top = top;
   if (impact) events.impact = impact;
   if (finish) events.finish = finish;

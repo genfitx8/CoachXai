@@ -13,7 +13,13 @@ export interface SwingFrame {
   confidence: number;
 }
 
-export type SwingEventName = 'address' | 'top' | 'impact' | 'finish';
+/**
+ * Segmentation phases of a swing, in temporal order. `takeaway` marks the
+ * first frame where the wrists leave the address position (the "start of
+ * backswing" in coaching parlance) — added so coaches can see the moment
+ * the swing actually begins, separately from the still address pose.
+ */
+export type SwingEventName = 'address' | 'takeaway' | 'top' | 'impact' | 'finish';
 
 export interface SwingEvent {
   name: SwingEventName;
