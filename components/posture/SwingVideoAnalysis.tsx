@@ -1,6 +1,17 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { Upload, Loader2, AlertTriangle, Target, RefreshCw, X } from 'lucide-react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  Upload,
+  Loader2,
+  AlertTriangle,
+  Target,
+  RefreshCw,
+  X,
+  Stethoscope,
+  Dumbbell,
+} from 'lucide-react';
 import { swingAnalysisService } from '../../services/swingAnalysisService';
+import { detectFaults } from '../../services/faultDetectionService';
+import type { SwingFault } from '../../types/swingFault';
 import {
   CameraView,
   Handedness,
@@ -541,6 +552,123 @@ const SummaryBar: React.FC<SummaryBarProps> = ({ summary }) => {
   );
 };
 
+const FAULT_TONE: Record<SwingFault['severity'], { badge: string; ring: string; label: string }> = {
+  major: {
+    badge: 'bg-red-900/50 text-red-200 border-red-700/60',
+    ring: 'border-red-800/60',
+    label: '중요',
+  },
+  minor: {
+    badge: 'bg-yellow-900/40 text-yellow-200 border-yellow-700/60',
+    ring: 'border-yellow-800/60',
+    label: '주의',
+  },
+  info: {
+    badge: 'bg-slate-800/60 text-slate-300 border-slate-700/60',
+    ring: 'border-slate-800/60',
+    label: '참고',
+  },
+};
+
+const DiagnosticsSection: React.FC<{ analysis: SwingAnalysis }> = ({ analysis }) => {
+  const faults = useMemo(() => detectFaults(analysis), [analysis]);
+  if (faults.length === 0) {
+    return (
+      <section className="rounded-lg bg-slate-900 border border-emerald-800/50 p-4">
+        <div className="flex items-center gap-2">
+          <Stethoscope size={16} className="text-emerald-400" />
+          <h2 className="text-sm font-semibold text-slate-100">코칭 진단</h2>
+          <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-900/50 text-emerald-300 border border-emerald-800/60">
+            BETA
+          </span>
+        </div>
+        <p className="mt-2 text-xs text-emerald-300">
+          측정 임계치 안에서 감지된 주요 결점이 없습니다. 좋은 스윙입니다 👏
+        </p>
+      </section>
+    );
+  }
+  return (
+    <section className="rounded-lg bg-slate-900 border border-slate-800 overflow-hidden">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-slate-800">
+        <div className="flex items-center gap-2">
+          <Stethoscope size={16} className="text-emerald-400" />
+          <h2 className="text-sm font-semibold text-slate-100">코칭 진단</h2>
+          <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-900/50 text-emerald-300 border border-emerald-800/60">
+            BETA
+          </span>
+        </div>
+        <span className="text-[11px] text-slate-500">감지된 결점 {faults.length}건</span>
+      </div>
+      <div className="p-4 space-y-3">
+        {faults.map((f) => {
+          const tone = FAULT_TONE[f.severity];
+          return (
+            <article
+              key={f.id}
+              className={`rounded-lg border ${tone.ring} bg-slate-900/60 overflow-hidden`}
+            >
+              <header className="flex items-start gap-2 px-3 py-2.5 border-b border-slate-800/70">
+                <span
+                  className={`text-[10px] font-semibold px-1.5 py-0.5 rounded border ${tone.badge} flex-shrink-0`}
+                >
+                  {tone.label}
+                </span>
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-sm font-semibold text-slate-100">{f.title}</h3>
+                  <p className="mt-0.5 text-[11px] text-slate-400 leading-relaxed">
+                    {f.description}
+                  </p>
+                </div>
+              </header>
+              {f.drills.length > 0 && (
+                <div className="px-3 py-2.5 space-y-2 bg-slate-950/40">
+                  <div className="flex items-center gap-1.5">
+                    <Dumbbell size={12} className="text-emerald-400" />
+                    <span className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">
+                      추천 드릴
+                    </span>
+                  </div>
+                  {f.drills.map((d, i) => (
+                    <div
+                      key={i}
+                      className="rounded bg-slate-800/50 border border-slate-800 px-2.5 py-2"
+                    >
+                      <div className="flex items-baseline justify-between gap-2">
+                        <p className="text-xs font-semibold text-slate-100">{d.name}</p>
+                        {d.duration && (
+                          <span className="text-[10px] text-slate-500 flex-shrink-0">
+                            {d.duration}
+                          </span>
+                        )}
+                      </div>
+                      <p className="mt-1 text-[11px] text-slate-400 leading-relaxed">
+                        {d.description}
+                      </p>
+                      {d.props && d.props.length > 0 && (
+                        <div className="mt-1 flex flex-wrap gap-1">
+                          {d.props.map((p) => (
+                            <span
+                              key={p}
+                              className="text-[9px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-400"
+                            >
+                              {p}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </article>
+          );
+        })}
+      </div>
+    </section>
+  );
+};
+
 interface SwingVideoAnalysisProps {
   /** Optional preset video URL. If omitted the user picks a file. */
   initialVideoUrl?: string;
@@ -754,6 +882,7 @@ export const SwingVideoAnalysis: React.FC<SwingVideoAnalysisProps> = ({
                 );
               })}
             </div>
+            <DiagnosticsSection analysis={analysis} />
             <p className="text-[11px] text-slate-500 leading-relaxed">
               총 {analysis.frames.length}프레임 (실효 {analysis.sampledFps.toFixed(1)}fps) 분석 완료.
               현재는 정면 카메라 기준 회전 신호로 이벤트를 감지합니다. 스윙 플레인, 클럽 헤드 트래킹은 후속 단계에서 추가됩니다.
