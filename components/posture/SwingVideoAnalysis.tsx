@@ -571,6 +571,177 @@ const FAULT_TONE: Record<SwingFault['severity'], { badge: string; ring: string; 
   },
 };
 
+/**
+ * Video playback with a skeleton overlay that stays synced to the video's
+ * current time. Lets a coach scrub, pause, and slow-mo any part of the swing
+ * while still seeing the detected pose — turning the analysis output into a
+ * live teaching tool instead of just four static event snapshots.
+ *
+ * Sync strategy: on every animation frame, find the analyzed frame whose
+ * timestamp is closest to `video.currentTime` and redraw its keypoints. The
+ * analyzed frames are sampled at ~30fps so nearest-neighbor is visually
+ * indistinguishable from interpolation.
+ */
+const PlaybackSection: React.FC<{ analysis: SwingAnalysis }> = ({ analysis }) => {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [currentT, setCurrentT] = useState(0);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    if (!video || !canvas) return;
+
+    let raf = 0;
+    const render = () => {
+      const t = video.currentTime;
+      // Nearest analyzed frame by timestamp.
+      let nearest = analysis.frames[0];
+      let minDiff = Math.abs(t - nearest.t);
+      for (let i = 1; i < analysis.frames.length; i++) {
+        const f = analysis.frames[i];
+        const d = Math.abs(t - f.t);
+        if (d < minDiff) {
+          minDiff = d;
+          nearest = f;
+        } else if (f.t > t) {
+          break; // frames are ordered → past the closest point
+        }
+      }
+      // Match canvas pixel size to the video's actual displayed size so the
+      // skeleton doesn't stretch or offset when the container is responsive.
+      if (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight) {
+        canvas.width = video.videoWidth || 640;
+        canvas.height = video.videoHeight || 360;
+      }
+      drawKeypoints(canvas, null, nearest?.keypoints ?? []);
+      raf = requestAnimationFrame(render);
+    };
+    raf = requestAnimationFrame(render);
+
+    const onTime = () => setCurrentT(video.currentTime);
+    video.addEventListener('timeupdate', onTime);
+    video.addEventListener('seeked', onTime);
+    return () => {
+      cancelAnimationFrame(raf);
+      video.removeEventListener('timeupdate', onTime);
+      video.removeEventListener('seeked', onTime);
+    };
+  }, [analysis]);
+
+  const seekTo = (t: number) => {
+    const video = videoRef.current;
+    if (!video) return;
+    video.currentTime = t;
+    // Small nudge so the frame actually renders when paused at seek target.
+    video.pause();
+  };
+
+  const setSpeed = (rate: number) => {
+    const video = videoRef.current;
+    if (video) video.playbackRate = rate;
+  };
+
+  const step = (delta: number) => {
+    const video = videoRef.current;
+    if (!video) return;
+    // ~1 sampled frame at a time — enough resolution for coach walk-throughs.
+    const dt = analysis.sampledFps > 0 ? 1 / analysis.sampledFps : 1 / 30;
+    video.currentTime = Math.max(0, Math.min(video.duration || 0, video.currentTime + delta * dt));
+    video.pause();
+  };
+
+  return (
+    <section className="rounded-lg bg-slate-900 border border-slate-800 overflow-hidden">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-slate-800">
+        <div className="flex items-center gap-2">
+          <Target size={16} className="text-emerald-400" />
+          <h2 className="text-sm font-semibold text-slate-100">스윙 재생 & 프레임 스크러빙</h2>
+        </div>
+        <span className="text-[11px] text-slate-500">
+          코치가 임의 프레임에서 일시정지해 설명 가능
+        </span>
+      </div>
+      <div className="p-4 space-y-3">
+        <div className="relative bg-black rounded-lg overflow-hidden">
+          <video
+            ref={videoRef}
+            src={analysis.videoUrl}
+            controls
+            playsInline
+            className="w-full h-auto block"
+            style={{ maxHeight: '360px' }}
+          />
+          <canvas
+            ref={canvasRef}
+            className="absolute inset-0 w-full h-full pointer-events-none"
+            style={{ maxHeight: '360px', objectFit: 'contain' }}
+          />
+        </div>
+
+        {/* Playback speed + step controls */}
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-[10px] text-slate-500 uppercase tracking-wider mr-1">속도</span>
+          {[0.25, 0.5, 1].map((r) => (
+            <button
+              key={r}
+              type="button"
+              onClick={() => setSpeed(r)}
+              className="text-[11px] px-2 py-1 rounded border border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-300"
+            >
+              {r}x
+            </button>
+          ))}
+          <span className="text-slate-700 mx-1">|</span>
+          <button
+            type="button"
+            onClick={() => step(-1)}
+            className="text-[11px] px-2 py-1 rounded border border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-300"
+          >
+            ◀ 1프레임
+          </button>
+          <button
+            type="button"
+            onClick={() => step(1)}
+            className="text-[11px] px-2 py-1 rounded border border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-300"
+          >
+            1프레임 ▶
+          </button>
+          <span className="ml-auto text-[11px] text-slate-400 font-mono">
+            t = {currentT.toFixed(2)}s
+          </span>
+        </div>
+
+        {/* Event jump buttons */}
+        <div className="flex flex-wrap gap-2">
+          {(['address', 'takeaway', 'top', 'impact', 'finish'] as SwingEventName[]).map((name) => {
+            const evt = analysis.events[name];
+            if (!evt) return null;
+            const active = Math.abs(currentT - evt.t) < 0.05;
+            return (
+              <button
+                key={name}
+                type="button"
+                onClick={() => seekTo(evt.t)}
+                className={`text-xs px-3 py-1.5 rounded-lg border font-semibold transition-colors ${
+                  active
+                    ? 'border-emerald-400 bg-emerald-900/40 text-emerald-200'
+                    : 'border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-300'
+                }`}
+              >
+                {EVENT_LABEL[name]}
+                <span className="ml-1.5 text-[10px] text-slate-500 font-normal">
+                  {evt.t.toFixed(2)}s
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </section>
+  );
+};
+
 const DiagnosticsSection: React.FC<{ analysis: SwingAnalysis }> = ({ analysis }) => {
   const faults = useMemo(() => detectFaults(analysis), [analysis]);
   if (faults.length === 0) {
@@ -883,6 +1054,7 @@ export const SwingVideoAnalysis: React.FC<SwingVideoAnalysisProps> = ({
                 );
               })}
             </div>
+            <PlaybackSection analysis={analysis} />
             <DiagnosticsSection analysis={analysis} />
             <p className="text-[11px] text-slate-500 leading-relaxed">
               총 {analysis.frames.length}프레임 (실효 {analysis.sampledFps.toFixed(1)}fps) 분석 완료.
