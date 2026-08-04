@@ -20,7 +20,9 @@ export type FaultId =
   | 'excessive_out_to_in'
   | 'excessive_in_to_out'
   | 'weak_shoulder_turn'
-  | 'reverse_spine';
+  | 'reverse_spine'
+  | 'inverted_kinetic_sequence'
+  | 'simultaneous_kinetic_peaks';
 
 export type FaultSeverity = 'info' | 'minor' | 'major';
 

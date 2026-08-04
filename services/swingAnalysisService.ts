@@ -16,6 +16,7 @@ import {
   clubHeadAugmentSummary,
   type ClubHeadDetector,
 } from './clubHeadTrackingService';
+import { computeKineticSequence } from './kineticSequenceService';
 
 const log = createLogger('swingAnalysisService');
 
@@ -706,6 +707,7 @@ function annotateCorrectedSpineTilt(
 function buildSummary(
   frames: SwingFrame[],
   events: Partial<Record<SwingEventName, SwingEvent>>,
+  sampledFps: number,
   clubHeadDetector?: ClubHeadDetector,
 ): SwingSummary {
   const addressWindow = events.address
@@ -767,6 +769,16 @@ function buildSummary(
     summary.gravityAligned = false;
   }
   clubHeadAugmentSummary(summary, frames, events, clubHeadDetector);
+  if (events.top && events.impact) {
+    const kinetic = computeKineticSequence(
+      frames,
+      events.top.frameIndex,
+      events.impact.frameIndex,
+      sampledFps,
+      handedness,
+    );
+    if (kinetic) summary.kineticSequence = kinetic;
+  }
   return summary;
 }
 
@@ -853,7 +865,7 @@ export const swingAnalysisService = {
       onProgress?.({ processedFrames: desired, totalFrames: desired, stage: 'segmenting' });
       const sampledFps = desired / span;
       const { events, warnings } = segmentEvents(frames, sampledFps);
-      const summary = buildSummary(frames, events, options.clubHeadDetector);
+      const summary = buildSummary(frames, events, sampledFps, options.clubHeadDetector);
 
       onProgress?.({ processedFrames: desired, totalFrames: desired, stage: 'done' });
       log.info('Swing analysis completed', {

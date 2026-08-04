@@ -188,6 +188,30 @@ function detectKneeFlexIssue(ctx: DetectionContext): SwingFault | undefined {
   return undefined;
 }
 
+function detectKineticSequenceIssue(ctx: DetectionContext): SwingFault | undefined {
+  const ks = ctx.summary.kineticSequence;
+  if (!ks) return undefined;
+  if (ks.order === 'inverted') {
+    return fault(
+      'inverted_kinetic_sequence',
+      'major',
+      '역방향 키네틱 시퀀스',
+      '팔/손이 골반보다 먼저 피크에 도달했습니다. 오버-더-톱, 캐스팅, 얼리 익스텐션의 근본 원인이며 파워 손실과 방향성 저하로 이어집니다.',
+      ['kineticSequence.order'],
+    );
+  }
+  if (ks.order === 'simultaneous') {
+    return fault(
+      'simultaneous_kinetic_peaks',
+      'minor',
+      '동시 발화 시퀀스',
+      `모든 세그먼트가 ${ks.peakSpanMs ?? 0}ms 이내에 동시 피크. 스윙 체인이 형성되지 않아 파워 전달 효율이 낮습니다.`,
+      ['kineticSequence.peakSpanMs'],
+    );
+  }
+  return undefined;
+}
+
 function detectClubPathIssue(ctx: DetectionContext): SwingFault | undefined {
   const v = ctx.summary.clubPathAtImpactDeg;
   if (typeof v !== 'number' || !Number.isFinite(v)) return undefined;
@@ -221,6 +245,7 @@ const RULES: Rule[] = [
   detectPlaneIssue,
   detectKneeFlexIssue,
   detectClubPathIssue,
+  detectKineticSequenceIssue,
 ];
 
 const SEVERITY_ORDER: Record<FaultSeverity, number> = {
@@ -256,4 +281,5 @@ export const __testing__ = {
   detectPlaneIssue,
   detectKneeFlexIssue,
   detectClubPathIssue,
+  detectKineticSequenceIssue,
 };

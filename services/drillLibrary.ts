@@ -183,4 +183,34 @@ export const DRILL_LIBRARY: Record<FaultId, DrillRecommendation[]> = {
       duration: '10회',
     },
   ],
+  inverted_kinetic_sequence: [
+    {
+      name: '스텝인 다운스윙 드릴',
+      description: '어드레스 후 백스윙 톱에서 리드 발(오른손잡이는 왼발)을 살짝 들었다가 다운스윙과 동시에 내딛기. 하체가 먼저 발화하는 순서를 몸에 각인합니다.',
+      duration: '10회 x 3세트',
+    },
+    {
+      name: '골반 리드 슬로우 다운',
+      description: '반 스피드 다운스윙. 골반 회전이 시작된 뒤 상체가 따라오고 그 다음 팔이 오도록 카운트하며 반복. "1(골반)-2(상체)-3(팔)-4(손)" 리듬.',
+      duration: '5분',
+    },
+    {
+      name: '팔 지연 임팩트백',
+      description: '임팩트백을 앞에 두고 다운스윙 초반에 팔을 최대한 지연시키다가 마지막 순간에만 릴리즈. 하체가 먼저 리드하는 감각을 강화합니다.',
+      duration: '10회',
+      props: ['임팩트백'],
+    },
+  ],
+  simultaneous_kinetic_peaks: [
+    {
+      name: '분리 카운트 드릴',
+      description: '풀 스윙 중 백스윙 톱 → 골반 회전 시작 → 팔 다운 → 손 릴리즈를 각각 명확한 4카운트로 분리해서 실행. 처음엔 과장해서 느리게, 점차 자연스러운 속도로.',
+      duration: '10회',
+    },
+    {
+      name: '두 스텝 다운스윙',
+      description: '톱에서 정지 → 골반만 살짝 목표 쪽 이동 → 정지 → 상체·팔로 마무리. 세그먼트 간 순차 발화 감각을 만듭니다.',
+      duration: '10회 x 2세트',
+    },
+  ],
 };
