@@ -48,6 +48,10 @@ jobs:
         run: npm ci
 
       - name: Build web assets for ${{ matrix.variant }}
+        env:
+          # 프로덕션 백엔드 URL. Repository secret VITE_API_BASE_URL 이 있으면
+          # 그걸 쓰고, 없으면 Render 기본 URL로 폴백.
+          VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL || 'https://coachxai-server.onrender.com' }}
         run: npm run build:${{ matrix.variant }}
 
       - name: Sync Capacitor for ${{ matrix.variant }}

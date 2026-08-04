@@ -5,7 +5,9 @@ const config: CapacitorConfig = {
   appName: 'CoachX AI',
   webDir: 'dist-student',
   server: {
-    // androidScheme: 'https',
+    // Android WebView origin is https://localhost — must be allowed by the
+    // backend's APP_ALLOWED_ORIGINS list.
+    androidScheme: 'https',
     // Uncomment for live-reload against a running dev server:
     // url: 'http://YOUR_DEV_IP:3000',
     // cleartext: true,
