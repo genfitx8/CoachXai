@@ -226,6 +226,34 @@ function argExtremum(
 }
 
 /**
+ * Parabolic interpolation around a discrete extremum. Fits a parabola through
+ * (k-1, k, k+1) samples and returns the sub-frame offset of the true
+ * extremum. Standard signal-processing trick — turns 30fps sampling (±33ms)
+ * into ~±3ms precision for smooth curves like wrist speed at impact. Returns
+ * undefined at timeline edges or when the samples don't form a valid
+ * parabola.
+ */
+function parabolicRefine(
+  values: number[],
+  k: number,
+): { offset: number; refinedValue: number } | undefined {
+  if (k <= 0 || k >= values.length - 1) return undefined;
+  const y0 = values[k - 1];
+  const y1 = values[k];
+  const y2 = values[k + 1];
+  if (!Number.isFinite(y0) || !Number.isFinite(y1) || !Number.isFinite(y2)) return undefined;
+  const denom = y0 - 2 * y1 + y2;
+  // Flat curve → no meaningful refinement.
+  if (Math.abs(denom) < 1e-9) return { offset: 0, refinedValue: y1 };
+  const offset = (0.5 * (y0 - y2)) / denom;
+  // Sanity: true extremum should sit within [-1, 1] of the sampled peak.
+  // Anything larger means our chosen k wasn't actually the local max/min.
+  if (Math.abs(offset) > 1) return undefined;
+  const refinedValue = y1 - 0.25 * (y0 - y2) * offset;
+  return { offset, refinedValue };
+}
+
+/**
  * NaN-safe centered moving-average smoother. Preserves gaps: any output that
  * would be computed from zero valid samples stays NaN so downstream logic can
  * detect missing signal instead of interpolating over it.
@@ -468,12 +496,41 @@ function segmentEvents(
     return { name, frameIndex: idx, t: frames[idx].t, metrics: { ...frames[idx].angles } };
   };
 
+  /**
+   * Refine an event's timing to sub-frame precision by fitting a parabola
+   * through the surrounding samples of `signal`. Mutates the event in place
+   * so callers keep the same object reference.
+   */
+  const refine = (
+    event: SwingEvent | undefined,
+    signal: number[],
+    mode: 'max' | 'min',
+  ): void => {
+    if (!event) return;
+    const k = event.frameIndex;
+    if (k <= 0 || k >= frames.length - 1) return;
+    // Parabolic formula assumes k is the local extremum. For minima we work
+    // on the negated signal so the same math finds the true bottom.
+    const source = mode === 'min' ? signal.map((v) => (Number.isFinite(v) ? -v : v)) : signal;
+    const refined = parabolicRefine(source, k);
+    if (!refined) return;
+    const nextT = frames[k].t + refined.offset * dt;
+    if (!Number.isFinite(nextT) || nextT < 0) return;
+    event.t = +nextT.toFixed(4);
+    event.subFrameOffset = +refined.offset.toFixed(3);
+  };
+
   const events: Partial<Record<SwingEventName, SwingEvent>> = {};
   const address = build('address', addressIdx);
   const takeaway = takeawayIdx >= 0 ? build('takeaway', takeawayIdx) : undefined;
   const top = topIdx >= 0 ? build('top', topIdx) : undefined;
   const impact = impactIdx >= 0 ? build('impact', impactIdx) : undefined;
   const finish = build('finish', finishIdx);
+
+  // Sub-frame refinement matters most for Impact (peak speed, drives every
+  // downstream physics metric) and Top (local minimum, transition timing).
+  refine(impact, speed, 'max');
+  refine(top, speed, 'min');
   if (address) events.address = address;
   if (takeaway) events.takeaway = takeaway;
   if (top) events.top = top;
@@ -899,4 +956,5 @@ export const __testing__ = {
   segmentEvents,
   buildSummary,
   estimateGravityFromAddress,
+  parabolicRefine,
 };

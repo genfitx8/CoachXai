@@ -13,6 +13,7 @@ const {
   computeAttackAngle,
   computeSwingPlaneAngle,
   estimateGravityFromAddress,
+  parabolicRefine,
 } = __testing__;
 
 type PointMap = Record<number, { x: number; y: number; z: number }>;
@@ -285,5 +286,47 @@ describe('computeSwingPlaneAngle', () => {
       makeFrame(0.2, { 15: { x: 0.2, y: 0, z: 0 } }),
     ];
     expect(computeSwingPlaneAngle(frames, 0, 2, 'right')).toBeUndefined();
+  });
+});
+
+describe('parabolicRefine', () => {
+  it('finds the true peak of a synthetic parabola between samples', () => {
+    // y = -(x - 2.3)^2 + 10 has its peak at x = 2.3.
+    // Sample at x = 2, 3, 4 → y values 9.51, 9.51... wait let me recompute
+    // y(2) = -0.09 + 10 = 9.91
+    // y(3) = -0.49 + 10 = 9.51
+    // y(4) = -2.89 + 10 = 7.11
+    // Parabolic fit through (2, 9.91), (3, 9.51), (4, 7.11) → peak near x=2.3
+    // With sampling at indices k-1=0, k=1, k+1=2 (mapping x=2→k=1), the
+    // returned offset should be -0.7 (peak is left of the sampled k=1).
+    const values = [9.91, 9.51, 7.11];
+    const r = parabolicRefine(values, 1);
+    expect(r).toBeDefined();
+    expect(r!.offset).toBeCloseTo(-0.7, 1);
+    expect(r!.refinedValue).toBeGreaterThan(9.91);
+  });
+
+  it('returns zero offset for a flat sample triple', () => {
+    const r = parabolicRefine([5, 5, 5], 1);
+    expect(r).toBeDefined();
+    expect(r!.offset).toBe(0);
+  });
+
+  it('undefined at timeline edges', () => {
+    expect(parabolicRefine([1, 2, 3], 0)).toBeUndefined();
+    expect(parabolicRefine([1, 2, 3], 2)).toBeUndefined();
+  });
+
+  it('undefined when samples are non-finite', () => {
+    expect(parabolicRefine([NaN, 1, 2], 1)).toBeUndefined();
+    expect(parabolicRefine([1, 2, NaN], 1)).toBeUndefined();
+  });
+
+  it('linear ramp: flat-curve branch returns zero offset (no refinement possible)', () => {
+    // Denominator 1 - 2·2 + 3 = 0 → the fit is degenerate; helper falls back
+    // to offset 0 rather than returning ±∞.
+    const r = parabolicRefine([1, 2, 3], 1);
+    expect(r).toBeDefined();
+    expect(r!.offset).toBe(0);
   });
 });

@@ -27,6 +27,13 @@ export interface SwingEvent {
   t: number;
   /** Snapshot of key metrics at this event (spineTilt3D, X-factor, etc.). */
   metrics: Record<string, number>;
+  /**
+   * Sub-frame offset in fractional frames from `frameIndex` (range roughly
+   * [-0.5, 0.5]). Set only when parabolic interpolation refined the timing
+   * beyond the discrete sample grid; `t` already reflects the offset.
+   * Undefined for events that snap exactly to a sampled frame.
+   */
+  subFrameOffset?: number;
 }
 
 export type CameraView = 'face_on' | 'down_the_line' | 'unknown';

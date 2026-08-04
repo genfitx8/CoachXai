@@ -275,8 +275,18 @@ const EventSnapshot: React.FC<EventSnapshotProps> = ({
   return (
     <div className="rounded-lg bg-slate-900 border border-slate-800 overflow-hidden">
       <div className="flex items-center justify-between px-3 py-2 bg-slate-800/70">
-        <span className="text-xs font-semibold text-slate-200">{EVENT_LABEL[event.name]}</span>
-        <span className="text-[10px] text-slate-500">t={event.t.toFixed(2)}s</span>
+        <span className="flex items-center gap-1.5">
+          <span className="text-xs font-semibold text-slate-200">{EVENT_LABEL[event.name]}</span>
+          {event.subFrameOffset != null && (
+            <span
+              className="text-[9px] font-semibold px-1 py-0.5 rounded bg-cyan-900/50 text-cyan-300 border border-cyan-800/60"
+              title={`서브프레임 보간 ±${(event.subFrameOffset * 33).toFixed(1)}ms`}
+            >
+              정밀
+            </span>
+          )}
+        </span>
+        <span className="text-[10px] text-slate-500">t={event.t.toFixed(3)}s</span>
       </div>
       <div className="bg-black">
         <canvas
