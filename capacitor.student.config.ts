@@ -5,10 +5,18 @@ const config: CapacitorConfig = {
   appName: 'CoachX AI',
   webDir: 'dist-student',
   server: {
-    // androidScheme: 'https',
-    // Uncomment for live-reload against a running dev server:
-    // url: 'http://YOUR_DEV_IP:3000',
-    // cleartext: true,
+    // Load the web UI from the deployed Vercel site instead of the bundled
+    // dist-student assets. Every web release goes live on the native shell
+    // instantly — no new APK / TestFlight build needed for content changes.
+    //
+    // Trade-offs:
+    //   - Requires the phone to be online at app open (no offline mode).
+    //   - Firebase auth callbacks and OAuth must be configured for this host.
+    //   - Native plugins (Camera, Push, etc.) still work.
+    //
+    // Swap this to your actual production domain if you use a custom domain.
+    url: 'https://coach-xai.vercel.app',
+    androidScheme: 'https',
   },
   plugins: {
     SplashScreen: {
