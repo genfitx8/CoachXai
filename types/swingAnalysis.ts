@@ -57,6 +57,61 @@ export interface ClubHeadTrajectory {
   maxSpeedKmh?: number;
 }
 
+/**
+ * Kinetic (kinematic) sequence analysis — the pro-level metric that
+ * differentiates an efficient swing from an amateur one. In a well-sequenced
+ * downswing, angular velocity peaks fire in strict order:
+ *
+ *   Pelvis → Torso (shoulders) → Lead Arm → Hands/Club
+ *
+ * Each segment decelerates as it hands energy off to the next. Reverse or
+ * simultaneous firing wastes energy and typically produces early extension,
+ * casting, or over-the-top faults.
+ */
+export type KineticSegment = 'pelvis' | 'torso' | 'lead_arm' | 'hands';
+
+export interface KineticSegmentPeak {
+  segment: KineticSegment;
+  /**
+   * Peak angular speed in deg/s (or normalized speed for hands, which we
+   * derive from lead-wrist 3D linear speed since the club shaft isn't
+   * directly observable).
+   */
+  peakValue: number;
+  /** Absolute video timestamp of the peak in seconds. */
+  peakT: number;
+  /** Time from Top event to peak, in ms. Negative if the peak occurred before Top. */
+  msFromTop: number;
+}
+
+export type KineticOrder =
+  | 'correct'        // pelvis → torso → lead_arm → hands, spaced apart
+  | 'partial'        // some peaks in order but at least one missing or out of place
+  | 'simultaneous'   // all peaks within ~30ms of each other → no sequencing
+  | 'inverted'       // hands / arm peak before pelvis → classic amateur pattern
+  | 'unknown';       // insufficient data
+
+export interface KineticSequence {
+  pelvis?: KineticSegmentPeak;
+  torso?: KineticSegmentPeak;
+  leadArm?: KineticSegmentPeak;
+  hands?: KineticSegmentPeak;
+  order: KineticOrder;
+  /** ms from first peak to last peak. Efficient tour swings ≈ 75–150ms. */
+  peakSpanMs?: number;
+  /**
+   * Per-frame series for chart rendering. Frame indices are absolute into
+   * SwingAnalysis.frames; the four value arrays are aligned.
+   */
+  timeline?: {
+    frameIndices: number[];
+    pelvis: number[];
+    torso: number[];
+    leadArm: number[];
+    hands: number[];
+  };
+}
+
 export interface SwingSummary {
   /** Detected camera perspective, inferred from address-window landmarks. */
   cameraView: CameraView;
@@ -123,6 +178,11 @@ export interface SwingSummary {
    * ≥ `clubHeadSpeedKmh` since it scans a wider window.
    */
   maxClubHeadSpeedKmh?: number;
+  /**
+   * Kinetic sequence — angular velocity peak ordering across the downswing.
+   * Undefined when Top or Impact is missing (needs both to bound the search).
+   */
+  kineticSequence?: KineticSequence;
 }
 
 export interface SwingAnalysis {

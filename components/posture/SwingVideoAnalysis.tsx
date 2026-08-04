@@ -12,6 +12,12 @@ import {
 import { swingAnalysisService } from '../../services/swingAnalysisService';
 import { detectFaults } from '../../services/faultDetectionService';
 import type { SwingFault } from '../../types/swingFault';
+import type {
+  KineticOrder,
+  KineticSegment,
+  KineticSegmentPeak,
+  KineticSequence,
+} from '../../types/swingAnalysis';
 import {
   CameraView,
   Handedness,
@@ -742,6 +748,259 @@ const PlaybackSection: React.FC<{ analysis: SwingAnalysis }> = ({ analysis }) =>
   );
 };
 
+/**
+ * Kinetic sequence visualization — the TPI-style ordering of pelvis → torso
+ * → lead arm → hands angular velocity peaks. Coaches use this to prove
+ * "kinematic chain" faults (arms firing before pelvis, everything peaking at
+ * once, etc.) that other apps don't surface.
+ */
+const KINETIC_LABEL: Record<KineticSegment, string> = {
+  pelvis: '골반',
+  torso: '상체',
+  lead_arm: '리드팔',
+  hands: '손/클럽',
+};
+
+const KINETIC_COLOR: Record<KineticSegment, string> = {
+  pelvis: '#f472b6', // pink
+  torso: '#facc15', // yellow
+  lead_arm: '#22d3ee', // cyan
+  hands: '#a78bfa', // violet
+};
+
+const KINETIC_ORDER_UI: Record<
+  KineticOrder,
+  { label: string; badge: string; hint: string }
+> = {
+  correct: {
+    label: '올바른 시퀀스',
+    badge: 'bg-emerald-900/50 text-emerald-200 border-emerald-700/60',
+    hint: '골반 → 상체 → 리드팔 → 손 순으로 정확히 발화. 프로 수준의 효율적인 스윙입니다.',
+  },
+  partial: {
+    label: '부분 시퀀스',
+    badge: 'bg-yellow-900/40 text-yellow-200 border-yellow-700/60',
+    hint: '일부 세그먼트만 순서대로. 리듬 개선 여지가 있습니다.',
+  },
+  simultaneous: {
+    label: '동시 발화',
+    badge: 'bg-orange-900/50 text-orange-200 border-orange-700/60',
+    hint: '모든 세그먼트가 30ms 이내 동시 피크. 스윙 체인이 형성되지 않고 있어 파워 손실이 큽니다.',
+  },
+  inverted: {
+    label: '역시퀀스 (팔 먼저)',
+    badge: 'bg-red-900/50 text-red-200 border-red-700/60',
+    hint: '팔/손이 골반보다 먼저 피크. 오버-더-톱, 캐스팅, 얼리 익스텐션의 근본 원인입니다.',
+  },
+  unknown: {
+    label: '측정 불가',
+    badge: 'bg-slate-800/60 text-slate-400 border-slate-700/60',
+    hint: '피크 감지가 안 된 세그먼트가 많습니다. 촬영 각도/조명을 확인해 주세요.',
+  },
+};
+
+interface KineticTileProps {
+  segment: KineticSegment;
+  peak: KineticSegmentPeak | undefined;
+}
+
+const KineticTile: React.FC<KineticTileProps> = ({ segment, peak }) => {
+  const color = KINETIC_COLOR[segment];
+  return (
+    <div className="rounded-lg bg-slate-800/60 border border-slate-700/70 px-3 py-3">
+      <div className="flex items-center justify-between mb-2">
+        <span className="flex items-center gap-1.5">
+          <span className="w-2 h-2 rounded-full" style={{ background: color }} />
+          <span className="text-[11px] text-slate-400 uppercase tracking-wider">
+            {KINETIC_LABEL[segment]}
+          </span>
+        </span>
+      </div>
+      {peak ? (
+        <>
+          <div className="flex items-baseline gap-1">
+            <span className="text-xl font-bold text-slate-100">
+              {peak.peakValue.toFixed(0)}
+            </span>
+            <span className="text-[10px] text-slate-500">°/s</span>
+          </div>
+          <p className="mt-1 text-[10px] text-slate-500">
+            {peak.msFromTop >= 0 ? '톱 이후' : '톱 이전'}{' '}
+            <span className="font-semibold text-slate-300">
+              {Math.abs(peak.msFromTop)}ms
+            </span>
+          </p>
+        </>
+      ) : (
+        <>
+          <span className="text-xl font-bold text-slate-600">—</span>
+          <p className="mt-1 text-[10px] text-slate-600">감지 실패</p>
+        </>
+      )}
+    </div>
+  );
+};
+
+/** Compact SVG chart showing the four angular-speed curves during downswing. */
+const KineticChart: React.FC<{ ks: KineticSequence }> = ({ ks }) => {
+  const tl = ks.timeline;
+  if (!tl || tl.frameIndices.length < 3) return null;
+  const width = 560;
+  const height = 160;
+  const padL = 8;
+  const padR = 8;
+  const padT = 8;
+  const padB = 20;
+
+  const all = [...tl.pelvis, ...tl.torso, ...tl.leadArm, ...tl.hands];
+  const maxVal = Math.max(1, ...all.filter((v) => Number.isFinite(v)));
+  const n = tl.frameIndices.length;
+
+  const xAt = (i: number) => padL + (i / Math.max(1, n - 1)) * (width - padL - padR);
+  const yAt = (v: number) =>
+    padT + (1 - v / maxVal) * (height - padT - padB);
+
+  const path = (values: number[]) =>
+    values
+      .map((v, i) => `${i === 0 ? 'M' : 'L'} ${xAt(i).toFixed(1)} ${yAt(v).toFixed(1)}`)
+      .join(' ');
+
+  // Peak markers relative to the chart window (frameIndices[0] = 0).
+  const peakMarker = (peak: KineticSegmentPeak | undefined, color: string) => {
+    if (!peak) return null;
+    const idx = tl.frameIndices.findIndex((fi) => {
+      // peakT is in seconds; the timeline stores frameIndices. Approximate by
+      // matching the closest frame — good enough for a marker.
+      return true;
+    });
+    // Simpler: find slot with the max value in the drawn series matching this segment.
+    const series =
+      peak.segment === 'pelvis'
+        ? tl.pelvis
+        : peak.segment === 'torso'
+          ? tl.torso
+          : peak.segment === 'lead_arm'
+            ? tl.leadArm
+            : tl.hands;
+    let bestI = 0;
+    let bestV = -Infinity;
+    for (let i = 0; i < series.length; i++) {
+      if (series[i] > bestV) {
+        bestV = series[i];
+        bestI = i;
+      }
+    }
+    return (
+      <circle
+        key={peak.segment}
+        cx={xAt(bestI)}
+        cy={yAt(bestV)}
+        r={4}
+        fill={color}
+        stroke="rgba(15, 23, 42, 0.9)"
+        strokeWidth={1.5}
+      />
+    );
+  };
+
+  return (
+    <div className="mt-3 rounded-lg bg-slate-950 border border-slate-800 p-3 overflow-x-auto">
+      <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-auto">
+        <path
+          d={path(tl.pelvis)}
+          fill="none"
+          stroke={KINETIC_COLOR.pelvis}
+          strokeWidth={2}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <path
+          d={path(tl.torso)}
+          fill="none"
+          stroke={KINETIC_COLOR.torso}
+          strokeWidth={2}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <path
+          d={path(tl.leadArm)}
+          fill="none"
+          stroke={KINETIC_COLOR.lead_arm}
+          strokeWidth={2}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <path
+          d={path(tl.hands)}
+          fill="none"
+          stroke={KINETIC_COLOR.hands}
+          strokeWidth={2}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        {peakMarker(ks.pelvis, KINETIC_COLOR.pelvis)}
+        {peakMarker(ks.torso, KINETIC_COLOR.torso)}
+        {peakMarker(ks.leadArm, KINETIC_COLOR.lead_arm)}
+        {peakMarker(ks.hands, KINETIC_COLOR.hands)}
+        <text x={padL} y={height - 4} fill="#64748b" fontSize={10}>
+          Top
+        </text>
+        <text x={width - padR - 24} y={height - 4} fill="#64748b" fontSize={10}>
+          Impact
+        </text>
+      </svg>
+      <div className="flex flex-wrap gap-3 mt-2 text-[10px] text-slate-400">
+        {(['pelvis', 'torso', 'lead_arm', 'hands'] as KineticSegment[]).map((s) => (
+          <span key={s} className="flex items-center gap-1">
+            <span className="w-2 h-2 rounded-full" style={{ background: KINETIC_COLOR[s] }} />
+            {KINETIC_LABEL[s]}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+const KineticSequenceSection: React.FC<{ analysis: SwingAnalysis }> = ({ analysis }) => {
+  const ks = analysis.summary.kineticSequence;
+  if (!ks) return null;
+  const orderUi = KINETIC_ORDER_UI[ks.order];
+  return (
+    <section className="rounded-lg bg-slate-900 border border-slate-800 overflow-hidden">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-slate-800">
+        <div className="flex items-center gap-2">
+          <Target size={16} className="text-emerald-400" />
+          <h2 className="text-sm font-semibold text-slate-100">키네틱 시퀀스</h2>
+          <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-900/50 text-emerald-300 border border-emerald-800/60">
+            PRO
+          </span>
+        </div>
+        <span
+          className={`text-[10px] font-semibold px-2 py-0.5 rounded border ${orderUi.badge}`}
+        >
+          {orderUi.label}
+        </span>
+      </div>
+      <div className="p-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+          <KineticTile segment="pelvis" peak={ks.pelvis} />
+          <KineticTile segment="torso" peak={ks.torso} />
+          <KineticTile segment="lead_arm" peak={ks.leadArm} />
+          <KineticTile segment="hands" peak={ks.hands} />
+        </div>
+        <p className="mt-3 text-[11px] text-slate-400 leading-relaxed">{orderUi.hint}</p>
+        {ks.peakSpanMs != null && (
+          <p className="mt-1 text-[10px] text-slate-500">
+            첫 피크 → 마지막 피크: <span className="font-semibold text-slate-300">{ks.peakSpanMs}ms</span>
+            <span className="ml-1 text-slate-600">(투어 평균 75–150ms)</span>
+          </p>
+        )}
+        <KineticChart ks={ks} />
+      </div>
+    </section>
+  );
+};
+
 const DiagnosticsSection: React.FC<{ analysis: SwingAnalysis }> = ({ analysis }) => {
   const faults = useMemo(() => detectFaults(analysis), [analysis]);
   if (faults.length === 0) {
@@ -1055,6 +1314,7 @@ export const SwingVideoAnalysis: React.FC<SwingVideoAnalysisProps> = ({
               })}
             </div>
             <PlaybackSection analysis={analysis} />
+            <KineticSequenceSection analysis={analysis} />
             <DiagnosticsSection analysis={analysis} />
             <p className="text-[11px] text-slate-500 leading-relaxed">
               총 {analysis.frames.length}프레임 (실효 {analysis.sampledFps.toFixed(1)}fps) 분석 완료.
