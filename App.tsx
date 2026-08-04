@@ -794,7 +794,19 @@ const AppContent: React.FC = () => {
       }
     } catch (e) {
       console.error('Save failed', e);
-      alert('저장에 실패했습니다.');
+      const detail =
+        typeof e === 'string'
+          ? e
+          : e instanceof Error
+            ? e.message
+            : (() => {
+                try {
+                  return JSON.stringify(e);
+                } catch {
+                  return String(e);
+                }
+              })();
+      alert(`저장에 실패했습니다.\n\n원인: ${detail}`);
     }
   };
 
@@ -822,7 +834,19 @@ const AppContent: React.FC = () => {
         }
       } catch (e) {
         console.error('[handleUpdateLesson] Save failed', e);
-        alert('저장에 실패했습니다.');
+        const detail =
+          typeof e === 'string'
+            ? e
+            : e instanceof Error
+              ? e.message
+              : (() => {
+                  try {
+                    return JSON.stringify(e);
+                  } catch {
+                    return String(e);
+                  }
+                })();
+        alert(`저장에 실패했습니다.\n\n원인: ${detail}`);
       }
     } else {
       // Convert any blob: URLs to IndexedDB so they survive page refresh
