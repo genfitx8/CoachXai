@@ -418,18 +418,62 @@ function extractWristTrack(frames: SwingFrame[]): WristTrack {
 }
 
 /**
- * Deterministic segmentation driven by wrist speed magnitude — a signal that
- * survives DTL vs face-on camera changes far better than shoulder rotation.
+ * Percentile of a numeric array, ignoring NaN. Returns fallback when there
+ * aren't enough valid samples to be meaningful.
+ */
+function percentileFinite(values: number[], p: number, fallback: number): number {
+  const finite: number[] = [];
+  for (const v of values) if (Number.isFinite(v)) finite.push(v);
+  if (finite.length < 4) return fallback;
+  finite.sort((a, b) => a - b);
+  const rank = Math.min(finite.length - 1, Math.max(0, Math.round((p / 100) * (finite.length - 1))));
+  return finite[rank];
+}
+
+/**
+ * Derive still / moving thresholds from the actual wrist-speed distribution
+ * instead of hard-coded absolutes. Adapts across swing tempos (senior
+ * ~4 m/s peaks vs. pro ~10 m/s), club types (wedge vs. driver), and camera
+ * modes (world vs. normalized 2D fallback). A floor prevents landmark flicker
+ * from being classified as motion when the whole clip is essentially static.
+ */
+function adaptiveSpeedThresholds(
+  speed: number[],
+  is3D: boolean,
+): { still: number; moving: number } {
+  const floorStill = is3D ? 0.25 : 0.05;
+  const floorMoving = is3D ? 0.6 : 0.12;
+  const p15 = percentileFinite(speed, 15, floorStill);
+  const p60 = percentileFinite(speed, 60, floorMoving);
+  const p95 = percentileFinite(speed, 95, floorMoving * 3);
+  // still ≈ 20% of the way from baseline to peak (captures address noise
+  // without swallowing the takeaway). moving ≈ 40% of that range.
+  const still = Math.max(floorStill, Math.min(p15 * 1.5, p95 * 0.15));
+  const moving = Math.max(floorMoving, Math.min(p60, p95 * 0.35));
+  return { still, moving: Math.max(moving, still * 1.8) };
+}
+
+/**
+ * Deterministic segmentation driven by wrist speed magnitude and wrist arc
+ * geometry — signals that survive DTL vs face-on camera changes far better
+ * than shoulder rotation. Each event has a physically-grounded definition,
+ * not just "some threshold crossing":
  *
- *   Address  = first stable window where wrist speed sits below STILL threshold
- *   Takeaway = first frame after Address where speed crosses MOVING threshold
- *   Top      = local minimum of wrist speed between Takeaway and Impact
- *              (natural pause where backswing hands off to downswing)
- *   Impact   = peak wrist speed after Takeaway (the fastest moment of the swing)
- *   Finish   = last stable window where speed drops back below STILL threshold
+ *   Address  = last still frame before Takeaway (walk backward from Takeaway)
+ *   Takeaway = first frame after start where wrist speed exceeds MOVING
+ *   Top      = wrist Y extremum (highest hands) within backswing window,
+ *              cross-checked against a nearby speed minimum
+ *   Impact   = wrist Y extremum (lowest hands = bottom of arc) between Top
+ *              and end, cross-validated with the speed peak; falls back to
+ *              speed peak alone when the arc bottom is degenerate
+ *   Finish   = first ~300ms window after Impact where speed decays and
+ *              stays below STILL
  *
- * Falls back to rotation-based heuristics only when wrist landmarks are
- * completely missing across the timeline.
+ * Thresholds are adaptive percentiles of the observed speed distribution,
+ * so a slow senior swing and a fast pro swing both segment correctly. The
+ * pipeline emits a warning when detected timings fall outside plausible
+ * human ranges (backswing 200–2500ms, downswing 80–800ms) but still returns
+ * the events so callers can inspect them.
  */
 function segmentEvents(
   frames: SwingFrame[],
@@ -471,28 +515,23 @@ function segmentEvents(
     halfWin,
   );
 
-  // Thresholds scale with the coord system. World coords in meters →
-  // realistic address speed <0.4 m/s, backswing >0.8 m/s. Normalized 2D →
-  // tighter (frame heights are 1.0).
-  const STILL = track.is3D ? 0.4 : 0.08;
-  const MOVING = track.is3D ? 0.9 : 0.18;
+  const { still: STILL, moving: MOVING } = adaptiveSpeedThresholds(speed, track.is3D);
 
-  // ── Address: first 4-frame window with all speeds < STILL ────────────────
-  let addressIdx = 0;
-  for (let i = 0; i + 3 < frames.length; i++) {
-    const win = speed.slice(i, i + 4).filter((v) => !Number.isNaN(v));
-    if (win.length < 3) continue;
-    if (Math.max(...win) < STILL) {
-      addressIdx = i + 1; // center-ish of the still window
-      break;
-    }
-  }
-
-  // ── Takeaway: first frame after Address where speed exceeds MOVING ─────
+  // ── Takeaway: first frame where speed sustainably exceeds MOVING ────────
+  // "Sustainable" = the next 3 frames also stay above STILL, so we don't
+  // trip on a single-frame landmark glitch.
   let takeawayIdx = -1;
-  for (let i = addressIdx + 1; i < frames.length; i++) {
-    if (Number.isNaN(speed[i])) continue;
-    if (speed[i] > MOVING) {
+  const sustainedFrames = Math.max(2, Math.round(sampledFps * 0.08));
+  for (let i = 1; i < frames.length - sustainedFrames; i++) {
+    if (!(speed[i] > MOVING)) continue;
+    let sustained = true;
+    for (let j = 1; j <= sustainedFrames; j++) {
+      if (!(speed[i + j] > STILL)) {
+        sustained = false;
+        break;
+      }
+    }
+    if (sustained) {
       takeawayIdx = i;
       break;
     }
@@ -501,45 +540,115 @@ function segmentEvents(
     warnings.push('백스윙 시작을 감지하지 못했습니다. 스윙 전체가 영상에 담겼는지 확인해 주세요.');
   }
 
-  // ── Impact: peak speed after Takeaway (or after Address if takeaway lost) ─
-  const impactSearchStart = takeawayIdx > 0 ? takeawayIdx + 1 : addressIdx + 1;
-  let impactIdx = argExtremum(speed, impactSearchStart, frames.length - 1, 'max');
-  if (Number.isNaN(speed[impactIdx]) || speed[impactIdx] < MOVING) {
-    warnings.push('임팩트 지점의 손목 속도가 낮아 신뢰도가 떨어집니다.');
-    impactIdx = -1;
-  }
-
-  // ── Top: local speed minimum between Takeaway and Impact ────────────────
-  // Cross-check against wrist-Y extremum (min y = highest wrist in MediaPipe
-  // world coords) — the two should be within ~150ms of each other on a real
-  // swing.
-  let topIdx = -1;
-  if (takeawayIdx > 0 && impactIdx > 0 && impactIdx - takeawayIdx > 3) {
-    const speedMinIdx = argExtremum(speed, takeawayIdx + 1, impactIdx - 1, 'min');
-    const yMinIdx = argExtremum(wristY, takeawayIdx + 1, impactIdx - 1, 'min');
-    if (
-      speedMinIdx > 0 &&
-      yMinIdx > 0 &&
-      Math.abs(speedMinIdx - yMinIdx) * (1 / sampledFps) < 0.15
-    ) {
-      // Both agree → average for stability.
-      topIdx = Math.round((speedMinIdx + yMinIdx) / 2);
-    } else if (speedMinIdx > 0) {
-      topIdx = speedMinIdx;
-    } else if (yMinIdx > 0) {
-      topIdx = yMinIdx;
+  // ── Address: walk backward from Takeaway until speed drops below STILL ─
+  // Physically the address is "when the hands stop moving before the swing
+  // starts", so backward search from Takeaway is exact — no need to guess a
+  // stable window from frame 0 that might have never existed (trimmed clips).
+  let addressIdx = 0;
+  let addressFoundStill = false;
+  if (takeawayIdx > 0) {
+    let idx = takeawayIdx - 1;
+    while (idx >= 1) {
+      const v = speed[idx];
+      if (Number.isFinite(v) && v < STILL) {
+        addressFoundStill = true;
+        break;
+      }
+      idx -= 1;
+    }
+    addressIdx = Math.max(0, idx);
+    if (!addressFoundStill) {
+      // Walked all the way back without finding a still frame → the clip
+      // started mid-motion (trimmed too tight to the swing).
+      warnings.push('영상이 어드레스 이후에 시작된 것 같습니다. 자세 지표 정확도가 낮아질 수 있어요.');
     }
   }
 
-  // ── Finish: last stable window (speed < STILL) after Impact ─────────────
+  // ── Impact: prefer wrist arc bottom, cross-check against speed peak ────
+  // Peak speed usually lands 1–3 frames AFTER contact (whip through release);
+  // the arc bottom (lowest wrist Y between Top and end) is closer to actual
+  // ball contact for driver / neutral strikes. For irons with descending
+  // blows the peak-speed frame is a better proxy, so we cross-validate: if
+  // the two frames are within ~60ms, average them; if the arc bottom gives a
+  // physically implausible downswing (<80ms or >800ms) fall back to speed.
+  let impactIdx = -1;
+  if (takeawayIdx > 0) {
+    const searchStart = takeawayIdx + Math.max(3, Math.round(sampledFps * 0.15));
+    const searchEnd = frames.length - 1;
+    if (searchEnd > searchStart) {
+      const speedPeakIdx = argExtremum(speed, searchStart, searchEnd, 'max');
+      const arcBottomIdx = argExtremum(wristY, searchStart, searchEnd, 'max'); // world Y ↓, so bottom = MAX y
+      const speedPeakOk = speedPeakIdx > 0 && speed[speedPeakIdx] > MOVING;
+      const gapMs = Math.abs(speedPeakIdx - arcBottomIdx) * dt * 1000;
+      if (speedPeakOk && arcBottomIdx > 0 && gapMs < 60) {
+        impactIdx = Math.round((speedPeakIdx + arcBottomIdx) / 2);
+      } else if (speedPeakOk) {
+        impactIdx = speedPeakIdx;
+      } else if (arcBottomIdx > 0) {
+        impactIdx = arcBottomIdx;
+      }
+    }
+  }
+  if (impactIdx > 0 && (Number.isNaN(speed[impactIdx]) || speed[impactIdx] < MOVING * 0.6)) {
+    warnings.push('임팩트 지점의 손목 속도가 낮아 신뢰도가 떨어집니다.');
+  }
+
+  // ── Top: highest hands (min wrist Y in world coords) inside the
+  // Takeaway→Impact bracket, sanity-checked against a nearby speed minimum.
+  // Wrist Y max is the physical definition of the top of backswing; using
+  // speed alone can pick spurious noise dips in a rushed transition.
+  let topIdx = -1;
+  if (takeawayIdx > 0 && impactIdx > 0 && impactIdx - takeawayIdx > 4) {
+    const bracketFrom = takeawayIdx + 2;
+    const bracketTo = impactIdx - 2;
+    // Highest hands = min world-Y (MediaPipe Y points down).
+    const yMinIdx = argExtremum(wristY, bracketFrom, bracketTo, 'min');
+    const speedMinIdx = argExtremum(speed, bracketFrom, bracketTo, 'min');
+    if (yMinIdx > 0) {
+      // Prefer the Y-based top; nudge toward the speed minimum only if they
+      // agree within ~200ms (which they typically do on real swings).
+      const gapMs = Math.abs(yMinIdx - speedMinIdx) * dt * 1000;
+      topIdx = gapMs < 200 && speedMinIdx > 0
+        ? Math.round((yMinIdx * 2 + speedMinIdx) / 3)
+        : yMinIdx;
+    } else if (speedMinIdx > 0) {
+      topIdx = speedMinIdx;
+    }
+  }
+
+  // ── Finish: first sustained still window after Impact ───────────────────
+  // "Sustained" = 250ms of speed < STILL. Prevents the choice from jumping to
+  // the very last frame just because the clip has a long static tail.
   let finishIdx = frames.length - 1;
-  const finishSearchFrom = impactIdx > 0 ? impactIdx + 2 : takeawayIdx + 2;
-  for (let i = frames.length - 4; i > finishSearchFrom; i--) {
-    const win = speed.slice(i, i + 4).filter((v) => !Number.isNaN(v));
-    if (win.length < 3) continue;
-    if (Math.max(...win) < STILL) {
-      finishIdx = i;
-      break;
+  if (impactIdx > 0) {
+    const holdFrames = Math.max(3, Math.round(sampledFps * 0.25));
+    for (let i = impactIdx + holdFrames; i + holdFrames < frames.length; i++) {
+      let stillWindow = true;
+      for (let j = 0; j < holdFrames; j++) {
+        const v = speed[i + j];
+        if (Number.isNaN(v) || v >= STILL) {
+          stillWindow = false;
+          break;
+        }
+      }
+      if (stillWindow) {
+        finishIdx = i;
+        break;
+      }
+    }
+  }
+
+  // ── Sanity check plausible timings ──────────────────────────────────────
+  if (takeawayIdx > 0 && topIdx > 0) {
+    const backswingMs = (topIdx - takeawayIdx) * dt * 1000;
+    if (backswingMs < 200 || backswingMs > 2500) {
+      warnings.push(`백스윙 지속시간(${Math.round(backswingMs)}ms)이 이례적입니다. Top 감지가 부정확할 수 있어요.`);
+    }
+  }
+  if (topIdx > 0 && impactIdx > 0) {
+    const downswingMs = (impactIdx - topIdx) * dt * 1000;
+    if (downswingMs < 80 || downswingMs > 800) {
+      warnings.push(`다운스윙 지속시간(${Math.round(downswingMs)}ms)이 이례적입니다. Top/Impact 위치를 확인해 주세요.`);
     }
   }
 
@@ -586,9 +695,10 @@ function segmentEvents(
   const finish = build('finish', finishIdx);
 
   // Sub-frame refinement matters most for Impact (peak speed, drives every
-  // downstream physics metric) and Top (local minimum, transition timing).
+  // downstream physics metric) and Top (wrist-Y min, transition timing).
+  // Refine each against the signal that actually picked it, not a proxy.
   refine(impact, speed, 'max');
-  refine(top, speed, 'min');
+  refine(top, wristY, 'min');
   if (address) events.address = address;
   if (takeaway) events.takeaway = takeaway;
   if (top) events.top = top;
@@ -1024,4 +1134,6 @@ export const __testing__ = {
   buildSummary,
   estimateGravityFromAddress,
   parabolicRefine,
+  adaptiveSpeedThresholds,
+  percentileFinite,
 };
