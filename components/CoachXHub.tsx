@@ -1126,6 +1126,42 @@ export const CoachXHub: React.FC<CoachXHubProps> = ({
         </button>
       </div>
 
+      {/* ── Swing Analysis CTA (opens standalone /swing.html) ───────────── */}
+      <div className="px-4 mt-3 relative z-10">
+        <a
+          href="/swing.html"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="w-full bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-500 hover:to-emerald-600 text-white rounded-2xl p-4 flex items-center gap-3 shadow-lg shadow-emerald-900/25 transition-all"
+        >
+          <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0">
+            <Target className="w-5 h-5 text-white" />
+          </div>
+          <div className="flex-1 text-left">
+            <div className="flex items-center gap-1.5">
+              <p className="font-bold text-sm">
+                {language === 'en'
+                  ? 'Swing Video Analysis'
+                  : language === 'ja'
+                    ? 'スイング動画解析'
+                    : '스윙 영상 분석'}
+              </p>
+              <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-white/20 text-white border border-white/30">
+                BETA
+              </span>
+            </div>
+            <p className="text-xs text-white/80 mt-0.5">
+              {language === 'en'
+                ? 'Upload a swing video → 3D biomechanics + fault diagnosis'
+                : language === 'ja'
+                  ? 'スイング動画アップロード → 3D動作解析 + 欠点診断'
+                  : '스윙 영상 업로드 → 3D 바이오메카닉 + 결점 진단'}
+            </p>
+          </div>
+          <ChevronRight className="w-5 h-5 text-white/70 flex-shrink-0" />
+        </a>
+      </div>
+
       {/* ── Tabs ─────────────────────────────────────────────────────────── */}
       <div className="px-4 mt-5">
         <div className="flex bg-white rounded-xl shadow-sm border border-gray-100 p-1">
