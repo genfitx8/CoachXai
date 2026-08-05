@@ -91,6 +91,7 @@ import {
   TrendingUp,
   Sparkles,
   Dumbbell,
+  Home,
 } from 'lucide-react';
 import { LanguageProvider, useLanguage } from './components/LanguageContext';
 import {
@@ -1745,7 +1746,18 @@ const AppContent: React.FC = () => {
             </div>
           )}
 
-          <div className="flex items-center gap-4 ml-auto">
+          <div className="flex items-center gap-2 md:gap-4 ml-auto">
+            {coachView !== 'LIST' && (
+              <button
+                onClick={() => setCoachView('LIST')}
+                data-testid="header-dashboard-btn"
+                aria-label="대시보드로 돌아가기"
+                className="flex items-center gap-1.5 text-sm font-semibold text-slate-200 hover:text-indigo-200 transition-colors bg-slate-900 hover:bg-slate-800 px-2.5 py-1.5 rounded-lg border border-slate-700 hover:border-indigo-500/60"
+              >
+                <Home className="w-4 h-4" />
+                <span className="hidden sm:inline">대시보드</span>
+              </button>
+            )}
             <button
               onClick={toggleLanguage}
               className="flex items-center gap-1 text-sm font-bold text-slate-300 hover:text-cyan-200 transition-colors bg-slate-900 px-2 py-1.5 rounded-lg border border-slate-700"
