@@ -690,6 +690,7 @@ const AppContent: React.FC = () => {
     };
 
     // Optimistic Update
+    const previousLessons = lessons;
     setLessons((prev) => [lessonToSave, ...prev]);
 
     const isFb = apiService.isAvailable();
@@ -794,12 +795,18 @@ const AppContent: React.FC = () => {
         }
       }
     } catch (e) {
-      console.error('Save failed', e);
-      alert('저장에 실패했습니다.');
+      console.error('[handleSaveLesson] Save failed', e);
+      // Roll back the optimistic add so the user doesn't see a phantom lesson
+      // that will vanish on next reload.
+      setLessons(previousLessons);
+      const detail = e instanceof Error ? e.message : String(e);
+      alert(`저장에 실패했습니다.\n${detail}`);
     }
   };
 
   const handleUpdateLesson = async (updatedLesson: Lesson) => {
+    const previousLessons = lessons;
+    const previousSelected = selectedLesson;
     setLessons((prev) =>
       prev.map((l) => (l.id === updatedLesson.id ? updatedLesson : l))
     );
@@ -823,7 +830,11 @@ const AppContent: React.FC = () => {
         }
       } catch (e) {
         console.error('[handleUpdateLesson] Save failed', e);
-        alert('저장에 실패했습니다.');
+        // Roll back to the pre-edit state so the UI doesn't lie about what's stored.
+        setLessons(previousLessons);
+        if (previousSelected) setSelectedLesson(previousSelected);
+        const detail = e instanceof Error ? e.message : String(e);
+        alert(`저장에 실패했습니다.\n${detail}`);
       }
     } else {
       // Convert any blob: URLs to IndexedDB so they survive page refresh

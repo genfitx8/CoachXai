@@ -6,8 +6,23 @@ const TOKEN_KEY = 'swingnote_api_token';
 const LESSON_NOT_FOUND_ERROR = 'Lesson not found or access denied';
 const HTTP_404_ERROR = 'HTTP 404';
 
+export class ApiError extends Error {
+  status: number;
+  path: string;
+  method: string;
+  constructor(message: string, status: number, method: string, path: string) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+    this.method = method;
+    this.path = path;
+  }
+}
+
 function parseErrorDetails(error: unknown): { status?: number; message: string } {
+  if (error instanceof ApiError) return { status: error.status, message: error.message };
   if (typeof error === 'string') return { message: error };
+  if (error instanceof Error) return { message: error.message };
   if (typeof error === 'object' && error !== null) {
     const e = error as { status?: number; message?: string; error?: string };
     return {
@@ -22,14 +37,21 @@ async function req<T = unknown>(method: string, path: string, body?: unknown): P
   const token = localStorage.getItem(TOKEN_KEY);
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   if (token) headers['Authorization'] = `Bearer ${token}`;
-  const res = await fetch(`${BASE_URL}${path}`, {
-    method,
-    headers,
-    body: body !== undefined ? JSON.stringify(body) : undefined,
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${BASE_URL}${path}`, {
+      method,
+      headers,
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+    });
+  } catch (networkErr) {
+    const detail = networkErr instanceof Error ? networkErr.message : String(networkErr);
+    throw new ApiError(`네트워크 오류: ${detail}`, 0, method, path);
+  }
   if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: 'Server error' }));
-    throw err.error || `HTTP ${res.status}`;
+    const err = await res.json().catch(() => null);
+    const message = err?.error || err?.message || `HTTP ${res.status}`;
+    throw new ApiError(message, res.status, method, path);
   }
   return res.json() as Promise<T>;
 }

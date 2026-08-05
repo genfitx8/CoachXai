@@ -354,9 +354,10 @@ describe('apiService media helpers', () => {
 
     const { apiService } = await import('../services/apiService');
 
-    await expect(apiService.saveLesson(lesson as never)).rejects.toBe(
-      'Internal server error'
-    );
+    await expect(apiService.saveLesson(lesson as never)).rejects.toMatchObject({
+      message: 'Internal server error',
+      status: 500,
+    });
     expect(mockFetch).toHaveBeenCalledTimes(1);
     expect((mockFetch.mock.calls[0][1] as RequestInit).method).toBe('PUT');
   });
