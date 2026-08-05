@@ -53,6 +53,7 @@ import {
   PromptTemplate,
   PromptAttachment,
   PromptTarget,
+  CoachStyleExemplar,
 } from '../types';
 import { createLogger } from '../utils/logger';
 
@@ -1161,5 +1162,35 @@ export const firebaseService = {
       attachments: newAttachments,
       updatedAt: Date.now(),
     });
+  },
+
+  // ── Coach Style Exemplar Operations (Phase C) ─────────────────────────────
+
+  getCoachStyleExemplars: async (): Promise<CoachStyleExemplar[]> => {
+    if (!db) return [];
+    try {
+      const snap = await getDocs(collection(db, 'coach_style_exemplars'));
+      return snap.docs.map((d) => d.data() as CoachStyleExemplar);
+    } catch (e) {
+      log.error('Failed to fetch coach style exemplars:', e);
+      return [];
+    }
+  },
+
+  saveCoachStyleExemplar: async (exemplar: CoachStyleExemplar): Promise<void> => {
+    if (!db) throw new Error('Firebase not initialized');
+    // Normalise missing coachId to null so equality queries against global
+    // exemplars (coachId absent) match, mirroring the PromptTemplate pattern.
+    const normalised: CoachStyleExemplar & { coachId: string | null } = {
+      ...exemplar,
+      coachId: exemplar.coachId ?? null,
+    };
+    const cleaned = removeUndefinedFields(normalised);
+    await setDoc(doc(db, 'coach_style_exemplars', exemplar.id), cleaned);
+  },
+
+  deleteCoachStyleExemplar: async (exemplarId: string): Promise<void> => {
+    if (!db) throw new Error('Firebase not initialized');
+    await deleteDoc(doc(db, 'coach_style_exemplars', exemplarId));
   },
 };

@@ -655,6 +655,49 @@ export interface PromptAttachment {
  * A managed prompt template stored centrally and served to Gemini at runtime.
  * Admins create/edit these via the Admin Prompt Manager.
  */
+/**
+ * Provenance signal that elevated this exemplar into the coach's style pool.
+ * - 'starred': coach explicitly marked the AI output as a good example
+ * - 'edited':  coach edited the AI draft (implicit approval of the result)
+ * - 'feedback': student rated the deliverable highly (future)
+ * - 'auto':    heuristic pick (recency + depth + quality signals)
+ */
+export type CoachStyleExemplarSource =
+  | 'starred'
+  | 'edited'
+  | 'feedback'
+  | 'auto';
+
+/**
+ * A concrete AI output the coach has endorsed for a specific target.
+ * Later phases (RAG / few-shot) will retrieve top exemplars per target +
+ * coachId at inference time so future AI calls mirror the coach's style.
+ */
+export interface CoachStyleExemplar {
+  id: string;
+  /**
+   * Coach scope for this exemplar, mirroring PromptTemplate.coachId.
+   * - undefined: global (owner's default style pool)
+   * - <coach id>: only the coach it belongs to
+   */
+  coachId?: string;
+  target: PromptTarget;
+  /**
+   * Compact snapshot of the input the AI was given, kept short so a batch
+   * of exemplars can be injected as few-shot context without blowing the
+   * prompt budget. Callers decide the shape per target.
+   */
+  input: string;
+  /** The AI output the coach approved / edited / that was highly rated. */
+  output: string;
+  source: CoachStyleExemplarSource;
+  /** Quality tier: 1 = highest (starred/edited by coach), 2 = medium, 3 = low. */
+  tier: 1 | 2 | 3;
+  /** Optional metadata: what specifically triggered inclusion. */
+  reason?: string;
+  createdAt: number;
+}
+
 export interface PromptTemplate {
   id: string;
   name: string;

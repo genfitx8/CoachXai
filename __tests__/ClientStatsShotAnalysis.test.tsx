@@ -23,6 +23,24 @@ vi.mock('../services/geminiService', () => ({
   analyzeShotStrategy: (...args: unknown[]) => analyzeShotStrategyMock(...args),
 }));
 
+// Track coachStyleService calls so we can verify the star flow persists
+// the exact snapshot without hitting real storage.
+const styleSaveMock = vi.fn();
+const styleDeleteMock = vi.fn();
+vi.mock('../services/coachStyleService', () => ({
+  coachStyleService: {
+    save: (...args: unknown[]) => styleSaveMock(...args),
+    delete: (...args: unknown[]) => styleDeleteMock(...args),
+  },
+  tierForSource: () => 1 as const,
+}));
+
+// Firebase is not initialised in tests; the component asks isInitialized()
+// only to route save through the right backend.
+vi.mock('../services/firebase', () => ({
+  firebaseService: { isInitialized: () => false },
+}));
+
 // Minimal markdown renderer stub — just dump content so assertions on text work.
 vi.mock('../utils/renderMarkdown', () => ({
   renderMarkdown: (md: string) => <div data-testid="md">{md}</div>,
@@ -77,6 +95,8 @@ const makeLesson = (over: Partial<Lesson> & { id: string }): Lesson => ({
 
 beforeEach(() => {
   analyzeShotStrategyMock.mockReset();
+  styleSaveMock.mockReset();
+  styleDeleteMock.mockReset();
 });
 
 describe('ClientStats · AI 종합 분석 리포트', () => {
@@ -137,6 +157,93 @@ describe('ClientStats · AI 종합 분석 리포트', () => {
     expect(arg.clientProfile).toBe(client);
     expect(arg.coachId).toBe('coach-1');
     expect(arg.lessons).toHaveLength(2);
+  });
+
+  it('star button saves the current report as a coach style exemplar', async () => {
+    analyzeShotStrategyMock.mockResolvedValue({
+      markdown: '## 리포트 내용\n7I 캐리 135m',
+      contributingLessonCount: 3,
+      clubsAnalysed: ['7I', 'DRIVER'],
+    });
+    styleSaveMock.mockResolvedValue(undefined);
+
+    render(
+      <ClientStats
+        lessons={[
+          makeLesson({ id: '1', club: '7I', golfData: { carryDistance: 133 } }),
+          makeLesson({ id: '2', club: '7I', golfData: { carryDistance: 135 } }),
+        ]}
+        onBack={() => {}}
+        clientProfile={client}
+        coachId="coach-A"
+      />
+    );
+
+    // Generate the report first.
+    fireEvent.click(screen.getByRole('button', { name: /종합 분석 리포트 생성/ }));
+    await waitFor(() => expect(screen.getByTestId('md')).toBeInTheDocument());
+
+    // Star it — button is "즐겨찾기" until it's saved.
+    const starBtn = screen.getByRole('button', { name: /이 리포트를 즐겨찾기로 저장/ });
+    fireEvent.click(starBtn);
+
+    await waitFor(() => expect(styleSaveMock).toHaveBeenCalledTimes(1));
+    const [exemplar, isFirebaseMode] = styleSaveMock.mock.calls[0];
+    expect(isFirebaseMode).toBe(false);
+    expect(exemplar.target).toBe('shot_analysis');
+    expect(exemplar.source).toBe('starred');
+    expect(exemplar.tier).toBe(1);
+    expect(exemplar.coachId).toBe('coach-A');
+    // Input snapshot should carry client + club summary — the data needed
+    // for later few-shot injection.
+    expect(exemplar.input).toContain('김철수');
+    expect(exemplar.input).toContain('7I');
+    expect(exemplar.input).toContain('DRIVER');
+    expect(exemplar.output).toContain('7I 캐리 135m');
+
+    // After saving the button flips to "즐겨찾기 됨".
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /즐겨찾기 해제/ })).toBeInTheDocument()
+    );
+  });
+
+  it('re-generating a report resets the starred state', async () => {
+    analyzeShotStrategyMock
+      .mockResolvedValueOnce({
+        markdown: 'first',
+        contributingLessonCount: 1,
+        clubsAnalysed: ['7I'],
+      })
+      .mockResolvedValueOnce({
+        markdown: 'second',
+        contributingLessonCount: 1,
+        clubsAnalysed: ['7I'],
+      });
+    styleSaveMock.mockResolvedValue(undefined);
+
+    render(
+      <ClientStats
+        lessons={[
+          makeLesson({ id: '1', club: '7I', golfData: { carryDistance: 133 } }),
+        ]}
+        onBack={() => {}}
+        clientProfile={client}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /종합 분석 리포트 생성/ }));
+    await waitFor(() => expect(screen.getByTestId('md')).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole('button', { name: /이 리포트를 즐겨찾기로 저장/ }));
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /즐겨찾기 해제/ })).toBeInTheDocument()
+    );
+
+    // Regenerate; the new output invalidates the previous star.
+    fireEvent.click(screen.getByRole('button', { name: '다시 생성' }));
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /이 리포트를 즐겨찾기로 저장/ })).toBeInTheDocument()
+    );
   });
 
   it('shows an error with a retry affordance when the service throws', async () => {
