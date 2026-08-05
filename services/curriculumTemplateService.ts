@@ -1,6 +1,7 @@
 import { CurriculumPartTemplate } from '../types/curriculum';
+import { resolveApiBaseUrl } from './apiBase';
 
-const BASE_URL = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '');
+const BASE_URL = resolveApiBaseUrl();
 const ADMIN_TOKEN_KEY = 'coachxai_admin_api_token';
 
 export function getAdminToken(): string {

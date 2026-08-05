@@ -42,10 +42,11 @@ import {
   buildMemberActivityOverview,
   formatLessonEntry,
 } from './lessonContext';
+import { resolveApiBaseUrl } from './apiBase';
 
 const log = createLogger('gemini');
 
-const API_BASE = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '');
+const API_BASE = resolveApiBaseUrl();
 
 const getAiApiEndpoint = (): string => {
   if (API_BASE) return `${API_BASE}/api/ai/invoke`;
