@@ -10,7 +10,7 @@
  */
 
 import { beforeEach, describe, expect, it } from 'vitest';
-import { promptService, BUILTIN_SYSTEM_PROMPTS } from '../services/promptService';
+import { promptService, BUILTIN_SYSTEM_PROMPTS, SWINGCODE_PREAMBLE } from '../services/promptService';
 import { storageService } from '../services/storage';
 import { PromptTemplate } from '../types';
 
@@ -208,6 +208,46 @@ describe('BUILTIN_SYSTEM_PROMPTS coverage', () => {
     for (const target of newTargets) {
       const result = await promptService.getActiveSystemPrompt(target, false);
       expect(result).toBe(BUILTIN_SYSTEM_PROMPTS[target]);
+    }
+  });
+
+  it('every built-in prompt embeds the SwingCode preamble at its start', () => {
+    const targets = [
+      'coachx_chat',
+      'coachx_insights',
+      'weekly_insight',
+      'coach_material',
+      'lesson_summary',
+      'compare_swings',
+      'motion_capture',
+      'training_program',
+      'student_chat',
+      'shot_analysis',
+    ] as const;
+    for (const target of targets) {
+      const prompt = BUILTIN_SYSTEM_PROMPTS[target];
+      // Preamble must be the first thing the model sees so terminology and
+      // physics grounding is set before any target-specific instructions.
+      expect(prompt.startsWith(SWINGCODE_PREAMBLE)).toBe(true);
+    }
+  });
+
+  it('SwingCode preamble carries the core methodology vocabulary', () => {
+    // Guardrail against accidental deletion of the brain-document concepts
+    // that keep every AI feature speaking in the coach's voice.
+    const mustContain = [
+      '스윙코드',
+      '인지 → 이미지 → 몸동작',
+      '이중 진자',
+      '키네마틱 시퀀스',
+      'SSC',
+      '3가지 분리 동작',
+      '매달림',
+      '척추 틸트',
+      '발 그립',
+    ];
+    for (const phrase of mustContain) {
+      expect(SWINGCODE_PREAMBLE).toContain(phrase);
     }
   });
 
