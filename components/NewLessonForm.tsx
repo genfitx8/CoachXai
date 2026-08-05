@@ -315,6 +315,10 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
   const holeMediaRecorderRef = useRef<MediaRecorder | null>(null);
   const holeChunksRef = useRef<Blob[]>([]);
 
+  // Mirror of holeRecords for use inside async media-recorder callbacks where
+  // the closure would otherwise see stale par/score/putts values.
+  const holeRecordsRef = useRef<HoleRecord[]>([]);
+
   // Track URLs for cleanup
   const mediaUrlsRef = useRef<string[]>([]);
   const savedUrlsRef = useRef<Set<string>>(new Set());
@@ -437,6 +441,11 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
       setScore(total > 0 ? total : '');
     }
   }, [holeRecords, scoreMode]);
+
+  // Keep the ref in sync so async recorder callbacks see the latest hole state.
+  useEffect(() => {
+    holeRecordsRef.current = holeRecords;
+  }, [holeRecords]);
 
   // Suggestion filtering
   const searchableClients =
@@ -591,8 +600,9 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
         const url = URL.createObjectURL(blob);
         mediaUrlsRef.current.push(url);
 
-        // Find hole data
-        const hole = holeRecords.find((h) => h.holeNumber === holeNum);
+        // Find hole data (via ref so we see the latest par/score/putts, not
+        // stale values from when the recording started).
+        const hole = holeRecordsRef.current.find((h) => h.holeNumber === holeNum);
         if (!hole) return;
 
         // Immediately trigger AI Summary & Metric Extraction
@@ -1018,12 +1028,19 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
     e.preventDefault();
 
     const hasMeaningfulMemo = notes.trim().length > 0;
+    const hasSimpleScore =
+      recordType === 'SCORE' && scoreMode === 'SIMPLE' && score !== '';
 
     // Validation for Media
-    // In Simple Mode, media or memo is required.
+    // In Simple Mode, media or memo is required — except for round records
+    // where the user typed a total score directly (score alone is enough).
     // In Detailed Scorecard Mode, media is optional (user might just input numbers).
     if (recordType !== 'SCORE' || scoreMode === 'SIMPLE') {
-      if (mediaItems.length === 0 && !hasMeaningfulMemo) {
+      if (
+        mediaItems.length === 0 &&
+        !hasMeaningfulMemo &&
+        !hasSimpleScore
+      ) {
         setError(t('new_lesson_media_required'));
         return;
       }
@@ -2382,13 +2399,13 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
           {/* Club Selection - Only for Non-Score records (Practice/Lesson) */}
           {recordType !== 'SCORE' && (
             <div>
-              <label className="block text-sm font-bold text-gray-700 mb-2">
+              <label className="block text-sm font-bold text-slate-300 mb-2">
                 사용 클럽
               </label>
               <select
                 value={club}
                 onChange={(e) => setClub(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-300 rounded-xl bg-white text-gray-800 focus:ring-2 focus:ring-emerald-700 outline-none"
+                className="w-full px-4 py-3 border border-slate-700 rounded-xl bg-slate-800/60 text-slate-100 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
               >
                 <option value="">선택안함</option>
                 {CLUB_GROUPS.map((group) => (
@@ -2402,7 +2419,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
                 ))}
               </select>
 
-              <label className="block text-sm font-bold text-gray-700 mt-4 mb-2">
+              <label className="block text-sm font-bold text-slate-300 mt-4 mb-2">
                 목표 거리 (m)
               </label>
               <input
@@ -2416,7 +2433,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
                   )
                 }
                 placeholder="예: 150"
-                className="w-full px-4 py-3 border border-gray-300 rounded-xl bg-white text-gray-800 focus:ring-2 focus:ring-emerald-700 outline-none"
+                className="w-full px-4 py-3 border border-slate-700 rounded-xl bg-slate-800/60 text-slate-100 placeholder:text-slate-500 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
               />
             </div>
           )}
@@ -2424,17 +2441,19 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
           {/* Score Input (Simple Mode Only) */}
           {recordType === 'SCORE' && scoreMode === 'SIMPLE' && (
             <div>
-              <label className="block text-sm font-bold text-gray-700 mb-2">
+              <label className="block text-sm font-bold text-slate-300 mb-2">
                 라운드 스코어 (Total)
               </label>
               <input
                 type="number"
+                inputMode="numeric"
+                min={0}
                 value={score}
                 onChange={(e) =>
                   setScore(e.target.value === '' ? '' : Number(e.target.value))
                 }
                 placeholder="예: 85"
-                className="w-full px-4 py-3 border border-gray-300 rounded-xl bg-white text-gray-800 focus:ring-2 focus:ring-blue-500 outline-none font-bold text-lg"
+                className="w-full px-4 py-3 border border-slate-700 rounded-xl bg-slate-800/60 text-slate-100 placeholder:text-slate-500 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none font-bold text-lg"
               />
             </div>
           )}
@@ -2455,29 +2474,29 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
               }}
               className={`p-4 rounded-xl border-2 cursor-pointer transition-all flex items-center gap-4 ${
                 isDataExtractionMode
-                  ? 'border-blue-500 bg-blue-50'
-                  : 'border-gray-200 hover:border-gray-300'
+                  ? 'border-blue-500 bg-blue-900/30'
+                  : 'border-slate-700 hover:border-slate-600 bg-slate-800/40'
               }`}
             >
               <div
                 className={`p-2 rounded-full ${
                   isDataExtractionMode
                     ? 'bg-blue-500 text-white'
-                    : 'bg-gray-200 text-gray-500'
+                    : 'bg-slate-700 text-slate-300'
                 }`}
               >
                 <TableProperties className="w-5 h-5" />
               </div>
               <div>
-                <h4 className="font-bold text-gray-900 text-sm">
+                <h4 className="font-bold text-slate-100 text-sm">
                   AI 스코어카드 분석
                 </h4>
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-slate-400">
                   이미지에서 스코어 및 라운드 내용을 분석합니다.
                 </p>
               </div>
               {isDataExtractionMode && (
-                <div className="ml-auto text-blue-600 font-bold text-xs">
+                <div className="ml-auto text-blue-300 font-bold text-xs">
                   ON
                 </div>
               )}
@@ -2495,29 +2514,29 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
               }}
               className={`p-4 rounded-xl border-2 cursor-pointer transition-all flex items-center gap-4 ${
                 isDataExtractionMode
-                  ? 'border-blue-500 bg-blue-50'
-                  : 'border-gray-200 hover:border-gray-300'
+                  ? 'border-blue-500 bg-blue-900/30'
+                  : 'border-slate-700 hover:border-slate-600 bg-slate-800/40'
               }`}
             >
               <div
                 className={`p-2 rounded-full ${
                   isDataExtractionMode
                     ? 'bg-blue-500 text-white'
-                    : 'bg-gray-200 text-gray-500'
+                    : 'bg-slate-700 text-slate-300'
                 }`}
               >
                 <TableProperties className="w-5 h-5" />
               </div>
               <div>
-                <h4 className="font-bold text-gray-900 text-sm">
+                <h4 className="font-bold text-slate-100 text-sm">
                   AI 샷 데이터 분석
                 </h4>
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-slate-400">
                   GDR/트랙맨 화면에서 샷 데이터를 추출합니다.
                 </p>
               </div>
               {isDataExtractionMode && (
-                <div className="ml-auto text-blue-600 font-bold text-xs">
+                <div className="ml-auto text-blue-300 font-bold text-xs">
                   ON
                 </div>
               )}
@@ -2526,7 +2545,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
 
         {/* Coach Notes */}
         <div>
-          <label className="block text-sm font-bold text-gray-700 mb-2">
+          <label className="block text-sm font-bold text-slate-300 mb-2">
             {userRole === 'COACH' ? '코치 메모 / 피드백' : '나의 메모'}
           </label>
           <textarea
@@ -2538,7 +2557,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
                 : '연습 내용이나 느낀 점을 기록하세요.'
             }
             rows={4}
-            className="w-full px-4 py-3 border border-gray-300 rounded-xl bg-white text-gray-800 placeholder:text-gray-400 focus:ring-2 focus:ring-emerald-700 focus:border-emerald-700 outline-none transition-all resize-none"
+            className="w-full px-4 py-3 border border-slate-700 rounded-xl bg-slate-800/60 text-slate-100 placeholder:text-slate-500 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-all resize-none"
           />
         </div>
 
