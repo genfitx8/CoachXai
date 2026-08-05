@@ -29,9 +29,15 @@ interface ClientAppProps {
   allLessons: Lesson[];
   onLogout: () => void;
   onUpdateLesson: (lesson: Lesson) => void;
-  onSaveNewRecord?: (lesson: Lesson, homeworkBatch?: Homework[]) => void; 
+  onSaveNewRecord?: (lesson: Lesson, homeworkBatch?: Homework[]) => void;
   onDeleteLesson?: (lessonId: string) => void;
   onUpdateProfile?: (updatedProfile: ClientProfile) => void;
+  /**
+   * Refetch this user's lessons from the backend. Called when the student opens
+   * the recent-records view so a lesson the coach recorded on their own device
+   * shows up without a full sign-out / sign-in.
+   */
+  onRefreshLessons?: () => void | Promise<void>;
   // onSearchCoach is handled internally now
 }
 
@@ -47,7 +53,7 @@ const getLocalISODate = () => {
 const HIDE_MEMBERSHIP_FEATURES = (import.meta.env.VITE_CLIENT_HIDE_MEMBERSHIP ?? 'false') === 'true';
 const HIDE_RESERVATION_FEATURES = (import.meta.env.VITE_CLIENT_HIDE_RESERVATION ?? 'false') === 'true';
 
-export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons, onLogout, onUpdateLesson, onSaveNewRecord, onDeleteLesson, onUpdateProfile }) => {
+export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons, onLogout, onUpdateLesson, onSaveNewRecord, onDeleteLesson, onUpdateProfile, onRefreshLessons }) => {
   const { t, language, setLanguage } = useLanguage();
   const [view, setView] = useState<ViewState | 'STATS' | 'PROFILE' | 'RESERVATION' | 'BAY_RESERVATION' | 'MY_BAY_RESERVATIONS' | 'POINT_PURCHASE' | 'MEMBERSHIP_PURCHASE' | 'PAYMENT_SUCCESS' | 'MEMBERSHIP_PAYMENT_SUCCESS' | 'PAYMENT_FAIL' | 'RECENT_RECORDS' | 'STUDENT_AI'>(() => {
     const params = new URLSearchParams(window.location.search);
@@ -519,7 +525,13 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
                     </div>
                     <div className="grid grid-cols-2 gap-2">
                         <button
-                            onClick={() => { setSelectedLesson(null); setView('RECENT_RECORDS'); }}
+                            onClick={() => {
+                                setSelectedLesson(null);
+                                setView('RECENT_RECORDS');
+                                // Pull the freshest list from the backend so a lesson the
+                                // coach just recorded shows up without a page reload.
+                                onRefreshLessons?.();
+                            }}
                             className="flex flex-col items-center gap-2 py-4 px-2 bg-slate-950/70 hover:bg-slate-800/80 rounded-xl border border-slate-700/70 transition-colors group"
                         >
                             <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${actionIconContainerTone} ${actionIconContainerHoverTone} transition-colors`}>
