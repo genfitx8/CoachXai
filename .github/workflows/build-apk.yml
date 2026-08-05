@@ -1,0 +1,107 @@
+name: Build Debug APK
+
+on:
+  workflow_dispatch:
+    inputs:
+      variant:
+        description: "Which variant to build"
+        required: true
+        default: "both"
+        type: choice
+        options:
+          - both
+          - coach
+          - student
+  push:
+    branches:
+      - main
+    paths:
+      - "components/**"
+      - "hooks/**"
+      - "services/**"
+      - "utils/**"
+      - "constants/**"
+      - "types/**"
+      - "native/**"
+      - "public/**"
+      - "index.tsx"
+      - "index.html"
+      - "index.css"
+      - "App.tsx"
+      - "swing.tsx"
+      - "swing.html"
+      - "package.json"
+      - "package-lock.json"
+      - "vite.config.ts"
+      - "tailwind.config.js"
+      - "postcss.config.js"
+      - "capacitor.coach.config.ts"
+      - "capacitor.student.config.ts"
+      - "scripts/cap-run.mjs"
+      - ".github/workflows/build-apk.yml"
+
+jobs:
+  prepare-matrix:
+    name: Determine variants to build
+    runs-on: ubuntu-latest
+    outputs:
+      variants: ${{ steps.set.outputs.variants }}
+    steps:
+      - id: set
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.variant }}" != "both" ]; then
+            echo 'variants=["${{ inputs.variant }}"]' >> "$GITHUB_OUTPUT"
+          else
+            echo 'variants=["coach","student"]' >> "$GITHUB_OUTPUT"
+          fi
+
+  build:
+    name: Build ${{ matrix.variant }} debug APK
+    needs: prepare-matrix
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        variant: ${{ fromJSON(needs.prepare-matrix.outputs.variants) }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Setup Java (JDK 21)
+        uses: actions/setup-java@v4
+        with:
+          distribution: "temurin"
+          java-version: "21"
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: "platforms;android-35 build-tools;35.0.0 platform-tools"
+
+      - name: Install npm dependencies
+        run: npm ci
+
+      - name: Sync Capacitor (${{ matrix.variant }})
+        run: npm run cap:sync:${{ matrix.variant }}
+
+      - name: Grant gradlew execute permission
+        run: chmod +x native/${{ matrix.variant }}/android/gradlew
+
+      - name: Build debug APK (${{ matrix.variant }})
+        working-directory: native/${{ matrix.variant }}/android
+        run: ./gradlew assembleDebug --no-daemon --stacktrace
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: coachxai-${{ matrix.variant }}-debug-apk
+          path: native/${{ matrix.variant }}/android/app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+          retention-days: 30
