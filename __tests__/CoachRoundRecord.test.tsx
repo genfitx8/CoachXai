@@ -148,6 +148,35 @@ describe('Coach round record – CLIENT_SELECT step', () => {
       });
     }
   });
+
+  it('saves a SIMPLE round record with only a total score (no media, no memo)', async () => {
+    const { onSave } = renderCoachForm();
+
+    await selectClient();
+    fireEvent.click(screen.getByTestId('coach-start-round-btn'));
+
+    await waitFor(() => {
+      expect(screen.getByText('라운드 기록')).toBeInTheDocument();
+    });
+
+    // Enter only a total score
+    const scoreInput = screen.getByPlaceholderText('예: 85');
+    fireEvent.change(scoreInput, { target: { value: '82' } });
+
+    // Submit
+    const saveBtn = screen.getByRole('button', { name: /레슨 등록하기|기록 저장하기/i });
+    fireEvent.click(saveBtn);
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalled();
+    });
+
+    const savedLesson: Lesson = onSave.mock.calls[0][0];
+    expect(savedLesson.recordType).toBe('SCORE');
+    expect(savedLesson.score).toBe(82);
+    // Should NOT surface the "media or memo required" error
+    expect(screen.queryByText(/미디어를 첨부하거나 메모를 입력해주세요/i)).toBeNull();
+  });
 });
 
 describe('Coach round record – CLIENT role does not see round button', () => {
