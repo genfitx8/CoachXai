@@ -116,6 +116,7 @@ export const StudentAIChat: React.FC<StudentAIChatProps> = ({
     : `안녕하세요, **${clientProfile.name}**님! 저는 **CoachX AI**예요. ${myLessons.length}개의 레슨 기록을 바탕으로 맞춤 조언을 드릴게요. 말씀하시거나 타이핑으로 물어보세요! 🏌️`;
 
   const [mode, setMode] = useState<Mode>('voice');
+  const [showModeSelector, setShowModeSelector] = useState<boolean>(!initialQuery);
   const [messages, setMessages] = useState<CoachXChatMessage[]>([
     { role: 'assistant', content: greeting, timestamp: Date.now() },
   ]);
@@ -311,6 +312,11 @@ export const StudentAIChat: React.FC<StudentAIChatProps> = ({
     setMode(newMode);
   }, [stopListening, stopSpeaking]);
 
+  const handleModeSelect = useCallback((newMode: Mode) => {
+    switchMode(newMode);
+    setShowModeSelector(false);
+  }, [switchMode]);
+
   // ── Render helpers ─────────────────────────────────────────────────────────
 
   const voiceButtonLabel = language === 'en'
@@ -449,6 +455,33 @@ export const StudentAIChat: React.FC<StudentAIChatProps> = ({
     </div>
   );
 
+  const modeSelectorTitle = language === 'en'
+    ? 'How would you like to talk with CoachX AI?'
+    : language === 'ja'
+    ? 'CoachX AIとどのように話しますか？'
+    : 'CoachX AI와 어떻게 대화하시겠어요?';
+
+  const modeSelectorSubtitle = language === 'en'
+    ? 'Choose your preferred way to interact. You can switch anytime.'
+    : language === 'ja'
+    ? 'お好みの方法を選んでください。いつでも切り替えられます。'
+    : '원하시는 방식을 선택해 주세요. 언제든지 바꿀 수 있어요.';
+
+  const voiceCardLabel = language === 'en' ? 'Voice' : language === 'ja' ? '音声' : '음성';
+  const chatCardLabel = language === 'en' ? 'Chat' : language === 'ja' ? 'チャット' : '채팅';
+
+  const voiceCardDesc = language === 'en'
+    ? 'Speak naturally and hear responses out loud'
+    : language === 'ja'
+    ? '自然に話しかけて音声で応答を聞く'
+    : '자연스럽게 말하고 음성으로 답변 듣기';
+
+  const chatCardDesc = language === 'en'
+    ? 'Type your questions and read the replies'
+    : language === 'ja'
+    ? '質問を入力して回答を読む'
+    : '질문을 입력하고 답변을 읽기';
+
   return (
     <div className="flex flex-col bg-gray-950 text-white" style={{ minHeight: '100dvh' }}>
       {/* Header */}
@@ -478,32 +511,34 @@ export const StudentAIChat: React.FC<StudentAIChatProps> = ({
           </p>
         </div>
 
-        {/* Mode toggle */}
-        <div className="flex items-center gap-1 bg-gray-800 rounded-xl p-1 border border-white/10">
-          <button
-            onClick={() => switchMode('voice')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-              mode === 'voice' ? 'bg-indigo-600 text-white' : 'text-gray-400 hover:text-gray-200'
-            }`}
-            aria-label={language === 'en' ? 'Voice mode' : '음성 모드'}
-          >
-            <Mic className="w-3.5 h-3.5" />
-            {language === 'en' ? 'Voice' : language === 'ja' ? '音声' : '음성'}
-          </button>
-          <button
-            onClick={() => switchMode('chat')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-              mode === 'chat' ? 'bg-indigo-600 text-white' : 'text-gray-400 hover:text-gray-200'
-            }`}
-            aria-label={language === 'en' ? 'Chat mode' : '채팅 모드'}
-          >
-            <MessageSquare className="w-3.5 h-3.5" />
-            {language === 'en' ? 'Chat' : language === 'ja' ? 'チャット' : '채팅'}
-          </button>
-        </div>
+        {/* Mode toggle — hidden on the selection screen */}
+        {!showModeSelector && (
+          <div className="flex items-center gap-1 bg-gray-800 rounded-xl p-1 border border-white/10">
+            <button
+              onClick={() => switchMode('voice')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                mode === 'voice' ? 'bg-indigo-600 text-white' : 'text-gray-400 hover:text-gray-200'
+              }`}
+              aria-label={language === 'en' ? 'Voice mode' : '음성 모드'}
+            >
+              <Mic className="w-3.5 h-3.5" />
+              {language === 'en' ? 'Voice' : language === 'ja' ? '音声' : '음성'}
+            </button>
+            <button
+              onClick={() => switchMode('chat')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                mode === 'chat' ? 'bg-indigo-600 text-white' : 'text-gray-400 hover:text-gray-200'
+              }`}
+              aria-label={language === 'en' ? 'Chat mode' : '채팅 모드'}
+            >
+              <MessageSquare className="w-3.5 h-3.5" />
+              {language === 'en' ? 'Chat' : language === 'ja' ? 'チャット' : '채팅'}
+            </button>
+          </div>
+        )}
 
-        {/* TTS toggle (voice mode only) */}
-        {mode === 'voice' && (
+        {/* TTS toggle (voice mode only, not on selector) */}
+        {!showModeSelector && mode === 'voice' && (
           <button
             onClick={() => { setTtsEnabled(p => !p); if (ttsEnabled) stopSpeaking(); }}
             className="p-2 rounded-full hover:bg-white/10 transition-colors"
@@ -525,6 +560,52 @@ export const StudentAIChat: React.FC<StudentAIChatProps> = ({
         </div>
       </div>
 
+      {showModeSelector ? (
+        /* ── Mode selection screen ── */
+        <div className="flex-1 flex flex-col items-center justify-center px-6 py-8">
+          <div className="w-full max-w-md">
+            <div className="text-center mb-8">
+              <div className="relative w-16 h-16 mx-auto mb-4 flex items-center justify-center">
+                <div className="absolute inset-0 rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 student-ai-pulse" />
+                <Sparkles className="relative z-10 w-7 h-7 text-white" />
+              </div>
+              <h2 className="text-lg font-bold text-white mb-2">{modeSelectorTitle}</h2>
+              <p className="text-sm text-gray-400">{modeSelectorSubtitle}</p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                onClick={() => handleModeSelect('voice')}
+                className="flex flex-col items-center gap-3 p-5 bg-gray-800 hover:bg-indigo-900/40 border border-white/10 hover:border-indigo-400/50 rounded-2xl transition-all active:scale-[0.98] group"
+                aria-label={language === 'en' ? 'Choose voice mode' : language === 'ja' ? '音声モードを選択' : '음성 모드 선택'}
+              >
+                <div className="w-14 h-14 rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-lg shadow-indigo-500/30 group-hover:scale-110 transition-transform">
+                  <Mic className="w-6 h-6 text-white" />
+                </div>
+                <div className="text-center">
+                  <p className="text-base font-bold text-white">{voiceCardLabel}</p>
+                  <p className="text-xs text-gray-400 mt-1 leading-snug">{voiceCardDesc}</p>
+                </div>
+              </button>
+
+              <button
+                onClick={() => handleModeSelect('chat')}
+                className="flex flex-col items-center gap-3 p-5 bg-gray-800 hover:bg-indigo-900/40 border border-white/10 hover:border-indigo-400/50 rounded-2xl transition-all active:scale-[0.98] group"
+                aria-label={language === 'en' ? 'Choose chat mode' : language === 'ja' ? 'チャットモードを選択' : '채팅 모드 선택'}
+              >
+                <div className="w-14 h-14 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center shadow-lg shadow-blue-500/30 group-hover:scale-110 transition-transform">
+                  <MessageSquare className="w-6 h-6 text-white" />
+                </div>
+                <div className="text-center">
+                  <p className="text-base font-bold text-white">{chatCardLabel}</p>
+                  <p className="text-xs text-gray-400 mt-1 leading-snug">{chatCardDesc}</p>
+                </div>
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : (
+      <>
       {/* Messages */}
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
         {messages.map((msg, idx) => {
@@ -733,6 +814,8 @@ export const StudentAIChat: React.FC<StudentAIChatProps> = ({
           </div>
         )}
       </div>
+      </>
+      )}
 
       <style>{`
         @keyframes student-ai-bounce {
