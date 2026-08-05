@@ -1,27 +1,7 @@
 import type { Lesson, ClientProfile, CoachProfile, LessonPackage, TrainingProgram, Homework } from '../types';
+import { resolveApiBaseUrl } from './apiBase';
 
-/**
- * Deployed backend URL fallback. Used when neither `VITE_API_BASE_URL` env
- * var nor a Vercel-style same-origin proxy is configured — which is the
- * default for a freshly deployed frontend. Local dev keeps an empty string
- * so devs must set `VITE_API_BASE_URL` to opt in, mirroring the previous
- * behavior.
- */
-const DEPLOYED_BACKEND_FALLBACK = 'https://coachxai-server.onrender.com';
-
-function resolveBaseUrl(): string {
-  const envUrl = import.meta.env.VITE_API_BASE_URL;
-  if (envUrl) return envUrl;
-  if (typeof window !== 'undefined') {
-    const host = window.location.hostname;
-    if (host && host !== 'localhost' && host !== '127.0.0.1') {
-      return DEPLOYED_BACKEND_FALLBACK;
-    }
-  }
-  return '';
-}
-
-const BASE_URL = resolveBaseUrl().replace(/\/$/, '');
+const BASE_URL = resolveApiBaseUrl();
 const TOKEN_KEY = 'swingnote_api_token';
 const LESSON_NOT_FOUND_ERROR = 'Lesson not found or access denied';
 const HTTP_404_ERROR = 'HTTP 404';
