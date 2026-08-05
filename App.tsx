@@ -618,6 +618,40 @@ const AppContent: React.FC = () => {
     };
   }, [userRole, currentUser, checkAndShowLessonSuggestion]);
 
+  // Refetch this user's lessons from the backend without touching the rest of
+  // the loadData sync path. Used to pick up lessons the coach recorded from a
+  // separate device while the student is already logged in.
+  const refreshLessons = useCallback(async () => {
+    if (!apiService.isAvailable() || !apiService.getToken()) return;
+    try {
+      const fetched = await apiService.getLessons();
+      setLessons(fetched);
+    } catch (e) {
+      console.warn('[App] refreshLessons failed:', e);
+    }
+  }, []);
+
+  // Auto-refresh the student's lesson list when the tab regains focus so a
+  // lesson the coach just saved from another device shows up without a full
+  // sign-out / sign-in. The coach app already refreshes on visibility via the
+  // suggestion effect above.
+  useEffect(() => {
+    if (userRole !== 'CLIENT') return;
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        refreshLessons();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', refreshLessons);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', refreshLessons);
+    };
+  }, [userRole, refreshLessons]);
+
   useEffect(() => {
     if (
       !isAutomatedVideoEditingEnabled &&
@@ -1720,6 +1754,7 @@ const AppContent: React.FC = () => {
         onSaveNewRecord={handleSaveLesson}
         onDeleteLesson={handleDeleteLesson}
         onUpdateProfile={handleUpdateClientProfile}
+        onRefreshLessons={refreshLessons}
       />
     );
   }
