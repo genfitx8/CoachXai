@@ -1293,7 +1293,7 @@ export const SwingVideoAnalysis: React.FC<SwingVideoAnalysisProps> = ({
                 ))}
               </div>
             )}
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-8 gap-3">
               {EVENT_ORDER.map((name) => {
                 const evt = analysis.events[name];
                 const frame = evt ? analysis.frames[evt.frameIndex] : undefined;

@@ -694,19 +694,66 @@ function segmentEvents(
   const impact = impactIdx >= 0 ? build('impact', impactIdx) : undefined;
   const finish = build('finish', finishIdx);
 
-  // ── Half-phase markers: wrist-Y midpoint between parent events ─────────
-  // A frame where the wrist Y sits halfway between address/top/impact/finish
-  // is a good proxy for "lead arm parallel to ground" — that moment coaches
-  // pause on for hand path and swing plane checks. Search inside the parent
-  // bracket (exclusive) so the half marker can never collide with its
-  // parents. Skipped when either parent is missing or the bracket is too
-  // short (<3 frames) to place a distinct marker.
+  // ── Half-phase markers: lead arm parallel to the ground ────────────────
+  // TPI P2 / P6 / P8 are all defined by "lead arm horizontal", not by time
+  // or wrist height. We compute the angle between the shoulder→wrist
+  // vector (averaged L/R since handedness isn't known yet at this stage)
+  // and the gravity-up vector, then locate the frame inside each bracket
+  // where that angle is closest to 90°.
+  //
+  // Falls back to wrist-Y midpoint when gravity is unavailable (2D-only
+  // frames, missing lower-body landmarks in a tightly cropped shot). The
+  // fallback is less physically exact but still gives coaches something
+  // reasonable to pause on.
+  const gravity = track.is3D
+    ? estimateGravityFromAddress(frames, addressIdx, Math.min(8, frames.length - addressIdx))
+    : undefined;
+
+  const armAngleFromUp = (frameIdx: number): number => {
+    if (!gravity) return NaN;
+    const w = frames[frameIdx]?.worldKeypoints;
+    if (!w) return NaN;
+    const ls = toVec3(w[11]);
+    const lw = toVec3(w[15]);
+    const rs = toVec3(w[12]);
+    const rw = toVec3(w[16]);
+    // Average both arm vectors — near-parallel through most of the swing,
+    // and this avoids needing handedness before we compute it.
+    const arms: Vec3[] = [];
+    if (ls && lw) arms.push(subtract(lw, ls));
+    if (rs && rw) arms.push(subtract(rw, rs));
+    if (arms.length === 0) return NaN;
+    const armAvg = arms.reduce(
+      (acc, v) => ({ x: acc.x + v.x, y: acc.y + v.y, z: acc.z + v.z }),
+      { x: 0, y: 0, z: 0 } as Vec3,
+    );
+    return angleBetween(armAvg, gravity);
+  };
+
   const halfMarker = (fromIdx: number, toIdx: number): number => {
     if (fromIdx < 0 || toIdx < 0 || toIdx - fromIdx < 3) return -1;
+    // Physical: find the frame closest to arm-horizontal (90° from up).
+    if (gravity) {
+      let bestIdx = -1;
+      let bestDelta = Infinity;
+      for (let i = fromIdx + 1; i < toIdx; i++) {
+        const a = armAngleFromUp(i);
+        if (!Number.isFinite(a)) continue;
+        const d = Math.abs(a - 90);
+        if (d < bestDelta) {
+          bestDelta = d;
+          bestIdx = i;
+        }
+      }
+      // Only trust the arm-horizontal frame if we got within 25° of true
+      // horizontal — otherwise the arm never got close enough (short/punch
+      // swing) and we fall through to the geometric midpoint.
+      if (bestIdx > 0 && bestDelta < 25) return bestIdx;
+    }
+    // Geometric fallback: wrist Y midpoint between the two parent frames.
     const yStart = wristY[fromIdx];
     const yEnd = wristY[toIdx];
     if (!Number.isFinite(yStart) || !Number.isFinite(yEnd)) {
-      // Fall back to time midpoint when wristY is unavailable at a boundary.
       return Math.round((fromIdx + toIdx) / 2);
     }
     const target = (yStart + yEnd) / 2;

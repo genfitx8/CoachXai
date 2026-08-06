@@ -412,10 +412,19 @@ describe('segmentEvents — integration', () => {
         x = 0.3;
         y = -0.4;
       }
-      // Both wrists at the same spot (simplification — the track averages them).
+      // Both wrists at the same spot (simplification — the track averages
+      // them). Add shoulders (fixed at torso height y=-0.7) and lower-body
+      // landmarks so `estimateGravityFromAddress` can recover a real "up"
+      // vector — the physical arm-horizontal detection needs it.
       const world: PointMap = {
-        15: { x, y, z: 0 },
-        16: { x, y, z: 0 },
+        11: { x: -0.2, y: -0.7, z: 0 }, // left shoulder
+        12: { x: 0.2, y: -0.7, z: 0 }, // right shoulder
+        15: { x, y, z: 0 }, // left wrist
+        16: { x, y, z: 0 }, // right wrist
+        23: { x: -0.1, y: 0, z: 0 }, // left hip
+        24: { x: 0.1, y: 0, z: 0 }, // right hip
+        27: { x: -0.1, y: 0.9, z: 0 }, // left ankle
+        28: { x: 0.1, y: 0.9, z: 0 }, // right ankle
       };
       frames.push(makeFrame(t, world));
     }
@@ -480,6 +489,23 @@ describe('segmentEvents — integration', () => {
     expect(md).toBeLessThan(im);
     expect(im).toBeLessThan(ft);
     expect(ft).toBeLessThan(fn);
+  });
+
+  it('half_backswing lands where the lead arm is horizontal, not at the time midpoint', () => {
+    // Synthetic backswing sweeps the wrist from address (t=0.5, y=0) linearly
+    // to top (t=1.3, y=-1.5). Shoulders sit at y=-0.7. "Arm horizontal" (wrist
+    // at shoulder height) occurs when wrist y ≈ -0.7, well past the pure
+    // geometric midpoint. Verify the detected frame has wrist near shoulder
+    // height, which is the physical definition coaches actually use.
+    const fps = 60;
+    const frames = buildSyntheticSwing(fps);
+    const { events } = segmentEvents(frames, fps);
+    const hb = events.half_backswing!;
+    const w = frames[hb.frameIndex].worldKeypoints!;
+    const wristY = (w[15].y + w[16].y) / 2;
+    const shoulderY = (w[11].y + w[12].y) / 2;
+    // Wrist is at (near) shoulder height when arm is horizontal to the side.
+    expect(Math.abs(wristY - shoulderY)).toBeLessThan(0.25);
   });
 
   it('warns and uses frame 0 as address when the clip starts mid-motion', () => {
