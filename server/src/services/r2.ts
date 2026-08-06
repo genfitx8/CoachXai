@@ -25,6 +25,16 @@ export const r2Client = new S3Client({
     accessKeyId: R2_ACCESS_KEY_ID,
     secretAccessKey: R2_SECRET_ACCESS_KEY,
   },
+  // AWS SDK v3 defaults to injecting x-amz-checksum-crc32 and
+  // x-amz-sdk-checksum-algorithm on every PutObject request. Those headers
+  // turn a browser PUT into a CORS preflighted request, and R2 rejects the
+  // OPTIONS preflight unless the bucket CORS policy explicitly allows them
+  // (which fails with "No 'Access-Control-Allow-Origin' header" from the
+  // web app). Setting this to WHEN_REQUIRED means the SDK omits the
+  // checksum headers, the presigned PUT only needs the `host` header (which
+  // is signed), and the browser can send it as a CORS simple request.
+  requestChecksumCalculation: 'WHEN_REQUIRED',
+  responseChecksumValidation: 'WHEN_REQUIRED',
 });
 
 /**
