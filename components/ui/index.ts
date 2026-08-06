@@ -8,3 +8,6 @@ export type { ModalSize } from './Modal';
 
 export { Badge } from './Badge';
 export type { BadgeTone, BadgeSize } from './Badge';
+
+export { BackButton } from './BackButton';
+export type { BackButtonTone } from './BackButton';

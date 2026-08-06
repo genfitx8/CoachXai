@@ -5,8 +5,9 @@ import {
   TimeSlot,
   AvailableBay,
 } from '../services/bayReservationService';
-import { ArrowLeft, MapPin, Calendar, Clock, Target, CheckCircle, AlertCircle, Loader } from 'lucide-react';
+import { MapPin, Calendar, Clock, Target, CheckCircle, AlertCircle, Loader } from 'lucide-react';
 import { Button } from './Button';
+import { BackButton } from './ui/BackButton';
 
 interface ClientBayReservationProps {
   clientProfile: ClientProfile;
@@ -183,9 +184,7 @@ export const ClientBayReservation: React.FC<ClientBayReservationProps> = ({
       {/* Header */}
       <div className="bg-white border-b border-gray-200 sticky top-0 z-10">
         <div className="max-w-lg mx-auto px-4 py-3 flex items-center gap-3">
-          <button onClick={onBack} className="p-2.5 rounded-xl hover:bg-gray-100 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center">
-            <ArrowLeft className="w-5 h-5 text-gray-600" />
-          </button>
+          <BackButton onClick={onBack} tone="light" />
           <h1 className="font-bold text-lg text-gray-900">타석 예약</h1>
           <div className="ml-auto text-sm text-gray-500">
             보유 포인트: <span className="font-bold text-emerald-600">{(clientProfile.currentPoints ?? 0).toLocaleString()}pt</span>

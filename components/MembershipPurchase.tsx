@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { ChevronLeft, Crown, CreditCard, Loader2, Sparkles, CheckCircle2 } from 'lucide-react';
+import { Crown, CreditCard, Loader2, Sparkles, CheckCircle2 } from 'lucide-react';
 import { ClientProfile } from '../types';
 import { paymentService } from '../services/paymentService';
+import { BackButton } from './ui/BackButton';
 
 interface MembershipPurchaseProps {
   clientProfile: ClientProfile;
@@ -60,9 +61,7 @@ export const MembershipPurchase: React.FC<MembershipPurchaseProps> = ({
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-blue-50">
       <div className="bg-white/80 backdrop-blur-sm border-b border-gray-100 px-4 py-4 flex items-center gap-3 sticky top-0 z-10">
-        <button onClick={onBack} className="p-2 rounded-full hover:bg-gray-100 transition-colors">
-          <ChevronLeft className="w-5 h-5 text-gray-700" />
-        </button>
+        <BackButton onClick={onBack} tone="light" />
         <div>
           <h1 className="text-lg font-bold text-gray-900">PRO 멤버십 결제</h1>
           <p className="text-xs text-gray-500">1분 안에 업그레이드 가능</p>

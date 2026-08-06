@@ -3,8 +3,9 @@ import { ClientProfile, CoachProfile, LessonReservation, ReservationStatus } fro
 import { reservationService, VIRTUAL_SLOT_ID_PREFIX } from '../services/reservationService';
 import { firebaseService } from '../services/firebase';
 import { storageService } from '../services/storage';
-import { Calendar, Clock, User, ArrowLeft, Filter, XCircle, MapPin, CheckCircle } from 'lucide-react';
+import { Calendar, Clock, User, Filter, XCircle, MapPin, CheckCircle } from 'lucide-react';
 import { Button } from './Button';
+import { BackButton } from './ui/BackButton';
 
 interface ClientReservationProps {
   clientProfile: ClientProfile;
@@ -357,12 +358,7 @@ export const ClientReservation: React.FC<ClientReservationProps> = ({ clientProf
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
-            <button
-              onClick={onBack}
-              className="p-3 hover:bg-gray-200 rounded-xl transition min-w-[44px] min-h-[44px] flex items-center justify-center"
-            >
-              <ArrowLeft className="w-5 h-5" />
-            </button>
+            <BackButton onClick={onBack} tone="light" />
             <div>
               <h1 className="text-2xl font-bold text-gray-900">레슨 예약</h1>
               <p className="text-sm text-gray-600">

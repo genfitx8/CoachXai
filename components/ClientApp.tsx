@@ -17,13 +17,14 @@ import { MembershipPurchase } from './MembershipPurchase';
 import { MembershipPaymentSuccess } from './MembershipPaymentSuccess';
 import { StudentAIChat } from './StudentAIChat';
 import { SwingVideoAnalysis } from './posture/SwingVideoAnalysis';
-import { User, LogOut, History, PlayCircle, Plus, BarChart3, Bell, ListChecks, Globe, Calendar, Search, Filter, Eye, EyeOff, ChevronRight, ChevronLeft, Award, Target, ClipboardList, Crown, Briefcase, ScanLine, Sparkles, Video, ArrowLeft } from 'lucide-react';
+import { User, LogOut, History, PlayCircle, Plus, BarChart3, Bell, ListChecks, Globe, Calendar, Search, Filter, Eye, EyeOff, ChevronRight, Award, Target, ClipboardList, Crown, Briefcase, ScanLine, Sparkles, Video } from 'lucide-react';
 import { firebaseService } from '../services/firebase';
 import { storageService } from '../services/storage';
 import { apiService } from '../services/apiService';
 import { pointService } from '../services/pointService';
 import { NotificationToast } from './NotificationToast';
 import { useLanguage } from './LanguageContext';
+import { BackButton } from './ui/BackButton';
 
 interface ClientAppProps {
   clientProfile: ClientProfile;
@@ -647,13 +648,7 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
             <div className="space-y-4 animate-fade-in">
                 {/* Header */}
                 <div className="flex items-center gap-3 pb-2">
-                    <button
-                        onClick={handleBackToList}
-                        className="p-3 rounded-xl bg-slate-900 border border-slate-700 hover:bg-slate-800 text-slate-300 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
-                        aria-label={t('back')}
-                    >
-                        <ChevronLeft className="w-5 h-5" />
-                    </button>
+                    <BackButton onClick={handleBackToList} tone="dark" />
                     <div className="w-1 h-6 bg-gradient-to-b from-indigo-500 to-violet-500 rounded-full" />
                     <h2 className="text-xl font-black text-slate-100">{t('recent_records')}</h2>
                     <span className="bg-indigo-500/15 border border-indigo-300/30 text-indigo-200 px-2 py-0.5 rounded-full text-xs font-bold">
@@ -789,14 +784,13 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
             <div className="fixed inset-0 z-50 bg-slate-950 overflow-y-auto">
                 <div className="max-w-3xl mx-auto p-4 sm:p-6 space-y-5 text-slate-100">
                     <header className="pb-4 border-b border-slate-800 flex items-center gap-3">
-                        <button
+                        <BackButton
                             onClick={handleBackToList}
-                            data-testid="swing-analysis-back-btn"
-                            className="p-2 rounded-lg border border-slate-800 hover:border-slate-700 text-slate-400 hover:text-slate-100 transition-colors flex-shrink-0"
-                            aria-label="뒤로 가기"
-                        >
-                            <ArrowLeft className="w-5 h-5" />
-                        </button>
+                            tone="dark"
+                            ariaLabel={t('back')}
+                            className="flex-shrink-0"
+                            testId="swing-analysis-back-btn"
+                        />
                         <div className="min-w-0">
                             <h1 className="text-xl sm:text-2xl font-bold text-slate-100 flex items-center gap-2">
                                 골프 스윙 분석 <span className="text-emerald-400 text-sm">BETA</span>
