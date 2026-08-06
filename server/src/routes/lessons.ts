@@ -9,6 +9,53 @@ const UUID_PATTERN =
 // All routes require authentication
 router.use(authMiddleware);
 
+/**
+ * Resolve the coach_id to store on a lesson row and the composite client_id
+ * used across the app to identify a client on a lesson. Handles both roles:
+ *   - coach: the authenticated user IS the coach. client_id comes from body.
+ *   - client: the authenticated user is a client; look up their linked coach
+ *             in the clients table and derive the composite from their profile.
+ *
+ * Returns null-tuple values on error and writes the error response.
+ */
+async function resolveLessonOwnership(
+  req: Request,
+  res: Response,
+  bodyClientId: string | null
+): Promise<{ coachId: string; clientId: string | null } | null> {
+  const role = req.user!.role;
+  const userId = req.user!.id;
+
+  if (role === 'coach') {
+    return { coachId: userId, clientId: bodyClientId };
+  }
+
+  if (role === 'client') {
+    const clientRow = await pool.query(
+      'SELECT name, phone, coach_id FROM clients WHERE id = $1',
+      [userId]
+    );
+    if (clientRow.rows.length === 0) {
+      res.status(404).json({ error: 'Client profile not found' });
+      return null;
+    }
+    const { name, phone, coach_id } = clientRow.rows[0];
+    if (!coach_id) {
+      res
+        .status(400)
+        .json({ error: '레슨을 저장하려면 먼저 코치와 연결되어야 합니다.' });
+      return null;
+    }
+    return {
+      coachId: coach_id,
+      clientId: `${name}_${phone}`,
+    };
+  }
+
+  res.status(403).json({ error: 'Invalid user role' });
+  return null;
+}
+
 function mapLesson(row: Record<string, unknown>) {
   return {
     id: row.id,
@@ -136,10 +183,9 @@ router.get('/', async (req: Request, res: Response) => {
 // POST /api/lessons
 router.post('/', async (req: Request, res: Response) => {
   try {
-    const coachId = req.user!.id;
     const {
       id,
-      clientId, clientName, clientPhone,
+      clientId: bodyClientId, clientName, clientPhone,
       createdBy, recordType,
       title, date, club, targetDistance, score, scorecardDetail,
       videoUrl, videoKey, mediaType, swingAngle,
@@ -158,6 +204,14 @@ router.post('/', async (req: Request, res: Response) => {
       res.status(400).json({ error: 'Invalid lesson id: must be a valid UUID format' });
       return;
     }
+
+    const ownership = await resolveLessonOwnership(
+      req,
+      res,
+      typeof bodyClientId === 'string' ? bodyClientId : null
+    );
+    if (!ownership) return;
+    const { coachId, clientId } = ownership;
 
     const now = Date.now();
 
@@ -233,20 +287,10 @@ router.post('/', async (req: Request, res: Response) => {
 // PUT /api/lessons/:id
 router.put('/:id', async (req: Request, res: Response) => {
   try {
-    const coachId = req.user!.id;
     const { id } = req.params;
 
-    const existing = await pool.query(
-      'SELECT id FROM lessons WHERE id = $1 AND coach_id = $2',
-      [id, coachId]
-    );
-    if (existing.rows.length === 0) {
-      res.status(404).json({ error: 'Lesson not found or access denied' });
-      return;
-    }
-
     const {
-      clientId, clientName, clientPhone,
+      clientId: bodyClientId, clientName, clientPhone,
       createdBy, recordType,
       title, date, club, targetDistance, score, scorecardDetail,
       videoUrl, videoKey, mediaType, swingAngle,
@@ -259,6 +303,30 @@ router.put('/:id', async (req: Request, res: Response) => {
       compareVideoUrl, compareVideoMetadata,
       media, lessonPackageId, sessionNumber,
     } = req.body as Record<string, unknown>;
+
+    const ownership = await resolveLessonOwnership(
+      req,
+      res,
+      typeof bodyClientId === 'string' ? bodyClientId : null
+    );
+    if (!ownership) return;
+    const { coachId, clientId } = ownership;
+
+    // Ownership check: coach edits by coach_id, client edits by their composite client_id.
+    const ownershipCheck =
+      req.user!.role === 'coach'
+        ? await pool.query(
+            'SELECT id FROM lessons WHERE id = $1 AND coach_id = $2',
+            [id, coachId]
+          )
+        : await pool.query(
+            'SELECT id FROM lessons WHERE id = $1 AND client_id = $2',
+            [id, clientId]
+          );
+    if (ownershipCheck.rows.length === 0) {
+      res.status(404).json({ error: 'Lesson not found or access denied' });
+      return;
+    }
 
     const now = Date.now();
 
@@ -278,7 +346,7 @@ router.put('/:id', async (req: Request, res: Response) => {
         compare_video_url = $31, compare_video_metadata = $32,
         media = $33, lesson_package_id = $34, session_number = $35,
         updated_at = $36
-      WHERE id = $37 AND coach_id = $38
+      WHERE id = $37
       RETURNING *`,
       [
         clientId ?? null, clientName ?? null, clientPhone ?? null,
@@ -305,7 +373,7 @@ router.put('/:id', async (req: Request, res: Response) => {
         compareVideoMetadata ? JSON.stringify(compareVideoMetadata) : null,
         media ? JSON.stringify(media) : null,
         lessonPackageId ?? null, sessionNumber ?? null,
-        now, id, coachId,
+        now, id,
       ]
     );
 
@@ -319,13 +387,34 @@ router.put('/:id', async (req: Request, res: Response) => {
 // DELETE /api/lessons/:id
 router.delete('/:id', async (req: Request, res: Response) => {
   try {
-    const coachId = req.user!.id;
     const { id } = req.params;
+    const role = req.user!.role;
+    const userId = req.user!.id;
 
-    const result = await pool.query(
-      'DELETE FROM lessons WHERE id = $1 AND coach_id = $2 RETURNING id',
-      [id, coachId]
-    );
+    let result;
+    if (role === 'coach') {
+      result = await pool.query(
+        'DELETE FROM lessons WHERE id = $1 AND coach_id = $2 RETURNING id',
+        [id, userId]
+      );
+    } else if (role === 'client') {
+      const clientRow = await pool.query(
+        'SELECT name, phone FROM clients WHERE id = $1',
+        [userId]
+      );
+      if (clientRow.rows.length === 0) {
+        res.status(404).json({ error: 'Client profile not found' });
+        return;
+      }
+      const compositeClientId = `${clientRow.rows[0].name}_${clientRow.rows[0].phone}`;
+      result = await pool.query(
+        'DELETE FROM lessons WHERE id = $1 AND client_id = $2 RETURNING id',
+        [id, compositeClientId]
+      );
+    } else {
+      res.status(403).json({ error: 'Invalid user role' });
+      return;
+    }
 
     if (result.rows.length === 0) {
       res.status(404).json({ error: 'Lesson not found or access denied' });

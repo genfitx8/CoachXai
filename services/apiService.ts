@@ -57,9 +57,10 @@ async function req<T = unknown>(method: string, path: string, body?: unknown): P
 }
 
 async function uploadBlobToR2(blob: Blob, key: string): Promise<string> {
-  console.log(`[upload] Requesting presign for key="${key}" contentType="${blob.type || 'application/octet-stream'}"`);
-  const { uploadUrl, fileUrl } = await req<{ uploadUrl: string; fileUrl: string }>(
-    'POST', '/api/files/presign', { key, contentType: blob.type || 'application/octet-stream' }
+  const contentType = blob.type || 'application/octet-stream';
+  console.log(`[upload] Requesting presign for key="${key}" contentType="${contentType}" size=${blob.size}`);
+  const { uploadUrl, fileUrl } = await req<{ uploadUrl: string; fileUrl: string; maxBytes?: number }>(
+    'POST', '/api/files/presign', { key, contentType, contentLength: blob.size }
   );
   console.log(`[upload] Uploading blob (${blob.size} bytes) to presigned URL`);
   const uploadRes = await fetch(uploadUrl, {
