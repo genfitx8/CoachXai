@@ -1,0 +1,50 @@
+[
+  {
+    "name": "iron-heavy-lesson-set",
+    "description": "10 lessons dominated by 7-iron and PW, no motion capture data. Report should cover the 8 required sections, cite club-specific numbers, and stay grounded (no invented drivers/woods numbers).",
+    "input": { "scenarioLabel": "iron-heavy", "primaryClubs": ["7I", "PW"] },
+    "mockOutput": "## 🎯 실제 샷 분포\n- **7번 아이언 (24샷)**: 캐리 탄착 홀컵 기준 좌측 6m, 앞 8m — 산포 IQR 캐리 ±5m / 좌우 ±4m\n- **PW (18샷)**: 캐리 탄착 홀컵 기준 좌측 2m, 앞 3m — 산포 IQR 캐리 ±3m / 좌우 ±3m\n\n## 📍 핀 위치별 공략법\n- **앞핀**: 롤이 다소 크므로 그린 앞 5m 지점을 캐리 목표로 하고 롤로 홀에 붙이는 전략\n- **중간핀**: 정확히 홀 방향으로 8m 좌측 목표\n- **뒤핀**: 스핀량 낮음 — 홀 우측 4m·앞 5m 지점을 캐리 후 롤로 접근\n\n## 📊 런치·스핀 최적화 진단\n- 7번 아이언 현재 런치 15.2° / 스핀 5,800rpm → 최적 구간 16-17° / 6,500-7,500rpm 대비 스핀 부족\n- PW 현재 런치 22.1° / 스핀 8,300rpm → 최적 24-26° / 9,000-10,000rpm 대비 런치 각 소폭 부족\n\n## 🏌️ 드라이버 특별 진단\n데이터 부족으로 추정치 — 이번 세트에 드라이버 샷 없음, 별도 세션에서 계측 필요\n\n## 🌱 최적화 시나리오\n- 스핀량이 최적 구간으로 올라오면 그린에서의 정지가 30% 개선, 뒤핀 공략 신뢰도 상승\n- 스피드 유지 채로 어택 앵글을 -3° → -5°로 낮추면 런치·스핀 모두 최적 구간으로 진입 예측\n\n## 🤸 모션 원인 진단\n모션 데이터 없음 — 확률적 추정 3가지: (1) 임팩트에서 손목 릴리즈 늦음 60%, (2) 체중 이동 부족 25%, (3) 클럽 페이스 오픈 15%\n\n## 💪 신체 조건 기반 최적화 추천\n(신체 측정 데이터 부족) 유연성·근력 측정 후 재진단 권장\n\n## ⚙️ 키네마틱 시퀀스\n모션 데이터 없음으로 판정 불가 — 추후 3D 측정 시 골반-상체-팔-클럽 순 회전 피크 타이밍 확인 필요\n",
+    "assertions": [
+      { "kind": "contains", "needle": "## 🎯 실제 샷 분포" },
+      { "kind": "contains", "needle": "## 📍 핀 위치별 공략법" },
+      { "kind": "contains", "needle": "## 📊 런치·스핀 최적화 진단" },
+      { "kind": "contains", "needle": "## 🏌️ 드라이버 특별 진단" },
+      { "kind": "contains", "needle": "## 🌱 최적화 시나리오" },
+      { "kind": "contains", "needle": "## 🤸 모션 원인 진단" },
+      { "kind": "contains", "needle": "## 💪 신체 조건 기반 최적화 추천" },
+      { "kind": "contains", "needle": "## ⚙️ 키네마틱 시퀀스" },
+      { "kind": "notContains", "needle": "TODO" },
+      { "kind": "notContains", "needle": "placeholder" },
+      { "kind": "matches", "pattern": "[0-9]+\\s*(m|rpm|°|km/h)" },
+      { "kind": "lengthBetween", "min": 500, "max": 20000 }
+    ]
+  },
+  {
+    "name": "driver-focus-lesson-set",
+    "description": "8 lessons of driver-heavy practice. Report must invoke Trackman-informed driver diagnosis and mention attack angle / club path.",
+    "input": { "scenarioLabel": "driver-focus", "primaryClubs": ["DR"] },
+    "mockOutput": "## 🎯 실제 샷 분포\n- **드라이버 (32샷)**: 캐리 탄착 홀컵 기준 우측 12m, 앞 22m — 산포 IQR 캐리 ±8m / 좌우 ±10m\n- 슬라이스 성향, 미스샷 4샷 IQR 필터로 제외\n\n## 📍 핀 위치별 공략법\n- **파4 좌측 도그렉**: 슬라이스 성향으로 오른쪽 러프 리스크 — 페어웨이 좌측 20m를 타겟\n- **파5 넓은 페어웨이**: 안전한 페어웨이 중앙 목표, 롱 이글 노림\n- **파4 우측 OB**: 3W 다운클럽 강력 권장\n\n## 📊 런치·스핀 최적화 진단\n- 드라이버 현재 런치 10.2° / 스핀 3,100rpm → 헤드스피드 105mph 기준 최적 12-14° / 2,200-2,500rpm 대비 런치 부족·스핀 과다\n\n## 🏌️ 드라이버 특별 진단\n- 어택 앵글 -1.5°, 클럽 패스 +2.1° — 어택 앵글이 마이너스라 런치가 낮고 스핀이 높음\n- **처방**: 티 높이 +5mm, 볼 포지션 왼쪽 발 안쪽으로 이동해 어택 앵글 +2° 이상으로 유도\n- 다이나믹 로프트 15° / 스핀 로프트 16.5° — 조합 적정, 어택 앵글 개선만으로 런치·스핀 최적 구간 진입 예상\n\n## 🌱 최적화 시나리오\n- Trackman 예측: 어택 앵글 +3° 시 캐리 +15m, 스핀 -600rpm, 토탈 +20m 예상\n- 슬라이스 축소 시 페어웨이 안착률 55% → 78%로 상승\n\n## 🤸 모션 원인 진단\n어택 앵글 마이너스 원인 3가지: (1) 어드레스 시 체중 좌측 편중 55%, (2) 다운스윙에서 상체 앞으로 기울어짐 30%, (3) 오른팔 조기 릴리스 15%\n\n## 💪 신체 조건 기반 최적화 추천\n체간 회전 가동범위 이상 → 골반 회전 강화 드릴 우선, 어깨 유연성 이슈 없음 — 실현 가능한 개선 스텝\n\n## ⚙️ 키네마틱 시퀀스\n측정 데이터 없음 — 3D 측정 후 골반-상체 회전 피크 타이밍 분리도 확인 필요\n",
+    "assertions": [
+      { "kind": "contains", "needle": "## 🏌️ 드라이버 특별 진단" },
+      { "kind": "contains", "needle": "어택 앵글" },
+      { "kind": "contains", "needle": "클럽 패스" },
+      { "kind": "contains", "needle": "스핀" },
+      { "kind": "matches", "pattern": "[0-9]+\\s*mph" },
+      { "kind": "notContains", "needle": "TODO" },
+      { "kind": "lengthBetween", "min": 500, "max": 20000 }
+    ]
+  },
+  {
+    "name": "sparse-data-fallback",
+    "description": "Only 2 lessons, no motion, no body data. Report must degrade gracefully — sections still present but marked as data-insufficient rather than fabricating numbers.",
+    "input": { "scenarioLabel": "sparse", "primaryClubs": ["7I"] },
+    "mockOutput": "## 🎯 실제 샷 분포\n- **7번 아이언 (5샷)**: 데이터 부족으로 추정치 — 캐리 홀컵 기준 좌측 8m·앞 12m (샘플 수 부족, 신뢰도 낮음)\n\n## 📍 핀 위치별 공략법\n데이터 부족으로 추정치 — 최소 20샷 이상 누적 후 재분석 권장\n\n## 📊 런치·스핀 최적화 진단\n데이터 부족 — 각 클럽별 최소 10샷 이상 필요\n\n## 🏌️ 드라이버 특별 진단\n데이터 부족으로 추정치 — 드라이버 샷 기록 없음, 추가 계측 필요\n\n## 🌱 최적화 시나리오\n현재 데이터 규모로는 최적화 시나리오 수립 어려움\n\n## 🤸 모션 원인 진단\n모션 데이터 없음 — 추가 확인 필요\n\n## 💪 신체 조건 기반 최적화 추천\n신체 측정 데이터 없음 — 재진단 필요\n\n## ⚙️ 키네마틱 시퀀스\n모션 데이터 없음 — 판정 불가\n",
+    "assertions": [
+      { "kind": "contains", "needle": "## 🎯 실제 샷 분포" },
+      { "kind": "contains", "needle": "## ⚙️ 키네마틱 시퀀스" },
+      { "kind": "contains", "needle": "데이터 부족" },
+      { "kind": "notContains", "needle": "TODO" },
+      { "kind": "lengthBetween", "min": 300, "max": 20000 }
+    ]
+  }
+]
