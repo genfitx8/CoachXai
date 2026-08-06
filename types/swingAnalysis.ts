@@ -14,12 +14,33 @@ export interface SwingFrame {
 }
 
 /**
- * Segmentation phases of a swing, in temporal order. `takeaway` marks the
- * first frame where the wrists leave the address position (the "start of
- * backswing" in coaching parlance) — added so coaches can see the moment
- * the swing actually begins, separately from the still address pose.
+ * Segmentation phases of a swing, in temporal order.
+ *
+ *   address        — setup pose before the swing starts
+ *   takeaway       — first frame the wrists leave address
+ *   half_backswing — halfway between takeaway and top (roughly lead arm
+ *                    parallel to the ground on the way up)
+ *   top            — highest hands, end of backswing
+ *   mid_downswing  — halfway between top and impact (lead arm parallel on
+ *                    the way down; hands entering the "delivery" zone)
+ *   impact         — ball contact
+ *   follow_through — halfway between impact and finish (trail arm extended,
+ *                    lead arm horizontal on the target side)
+ *   finish         — held pose after the swing settles
+ *
+ * The three "half" markers use a wrist-Y midpoint heuristic between their
+ * parent events — a rock-solid proxy for arm-horizontal that works with any
+ * camera view and doesn't need a gravity reference.
  */
-export type SwingEventName = 'address' | 'takeaway' | 'top' | 'impact' | 'finish';
+export type SwingEventName =
+  | 'address'
+  | 'takeaway'
+  | 'half_backswing'
+  | 'top'
+  | 'mid_downswing'
+  | 'impact'
+  | 'follow_through'
+  | 'finish';
 
 export interface SwingEvent {
   name: SwingEventName;

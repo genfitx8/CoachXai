@@ -14,6 +14,9 @@ const {
   computeSwingPlaneAngle,
   estimateGravityFromAddress,
   parabolicRefine,
+  adaptiveSpeedThresholds,
+  percentileFinite,
+  segmentEvents,
 } = __testing__;
 
 type PointMap = Record<number, { x: number; y: number; z: number }>;
@@ -328,5 +331,196 @@ describe('parabolicRefine', () => {
     const r = parabolicRefine([1, 2, 3], 1);
     expect(r).toBeDefined();
     expect(r!.offset).toBe(0);
+  });
+});
+
+describe('percentileFinite', () => {
+  it('returns the given percentile ignoring NaN', () => {
+    // 5 valid samples → rank at p=50 is index 2 = 3.
+    expect(percentileFinite([1, 2, 3, 4, NaN, 5], 50, 999)).toBe(3);
+    expect(percentileFinite([1, 2, 3, 4, 5], 0, 999)).toBe(1);
+    expect(percentileFinite([1, 2, 3, 4, 5], 100, 999)).toBe(5);
+  });
+  it('falls back when fewer than 4 valid samples', () => {
+    expect(percentileFinite([1, 2, NaN], 50, 42)).toBe(42);
+    expect(percentileFinite([], 50, 7)).toBe(7);
+  });
+});
+
+describe('adaptiveSpeedThresholds', () => {
+  it('scales moving threshold with the peak of the distribution', () => {
+    const slowSwing = [0.1, 0.1, 0.2, 0.3, 0.5, 1.0, 2.0, 3.0, 4.0, 2.0, 0.5, 0.2, 0.1];
+    const fastSwing = slowSwing.map((v) => v * 3);
+    const slow = adaptiveSpeedThresholds(slowSwing, true);
+    const fast = adaptiveSpeedThresholds(fastSwing, true);
+    expect(fast.moving).toBeGreaterThan(slow.moving);
+    expect(fast.still).toBeGreaterThanOrEqual(slow.still);
+  });
+  it('enforces a floor so landmark flicker in a still clip is not called motion', () => {
+    const stillClip = Array.from({ length: 30 }, () => 0.05 + Math.random() * 0.02);
+    const t = adaptiveSpeedThresholds(stillClip, true);
+    // Floor for is3D is 0.25 m/s; ensures a jittery still address isn't
+    // classified as "moving".
+    expect(t.still).toBeGreaterThanOrEqual(0.25);
+    expect(t.moving).toBeGreaterThan(t.still);
+  });
+  it('always keeps moving strictly above still', () => {
+    const uniform = Array.from({ length: 20 }, () => 0.5);
+    const t = adaptiveSpeedThresholds(uniform, true);
+    expect(t.moving).toBeGreaterThan(t.still);
+  });
+});
+
+describe('segmentEvents — integration', () => {
+  // Build a synthetic right-handed swing with a clear address, backswing,
+  // top, downswing, impact, and finish. The pipeline should recover all
+  // five events with plausible ordering (address < takeaway < top < impact
+  // < finish) and physically-reasonable timing.
+  function buildSyntheticSwing(fps: number): SwingFrame[] {
+    const frames: SwingFrame[] = [];
+    const dt = 1 / fps;
+    // Segments in seconds: address 0.5, backswing 0.8, downswing 0.3,
+    // follow-through 0.3, finish 0.4 → 2.3s total.
+    const totalT = 2.3;
+    const nFrames = Math.round(totalT * fps);
+    for (let i = 0; i < nFrames; i++) {
+      const t = i * dt;
+      // Lead wrist (index 15) — Y sweeps from address (0) → top (−1.5) →
+      // impact (+0.2) → finish (−0.4). X sweeps ±0.6 across the arc.
+      let x: number, y: number;
+      if (t < 0.5) {
+        // Address: nearly static.
+        x = 0;
+        y = 0;
+      } else if (t < 1.3) {
+        // Backswing: rise to top over 0.8s.
+        const u = (t - 0.5) / 0.8;
+        x = -0.6 * u;
+        y = -1.5 * u; // negative = higher in MediaPipe world coords
+      } else if (t < 1.6) {
+        // Downswing: from top back through ball (y = +0.2 at t=1.6).
+        const u = (t - 1.3) / 0.3;
+        x = -0.6 + 1.2 * u; // −0.6 → +0.6
+        y = -1.5 + 1.7 * u; // −1.5 → +0.2
+      } else if (t < 1.9) {
+        // Follow-through: continue past the ball.
+        const u = (t - 1.6) / 0.3;
+        x = 0.6 - 0.3 * u;
+        y = 0.2 - 0.6 * u; // rises to −0.4
+      } else {
+        // Finish: hold pose.
+        x = 0.3;
+        y = -0.4;
+      }
+      // Both wrists at the same spot (simplification — the track averages
+      // them). Add shoulders (fixed at torso height y=-0.7) and lower-body
+      // landmarks so `estimateGravityFromAddress` can recover a real "up"
+      // vector — the physical arm-horizontal detection needs it.
+      const world: PointMap = {
+        11: { x: -0.2, y: -0.7, z: 0 }, // left shoulder
+        12: { x: 0.2, y: -0.7, z: 0 }, // right shoulder
+        15: { x, y, z: 0 }, // left wrist
+        16: { x, y, z: 0 }, // right wrist
+        23: { x: -0.1, y: 0, z: 0 }, // left hip
+        24: { x: 0.1, y: 0, z: 0 }, // right hip
+        27: { x: -0.1, y: 0.9, z: 0 }, // left ankle
+        28: { x: 0.1, y: 0.9, z: 0 }, // right ankle
+      };
+      frames.push(makeFrame(t, world));
+    }
+    return frames;
+  }
+
+  it('detects address / takeaway / top / impact / finish in order for a synthetic swing', () => {
+    const fps = 60;
+    const frames = buildSyntheticSwing(fps);
+    const { events, warnings } = segmentEvents(frames, fps);
+
+    expect(events.address).toBeDefined();
+    expect(events.takeaway).toBeDefined();
+    expect(events.top).toBeDefined();
+    expect(events.impact).toBeDefined();
+    expect(events.finish).toBeDefined();
+
+    const a = events.address!.frameIndex;
+    const tk = events.takeaway!.frameIndex;
+    const tp = events.top!.frameIndex;
+    const im = events.impact!.frameIndex;
+    const fn = events.finish!.frameIndex;
+    expect(a).toBeLessThan(tk);
+    expect(tk).toBeLessThan(tp);
+    expect(tp).toBeLessThan(im);
+    expect(im).toBeLessThan(fn);
+
+    // Backswing ≈ 800ms, downswing ≈ 300ms → both plausible → no sanity warns.
+    const backswingMs = (tp - tk) * (1000 / fps);
+    const downswingMs = (im - tp) * (1000 / fps);
+    expect(backswingMs).toBeGreaterThan(200);
+    expect(backswingMs).toBeLessThan(2500);
+    expect(downswingMs).toBeGreaterThan(80);
+    expect(downswingMs).toBeLessThan(800);
+    // No sanity-timing warnings for a plausible synthetic swing.
+    expect(warnings.some((w) => w.includes('이례적'))).toBe(false);
+  });
+
+  it('emits half_backswing / mid_downswing / follow_through between their parents', () => {
+    const fps = 60;
+    const frames = buildSyntheticSwing(fps);
+    const { events } = segmentEvents(frames, fps);
+    expect(events.half_backswing).toBeDefined();
+    expect(events.mid_downswing).toBeDefined();
+    expect(events.follow_through).toBeDefined();
+
+    const a = events.address!.frameIndex;
+    const tk = events.takeaway!.frameIndex;
+    const hb = events.half_backswing!.frameIndex;
+    const tp = events.top!.frameIndex;
+    const md = events.mid_downswing!.frameIndex;
+    const im = events.impact!.frameIndex;
+    const ft = events.follow_through!.frameIndex;
+    const fn = events.finish!.frameIndex;
+
+    // Full 8-event ordering address ≤ takeaway < half < top < mid < impact
+    // < follow < finish. The half markers sit strictly between their parents.
+    expect(a).toBeLessThanOrEqual(tk);
+    expect(tk).toBeLessThan(hb);
+    expect(hb).toBeLessThan(tp);
+    expect(tp).toBeLessThan(md);
+    expect(md).toBeLessThan(im);
+    expect(im).toBeLessThan(ft);
+    expect(ft).toBeLessThan(fn);
+  });
+
+  it('half_backswing lands where the lead arm is horizontal, not at the time midpoint', () => {
+    // Synthetic backswing sweeps the wrist from address (t=0.5, y=0) linearly
+    // to top (t=1.3, y=-1.5). Shoulders sit at y=-0.7. "Arm horizontal" (wrist
+    // at shoulder height) occurs when wrist y ≈ -0.7, well past the pure
+    // geometric midpoint. Verify the detected frame has wrist near shoulder
+    // height, which is the physical definition coaches actually use.
+    const fps = 60;
+    const frames = buildSyntheticSwing(fps);
+    const { events } = segmentEvents(frames, fps);
+    const hb = events.half_backswing!;
+    const w = frames[hb.frameIndex].worldKeypoints!;
+    const wristY = (w[15].y + w[16].y) / 2;
+    const shoulderY = (w[11].y + w[12].y) / 2;
+    // Wrist is at (near) shoulder height when arm is horizontal to the side.
+    expect(Math.abs(wristY - shoulderY)).toBeLessThan(0.25);
+  });
+
+  it('warns and uses frame 0 as address when the clip starts mid-motion', () => {
+    const fps = 60;
+    const full = buildSyntheticSwing(fps);
+    // Cut off the first 40 frames (~0.67s, past the 0.5s address hold) so
+    // the clip starts partway into the backswing.
+    const trimmed = full.slice(40).map((f, i) => ({ ...f, t: i / fps }));
+    const { events, warnings } = segmentEvents(trimmed, fps);
+    expect(events.address).toBeDefined();
+    // Address falls back to a very early frame since no still window exists.
+    expect(events.address!.frameIndex).toBeLessThan(5);
+    // The pipeline warns the user rather than silently returning wrong events.
+    expect(
+      warnings.some((w) => w.includes('어드레스 이후에 시작') || w.includes('백스윙 시작')),
+    ).toBe(true);
   });
 });
