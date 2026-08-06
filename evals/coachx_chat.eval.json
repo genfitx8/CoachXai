@@ -1,0 +1,67 @@
+[
+  {
+    "name": "member-progress-question",
+    "description": "코치가 특정 회원의 최근 진척도를 묻는 전형적 질문. 답변은 회원 이름·수치를 프롬프트에서 인용하고, 지어내지 않아야 함.",
+    "input": { "scenarioLabel": "member-progress" },
+    "realSystemInstructionFile": "evals/prompts/coachx_chat.system.md",
+    "realPrompt": "--- Provided data (answer ONLY from this) ---\nCoach context:\n- Total lesson records: 87\n- Total members: 12\n- Registered clients: 김한나 handicap 18, 박준호 handicap 12, 최민석 handicap 8\n\nRecent lesson history:\n[김한나 · 2026-08-01] 7번 아이언 24샷 - carry 118m, launch 15.2°, spin 5,800rpm. 전주 대비 캐리 +4m, 스핀 +200rpm. 노트: \"체중 이동 개선됨, 임팩트에서 손목 릴리스 아직 늦음\"\n[김한나 · 2026-07-24] 7번 아이언 20샷 - carry 114m, launch 14.8°, spin 5,600rpm. 노트: \"셋업 매달림 자세 안정화 진행 중\"\n[김한나 · 2026-07-17] 7번 아이언 16샷 - carry 110m, launch 14.2°, spin 5,400rpm. 노트: \"첫 방문, 기본 셋업 진단\"\n\n--- End of provided data ---\n\nCoach's question: \"김한나 회원 최근 3주 어떻게 변했는지 요약해줘\"\n\nIMPORTANT: Answer strictly based on the provided data above. Ground your answer in that member's actual lessons, metrics, motion-capture, and scorecard from above.",
+    "realModel": "gemini-2.5-flash",
+    "realTemperature": 0.7,
+    "mockOutput": "**김한나 회원**의 최근 3주 진척도:\n\n- **캐리 거리**: 110m → 114m → **118m** (+8m 증가)\n- **런치 각도**: 14.2° → 14.8° → **15.2°**\n- **스핀량**: 5,400 → 5,600 → **5,800 rpm**\n\n**긍정 신호**: 셋업 매달림 자세 안정화 → 체중 이동 개선 → 캐리 증가로 연결된 좋은 흐름입니다.\n\n**다음 초점**: \"임팩트에서 손목 릴리스가 아직 늦다\"는 최근 노트를 근거로, 트리거 → 전환 단계에서 손목 캐스팅 타이밍 드릴 추가를 권장합니다. 이중 진자의 두 번째 진자 발동이 개선되면 스핀·캐리 모두 다음 단계 진입 예상됩니다.",
+    "assertions": [
+      { "kind": "contains", "needle": "김한나" },
+      { "kind": "matches", "pattern": "118\\s*m" },
+      { "kind": "notContains", "needle": "TODO" },
+      { "kind": "notContains", "needle": "최민석" },
+      { "kind": "notContains", "needle": "박준호" },
+      { "kind": "lengthBetween", "min": 80, "max": 2000 }
+    ]
+  },
+  {
+    "name": "out-of-scope-refusal",
+    "description": "골프와 무관한 질문 — 정중히 거절하고 골프 코칭 주제로 안내해야 함.",
+    "input": { "scenarioLabel": "out-of-scope" },
+    "realSystemInstructionFile": "evals/prompts/coachx_chat.system.md",
+    "realPrompt": "--- Provided data (answer ONLY from this) ---\nCoach context: Total lesson records: 15\nRecent lesson history: 기록 없음\n--- End of provided data ---\n\nCoach's question: \"오늘 저녁 뭐 먹으면 좋을까?\"",
+    "realModel": "gemini-2.5-flash",
+    "realTemperature": 0.7,
+    "mockOutput": "저는 골프 코칭 데이터 기반으로 답변드리는 CoachX 어시스턴트예요. 저녁 메뉴는 도움드리기 어렵습니다.\n\n대신 이런 질문은 어떠세요?\n- 최근 회원의 스윙 진단 요약\n- 이번 주 레슨 계획 아이디어\n- 특정 회원의 훈련 프로그램 제안",
+    "assertions": [
+      { "kind": "matches", "pattern": "(골프|코칭|레슨)" },
+      { "kind": "notContains", "needle": "TODO" },
+      { "kind": "lengthBetween", "min": 40, "max": 1500 }
+    ]
+  },
+  {
+    "name": "insufficient-data-honest",
+    "description": "회원 있지만 데이터 부족한 상황. AI는 데이터 부족을 솔직히 인정하고 어떤 데이터가 있어야 답할 수 있는지 안내해야 함.",
+    "input": { "scenarioLabel": "insufficient-data" },
+    "realSystemInstructionFile": "evals/prompts/coachx_chat.system.md",
+    "realPrompt": "--- Provided data (answer ONLY from this) ---\nCoach context:\n- Total lesson records: 2\n- Total members: 1\n- Registered clients: 이수현\n\nRecent lesson history:\n[이수현 · 2026-08-05] 첫 방문, 셋업 기초만 진행. 샷 데이터 없음.\n[이수현 · 2026-08-06] 그립·자세 확인만. 샷 데이터 없음.\n\n--- End of provided data ---\n\nCoach's question: \"이수현 회원 스윙 개선 로드맵 짜줘\"",
+    "realModel": "gemini-2.5-flash",
+    "realTemperature": 0.7,
+    "mockOutput": "**이수현 회원**의 로드맵을 세우기 위해서는 아직 데이터가 부족해요.\n\n**현재 있는 정보**\n- 2회 방문, 셋업·그립 확인만 진행\n- 샷 데이터 아직 없음\n\n**로드맵 수립에 필요한 데이터**\n- 최소 3-5회 세션 동안 클럽별 샷 20+회 (7I, PW부터 시작 권장)\n- ball speed, launch angle, spin, side total 등 기본 볼 데이터\n- 가능하면 셋업/스윙 영상 1회 촬영\n\n다음 세션에서 데이터 수집부터 시작하시면, 개인화된 로드맵을 정확히 그려드릴 수 있습니다.",
+    "assertions": [
+      { "kind": "contains", "needle": "이수현" },
+      { "kind": "matches", "pattern": "(데이터|정보)" },
+      { "kind": "notContains", "needle": "TODO" },
+      { "kind": "lengthBetween", "min": 80, "max": 2000 }
+    ]
+  },
+  {
+    "name": "swingcode-vocabulary-usage",
+    "description": "회원의 훅 문제를 코치가 물음. 답변은 스윙코드 언어(이중 진자, 채찍, 3분리 등)를 자연스럽게 사용해야 라포 형성.",
+    "input": { "scenarioLabel": "swingcode-lang" },
+    "realSystemInstructionFile": "evals/prompts/coachx_chat.system.md",
+    "realPrompt": "--- Provided data (answer ONLY from this) ---\nCoach context: 회원 정혜진(핸디캡 14) 최근 4주 6회 레슨. 드라이버 club path +4.5°, face angle +2.0° - 강한 훅 성향.\n--- End of provided data ---\n\nCoach's question: \"정혜진 회원 훅이 심한데 스윙코드 관점에서 어떻게 접근할까?\"",
+    "realModel": "gemini-2.5-flash",
+    "realTemperature": 0.7,
+    "mockOutput": "**정혜진 회원**의 훅(club path +4.5°, face +2.0°)은 전형적인 in-to-out 궤도 + closed face 조합입니다. 스윙코드 관점에서 두 축으로 접근해 보세요.\n\n**1. 전환의 3분리 재점검**\n- 골반과 흉곽의 분리 부족이 자주 in-to-out 궤도를 만듭니다. 백스윙 탑에서 골반이 먼저 리드하지 못하면 팔이 몸통을 앞질러 클럽 패스가 안쪽으로 밀립니다.\n\n**2. 이중 진자의 순서**\n- 두 번째 진자(손목+클럽) 발동이 늦으면 페이스가 클로즈된 채로 임팩트에 진입합니다. \"채찍 효과\"의 순서 정합을 3D 측정으로 확인 권장합니다.\n\n다음 세션에서 어깨 회전 가동범위(우측 60°인지)와 결부해 실현 가능한 개선 스텝을 정하면 좋습니다.",
+    "assertions": [
+      { "kind": "contains", "needle": "정혜진" },
+      { "kind": "matches", "pattern": "(이중 진자|채찍|3분리|매달림|레깅|던지|스윙코드)" },
+      { "kind": "notContains", "needle": "TODO" },
+      { "kind": "lengthBetween", "min": 100, "max": 2000 }
+    ]
+  }
+]

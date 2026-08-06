@@ -1,29 +1,35 @@
 #!/usr/bin/env node
 /**
- * runEval — Run a JSON eval suite against the shared harness.
+ * runEval — Run one or more JSON eval suites.
  *
- * Usage:
+ * Two modes, controlled by the `--real` flag:
+ *
+ * 1. Dry-run (default)
+ *    Uses each case's `mockOutput` as the "runner" output. Fast, offline,
+ *    verifies that the assertion harness itself is wired up. Regressions
+ *    caught here are prompt-authoring bugs, not model quality changes.
+ *
+ * 2. Real  (--real)
+ *    For every case that has `realPrompt`, calls the Gemini API directly
+ *    with { prompt, systemInstruction, model }, then runs assertions
+ *    against the live output. Requires GEMINI_API_KEY. Cases without
+ *    `realPrompt` fall back to mockOutput.
+ *
+ *    Saves the raw model output to `evals/runs/<ISO>-<suite>.md` so a
+ *    coach can eyeball what the model actually produced — golden numbers
+ *    are only half the story, the prose has to be usable.
+ *
+ * Usage
  *   node scripts/runEval.mjs evals/shot_analysis.eval.json
- *   node scripts/runEval.mjs evals/*.eval.json
+ *   node scripts/runEval.mjs --real evals/shot_analysis.eval.json
+ *   node scripts/runEval.mjs --real --model=gemini-2.5-pro evals/*.eval.json
  *
- * By default each case's `mockOutput` is used as the runner output — a
- * dry-run smoke test that verifies the harness + assertions are wired
- * up without hitting the AI backend. A later PR will add a --real flag
- * that translates each case's `input.scenarioLabel` into an actual
- * service call.
- *
- * Exit code: 0 if every suite passes; 1 otherwise. Safe for CI.
- *
- * This script is standalone JS (mjs) so it can be run with plain
- * `node` and needs no TS compilation. It duplicates a minimal subset
- * of services/evalHarness.ts on purpose — the TS version is what the
- * app uses, this JS mirror is what the CLI uses. Both are covered by
- * __tests__/evalHarness.test.ts.
+ * Exit code: 0 if every suite passes, 1 otherwise. Safe for CI.
  */
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { resolve, basename } from 'node:path';
 
-// ── minimal JS mirror of services/evalHarness.ts ──────────────────────────
+// ── assertion evaluator (mirrors services/evalHarness.ts) ─────────────────
 
 const getFieldByPath = (obj, path) => {
   const parts = path.split('.').filter(Boolean);
@@ -102,28 +108,111 @@ const evaluateAssertion = (output, assertion) => {
   }
 };
 
-const runSuite = (suite, suiteName) => {
-  const results = suite.map((c) => {
-    if (typeof c.mockOutput !== 'string') {
-      return {
-        name: c.name,
-        passed: false,
-        assertionResults: [],
-        output: '',
-        latencyMs: 0,
-        error: 'case has no mockOutput (real-Gemini mode not yet wired)',
-      };
-    }
-    const start = Date.now();
-    const assertionResults = c.assertions.map((a) => evaluateAssertion(c.mockOutput, a));
-    return {
-      name: c.name,
-      passed: assertionResults.every((r) => r.passed),
-      assertionResults,
-      output: c.mockOutput,
-      latencyMs: Date.now() - start,
-    };
+// ── real Gemini caller ────────────────────────────────────────────────────
+
+const DEFAULT_MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+
+const callGemini = async ({ prompt, systemInstruction, model, temperature }) => {
+  const apiKey = (process.env.GEMINI_API_KEY || '').trim();
+  if (!apiKey) throw new Error('GEMINI_API_KEY is not set — cannot run --real');
+  const modelId = (model || DEFAULT_MODEL).trim();
+  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:generateContent`;
+
+  const body = {
+    contents: [{ role: 'user', parts: [{ text: prompt }] }],
+    ...(systemInstruction
+      ? { systemInstruction: { parts: [{ text: systemInstruction }] } }
+      : {}),
+    generationConfig: {
+      ...(typeof temperature === 'number' ? { temperature } : {}),
+    },
+  };
+
+  const response = await fetch(endpoint, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-goog-api-key': apiKey,
+    },
+    body: JSON.stringify(body),
   });
+
+  if (!response.ok) {
+    const errText = await response.text().catch(() => '');
+    throw new Error(`Gemini HTTP ${response.status}: ${errText.slice(0, 300)}`);
+  }
+  const payload = await response.json();
+  const candidates = payload.candidates;
+  if (!Array.isArray(candidates) || candidates.length === 0) {
+    throw new Error('Gemini returned no candidates');
+  }
+  const parts = candidates[0].content?.parts;
+  if (!Array.isArray(parts)) throw new Error('Gemini candidate had no parts');
+  const text = parts
+    .filter((p) => typeof p.text === 'string')
+    .map((p) => p.text)
+    .join('\n');
+  if (!text.trim()) throw new Error('Gemini returned empty text');
+  return { text, model: modelId };
+};
+
+// ── runner ────────────────────────────────────────────────────────────────
+
+const runSuite = async (suite, suiteName, opts) => {
+  const results = [];
+  for (const c of suite) {
+    const start = Date.now();
+    let output = '';
+    let modelUsed;
+    let error;
+
+    // Decide runner: real API when --real and case has realPrompt, else mock.
+    const useReal = opts.real && typeof c.realPrompt === 'string';
+    if (useReal) {
+      try {
+        // realSystemInstruction may be inline OR loaded from a file so
+        // we don't re-inline the whole SwingCode preamble in every case.
+        let systemInstruction = c.realSystemInstruction;
+        if (!systemInstruction && typeof c.realSystemInstructionFile === 'string') {
+          const filePath = resolve(process.cwd(), c.realSystemInstructionFile);
+          systemInstruction = readFileSync(filePath, 'utf-8');
+        }
+        const r = await callGemini({
+          prompt: c.realPrompt,
+          systemInstruction,
+          model: opts.model || c.realModel,
+          temperature: typeof c.realTemperature === 'number' ? c.realTemperature : undefined,
+        });
+        output = r.text;
+        modelUsed = r.model;
+      } catch (e) {
+        error = e.message;
+      }
+    } else if (typeof c.mockOutput === 'string') {
+      output = c.mockOutput;
+    } else {
+      error = opts.real
+        ? 'case has neither realPrompt nor mockOutput'
+        : 'case has no mockOutput (run with --real if realPrompt is present)';
+    }
+
+    const latencyMs = Date.now() - start;
+    const assertionResults = error
+      ? c.assertions.map((a) => ({ assertion: a, passed: false, reason: `runner error: ${error}` }))
+      : c.assertions.map((a) => evaluateAssertion(output, a));
+
+    results.push({
+      name: c.name,
+      passed: !error && assertionResults.every((r) => r.passed),
+      assertionResults,
+      output,
+      latencyMs,
+      error,
+      model: modelUsed,
+      mode: useReal ? 'real' : 'mock',
+    });
+  }
+
   const passedCases = results.filter((r) => r.passed).length;
   return {
     suiteName,
@@ -136,16 +225,78 @@ const runSuite = (suite, suiteName) => {
   };
 };
 
+// ── run-log writer ────────────────────────────────────────────────────────
+
+const RUN_DIR = resolve(process.cwd(), 'evals', 'runs');
+
+const writeRunLog = (report, suiteName) => {
+  mkdirSync(RUN_DIR, { recursive: true });
+  const isoStamp = new Date(report.runAt).toISOString().replace(/[:.]/g, '-');
+  const safeName = basename(suiteName).replace(/\.[^.]+$/, '');
+  const file = resolve(RUN_DIR, `${isoStamp}-${safeName}.md`);
+
+  const lines = [];
+  lines.push(`# Eval run — ${suiteName}`);
+  lines.push(`\n- **Run at**: ${new Date(report.runAt).toISOString()}`);
+  lines.push(
+    `- **Pass rate**: ${report.passedCases}/${report.totalCases} (${(report.passRate * 100).toFixed(1)}%)`
+  );
+  const totalLatency = report.results.reduce((s, r) => s + r.latencyMs, 0);
+  lines.push(
+    `- **Total latency**: ${totalLatency}ms (mean ${Math.round(totalLatency / Math.max(1, report.results.length))}ms)`
+  );
+
+  for (const r of report.results) {
+    lines.push(`\n---\n## ${r.passed ? '✅' : '❌'} ${r.name}`);
+    lines.push(`- **mode**: ${r.mode}${r.model ? ` · **model**: ${r.model}` : ''} · **latency**: ${r.latencyMs}ms`);
+    if (r.error) lines.push(`- **error**: ${r.error}`);
+    const failed = r.assertionResults.filter((a) => !a.passed);
+    if (failed.length > 0) {
+      lines.push(`- **failed assertions**:`);
+      for (const a of failed) lines.push(`  - \`${a.assertion.kind}\`: ${a.reason}`);
+    }
+    if (r.output) {
+      lines.push(`\n<details><summary>output (${r.output.length} chars)</summary>\n`);
+      lines.push('```markdown');
+      // Trim very long outputs so the log stays reviewable.
+      const clipped = r.output.length > 6000 ? `${r.output.slice(0, 6000)}\n… [clipped]` : r.output;
+      lines.push(clipped);
+      lines.push('```');
+      lines.push('\n</details>');
+    }
+  }
+
+  writeFileSync(file, lines.join('\n'));
+  return file;
+};
+
 // ── CLI ────────────────────────────────────────────────────────────────────
 
 const argv = process.argv.slice(2);
-if (argv.length === 0) {
-  console.error('Usage: node scripts/runEval.mjs <suite.json> [<suite2.json> ...]');
+const opts = { real: false, model: undefined };
+const suites = [];
+for (const a of argv) {
+  if (a === '--real') opts.real = true;
+  else if (a.startsWith('--model=')) opts.model = a.slice('--model='.length);
+  else if (a === '--help' || a === '-h') {
+    console.log('Usage: node scripts/runEval.mjs [--real] [--model=<id>] <suite.json> [more...]');
+    process.exit(0);
+  } else suites.push(a);
+}
+
+if (suites.length === 0) {
+  console.error('Usage: node scripts/runEval.mjs [--real] [--model=<id>] <suite.json> [more...]');
+  process.exit(2);
+}
+
+if (opts.real && !process.env.GEMINI_API_KEY) {
+  console.error('❌ --real requires GEMINI_API_KEY in env');
   process.exit(2);
 }
 
 let anyFail = false;
-for (const arg of argv) {
+
+for (const arg of suites) {
   const path = resolve(process.cwd(), arg);
   let suite;
   try {
@@ -160,23 +311,29 @@ for (const arg of argv) {
     anyFail = true;
     continue;
   }
-  const report = runSuite(suite, arg);
+
+  const report = await runSuite(suite, arg, opts);
   const header =
-    report.failedCases === 0
-      ? `✅ ${report.suiteName}`
-      : `❌ ${report.suiteName}`;
+    report.failedCases === 0 ? `✅ ${report.suiteName}` : `❌ ${report.suiteName}`;
+  const modeLabel = opts.real ? ' [real]' : ' [dry]';
   console.log(
-    `${header}  ${report.passedCases}/${report.totalCases} pass  (${(report.passRate * 100).toFixed(1)}%)`
+    `${header}${modeLabel}  ${report.passedCases}/${report.totalCases} pass  (${(report.passRate * 100).toFixed(1)}%)`
   );
   for (const r of report.results) {
     const marker = r.passed ? '  ✓' : '  ✗';
-    console.log(`${marker} ${r.name}  (${r.latencyMs}ms)`);
+    const modelTag = r.model ? ` [${r.model}]` : '';
+    console.log(`${marker} ${r.name}${modelTag}  (${r.latencyMs}ms)`);
     if (!r.passed) {
       if (r.error) console.log(`      error: ${r.error}`);
       for (const ar of r.assertionResults) {
         if (!ar.passed) console.log(`      ${ar.assertion.kind}: ${ar.reason ?? 'failed'}`);
       }
     }
+  }
+
+  if (opts.real) {
+    const logFile = writeRunLog(report, arg);
+    console.log(`  → run log: ${logFile}`);
   }
   if (report.failedCases > 0) anyFail = true;
 }
