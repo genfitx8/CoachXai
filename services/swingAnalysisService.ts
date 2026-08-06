@@ -1190,6 +1190,7 @@ function buildSummary(
   events: Partial<Record<SwingEventName, SwingEvent>>,
   sampledFps: number,
   clubHeadDetector?: ClubHeadDetector,
+  enableClubTracking = false,
 ): SwingSummary {
   const addressWindow = events.address
     ? frames.slice(events.address.frameIndex, events.address.frameIndex + 4)
@@ -1249,7 +1250,12 @@ function buildSummary(
   } else {
     summary.gravityAligned = false;
   }
-  clubHeadAugmentSummary(summary, frames, events, clubHeadDetector);
+  // Club head augmentation is opt-in. Geometric estimation (Phase C.1) is
+  // still too noisy to expose in the coaching UI; keep the code path alive
+  // so the ML detector (Phase C.2) can be turned on without a refactor.
+  if (enableClubTracking) {
+    clubHeadAugmentSummary(summary, frames, events, clubHeadDetector);
+  }
   if (events.top && events.impact) {
     const kinetic = computeKineticSequence(
       frames,
@@ -1274,6 +1280,13 @@ export interface AnalyzeSwingOptions {
    * tracker without changing the pipeline.
    */
   clubHeadDetector?: ClubHeadDetector;
+  /**
+   * Set true to include club-head-derived metrics (head speed, path angle,
+   * impact zone trajectory) in the summary. Defaults to false because the
+   * geometric baseline (Phase C.1) isn't accurate enough for coaching yet;
+   * flip this on once the ML detector is wired.
+   */
+  enableClubTracking?: boolean;
   /**
    * When true (default), scan the sampled frames for distinct swing bursts
    * and auto-trim to the highest-confidence one before segmentation. Ignored
@@ -1395,7 +1408,13 @@ export const swingAnalysisService = {
 
       const { events, warnings } = segmentEvents(workingFrames, sampledFps);
       warnings.push(...extraWarnings);
-      const summary = buildSummary(workingFrames, events, sampledFps, options.clubHeadDetector);
+      const summary = buildSummary(
+        workingFrames,
+        events,
+        sampledFps,
+        options.clubHeadDetector,
+        options.enableClubTracking === true,
+      );
 
       onProgress?.({ processedFrames: desired, totalFrames: desired, stage: 'done' });
       log.info('Swing analysis completed', {
