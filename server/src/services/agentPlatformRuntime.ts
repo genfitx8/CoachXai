@@ -12,6 +12,12 @@ export interface AgentRuntimeInvokeRequest {
   responseSchema?: unknown;
   systemInstruction?: string;
   temperature?: number;
+  /**
+   * Fully-qualified Gemini model id to use for this request. When omitted
+   * the runtime falls back to its own default (GEMINI_MODEL env or hard
+   * default). Populated by the router in the ai route handler.
+   */
+  model?: string;
 }
 
 const CLOUD_PLATFORM_SCOPE = 'https://www.googleapis.com/auth/cloud-platform';

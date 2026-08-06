@@ -256,4 +256,18 @@ describe('aggregateFeatureStats', () => {
     const [stat] = aggregateFeatureStats(logs);
     expect(stat.cacheHitRate).toBeCloseTo(0.5);
   });
+
+  it('counts calls per model in modelBreakdown', () => {
+    const logs = [
+      makeLog({ model: 'gemini-2.5-flash' }),
+      makeLog({ model: 'gemini-2.5-flash' }),
+      makeLog({ model: 'gemini-2.5-pro' }),
+      makeLog({}),
+    ];
+    const [stat] = aggregateFeatureStats(logs);
+    expect(stat.modelBreakdown).toEqual({
+      'gemini-2.5-flash': 2,
+      'gemini-2.5-pro': 1,
+    });
+  });
 });

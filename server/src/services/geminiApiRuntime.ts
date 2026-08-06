@@ -27,13 +27,15 @@ const backoffDelay = (attempt: number): number => {
 
 export const invokeGeminiApi = async (
   request: AgentRuntimeInvokeRequest
-): Promise<{ text: string }> => {
+): Promise<{ text: string; model: string }> => {
   const apiKey = getApiKey();
   if (!apiKey) {
     throw new Error('Gemini API is not configured. Set GEMINI_API_KEY.');
   }
 
-  const model = getModel();
+  // Prefer the model the router picked for this feature; fall back to the
+  // process default so callers that don't set request.model still work.
+  const model = (request.model ?? '').trim() || getModel();
   const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
 
   type GeminiPart =
@@ -138,7 +140,7 @@ export const invokeGeminiApi = async (
           .filter((p) => typeof p.text === 'string')
           .map((p) => p.text as string);
         if (textParts.length > 0) {
-          return { text: textParts.join('\n') };
+          return { text: textParts.join('\n'), model };
         }
       }
     }
@@ -162,15 +164,27 @@ export const invokeGeminiApi = async (
  * would produce a garbled concatenation. If the first byte fails, the
  * caller can fall back to invokeGeminiApi.
  */
+/**
+ * The stream yields two kinds of items:
+ *  - `{ type: 'meta', model }`  — emitted once at the start so the caller
+ *    can attach the model id to telemetry / SSE headers.
+ *  - `{ type: 'text', text }`   — one per text delta, in order.
+ * A simple discriminated union keeps the API additive; callers ignore
+ * `meta` entries and consume `text` entries as before.
+ */
+export type GeminiStreamItem =
+  | { type: 'meta'; model: string }
+  | { type: 'text'; text: string };
+
 export const streamGeminiApi = async function* (
   request: AgentRuntimeInvokeRequest
-): AsyncGenerator<string, void, void> {
+): AsyncGenerator<GeminiStreamItem, void, void> {
   const apiKey = getApiKey();
   if (!apiKey) {
     throw new Error('Gemini API is not configured. Set GEMINI_API_KEY.');
   }
 
-  const model = getModel();
+  const model = (request.model ?? '').trim() || getModel();
   const endpoint =
     `https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?alt=sse`;
 
@@ -238,6 +252,10 @@ export const streamGeminiApi = async function* (
     throw new Error(`Gemini stream failed (${response.status}): ${message}`);
   }
 
+  // Announce the chosen model up-front so the caller can propagate it
+  // before any text arrives (SSE headers / observability capture).
+  yield { type: 'meta', model };
+
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
   let buffer = '';
@@ -272,7 +290,7 @@ export const streamGeminiApi = async function* (
         if (!Array.isArray(parts)) continue;
         for (const p of parts) {
           if (typeof p.text === 'string' && p.text.length > 0) {
-            yield p.text;
+            yield { type: 'text', text: p.text };
           }
         }
       } catch {

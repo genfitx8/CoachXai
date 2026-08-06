@@ -72,6 +72,8 @@ export interface RecordAiCallInput {
   hasSchema?: boolean;
   /** True when the response was served from aiResponseCache (no Gemini call). */
   cached?: boolean;
+  /** Gemini model reported by the server, if known. */
+  model?: string;
 }
 
 /**
@@ -95,6 +97,7 @@ export const recordAiCall = async (input: RecordAiCallInput): Promise<void> => {
       hasExemplars: !!input.hasExemplars,
       hasSchema: !!input.hasSchema,
       cached: input.cached ? true : undefined,
+      model: input.model?.trim() || undefined,
       createdAt: Date.now(),
     };
 
@@ -139,6 +142,12 @@ export interface FeatureStats {
    * always 0 for non-cacheable features.
    */
   cacheHitRate: number;
+  /**
+   * Counts per Gemini model that served this feature. Empty when no call
+   * carried a model tag (older backend or fallback path). Enables the
+   * dashboard to show "flash: 42 / pro: 3" alongside aggregate stats.
+   */
+  modelBreakdown: Record<string, number>;
   /** Time of the most recent call for this feature. */
   lastCallAt: number;
 }
@@ -171,6 +180,11 @@ export const aggregateFeatureStats = (logs: AiCallLog[]): FeatureStats[] => {
     const errorCount = entries.filter((e) => e.status === 'error').length;
     const exemplarCount = entries.filter((e) => e.hasExemplars).length;
     const cachedCount = entries.filter((e) => e.cached).length;
+    const modelBreakdown: Record<string, number> = {};
+    for (const e of entries) {
+      if (!e.model) continue;
+      modelBreakdown[e.model] = (modelBreakdown[e.model] ?? 0) + 1;
+    }
     stats.push({
       feature,
       callCount: entries.length,
@@ -185,6 +199,7 @@ export const aggregateFeatureStats = (logs: AiCallLog[]): FeatureStats[] => {
       exemplarInjectionRate:
         entries.length > 0 ? exemplarCount / entries.length : 0,
       cacheHitRate: entries.length > 0 ? cachedCount / entries.length : 0,
+      modelBreakdown,
       lastCallAt: Math.max(...entries.map((e) => e.createdAt)),
     });
   }

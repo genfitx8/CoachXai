@@ -130,6 +130,7 @@ export const invokeBackendAIStream = async (
   const meta = inspectPayload(payload);
   let accumulated = '';
   let firstChunkAt: number | null = null;
+  let modelId: string | undefined;
 
   const finalise = (
     status: 'success' | 'error',
@@ -145,6 +146,7 @@ export const invokeBackendAIStream = async (
       errorMessage,
       hasExemplars: meta.hasExemplars,
       hasSchema: meta.hasSchema,
+      model: modelId,
     });
     // Cache-write parity: the streaming path doesn't populate the cache
     // today because streamed callers (chat) aren't in CACHEABLE_FEATURES.
@@ -180,7 +182,18 @@ export const invokeBackendAIStream = async (
 
   try {
     for await (const evt of readSseEvents(response.body)) {
-      if (evt.event === 'chunk') {
+      if (evt.event === 'meta') {
+        // Server emits `event: meta\ndata: {"model":"…"}` once before the
+        // first chunk so telemetry can attach the model to this call.
+        try {
+          const parsed = JSON.parse(evt.data) as { model?: string };
+          if (typeof parsed.model === 'string' && parsed.model.trim()) {
+            modelId = parsed.model;
+          }
+        } catch {
+          log.warn('malformed meta event', evt.data);
+        }
+      } else if (evt.event === 'chunk') {
         try {
           const parsed = JSON.parse(evt.data) as { text?: string };
           if (typeof parsed.text === 'string' && parsed.text.length > 0) {

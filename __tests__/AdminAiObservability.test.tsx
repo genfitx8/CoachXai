@@ -28,6 +28,8 @@ function buildStat(over: Partial<{
   promptP50Chars: number;
   fallbackRate: number;
   exemplarInjectionRate: number;
+  cacheHitRate: number;
+  modelBreakdown: Record<string, number>;
   lastCallAt: number;
 }> = {}) {
   return {
@@ -42,6 +44,8 @@ function buildStat(over: Partial<{
     promptP50Chars: 400,
     fallbackRate: 0.1,
     exemplarInjectionRate: 0.5,
+    cacheHitRate: 0,
+    modelBreakdown: {},
     lastCallAt: Date.parse('2026-08-06T09:00:00Z'),
     ...over,
   };

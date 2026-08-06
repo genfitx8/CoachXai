@@ -110,6 +110,17 @@ const extractResponseText = (result: unknown): string => {
   }
 };
 
+/**
+ * Read the model id the server reported on a response, if any. Older
+ * backends may omit it; that's fine — the logger records `undefined`
+ * and the dashboard shows "unknown" for those calls.
+ */
+const extractModel = (result: unknown): string | undefined => {
+  if (!result || typeof result !== 'object') return undefined;
+  const rec = result as Record<string, unknown>;
+  return typeof rec.model === 'string' && rec.model.trim() ? rec.model : undefined;
+};
+
 const invokeBackendAI = async <T>(feature: string, payload: unknown): Promise<T> => {
   const startedAt = Date.now();
   const meta = inspectPayload(payload);
@@ -170,6 +181,7 @@ const invokeBackendAI = async <T>(feature: string, payload: unknown): Promise<T>
     }
 
     const responseText = extractResponseText(body.result);
+    const modelId = extractModel(body.result);
 
     // Fire-and-forget success log. Do NOT await — telemetry must never
     // add latency to the response the caller returns to the user.
@@ -182,6 +194,7 @@ const invokeBackendAI = async <T>(feature: string, payload: unknown): Promise<T>
       status: 'success',
       hasExemplars: meta.hasExemplars,
       hasSchema: meta.hasSchema,
+      model: modelId,
     });
 
     // Cache write for the eligible features. Same exemplar guard as the

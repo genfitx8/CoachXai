@@ -14,6 +14,7 @@ import {
   invokeGeminiApi,
   streamGeminiApi,
 } from '../services/geminiApiRuntime';
+import { resolveModel } from '../services/modelRouter';
 
 type RuntimePart =
   | { text: string }
@@ -134,6 +135,9 @@ router.post('/invoke', async (req: Request, res: Response) => {
         feature,
         typeof payloadObj.temperature === 'number' ? payloadObj.temperature : undefined
       ),
+      model: resolveModel(feature, {
+        explicit: typeof payloadObj.model === 'string' ? payloadObj.model : undefined,
+      }),
     };
 
     if (isGeminiApiConfigured()) {
@@ -223,6 +227,9 @@ router.post('/invoke-stream', async (req: Request, res: Response) => {
       feature,
       typeof payloadObj.temperature === 'number' ? payloadObj.temperature : undefined
     ),
+    model: resolveModel(feature, {
+      explicit: typeof payloadObj.model === 'string' ? payloadObj.model : undefined,
+    }),
   };
 
   // SSE headers — set before the first write so intermediaries flush per-event.
@@ -245,9 +252,13 @@ router.post('/invoke-stream', async (req: Request, res: Response) => {
   });
 
   try {
-    for await (const chunk of streamGeminiApi(runtimeRequest)) {
+    for await (const item of streamGeminiApi(runtimeRequest)) {
       if (clientClosed) break;
-      writeEvent('chunk', { text: chunk });
+      if (item.type === 'meta') {
+        writeEvent('meta', { model: item.model });
+      } else {
+        writeEvent('chunk', { text: item.text });
+      }
     }
     if (!clientClosed) writeEvent('done', { status: 'ok' });
   } catch (error) {

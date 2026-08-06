@@ -128,6 +128,21 @@ describe('invokeBackendAIStream', () => {
   // saveAiCallLog) settle before the assertion runs.
   const flush = () => new Promise((r) => setTimeout(r, 20));
 
+  it('captures the model from the meta event and forwards it to telemetry', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValueOnce(
+      okResponse([
+        'event: meta\ndata: {"model":"gemini-2.5-pro"}\n\n',
+        'event: chunk\ndata: {"text":"ok"}\n\n',
+        'event: done\ndata: {}\n\n',
+      ])
+    );
+    await invokeBackendAIStream('coachx_chat', { prompt: 'q' });
+    await flush();
+    const entry = (storageService.saveAiCallLog as ReturnType<typeof vi.fn>).mock
+      .calls[0][0];
+    expect(entry.model).toBe('gemini-2.5-pro');
+  });
+
   it('records telemetry on success', async () => {
     globalThis.fetch = vi.fn().mockResolvedValueOnce(
       okResponse(['event: chunk\ndata: {"text":"ok"}\n\nevent: done\ndata: {}\n\n'])

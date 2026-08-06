@@ -723,6 +723,13 @@ export interface AiCallLog {
    * will be near-zero and no cost is incurred.
    */
   cached?: boolean;
+  /**
+   * Which Gemini model actually served the request (e.g. "gemini-2.5-flash",
+   * "gemini-2.5-pro"). Populated when the server reports the model in the
+   * response; may be undefined for older backends or fallback paths.
+   * Enables per-model latency / quality comparisons in the dashboard.
+   */
+  model?: string;
   createdAt: number;
 }
 

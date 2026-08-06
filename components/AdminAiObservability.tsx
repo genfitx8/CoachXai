@@ -269,6 +269,20 @@ export const AdminAiObservability: React.FC = () => {
                       <div className="text-xs text-gray-400 font-normal">
                         {s.feature}
                       </div>
+                      {Object.keys(s.modelBreakdown).length > 0 && (
+                        <div className="mt-1 flex flex-wrap gap-1">
+                          {Object.entries(s.modelBreakdown)
+                            .sort((a, b) => b[1] - a[1])
+                            .map(([model, count]) => (
+                              <span
+                                key={model}
+                                className="inline-block px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 text-[10px] font-mono"
+                              >
+                                {model}·{count}
+                              </span>
+                            ))}
+                        </div>
+                      )}
                     </td>
                     <td className="px-4 py-2 text-right text-gray-700">
                       {s.callCount.toLocaleString()}
@@ -335,6 +349,7 @@ export const AdminAiObservability: React.FC = () => {
                   <th className="px-4 py-2 text-left font-semibold">상태</th>
                   <th className="px-4 py-2 text-right font-semibold">latency</th>
                   <th className="px-4 py-2 text-right font-semibold">prompt / resp (자)</th>
+                  <th className="px-4 py-2 text-left font-semibold">모델</th>
                   <th className="px-4 py-2 text-left font-semibold">플래그</th>
                   <th className="px-4 py-2 text-left font-semibold">해시</th>
                 </tr>
@@ -355,6 +370,9 @@ export const AdminAiObservability: React.FC = () => {
                     <td className="px-4 py-2 text-right text-gray-500 text-xs">
                       {r.promptLength.toLocaleString()} /{' '}
                       {r.responseLength.toLocaleString()}
+                    </td>
+                    <td className="px-4 py-2 text-xs text-gray-500 whitespace-nowrap">
+                      {r.model ?? <span className="text-gray-300">-</span>}
                     </td>
                     <td className="px-4 py-2 text-xs">
                       {r.cached && (
