@@ -730,6 +730,15 @@ export interface AiCallLog {
    * Enables per-model latency / quality comparisons in the dashboard.
    */
   model?: string;
+  /**
+   * True when the promptSafety scan flagged the user-supplied portion of
+   * this request as a likely injection attempt. Only present for calls
+   * whose payload carried `userMessage` — everything else is undefined.
+   * We measure but do not block; policy decisions come later.
+   */
+  injectionSuspected?: boolean;
+  /** Comma-joined ids of matched injection patterns (dashboard display). */
+  injectionMatches?: string;
   createdAt: number;
 }
 

@@ -270,4 +270,15 @@ describe('aggregateFeatureStats', () => {
       'gemini-2.5-pro': 1,
     });
   });
+
+  it('computes injectionAttemptRate from the injectionSuspected flag', () => {
+    const logs = [
+      makeLog({ injectionSuspected: true }),
+      makeLog({ injectionSuspected: false }),
+      makeLog({ injectionSuspected: false }),
+      makeLog({}),
+    ];
+    const [stat] = aggregateFeatureStats(logs);
+    expect(stat.injectionAttemptRate).toBeCloseTo(0.25);
+  });
 });

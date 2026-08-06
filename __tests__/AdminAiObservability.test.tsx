@@ -30,6 +30,7 @@ function buildStat(over: Partial<{
   exemplarInjectionRate: number;
   cacheHitRate: number;
   modelBreakdown: Record<string, number>;
+  injectionAttemptRate: number;
   lastCallAt: number;
 }> = {}) {
   return {
@@ -46,6 +47,7 @@ function buildStat(over: Partial<{
     exemplarInjectionRate: 0.5,
     cacheHitRate: 0,
     modelBreakdown: {},
+    injectionAttemptRate: 0,
     lastCallAt: Date.parse('2026-08-06T09:00:00Z'),
     ...over,
   };

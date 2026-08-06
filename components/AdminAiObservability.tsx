@@ -17,6 +17,7 @@ import {
   Clock,
   Zap,
   Sparkles,
+  ShieldAlert,
 } from 'lucide-react';
 import type { AiCallLog } from '../types';
 import {
@@ -98,6 +99,8 @@ interface OverallSummary {
   errorCount: number;
   overallFallbackRate: number;
   worstP95: { feature: string; p95: number } | null;
+  /** Total calls where the promptSafety scan fired. */
+  injectionAttempts: number;
 }
 
 const buildOverallSummary = (stats: FeatureStats[]): OverallSummary => {
@@ -112,6 +115,10 @@ const buildOverallSummary = (stats: FeatureStats[]): OverallSummary => {
         : worst,
     null
   );
+  const injectionAttempts = stats.reduce(
+    (s, x) => s + Math.round(x.callCount * x.injectionAttemptRate),
+    0
+  );
   return {
     totalCalls,
     successCount,
@@ -119,6 +126,7 @@ const buildOverallSummary = (stats: FeatureStats[]): OverallSummary => {
     errorCount,
     overallFallbackRate: totalCalls > 0 ? fallbackCount / totalCalls : 0,
     worstP95,
+    injectionAttempts,
   };
 };
 
@@ -232,6 +240,22 @@ export const AdminAiObservability: React.FC = () => {
           </div>
           <div className="text-xs text-gray-400 mt-1">
             호출량 순 정렬
+          </div>
+        </div>
+
+        <div className="bg-white rounded-lg border border-gray-200 p-4 col-span-2 md:col-span-4">
+          <div className="text-xs text-gray-500 flex items-center gap-1">
+            <ShieldAlert className="w-3.5 h-3.5" /> 프롬프트 injection 의심 요청
+          </div>
+          <div
+            className={`text-2xl font-bold mt-1 ${
+              summary.injectionAttempts > 0 ? 'text-amber-600' : 'text-gray-900'
+            }`}
+          >
+            {summary.injectionAttempts.toLocaleString()}
+          </div>
+          <div className="text-xs text-gray-400 mt-1">
+            사용자 입력에서 injection 패턴이 매칭된 호출 (현재는 측정만, 차단 안 함)
           </div>
         </div>
       </div>
@@ -375,6 +399,18 @@ export const AdminAiObservability: React.FC = () => {
                       {r.model ?? <span className="text-gray-300">-</span>}
                     </td>
                     <td className="px-4 py-2 text-xs">
+                      {r.injectionSuspected && (
+                        <span
+                          className="inline-block px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 mr-1"
+                          title={
+                            r.injectionMatches
+                              ? `patterns: ${r.injectionMatches}`
+                              : undefined
+                          }
+                        >
+                          injection?
+                        </span>
+                      )}
                       {r.cached && (
                         <span className="inline-block px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 mr-1">
                           cached

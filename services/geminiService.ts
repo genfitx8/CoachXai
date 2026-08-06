@@ -50,6 +50,7 @@ import {
   setCachedResponse,
 } from './aiResponseCache';
 import { invokeBackendAIStream, StreamNotSupportedError } from './aiStream';
+import { scanForInjection } from './promptSafety';
 
 const log = createLogger('gemini');
 
@@ -80,6 +81,12 @@ const inspectPayload = (payload: unknown): {
   coachId?: string;
   hasExemplars: boolean;
   hasSchema: boolean;
+  /**
+   * The subset of the prompt that came from the user (chat message, voice
+   * transcript, etc.). Populated only when the caller explicitly set
+   * `userMessage` in the payload — required to run injection detection.
+   */
+  userMessage?: string;
 } => {
   if (!payload || typeof payload !== 'object') {
     return { prompt: '', hasExemplars: false, hasSchema: false };
@@ -88,12 +95,30 @@ const inspectPayload = (payload: unknown): {
   const prompt = typeof rec.prompt === 'string' ? rec.prompt : '';
   const coachId = typeof rec.coachId === 'string' ? rec.coachId : undefined;
   const systemInstruction = typeof rec.systemInstruction === 'string' ? rec.systemInstruction : '';
+  const userMessage = typeof rec.userMessage === 'string' ? rec.userMessage : undefined;
   // Exemplars can appear in either the prompt or the system instruction —
   // check both so few-shot injection is detected regardless of where it lives.
   const hasExemplars =
     prompt.includes('참고 예시') || systemInstruction.includes('참고 예시');
   const hasSchema = 'responseSchema' in rec && rec.responseSchema != null;
-  return { prompt, coachId, hasExemplars, hasSchema };
+  return { prompt, coachId, hasExemplars, hasSchema, userMessage };
+};
+
+/**
+ * Wrap a scan result into the two AiCallLog fields the logger accepts.
+ * Returns { undefined, undefined } when there is no user message to scan
+ * so we don't pollute the log with irrelevant false negatives.
+ */
+const buildInjectionSignal = (
+  userMessage: string | undefined
+): { injectionSuspected?: boolean; injectionMatches?: string } => {
+  if (!userMessage) return {};
+  const scan = scanForInjection(userMessage);
+  if (!scan.suspicious) return { injectionSuspected: false };
+  return {
+    injectionSuspected: true,
+    injectionMatches: scan.matches.join(','),
+  };
 };
 
 const extractResponseText = (result: unknown): string => {
@@ -124,6 +149,7 @@ const extractModel = (result: unknown): string | undefined => {
 const invokeBackendAI = async <T>(feature: string, payload: unknown): Promise<T> => {
   const startedAt = Date.now();
   const meta = inspectPayload(payload);
+  const injection = buildInjectionSignal(meta.userMessage);
 
   // Cache lookup — only for allowlisted deterministic features. Skip when
   // the prompt carries few-shot exemplars because the exemplar pool can
@@ -147,6 +173,7 @@ const invokeBackendAI = async <T>(feature: string, payload: unknown): Promise<T>
           hasExemplars: meta.hasExemplars,
           hasSchema: meta.hasSchema,
           cached: true,
+          ...injection,
         });
         // The cached response is always a string. Callers that expect a
         // richer object should still receive the JSON-parseable text they
@@ -195,6 +222,7 @@ const invokeBackendAI = async <T>(feature: string, payload: unknown): Promise<T>
       hasExemplars: meta.hasExemplars,
       hasSchema: meta.hasSchema,
       model: modelId,
+      ...injection,
     });
 
     // Cache write for the eligible features. Same exemplar guard as the
@@ -227,6 +255,7 @@ const invokeBackendAI = async <T>(feature: string, payload: unknown): Promise<T>
       errorMessage: err instanceof Error ? err.message : String(err),
       hasExemplars: meta.hasExemplars,
       hasSchema: meta.hasSchema,
+      ...injection,
     });
     throw err;
   }
@@ -1744,6 +1773,7 @@ Do not introduce topics unrelated to the conversation or golf coaching.`;
       prompt,
       systemInstruction,
       language,
+      userMessage,
     });
     const text = getResponseText(result) ?? '';
     if (!text.trim()) throw new Error('Empty response from Gemini');
@@ -1861,7 +1891,7 @@ Do not introduce topics unrelated to the conversation or golf coaching.`;
     try {
       const text = await invokeBackendAIStream(
         'coachx_chat',
-        { prompt, systemInstruction, language },
+        { prompt, systemInstruction, language, userMessage },
         { onChunk, signal }
       );
       if (!text.trim()) throw new Error('Empty response from Gemini stream');
@@ -1874,6 +1904,7 @@ Do not introduce topics unrelated to the conversation or golf coaching.`;
           prompt,
           systemInstruction,
           language,
+          userMessage,
         });
         const text = getResponseText(result) ?? '';
         if (!text.trim()) throw new Error('Empty response from Gemini');
@@ -2446,6 +2477,7 @@ ${conversationBlock}--- 제공 데이터 끝 ---
       prompt,
       systemInstruction,
       language,
+      userMessage,
     });
     const text = getResponseText(result) ?? '';
     if (!text.trim()) throw new Error('Empty response');

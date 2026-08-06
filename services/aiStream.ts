@@ -24,6 +24,7 @@
 import { createLogger } from '../utils/logger';
 import { recordAiCall, hashPrompt } from './aiCallLogger';
 import { resolveApiBaseUrl } from './apiBase';
+import { scanForInjection } from './promptSafety';
 
 const log = createLogger('aiStream');
 
@@ -90,6 +91,7 @@ const inspectPayload = (payload: unknown): {
   coachId?: string;
   hasExemplars: boolean;
   hasSchema: boolean;
+  userMessage?: string;
 } => {
   if (!payload || typeof payload !== 'object') {
     return { prompt: '', hasExemplars: false, hasSchema: false };
@@ -98,10 +100,23 @@ const inspectPayload = (payload: unknown): {
   const prompt = typeof rec.prompt === 'string' ? rec.prompt : '';
   const coachId = typeof rec.coachId === 'string' ? rec.coachId : undefined;
   const systemInstruction = typeof rec.systemInstruction === 'string' ? rec.systemInstruction : '';
+  const userMessage = typeof rec.userMessage === 'string' ? rec.userMessage : undefined;
   const hasExemplars =
     prompt.includes('참고 예시') || systemInstruction.includes('참고 예시');
   const hasSchema = 'responseSchema' in rec && rec.responseSchema != null;
-  return { prompt, coachId, hasExemplars, hasSchema };
+  return { prompt, coachId, hasExemplars, hasSchema, userMessage };
+};
+
+const buildInjectionSignal = (
+  userMessage: string | undefined
+): { injectionSuspected?: boolean; injectionMatches?: string } => {
+  if (!userMessage) return {};
+  const scan = scanForInjection(userMessage);
+  if (!scan.suspicious) return { injectionSuspected: false };
+  return {
+    injectionSuspected: true,
+    injectionMatches: scan.matches.join(','),
+  };
 };
 
 export interface StreamOptions {
@@ -128,6 +143,7 @@ export const invokeBackendAIStream = async (
 ): Promise<string> => {
   const startedAt = Date.now();
   const meta = inspectPayload(payload);
+  const injection = buildInjectionSignal(meta.userMessage);
   let accumulated = '';
   let firstChunkAt: number | null = null;
   let modelId: string | undefined;
@@ -147,6 +163,7 @@ export const invokeBackendAIStream = async (
       hasExemplars: meta.hasExemplars,
       hasSchema: meta.hasSchema,
       model: modelId,
+      ...injection,
     });
     // Cache-write parity: the streaming path doesn't populate the cache
     // today because streamed callers (chat) aren't in CACHEABLE_FEATURES.

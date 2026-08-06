@@ -74,6 +74,10 @@ export interface RecordAiCallInput {
   cached?: boolean;
   /** Gemini model reported by the server, if known. */
   model?: string;
+  /** promptSafety scan flagged the user portion as a likely injection attempt. */
+  injectionSuspected?: boolean;
+  /** Comma-joined pattern ids that matched (for dashboard display). */
+  injectionMatches?: string;
 }
 
 /**
@@ -98,6 +102,8 @@ export const recordAiCall = async (input: RecordAiCallInput): Promise<void> => {
       hasSchema: !!input.hasSchema,
       cached: input.cached ? true : undefined,
       model: input.model?.trim() || undefined,
+      injectionSuspected: input.injectionSuspected ? true : undefined,
+      injectionMatches: input.injectionMatches || undefined,
       createdAt: Date.now(),
     };
 
@@ -148,6 +154,13 @@ export interface FeatureStats {
    * dashboard to show "flash: 42 / pro: 3" alongside aggregate stats.
    */
   modelBreakdown: Record<string, number>;
+  /**
+   * Fraction of calls whose payload carried user text AND the promptSafety
+   * scan flagged that text as a likely injection attempt. High values
+   * warrant investigation — either an abuse pattern or a false-positive
+   * regex that needs tuning.
+   */
+  injectionAttemptRate: number;
   /** Time of the most recent call for this feature. */
   lastCallAt: number;
 }
@@ -185,6 +198,7 @@ export const aggregateFeatureStats = (logs: AiCallLog[]): FeatureStats[] => {
       if (!e.model) continue;
       modelBreakdown[e.model] = (modelBreakdown[e.model] ?? 0) + 1;
     }
+    const injectionCount = entries.filter((e) => e.injectionSuspected).length;
     stats.push({
       feature,
       callCount: entries.length,
@@ -200,6 +214,8 @@ export const aggregateFeatureStats = (logs: AiCallLog[]): FeatureStats[] => {
         entries.length > 0 ? exemplarCount / entries.length : 0,
       cacheHitRate: entries.length > 0 ? cachedCount / entries.length : 0,
       modelBreakdown,
+      injectionAttemptRate:
+        entries.length > 0 ? injectionCount / entries.length : 0,
       lastCallAt: Math.max(...entries.map((e) => e.createdAt)),
     });
   }
