@@ -70,6 +70,8 @@ export interface RecordAiCallInput {
   errorMessage?: string;
   hasExemplars?: boolean;
   hasSchema?: boolean;
+  /** True when the response was served from aiResponseCache (no Gemini call). */
+  cached?: boolean;
 }
 
 /**
@@ -92,6 +94,7 @@ export const recordAiCall = async (input: RecordAiCallInput): Promise<void> => {
         : undefined,
       hasExemplars: !!input.hasExemplars,
       hasSchema: !!input.hasSchema,
+      cached: input.cached ? true : undefined,
       createdAt: Date.now(),
     };
 
@@ -130,6 +133,12 @@ export interface FeatureStats {
   fallbackRate: number;
   /** Fraction of calls that included coach-style exemplars (Phase C signal). */
   exemplarInjectionRate: number;
+  /**
+   * Fraction of calls served from the local response cache (0..1). Only
+   * meaningful for features on aiResponseCache.CACHEABLE_FEATURES;
+   * always 0 for non-cacheable features.
+   */
+  cacheHitRate: number;
   /** Time of the most recent call for this feature. */
   lastCallAt: number;
 }
@@ -161,6 +170,7 @@ export const aggregateFeatureStats = (logs: AiCallLog[]): FeatureStats[] => {
     const fallbackCount = entries.filter((e) => e.status === 'fallback').length;
     const errorCount = entries.filter((e) => e.status === 'error').length;
     const exemplarCount = entries.filter((e) => e.hasExemplars).length;
+    const cachedCount = entries.filter((e) => e.cached).length;
     stats.push({
       feature,
       callCount: entries.length,
@@ -174,6 +184,7 @@ export const aggregateFeatureStats = (logs: AiCallLog[]): FeatureStats[] => {
       fallbackRate: entries.length > 0 ? fallbackCount / entries.length : 0,
       exemplarInjectionRate:
         entries.length > 0 ? exemplarCount / entries.length : 0,
+      cacheHitRate: entries.length > 0 ? cachedCount / entries.length : 0,
       lastCallAt: Math.max(...entries.map((e) => e.createdAt)),
     });
   }

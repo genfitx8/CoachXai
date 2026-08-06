@@ -717,6 +717,12 @@ export interface AiCallLog {
   hasExemplars: boolean;
   /** True when responseSchema was attached (structured JSON contract). */
   hasSchema: boolean;
+  /**
+   * True when the response came from the local aiResponseCache instead of
+   * a real Gemini call. Cache hits skip the network entirely — latencyMs
+   * will be near-zero and no cost is incurred.
+   */
+  cached?: boolean;
   createdAt: number;
 }
 

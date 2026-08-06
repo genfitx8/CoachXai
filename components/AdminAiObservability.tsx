@@ -256,6 +256,7 @@ export const AdminAiObservability: React.FC = () => {
                   <th className="px-4 py-2 text-right font-semibold">P50</th>
                   <th className="px-4 py-2 text-right font-semibold">P95</th>
                   <th className="px-4 py-2 text-right font-semibold">폴백률</th>
+                  <th className="px-4 py-2 text-right font-semibold">Cache</th>
                   <th className="px-4 py-2 text-right font-semibold">Exemplar</th>
                   <th className="px-4 py-2 text-right font-semibold">최근</th>
                 </tr>
@@ -295,6 +296,9 @@ export const AdminAiObservability: React.FC = () => {
                       }`}
                     >
                       {formatPercent(s.fallbackRate)}
+                    </td>
+                    <td className="px-4 py-2 text-right text-gray-700">
+                      {formatPercent(s.cacheHitRate)}
                     </td>
                     <td className="px-4 py-2 text-right text-gray-700">
                       {formatPercent(s.exemplarInjectionRate)}
@@ -353,6 +357,11 @@ export const AdminAiObservability: React.FC = () => {
                       {r.responseLength.toLocaleString()}
                     </td>
                     <td className="px-4 py-2 text-xs">
+                      {r.cached && (
+                        <span className="inline-block px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 mr-1">
+                          cached
+                        </span>
+                      )}
                       {r.hasExemplars && (
                         <span className="inline-block px-1.5 py-0.5 rounded bg-purple-100 text-purple-700 mr-1">
                           few-shot

@@ -43,7 +43,12 @@ import {
   formatLessonEntry,
 } from './lessonContext';
 import { resolveApiBaseUrl } from './apiBase';
-import { recordAiCall } from './aiCallLogger';
+import { recordAiCall, hashPrompt } from './aiCallLogger';
+import {
+  CACHEABLE_FEATURES,
+  getCachedResponse,
+  setCachedResponse,
+} from './aiResponseCache';
 
 const log = createLogger('gemini');
 
@@ -108,6 +113,40 @@ const invokeBackendAI = async <T>(feature: string, payload: unknown): Promise<T>
   const startedAt = Date.now();
   const meta = inspectPayload(payload);
 
+  // Cache lookup — only for allowlisted deterministic features. Skip when
+  // the prompt carries few-shot exemplars because the exemplar pool can
+  // shift as coaches star new outputs; a stale cache would defeat that.
+  if (
+    CACHEABLE_FEATURES.has(feature) &&
+    meta.prompt &&
+    !meta.hasExemplars
+  ) {
+    try {
+      const promptHash = await hashPrompt(meta.prompt);
+      const cached = getCachedResponse(feature, promptHash);
+      if (cached != null) {
+        void recordAiCall({
+          feature,
+          coachId: meta.coachId,
+          prompt: meta.prompt,
+          responseText: cached,
+          latencyMs: Date.now() - startedAt,
+          status: 'success',
+          hasExemplars: meta.hasExemplars,
+          hasSchema: meta.hasSchema,
+          cached: true,
+        });
+        // The cached response is always a string. Callers that expect a
+        // richer object should still receive the JSON-parseable text they
+        // originally produced — invokeBackendAI's <T> is nominal.
+        return cached as unknown as T;
+      }
+    } catch {
+      // Cache path is best-effort — any failure here just falls through
+      // to the real network call.
+    }
+  }
+
   try {
     const response = await fetch(getAiApiEndpoint(), {
       method: 'POST',
@@ -129,18 +168,38 @@ const invokeBackendAI = async <T>(feature: string, payload: unknown): Promise<T>
       throw new Error(message);
     }
 
+    const responseText = extractResponseText(body.result);
+
     // Fire-and-forget success log. Do NOT await — telemetry must never
     // add latency to the response the caller returns to the user.
     void recordAiCall({
       feature,
       coachId: meta.coachId,
       prompt: meta.prompt,
-      responseText: extractResponseText(body.result),
+      responseText,
       latencyMs: Date.now() - startedAt,
       status: 'success',
       hasExemplars: meta.hasExemplars,
       hasSchema: meta.hasSchema,
     });
+
+    // Cache write for the eligible features. Same exemplar guard as the
+    // read side so we never poison the cache with an exemplar-conditioned
+    // response and serve it back after the exemplars have changed.
+    if (
+      CACHEABLE_FEATURES.has(feature) &&
+      meta.prompt &&
+      !meta.hasExemplars &&
+      responseText
+    ) {
+      hashPrompt(meta.prompt)
+        .then((promptHash) =>
+          setCachedResponse(feature, promptHash, responseText)
+        )
+        .catch(() => {
+          /* best-effort — cache write failure is silent */
+        });
+    }
 
     return body.result as T;
   } catch (err) {

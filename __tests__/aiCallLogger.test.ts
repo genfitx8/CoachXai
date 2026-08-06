@@ -245,4 +245,15 @@ describe('aggregateFeatureStats', () => {
     const [stat] = aggregateFeatureStats(logs);
     expect(stat.lastCallAt).toBe(3000);
   });
+
+  it('computes cache hit rate from the cached flag', () => {
+    const logs = [
+      makeLog({ cached: true }),
+      makeLog({ cached: true }),
+      makeLog({ cached: false }),
+      makeLog({}),
+    ];
+    const [stat] = aggregateFeatureStats(logs);
+    expect(stat.cacheHitRate).toBeCloseTo(0.5);
+  });
 });
