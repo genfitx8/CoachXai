@@ -12,6 +12,7 @@ import {
 import {
   isGeminiApiConfigured,
   invokeGeminiApi,
+  streamGeminiApi,
 } from '../services/geminiApiRuntime';
 
 type RuntimePart =
@@ -161,6 +162,103 @@ router.post('/invoke', async (req: Request, res: Response) => {
     res
       .status(500)
       .json({ ok: false, error: 'Internal AI gateway error', fallback: true });
+  }
+});
+
+/**
+ * Streaming variant of /invoke. Currently supports the Gemini API runtime
+ * only — Agent Platform / legacy runtimes fall through with a 501 so the
+ * client can gracefully fall back to the non-streaming path.
+ *
+ * Response is Server-Sent Events:
+ *   event: chunk    data: {"text": "…"}
+ *   event: done     data: {"status": "ok"}
+ *   event: error    data: {"message": "…"}
+ *
+ * Chunks are yielded as they arrive from Gemini so the client can render
+ * incrementally. The server never buffers the full response.
+ */
+router.post('/invoke-stream', async (req: Request, res: Response) => {
+  const { feature, payload } = req.body as {
+    feature?: string;
+    payload?: unknown;
+  };
+
+  if (!feature || typeof feature !== 'string') {
+    res.status(400).json({ ok: false, error: 'feature is required' });
+    return;
+  }
+
+  if (!isGeminiApiConfigured()) {
+    res
+      .status(501)
+      .json({ ok: false, error: 'streaming requires GEMINI_API_KEY runtime' });
+    return;
+  }
+
+  const payloadObj =
+    payload && typeof payload === 'object' && !Array.isArray(payload)
+      ? (payload as Record<string, unknown>)
+      : {};
+  const rawParts = Array.isArray(payloadObj.mediaParts) ? payloadObj.mediaParts : [];
+  const validParts = rawParts.filter(isValidRuntimePart);
+
+  const runtimeRequest: AgentRuntimeInvokeRequest = {
+    operation: feature,
+    prompt: typeof payloadObj.prompt === 'string' ? payloadObj.prompt : undefined,
+    parts: validParts.length > 0 ? validParts : undefined,
+    responseMimeType:
+      typeof payloadObj.responseMimeType === 'string'
+        ? payloadObj.responseMimeType
+        : undefined,
+    responseSchema:
+      payloadObj.responseSchema && typeof payloadObj.responseSchema === 'object'
+        ? payloadObj.responseSchema
+        : undefined,
+    systemInstruction:
+      typeof payloadObj.systemInstruction === 'string'
+        ? payloadObj.systemInstruction
+        : undefined,
+    temperature: resolveTemperature(
+      feature,
+      typeof payloadObj.temperature === 'number' ? payloadObj.temperature : undefined
+    ),
+  };
+
+  // SSE headers — set before the first write so intermediaries flush per-event.
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache, no-transform');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no'); // disable proxy buffering (nginx)
+  res.flushHeaders?.();
+
+  const writeEvent = (event: string, data: unknown): void => {
+    res.write(`event: ${event}\n`);
+    res.write(`data: ${JSON.stringify(data)}\n\n`);
+  };
+
+  // If the client disconnects mid-stream we still finish reading the
+  // upstream so we don't leak; but stop writing to the closed socket.
+  let clientClosed = false;
+  req.on('close', () => {
+    clientClosed = true;
+  });
+
+  try {
+    for await (const chunk of streamGeminiApi(runtimeRequest)) {
+      if (clientClosed) break;
+      writeEvent('chunk', { text: chunk });
+    }
+    if (!clientClosed) writeEvent('done', { status: 'ok' });
+  } catch (error) {
+    if (!clientClosed) {
+      writeEvent('error', {
+        message: error instanceof Error ? error.message : String(error),
+      });
+    }
+    console.error('[ai] POST /invoke-stream error:', error);
+  } finally {
+    if (!clientClosed) res.end();
   }
 });
 

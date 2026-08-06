@@ -49,6 +49,7 @@ import {
   getCachedResponse,
   setCachedResponse,
 } from './aiResponseCache';
+import { invokeBackendAIStream, StreamNotSupportedError } from './aiStream';
 
 const log = createLogger('gemini');
 
@@ -1736,6 +1737,142 @@ Do not introduce topics unrelated to the conversation or golf coaching.`;
     return text;
   } catch (error) {
     log.error('CoachX runtime chat error:', error);
+    return fallback();
+  }
+};
+
+/**
+ * Streaming variant of generateCoachXChatResponse. Same context assembly,
+ * same fallback semantics, but chunks arrive incrementally via `onChunk`
+ * so the UI can render as the model writes instead of showing a spinner
+ * for 3-5 seconds.
+ *
+ * If the backend doesn't support streaming (StreamNotSupportedError), we
+ * transparently fall back to the non-streaming variant — the caller's
+ * onChunk simply won't fire, but the final resolved text is identical.
+ */
+export const generateCoachXChatResponseStream = async (
+  userMessage: string,
+  allLessons: Lesson[],
+  clients: ClientProfile[],
+  onChunk: (delta: string, accumulated: string) => void,
+  language: CoachXLanguage = 'ko',
+  conversationHistory: { role: 'user' | 'assistant'; content: string }[] = [],
+  coachId?: string,
+  signal?: AbortSignal
+): Promise<string> => {
+  const fallback = () =>
+    generateHeuristicResponse(userMessage, allLessons, clients, language);
+
+  try {
+    const memberCount = new Set(
+      allLessons.map((l) => `${l.clientName}_${l.clientPhone}`)
+    ).size;
+
+    const recentLessons = [...allLessons]
+      .sort((a, b) => b.createdAt - a.createdAt)
+      .slice(0, 15);
+
+    const lessonContext =
+      recentLessons.length > 0
+        ? recentLessons
+            .map((l) =>
+              formatLessonEntry(l, { includeClientName: true, maxNoteLength: 220 })
+            )
+            .join('\n\n')
+        : '기록 없음';
+
+    const memberOverview = buildMemberActivityOverview(allLessons, clients, {
+      limit: 10,
+      recentDays: 45,
+    });
+
+    const clientContext =
+      clients.length > 0
+        ? clients
+            .slice(0, 15)
+            .map((c) => {
+              const parts = [c.name];
+              if (c.handicap) parts.push(`handicap ${c.handicap}`);
+              return parts.join(', ');
+            })
+            .join('; ')
+        : 'No registered clients.';
+
+    const LANG_INSTRUCTION: Record<CoachXLanguage, string> = {
+      ko: '반드시 한국어로 답변하세요.',
+      en: 'Respond entirely in English.',
+      ja: '必ず日本語で回答してください。',
+      th: 'Respond entirely in English.',
+    };
+
+    const isFirebaseMode = firebaseService.isInitialized();
+    const systemPrompt = await promptService.getActiveSystemPrompt(
+      'coachx_chat',
+      isFirebaseMode,
+      coachId
+    );
+
+    const historyToInclude = conversationHistory.slice(-10);
+    const conversationBlock =
+      historyToInclude.length > 0
+        ? '\nConversation history (oldest → newest):\n' +
+          historyToInclude
+            .map((m) => `${m.role === 'user' ? 'Coach' : 'CoachX'}: ${m.content}`)
+            .join('\n') +
+          '\n'
+        : '';
+
+    const systemInstruction = `${systemPrompt}
+
+Language instruction: ${LANG_INSTRUCTION[language]}`;
+
+    const prompt = `--- Provided data (answer ONLY from this) ---
+Coach context:
+- Total lesson records: ${allLessons.length}
+- Total members: ${memberCount}
+- Registered clients: ${clientContext}
+${memberOverview ? `\n${memberOverview}\n` : ''}
+Recent lesson history (up to ${recentLessons.length} most recent, richest first):
+${lessonContext}
+${conversationBlock}
+--- End of provided data ---
+
+Coach's question: "${userMessage}"
+
+IMPORTANT: Answer strictly based on the provided data and conversation history above.
+When a specific member is mentioned, ground your answer in that member's actual
+lessons, metrics, motion-capture, and scorecard from above.
+Do not introduce topics unrelated to the conversation or golf coaching.`;
+
+    try {
+      const text = await invokeBackendAIStream(
+        'coachx_chat',
+        { prompt, systemInstruction, language },
+        { onChunk, signal }
+      );
+      if (!text.trim()) throw new Error('Empty response from Gemini stream');
+      return text;
+    } catch (streamErr) {
+      if (streamErr instanceof StreamNotSupportedError) {
+        // Backend runtime doesn't support streaming — fall through to the
+        // non-streaming path so the user still gets an answer.
+        const result = await invokeBackendAI<unknown>('coachx_chat', {
+          prompt,
+          systemInstruction,
+          language,
+        });
+        const text = getResponseText(result) ?? '';
+        if (!text.trim()) throw new Error('Empty response from Gemini');
+        // Deliver the full text as one "chunk" so the caller's UI code
+        // paths stay uniform.
+        onChunk(text, text);
+        return text;
+      }
+      throw streamErr;
+    }
+  } catch (error) {
+    log.error('CoachX runtime chat stream error:', error);
     return fallback();
   }
 };
