@@ -857,61 +857,66 @@ function segmentEvents(
   const impact = impactIdx >= 0 ? build('impact', impactIdx) : undefined;
   const finish = build('finish', finishIdx);
 
-  // ── Half-phase markers: lead arm parallel to the ground ────────────────
-  // TPI P2 / P6 / P8 are all defined by "lead arm horizontal", not by time
-  // or wrist height. We compute the angle between the shoulder→wrist
-  // vector (averaged L/R since handedness isn't known yet at this stage)
-  // and the gravity-up vector, then locate the frame inside each bracket
-  // where that angle is closest to 90°.
+  // ── Half-phase markers: LEAD arm parallel to the ground ────────────────
+  // TPI P3 / P6 / P8 are all defined by "lead arm horizontal", not by time
+  // or wrist height. The lead arm is the straight arm through the swing;
+  // the trail arm folds at the elbow so averaging L+R gives a vector that
+  // doesn't represent the actual arm plane. We detect handedness inline
+  // (from the Top frame we just found) and use LEAD arm only.
+  //
+  // Signal: project the (leadWrist − leadShoulder) offset onto the gravity
+  // axis. That projection is the arm's vertical drop from the shoulder.
+  // At address it's ~ +armLength (arm hangs down); at P3 it crosses zero
+  // (wrist at shoulder height = horizontal); at Top it's negative (wrist
+  // above shoulder). The zero-crossing frame is the physical arm-horizontal
+  // moment.
   //
   // Falls back to wrist-Y midpoint when gravity is unavailable (2D-only
-  // frames, missing lower-body landmarks in a tightly cropped shot). The
-  // fallback is less physically exact but still gives coaches something
-  // reasonable to pause on.
+  // frames, missing lower-body landmarks in a tightly cropped shot).
   const gravity = track.is3D
     ? estimateGravityFromAddress(frames, addressIdx, Math.min(8, frames.length - addressIdx))
     : undefined;
+  const hand: Handedness = topIdx > 0 ? detectHandedness(frames, topIdx) : 'unknown';
+  const leadShoulderIdx = hand === 'left' ? 12 : 11;
+  const leadWristIdx = hand === 'left' ? 16 : 15;
 
-  const armAngleFromUp = (frameIdx: number): number => {
+  /** Vertical drop of the lead wrist below the lead shoulder, along gravity.
+   *  Positive = wrist below shoulder (backswing start, address, impact).
+   *  Zero    = wrist at shoulder height (arm horizontal — P3/P6/P8).
+   *  Negative = wrist above shoulder (top of backswing). */
+  const leadWristVerticalDrop = (frameIdx: number): number => {
     if (!gravity) return NaN;
     const w = frames[frameIdx]?.worldKeypoints;
     if (!w) return NaN;
-    const ls = toVec3(w[11]);
-    const lw = toVec3(w[15]);
-    const rs = toVec3(w[12]);
-    const rw = toVec3(w[16]);
-    // Average both arm vectors — near-parallel through most of the swing,
-    // and this avoids needing handedness before we compute it.
-    const arms: Vec3[] = [];
-    if (ls && lw) arms.push(subtract(lw, ls));
-    if (rs && rw) arms.push(subtract(rw, rs));
-    if (arms.length === 0) return NaN;
-    const armAvg = arms.reduce(
-      (acc, v) => ({ x: acc.x + v.x, y: acc.y + v.y, z: acc.z + v.z }),
-      { x: 0, y: 0, z: 0 } as Vec3,
-    );
-    return angleBetween(armAvg, gravity);
+    const s = toVec3(w[leadShoulderIdx]);
+    const wr = toVec3(w[leadWristIdx]);
+    if (!s || !wr) return NaN;
+    const offset = subtract(wr, s);
+    // Project onto -gravity (down direction): positive when wrist is below
+    // the shoulder. gravity is a unit "up" vector.
+    return -(offset.x * gravity.x + offset.y * gravity.y + offset.z * gravity.z);
   };
 
   const halfMarker = (fromIdx: number, toIdx: number): number => {
     if (fromIdx < 0 || toIdx < 0 || toIdx - fromIdx < 3) return -1;
-    // Physical: find the frame closest to arm-horizontal (90° from up).
-    if (gravity) {
+    // Physical: find the frame closest to arm-horizontal (drop crosses 0).
+    if (gravity && hand !== 'unknown') {
       let bestIdx = -1;
       let bestDelta = Infinity;
       for (let i = fromIdx + 1; i < toIdx; i++) {
-        const a = armAngleFromUp(i);
-        if (!Number.isFinite(a)) continue;
-        const d = Math.abs(a - 90);
-        if (d < bestDelta) {
-          bestDelta = d;
+        const d = leadWristVerticalDrop(i);
+        if (!Number.isFinite(d)) continue;
+        const absD = Math.abs(d);
+        if (absD < bestDelta) {
+          bestDelta = absD;
           bestIdx = i;
         }
       }
-      // Only trust the arm-horizontal frame if we got within 25° of true
-      // horizontal — otherwise the arm never got close enough (short/punch
-      // swing) and we fall through to the geometric midpoint.
-      if (bestIdx > 0 && bestDelta < 25) return bestIdx;
+      // Trust the physical detection only when the wrist gets within 15cm
+      // of true shoulder height. Short/punch swings that never reach P3
+      // fall through to the geometric midpoint instead of latching to a
+      // spuriously-close-to-zero frame at a bracket edge.
+      if (bestIdx > 0 && bestDelta < 0.15) return bestIdx;
     }
     // Geometric fallback: wrist Y midpoint between the two parent frames.
     const yStart = wristY[fromIdx];
