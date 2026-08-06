@@ -213,6 +213,28 @@ export interface SwingSummary {
   kineticSequence?: KineticSequence;
 }
 
+/**
+ * A candidate swing interval detected in a longer video. Each interval
+ * bounds a distinct swing so unedited footage — with waggle, walking, or
+ * multiple swings — can be sliced down to the meaningful segment.
+ */
+export interface SwingInterval {
+  /** Absolute seconds into the source video where this swing starts. */
+  startT: number;
+  /** Absolute seconds into the source video where this swing ends. */
+  endT: number;
+  /** Peak wrist speed within the interval (m/s if 3D, unit/s if 2D). */
+  peakSpeed: number;
+  /** Time of peak wrist speed in seconds (impact-ish). */
+  peakT: number;
+  /**
+   * 0..1 confidence this interval is a real swing. Combines peak speed,
+   * duration plausibility, and how cleanly the interval is bounded by still
+   * periods on either side. Callers can rank alternate candidates by this.
+   */
+  confidence: number;
+}
+
 export interface SwingAnalysis {
   /** Video source (blob URL or original URL) used for the run. */
   videoUrl: string;
@@ -220,6 +242,18 @@ export interface SwingAnalysis {
   frames: SwingFrame[];
   /** Sample rate actually achieved (frames per second). */
   sampledFps: number;
+  /**
+   * Interval that was auto-detected and used for the analysis. Undefined
+   * when the caller passed an explicit startTime/endTime (no auto-detection
+   * ran) or when detection found no plausible swing.
+   */
+  detectedInterval?: SwingInterval;
+  /**
+   * Other swing candidates found in the video, sorted by confidence
+   * descending. Populated only when multiple plausible swings were found —
+   * UI can offer them for re-analysis. Excludes the chosen `detectedInterval`.
+   */
+  alternateIntervals?: SwingInterval[];
   /**
    * Detected source video frame rate. Undefined when the browser's
    * `requestVideoFrameCallback` isn't available (e.g. some Firefox / older

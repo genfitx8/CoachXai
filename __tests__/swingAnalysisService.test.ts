@@ -17,6 +17,7 @@ const {
   adaptiveSpeedThresholds,
   percentileFinite,
   segmentEvents,
+  detectSwingIntervals,
 } = __testing__;
 
 type PointMap = Record<number, { x: number; y: number; z: number }>;
@@ -398,10 +399,14 @@ describe('segmentEvents — integration', () => {
         x = -0.6 * u;
         y = -1.5 * u; // negative = higher in MediaPipe world coords
       } else if (t < 1.6) {
-        // Downswing: from top back through ball (y = +0.2 at t=1.6).
+        // Downswing: from top back through ball (y = +0.2 at t=1.6). Use a
+        // quadratic ease-in so speed peaks at impact (t=1.6), matching a
+        // real swing's release / whip — otherwise the impact detector
+        // picks an arbitrary frame in a constant-velocity slide.
         const u = (t - 1.3) / 0.3;
-        x = -0.6 + 1.2 * u; // −0.6 → +0.6
-        y = -1.5 + 1.7 * u; // −1.5 → +0.2
+        const uu = u * u;
+        x = -0.6 + 1.2 * uu; // −0.6 → +0.6
+        y = -1.5 + 1.7 * uu; // −1.5 → +0.2
       } else if (t < 1.9) {
         // Follow-through: continue past the ball.
         const u = (t - 1.6) / 0.3;
@@ -413,18 +418,40 @@ describe('segmentEvents — integration', () => {
         y = -0.4;
       }
       // Both wrists at the same spot (simplification — the track averages
-      // them). Add shoulders (fixed at torso height y=-0.7) and lower-body
-      // landmarks so `estimateGravityFromAddress` can recover a real "up"
-      // vector — the physical arm-horizontal detection needs it.
+      // them). Add shoulders (fixed at torso height y=-0.7), lower-body
+      // landmarks (so `estimateGravityFromAddress` can recover "up"), and
+      // asymmetric elbows so `detectHandedness` can identify the lead arm
+      // — the physical arm-horizontal detection needs both.
+      //
+      // Right-handed pattern: left (lead) arm nearly straight so its elbow
+      // sits on the shoulder-wrist line; right (trail) arm folds so its
+      // elbow is pulled in toward the body.
+      const shoulderL = { x: -0.2, y: -0.7, z: 0 };
+      const shoulderR = { x: 0.2, y: -0.7, z: 0 };
+      const wrist = { x, y, z: 0 };
+      // Lead (left) elbow ~ midpoint of shoulder→wrist (straight arm).
+      const elbowL = {
+        x: (shoulderL.x + wrist.x) / 2,
+        y: (shoulderL.y + wrist.y) / 2,
+        z: 0,
+      };
+      // Trail (right) elbow closer to the body — bent.
+      const elbowR = {
+        x: shoulderR.x - 0.1,
+        y: (shoulderR.y + wrist.y) / 2 - 0.05,
+        z: 0,
+      };
       const world: PointMap = {
-        11: { x: -0.2, y: -0.7, z: 0 }, // left shoulder
-        12: { x: 0.2, y: -0.7, z: 0 }, // right shoulder
-        15: { x, y, z: 0 }, // left wrist
-        16: { x, y, z: 0 }, // right wrist
-        23: { x: -0.1, y: 0, z: 0 }, // left hip
-        24: { x: 0.1, y: 0, z: 0 }, // right hip
-        27: { x: -0.1, y: 0.9, z: 0 }, // left ankle
-        28: { x: 0.1, y: 0.9, z: 0 }, // right ankle
+        11: shoulderL,
+        12: shoulderR,
+        13: elbowL,
+        14: elbowR,
+        15: wrist,
+        16: wrist,
+        23: { x: -0.1, y: 0, z: 0 },
+        24: { x: 0.1, y: 0, z: 0 },
+        27: { x: -0.1, y: 0.9, z: 0 },
+        28: { x: 0.1, y: 0.9, z: 0 },
       };
       frames.push(makeFrame(t, world));
     }
@@ -491,21 +518,121 @@ describe('segmentEvents — integration', () => {
     expect(ft).toBeLessThan(fn);
   });
 
-  it('half_backswing lands where the lead arm is horizontal, not at the time midpoint', () => {
+  it('half_backswing lands where the lead arm is horizontal (P3), within cm of shoulder height', () => {
     // Synthetic backswing sweeps the wrist from address (t=0.5, y=0) linearly
-    // to top (t=1.3, y=-1.5). Shoulders sit at y=-0.7. "Arm horizontal" (wrist
-    // at shoulder height) occurs when wrist y ≈ -0.7, well past the pure
-    // geometric midpoint. Verify the detected frame has wrist near shoulder
-    // height, which is the physical definition coaches actually use.
+    // to top (t=1.3, y=-1.5). Shoulder Y = -0.7. Arm horizontal means the
+    // lead wrist Y is within ~5cm of the lead shoulder Y — a much tighter
+    // bound than the wristY-midpoint fallback would deliver. Achieving this
+    // proves the lead-arm-only physical path is active (handedness
+    // detected + gravity recovered).
     const fps = 60;
     const frames = buildSyntheticSwing(fps);
     const { events } = segmentEvents(frames, fps);
     const hb = events.half_backswing!;
     const w = frames[hb.frameIndex].worldKeypoints!;
-    const wristY = (w[15].y + w[16].y) / 2;
-    const shoulderY = (w[11].y + w[12].y) / 2;
-    // Wrist is at (near) shoulder height when arm is horizontal to the side.
-    expect(Math.abs(wristY - shoulderY)).toBeLessThan(0.25);
+    // Right-handed synthetic: lead is left arm (index 15 wrist, 11 shoulder).
+    const leadWristY = w[15].y;
+    const leadShoulderY = w[11].y;
+    expect(Math.abs(leadWristY - leadShoulderY)).toBeLessThan(0.05);
+  });
+
+  it('mid_downswing lands where the lead arm is horizontal on the way down', () => {
+    // Downswing crosses arm-horizontal on the way back down. The frame we
+    // pick should have the lead wrist within cm of shoulder height, same
+    // physical criterion as half_backswing.
+    const fps = 60;
+    const frames = buildSyntheticSwing(fps);
+    const { events } = segmentEvents(frames, fps);
+    const md = events.mid_downswing!;
+    const w = frames[md.frameIndex].worldKeypoints!;
+    const leadWristY = w[15].y;
+    const leadShoulderY = w[11].y;
+    expect(Math.abs(leadWristY - leadShoulderY)).toBeLessThan(0.15);
+  });
+
+  it('detectSwingIntervals finds the single swing in a clip with idle preamble', () => {
+    // Build a 6s clip: 2s of idle preamble (waggle-ish micro-motion), then
+    // a real swing (2.3s) starting at t=2s, then 1.7s of chatter afterward.
+    const fps = 60;
+    const dt = 1 / fps;
+    const frames: SwingFrame[] = [];
+    const totalT = 6.0;
+    const nFrames = Math.round(totalT * fps);
+    // Small helper that reuses the synthetic swing geometry starting at
+    // absolute time `swingStart` and lasting 2.3s.
+    const wristAt = (swingLocalT: number): { x: number; y: number } => {
+      if (swingLocalT < 0 || swingLocalT >= 2.3) return { x: 0, y: 0 };
+      if (swingLocalT < 0.5) return { x: 0, y: 0 };
+      if (swingLocalT < 1.3) {
+        const u = (swingLocalT - 0.5) / 0.8;
+        return { x: -0.6 * u, y: -1.5 * u };
+      }
+      if (swingLocalT < 1.6) {
+        const u = (swingLocalT - 1.3) / 0.3;
+        return { x: -0.6 + 1.2 * u, y: -1.5 + 1.7 * u };
+      }
+      if (swingLocalT < 1.9) {
+        const u = (swingLocalT - 1.6) / 0.3;
+        return { x: 0.6 - 0.3 * u, y: 0.2 - 0.6 * u };
+      }
+      return { x: 0.3, y: -0.4 };
+    };
+    const swingStart = 2.0;
+    for (let i = 0; i < nFrames; i++) {
+      const t = i * dt;
+      const { x, y } = wristAt(t - swingStart);
+      // Idle preamble: tiny sinusoidal jitter (waggle), well below MOVING.
+      const jitter = t < 1.9 ? 0.01 * Math.sin(t * 6) : 0;
+      const world: PointMap = {
+        11: { x: -0.2, y: -0.7, z: 0 },
+        12: { x: 0.2, y: -0.7, z: 0 },
+        15: { x: x + jitter, y, z: 0 },
+        16: { x: x + jitter, y, z: 0 },
+        23: { x: -0.1, y: 0, z: 0 },
+        24: { x: 0.1, y: 0, z: 0 },
+        27: { x: -0.1, y: 0.9, z: 0 },
+        28: { x: 0.1, y: 0.9, z: 0 },
+      };
+      frames.push(makeFrame(t, world));
+    }
+
+    const intervals = detectSwingIntervals(frames, fps);
+    expect(intervals.length).toBeGreaterThanOrEqual(1);
+    const best = intervals[0];
+    // Detected window brackets the real swing (2.0s – 4.3s) with modest slack.
+    expect(best.startT).toBeGreaterThan(1.0);
+    expect(best.startT).toBeLessThan(2.5);
+    expect(best.endT).toBeGreaterThan(4.0);
+    expect(best.endT).toBeLessThan(5.5);
+    expect(best.confidence).toBeGreaterThan(0.3);
+    // Peak sits near impact (t ≈ 3.5s, since impact is 1.5s into the swing
+    // which started at 2.0s).
+    expect(best.peakT).toBeGreaterThan(3.0);
+    expect(best.peakT).toBeLessThan(4.0);
+  });
+
+  it('detectSwingIntervals returns empty when the clip has no swing', () => {
+    // 3s of nothing but landmark jitter — no burst should register.
+    const fps = 60;
+    const dt = 1 / fps;
+    const frames: SwingFrame[] = [];
+    for (let i = 0; i < 180; i++) {
+      const t = i * dt;
+      const jitter = 0.005 * Math.sin(t * 7);
+      const world: PointMap = {
+        11: { x: -0.2, y: -0.7, z: 0 },
+        12: { x: 0.2, y: -0.7, z: 0 },
+        15: { x: jitter, y: 0, z: 0 },
+        16: { x: jitter, y: 0, z: 0 },
+        23: { x: -0.1, y: 0, z: 0 },
+        24: { x: 0.1, y: 0, z: 0 },
+        27: { x: -0.1, y: 0.9, z: 0 },
+        28: { x: 0.1, y: 0.9, z: 0 },
+      };
+      frames.push(makeFrame(t, world));
+    }
+    const intervals = detectSwingIntervals(frames, fps);
+    expect(intervals).toEqual([]);
   });
 
   it('warns and uses frame 0 as address when the clip starts mid-motion', () => {
