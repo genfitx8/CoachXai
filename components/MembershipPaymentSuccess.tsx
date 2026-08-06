@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { CheckCircle, Loader2, AlertCircle, ArrowLeft } from 'lucide-react';
 import { ClientProfile } from '../types';
+import { BackButton } from './ui/BackButton';
 
 interface MembershipPaymentSuccessProps {
   clientProfile: ClientProfile;
@@ -125,7 +126,13 @@ export const MembershipPaymentSuccess: React.FC<MembershipPaymentSuccessProps> =
   }, [clientProfile, onMembershipUpdated]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-blue-50 flex flex-col items-center justify-center p-6">
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-blue-50 flex flex-col">
+      <div className="bg-white/80 backdrop-blur-sm border-b border-gray-100 px-4 py-3 flex items-center gap-3 sticky top-0 z-10">
+        <BackButton onClick={onBack} tone="light" />
+        <h1 className="text-lg font-bold text-gray-900">멤버십 결제 결과</h1>
+      </div>
+
+      <div className="flex-1 flex flex-col items-center justify-center p-6">
       {status === 'loading' && (
         <div className="text-center space-y-4">
           <Loader2 className="w-16 h-16 text-indigo-700 animate-spin mx-auto" />
@@ -169,6 +176,7 @@ export const MembershipPaymentSuccess: React.FC<MembershipPaymentSuccessProps> =
           </button>
         </div>
       )}
+      </div>
     </div>
   );
 };

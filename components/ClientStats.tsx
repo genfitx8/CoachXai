@@ -2,7 +2,8 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { ClientProfile, Lesson } from '../types';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine, AreaChart, Area, BarChart, Bar, Cell } from 'recharts';
-import { ArrowLeft, TrendingUp, TrendingDown, Minus, Target, Wind, Calendar, Trophy, Flag, Activity, LayoutDashboard, Crosshair, Filter, CalendarDays, RefreshCw, Percent, CircleDot, Mic, GitCompareArrows, Sparkles, AlertTriangle, Star } from 'lucide-react';
+import { TrendingUp, TrendingDown, Minus, Target, Wind, Calendar, Trophy, Flag, Activity, LayoutDashboard, Crosshair, Filter, CalendarDays, RefreshCw, Percent, CircleDot, Mic, GitCompareArrows, Sparkles, AlertTriangle, Star } from 'lucide-react';
+import { BackButton } from './ui/BackButton';
 import { Button } from './Button';
 import { getTourAverageDistanceM, getTourLabel, TourGender } from '../constants/tourAverages';
 import { analyzeShotStrategy, ShotStrategyReport } from '../services/geminiService';
@@ -602,9 +603,7 @@ export const ClientStats: React.FC<ClientStatsProps> = ({ lessons, onBack, clien
   return (
     <div className="space-y-4 animate-fade-in pb-10">
       <div className="flex items-center justify-between">
-        <Button variant="ghost" onClick={onBack} className="pl-0 hover:bg-transparent">
-             <ArrowLeft className="w-5 h-5 mr-1" /> 목록
-        </Button>
+        <BackButton onClick={onBack} tone="dark" label="목록" ariaLabel="목록으로 돌아가기" />
         <h2 className="text-lg font-bold text-gray-900">분석 리포트</h2>
       </div>
 
