@@ -141,7 +141,7 @@ export const MembershipPaymentSuccess: React.FC<MembershipPaymentSuccessProps> =
       )}
 
       {status === 'success' && (
-        <div className="bg-white rounded-3xl shadow-xl p-8 max-w-sm w-full text-center space-y-5">
+        <div className="bg-white rounded-3xl shadow-xl p-6 sm:p-8 max-w-sm w-full text-center space-y-5">
           <CheckCircle className="w-20 h-20 text-indigo-700 mx-auto" />
           <div>
             <h2 className="text-2xl font-black text-gray-900">업그레이드 완료!</h2>
@@ -149,7 +149,7 @@ export const MembershipPaymentSuccess: React.FC<MembershipPaymentSuccessProps> =
           </div>
           <div className="bg-indigo-50 rounded-2xl p-4 text-sm text-gray-700">
             <div className="font-bold text-indigo-700">멤버십 만료일</div>
-            <div className="text-lg font-black text-gray-900 mt-1">{endDate}</div>
+            <div className="text-lg font-black text-gray-900 mt-1 break-keep">{endDate}</div>
           </div>
           <button
             onClick={onBack}
@@ -161,7 +161,7 @@ export const MembershipPaymentSuccess: React.FC<MembershipPaymentSuccessProps> =
       )}
 
       {status === 'error' && (
-        <div className="bg-white rounded-3xl shadow-xl p-8 max-w-sm w-full text-center space-y-5">
+        <div className="bg-white rounded-3xl shadow-xl p-6 sm:p-8 max-w-sm w-full text-center space-y-5">
           <AlertCircle className="w-20 h-20 text-red-400 mx-auto" />
           <div>
             <h2 className="text-xl font-black text-gray-900">결제 확인 실패</h2>

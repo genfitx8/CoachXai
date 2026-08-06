@@ -180,7 +180,7 @@ export const CoachXLanding: React.FC<CoachXLandingProps> = ({
 
       <div className="relative z-10 text-center">
         <h1
-          className="text-4xl md:text-5xl tracking-wide font-semibold"
+          className="text-3xl sm:text-4xl md:text-5xl tracking-normal sm:tracking-wide font-semibold"
           style={{
             textShadow: '0 0 40px rgba(56,189,248,0.35), 0 0 80px rgba(56,189,248,0.15)',
           }}

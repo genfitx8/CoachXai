@@ -1776,23 +1776,23 @@ const AppContent: React.FC = () => {
     <div className="min-h-screen bg-gradient-to-b from-[#05070A] via-[#070b12] to-[#0B1220] text-slate-100 flex flex-col font-sans">
       {/* Header */}
       <header className="bg-[#0A0F1A]/95 border-b border-slate-800 shadow-lg shadow-black/30 sticky top-0 z-40 backdrop-blur-xl">
-        <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
+        <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between gap-2">
           {currentUser && 'id' in currentUser && (
             <div
-              className="flex items-center gap-2 text-sm text-slate-200 hover:bg-slate-800 px-3 py-1.5 rounded-full cursor-pointer transition-colors"
+              className="flex items-center gap-2 text-sm text-slate-200 hover:bg-slate-800 px-3 py-1.5 rounded-full cursor-pointer transition-colors min-w-0 max-w-[50%]"
               onClick={() => setShowProfileModal(true)}
             >
-              <div className="bg-indigo-500/20 p-1 rounded-full text-indigo-300">
+              <div className="bg-indigo-500/20 p-1 rounded-full text-indigo-300 flex-shrink-0">
                 <User className="w-4 h-4" />
               </div>
               {/* Always visible Coach Name */}
-              <span className="font-bold">
+              <span className="font-bold truncate">
                 {currentUser.name} {t('coach')}
               </span>
             </div>
           )}
 
-          <div className="flex items-center gap-2 md:gap-4 ml-auto">
+          <div className="flex items-center gap-1.5 sm:gap-2 md:gap-4 ml-auto flex-shrink-0">
             {coachView !== 'LIST' && (
               <button
                 onClick={() => setCoachView('LIST')}
@@ -1907,26 +1907,26 @@ const AppContent: React.FC = () => {
         {coachView === 'LESSON_LIST' && (
           <div className="space-y-6 animate-fade-in">
             {/* Back to Dashboard */}
-              <div className="flex items-center gap-3">
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-2 min-w-0">
                 <button
                   onClick={() => setCoachView('LIST')}
-                  className="flex items-center gap-2 text-sm font-medium text-slate-300 hover:text-slate-100 transition-colors px-3 py-2 rounded-xl hover:bg-slate-800/80 border border-transparent hover:border-slate-700"
+                  className="flex items-center gap-2 text-sm font-medium text-slate-300 hover:text-slate-100 transition-colors px-3 py-2 rounded-xl hover:bg-slate-800/80 border border-transparent hover:border-slate-700 flex-shrink-0"
                 >
                   <X className="w-4 h-4" />
                   대시보드로 돌아가기
                 </button>
-                <h2 className="text-xl font-bold text-slate-100 flex items-center gap-2 tracking-tight">
-                  <BookOpen className="w-5 h-5 text-indigo-300" />
-                  레슨 기록
+                <h2 className="text-lg sm:text-xl font-bold text-slate-100 flex items-center gap-2 tracking-tight min-w-0">
+                  <BookOpen className="w-5 h-5 text-indigo-300 flex-shrink-0" />
+                  <span className="truncate">레슨 기록</span>
                 </h2>
               </div>
 
             {/* Client Filter Section */}
             {userRole === 'COACH' && clients.length > 0 && (
               <div className="bg-slate-900/70 rounded-2xl shadow-sm border border-slate-800/80 p-4">
-                <div className="flex items-center gap-3">
-                  <User className="w-5 h-5 text-indigo-300" />
-                  <div className="flex-1">
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+                  <User className="w-5 h-5 text-indigo-300 flex-shrink-0" />
+                  <div className="flex-1 min-w-[10rem]">
                     <select
                       value={selectedClientFilter}
                       onChange={(e) => setSelectedClientFilter(e.target.value)}
@@ -1944,21 +1944,21 @@ const AppContent: React.FC = () => {
                       }
                     </select>
                   </div>
-                  
+
                   {selectedClientFilter && (
                     <button
                       onClick={() => setCoachView('CLIENT_STATS')}
-                        className="px-4 py-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-500 transition-colors flex items-center gap-2 font-medium shadow-md shadow-indigo-900/40"
+                        className="px-3 sm:px-4 py-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-500 transition-colors flex items-center gap-2 font-medium shadow-md shadow-indigo-900/40 whitespace-nowrap flex-shrink-0"
                     >
                       <BarChart3 className="w-4 h-4" />
                       통계 보기
                     </button>
                   )}
-                  
+
                   {selectedClientFilter && (
                     <button
                       onClick={() => setSelectedClientFilter('')}
-                      className="text-sm text-slate-400 hover:text-red-400 flex items-center gap-1 px-3 py-1.5 rounded-xl hover:bg-red-500/10 transition-colors"
+                      className="text-sm text-slate-400 hover:text-red-400 flex items-center gap-1 px-3 py-1.5 rounded-xl hover:bg-red-500/10 transition-colors whitespace-nowrap flex-shrink-0"
                     >
                       <X className="w-4 h-4" />
                       초기화

@@ -994,18 +994,18 @@ export const ClientStats: React.FC<ClientStatsProps> = ({ lessons, onBack, clien
 
                                     {/* Highlight stat card */}
                                     <div className="bg-gradient-to-br from-violet-600 via-purple-700 to-fuchsia-700 rounded-xl p-4 text-white shadow-xl shadow-purple-900/15 mb-4">
-                                        <div className="flex items-end justify-between">
-                                            <div>
+                                        <div className="flex items-end justify-between gap-2">
+                                            <div className="min-w-0">
                                                 <div className="flex items-center gap-1 opacity-90 mb-1 text-xs font-semibold">
-                                                    <Crosshair className="w-3 h-3" /> 평균 핀으로부터 거리
+                                                    <Crosshair className="w-3 h-3 flex-shrink-0" /> <span className="truncate">평균 핀으로부터 거리</span>
                                                 </div>
-                                                <div className="text-3xl font-bold leading-none">
+                                                <div className="text-2xl sm:text-3xl font-bold leading-none truncate">
                                                     {pinDistanceStats.avgPinDistance}
                                                     <span className="text-base font-medium opacity-90 ml-1">m</span>
                                                 </div>
                                             </div>
                                             {pinDistanceStats.count >= 2 && (
-                                                <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-bold ${
+                                                <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-bold flex-shrink-0 whitespace-nowrap ${
                                                     pinDistanceStats.improvement < 0
                                                         ? 'bg-emerald-400/25 text-emerald-50'
                                                         : pinDistanceStats.improvement > 0

@@ -121,7 +121,7 @@ export const AdminCourseManager: React.FC<AdminCourseManagerProps> = ({ isFireba
             {/* OUT COURSE (1-9) */}
             <div className="mb-4">
               <span className="text-xs font-bold text-gray-500 block mb-2">OUT / 전반 (1-9)</span>
-              <div className="grid grid-cols-9 gap-2">
+              <div className="grid grid-cols-3 sm:grid-cols-9 gap-2">
                 {pars.slice(0, 9).map((par, i) => (
                   <div key={i} className="text-center">
                     <label className="block text-xs text-gray-400 mb-1">{i + 1}H</label>
@@ -140,7 +140,7 @@ export const AdminCourseManager: React.FC<AdminCourseManagerProps> = ({ isFireba
             {/* IN COURSE (10-18) */}
             <div>
               <span className="text-xs font-bold text-gray-500 block mb-2">IN / 후반 (10-18)</span>
-              <div className="grid grid-cols-9 gap-2">
+              <div className="grid grid-cols-3 sm:grid-cols-9 gap-2">
                 {pars.slice(9, 18).map((par, i) => (
                   <div key={i + 9} className="text-center">
                     <label className="block text-xs text-gray-400 mb-1">{i + 10}H</label>
