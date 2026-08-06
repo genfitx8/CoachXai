@@ -1154,7 +1154,7 @@ export const SwingVideoAnalysis: React.FC<SwingVideoAnalysisProps> = ({
     setError(null);
   };
 
-  const runAnalysis = async () => {
+  const runAnalysis = async (window?: { startTime: number; endTime: number }) => {
     if (!videoUrl) return;
     setBusy(true);
     setError(null);
@@ -1163,6 +1163,7 @@ export const SwingVideoAnalysis: React.FC<SwingVideoAnalysisProps> = ({
     try {
       const result = await swingAnalysisService.analyzeSwingFromVideo(videoUrl, {
         onProgress: setProgress,
+        ...(window ? { startTime: window.startTime, endTime: window.endTime } : {}),
       });
       setAnalysis(result);
       onDone?.(result);
@@ -1226,7 +1227,7 @@ export const SwingVideoAnalysis: React.FC<SwingVideoAnalysisProps> = ({
             </label>
             <button
               disabled={!videoUrl || busy}
-              onClick={runAnalysis}
+              onClick={() => runAnalysis()}
               className="px-5 py-3 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-700 disabled:text-slate-500 text-white font-semibold text-sm transition-colors flex items-center justify-center gap-2 min-w-[140px]"
             >
               {busy ? (
@@ -1283,6 +1284,35 @@ export const SwingVideoAnalysis: React.FC<SwingVideoAnalysisProps> = ({
         {analysis && (
           <div className="space-y-4">
             <SummaryBar summary={analysis.summary} />
+            {analysis.detectedInterval && (
+              <div className="rounded-lg bg-emerald-950/30 border border-emerald-900/50 p-3 space-y-2">
+                <div className="text-xs text-emerald-300 leading-relaxed">
+                  <span className="font-semibold">스윙 자동 감지</span>: 편집 없이 올린 영상에서 실제 스윙 구간만 추려 분석했습니다 —{' '}
+                  <span className="font-mono">{analysis.detectedInterval.startT.toFixed(2)}s</span>
+                  {' → '}
+                  <span className="font-mono">{analysis.detectedInterval.endT.toFixed(2)}s</span>{' '}
+                  (신뢰도 {Math.round(analysis.detectedInterval.confidence * 100)}%)
+                </div>
+                {analysis.alternateIntervals && analysis.alternateIntervals.length > 0 && (
+                  <div className="flex flex-wrap items-center gap-2 text-[11px]">
+                    <span className="text-slate-400">다른 스윙 후보:</span>
+                    {analysis.alternateIntervals.map((iv, i) => (
+                      <button
+                        key={`${iv.startT.toFixed(2)}-${i}`}
+                        type="button"
+                        disabled={busy}
+                        onClick={() =>
+                          runAnalysis({ startTime: iv.startT, endTime: iv.endT })
+                        }
+                        className="rounded-full border border-emerald-700/60 bg-slate-900 px-2.5 py-0.5 text-emerald-200 hover:bg-emerald-900/30 disabled:opacity-40"
+                      >
+                        {iv.startT.toFixed(1)}s–{iv.endT.toFixed(1)}s · {Math.round(iv.confidence * 100)}%
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
             {analysis.warnings.length > 0 && (
               <div className="rounded-lg bg-yellow-950/30 border border-yellow-900/50 p-3 space-y-1">
                 {analysis.warnings.map((w, i) => (

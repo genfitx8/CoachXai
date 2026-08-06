@@ -17,6 +17,7 @@ const {
   adaptiveSpeedThresholds,
   percentileFinite,
   segmentEvents,
+  detectSwingIntervals,
 } = __testing__;
 
 type PointMap = Record<number, { x: number; y: number; z: number }>;
@@ -506,6 +507,91 @@ describe('segmentEvents — integration', () => {
     const shoulderY = (w[11].y + w[12].y) / 2;
     // Wrist is at (near) shoulder height when arm is horizontal to the side.
     expect(Math.abs(wristY - shoulderY)).toBeLessThan(0.25);
+  });
+
+  it('detectSwingIntervals finds the single swing in a clip with idle preamble', () => {
+    // Build a 6s clip: 2s of idle preamble (waggle-ish micro-motion), then
+    // a real swing (2.3s) starting at t=2s, then 1.7s of chatter afterward.
+    const fps = 60;
+    const dt = 1 / fps;
+    const frames: SwingFrame[] = [];
+    const totalT = 6.0;
+    const nFrames = Math.round(totalT * fps);
+    // Small helper that reuses the synthetic swing geometry starting at
+    // absolute time `swingStart` and lasting 2.3s.
+    const wristAt = (swingLocalT: number): { x: number; y: number } => {
+      if (swingLocalT < 0 || swingLocalT >= 2.3) return { x: 0, y: 0 };
+      if (swingLocalT < 0.5) return { x: 0, y: 0 };
+      if (swingLocalT < 1.3) {
+        const u = (swingLocalT - 0.5) / 0.8;
+        return { x: -0.6 * u, y: -1.5 * u };
+      }
+      if (swingLocalT < 1.6) {
+        const u = (swingLocalT - 1.3) / 0.3;
+        return { x: -0.6 + 1.2 * u, y: -1.5 + 1.7 * u };
+      }
+      if (swingLocalT < 1.9) {
+        const u = (swingLocalT - 1.6) / 0.3;
+        return { x: 0.6 - 0.3 * u, y: 0.2 - 0.6 * u };
+      }
+      return { x: 0.3, y: -0.4 };
+    };
+    const swingStart = 2.0;
+    for (let i = 0; i < nFrames; i++) {
+      const t = i * dt;
+      const { x, y } = wristAt(t - swingStart);
+      // Idle preamble: tiny sinusoidal jitter (waggle), well below MOVING.
+      const jitter = t < 1.9 ? 0.01 * Math.sin(t * 6) : 0;
+      const world: PointMap = {
+        11: { x: -0.2, y: -0.7, z: 0 },
+        12: { x: 0.2, y: -0.7, z: 0 },
+        15: { x: x + jitter, y, z: 0 },
+        16: { x: x + jitter, y, z: 0 },
+        23: { x: -0.1, y: 0, z: 0 },
+        24: { x: 0.1, y: 0, z: 0 },
+        27: { x: -0.1, y: 0.9, z: 0 },
+        28: { x: 0.1, y: 0.9, z: 0 },
+      };
+      frames.push(makeFrame(t, world));
+    }
+
+    const intervals = detectSwingIntervals(frames, fps);
+    expect(intervals.length).toBeGreaterThanOrEqual(1);
+    const best = intervals[0];
+    // Detected window brackets the real swing (2.0s – 4.3s) with modest slack.
+    expect(best.startT).toBeGreaterThan(1.0);
+    expect(best.startT).toBeLessThan(2.5);
+    expect(best.endT).toBeGreaterThan(4.0);
+    expect(best.endT).toBeLessThan(5.5);
+    expect(best.confidence).toBeGreaterThan(0.3);
+    // Peak sits near impact (t ≈ 3.5s, since impact is 1.5s into the swing
+    // which started at 2.0s).
+    expect(best.peakT).toBeGreaterThan(3.0);
+    expect(best.peakT).toBeLessThan(4.0);
+  });
+
+  it('detectSwingIntervals returns empty when the clip has no swing', () => {
+    // 3s of nothing but landmark jitter — no burst should register.
+    const fps = 60;
+    const dt = 1 / fps;
+    const frames: SwingFrame[] = [];
+    for (let i = 0; i < 180; i++) {
+      const t = i * dt;
+      const jitter = 0.005 * Math.sin(t * 7);
+      const world: PointMap = {
+        11: { x: -0.2, y: -0.7, z: 0 },
+        12: { x: 0.2, y: -0.7, z: 0 },
+        15: { x: jitter, y: 0, z: 0 },
+        16: { x: jitter, y: 0, z: 0 },
+        23: { x: -0.1, y: 0, z: 0 },
+        24: { x: 0.1, y: 0, z: 0 },
+        27: { x: -0.1, y: 0.9, z: 0 },
+        28: { x: 0.1, y: 0.9, z: 0 },
+      };
+      frames.push(makeFrame(t, world));
+    }
+    const intervals = detectSwingIntervals(frames, fps);
+    expect(intervals).toEqual([]);
   });
 
   it('warns and uses frame 0 as address when the clip starts mid-motion', () => {

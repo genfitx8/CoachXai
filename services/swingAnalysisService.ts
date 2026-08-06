@@ -8,6 +8,7 @@ import {
   SwingEvent,
   SwingEventName,
   SwingFrame,
+  SwingInterval,
   SwingSummary,
 } from '../types/swingAnalysis';
 import { createLogger } from '../utils/logger';
@@ -451,6 +452,168 @@ function adaptiveSpeedThresholds(
   const still = Math.max(floorStill, Math.min(p15 * 1.5, p95 * 0.15));
   const moving = Math.max(floorMoving, Math.min(p60, p95 * 0.35));
   return { still, moving: Math.max(moving, still * 1.8) };
+}
+
+/**
+ * Scan an already-sampled frame timeline for distinct swing intervals — the
+ * primitive that lets unedited golfer videos (waggle, walking to the ball,
+ * multiple swings, chatter) get sliced down to the meaningful segment before
+ * event segmentation runs.
+ *
+ * Algorithm:
+ *   1. Compute wrist speed for every frame.
+ *   2. Take adaptive still / moving thresholds from the global distribution.
+ *   3. Find bursts — runs of ≥100ms where speed exceeds MOVING.
+ *   4. For each burst pick the peak frame, then walk outward until we hit a
+ *      sustained still window (~200ms before start, ~300ms after end) or the
+ *      max plausible swing radius (1.5s back, 1.0s forward from peak).
+ *   5. Merge overlapping candidates.
+ *   6. Score each candidate: high peak speed, plausible 1.5–3.5s duration,
+ *      and clean still-bounded edges → higher confidence.
+ *
+ * Returns candidates sorted by confidence descending. Empty when no burst
+ * clears the moving threshold at all (a still clip with no swing in it).
+ */
+function detectSwingIntervals(
+  frames: SwingFrame[],
+  sampledFps: number,
+): SwingInterval[] {
+  if (frames.length < 8 || sampledFps <= 0) return [];
+  const dt = 1 / sampledFps;
+  const track = extractWristTrack(frames);
+  const rawSpeed: number[] = new Array(frames.length).fill(NaN);
+  for (let i = 1; i < frames.length; i++) {
+    const a = track.positions[i - 1];
+    const b = track.positions[i];
+    if (!a || !b) continue;
+    rawSpeed[i] = Math.hypot(b.x - a.x, b.y - a.y, b.z - a.z) / dt;
+  }
+  const halfWin = Math.max(1, Math.round(sampledFps * 0.05));
+  const speed = smooth(rawSpeed, halfWin);
+  const { still, moving } = adaptiveSpeedThresholds(speed, track.is3D);
+  const sustainedFrames = Math.max(2, Math.round(sampledFps * 0.1));
+
+  // Step 1 · Find bursts: runs of length ≥sustainedFrames above MOVING.
+  type Burst = { startIdx: number; endIdx: number; peakIdx: number; peakSpeed: number };
+  const bursts: Burst[] = [];
+  let i = 0;
+  while (i < frames.length) {
+    if (!(speed[i] > moving)) {
+      i += 1;
+      continue;
+    }
+    const runStart = i;
+    while (i < frames.length && speed[i] > moving) i += 1;
+    const runEnd = i - 1;
+    if (runEnd - runStart + 1 >= sustainedFrames) {
+      let peakIdx = runStart;
+      let peakSpeed = speed[runStart];
+      for (let j = runStart; j <= runEnd; j++) {
+        const v = speed[j];
+        if (Number.isFinite(v) && v > peakSpeed) {
+          peakSpeed = v;
+          peakIdx = j;
+        }
+      }
+      bursts.push({ startIdx: runStart, endIdx: runEnd, peakIdx, peakSpeed });
+    }
+  }
+  if (bursts.length === 0) return [];
+
+  // Step 2 · For each burst, expand to still boundaries.
+  const maxBackFrames = Math.round(sampledFps * 1.5);
+  const maxForwardFrames = Math.round(sampledFps * 1.0);
+  const preHoldFrames = Math.max(2, Math.round(sampledFps * 0.2));
+  const postHoldFrames = Math.max(3, Math.round(sampledFps * 0.3));
+
+  const candidates: Array<SwingInterval & { startIdx: number; endIdx: number }> = [];
+  for (const burst of bursts) {
+    // Walk back for a still-hold window (address).
+    let startIdx = burst.peakIdx;
+    for (let k = burst.peakIdx - 1; k >= Math.max(0, burst.peakIdx - maxBackFrames); k--) {
+      // Look for a preHoldFrames run of speed < STILL starting at k.
+      let allStill = true;
+      for (let j = 0; j < preHoldFrames && k - j >= 0; j++) {
+        const v = speed[k - j];
+        if (!Number.isFinite(v) || v >= still) {
+          allStill = false;
+          break;
+        }
+      }
+      if (allStill) {
+        startIdx = Math.max(0, k - preHoldFrames + 1);
+        break;
+      }
+      startIdx = k;
+    }
+    // Walk forward for a still-hold window (finish).
+    let endIdx = burst.peakIdx;
+    for (let k = burst.peakIdx + 1; k < Math.min(frames.length, burst.peakIdx + maxForwardFrames); k++) {
+      let allStill = true;
+      for (let j = 0; j < postHoldFrames && k + j < frames.length; j++) {
+        const v = speed[k + j];
+        if (!Number.isFinite(v) || v >= still) {
+          allStill = false;
+          break;
+        }
+      }
+      if (allStill) {
+        endIdx = Math.min(frames.length - 1, k + postHoldFrames - 1);
+        break;
+      }
+      endIdx = k;
+    }
+
+    const durationMs = (endIdx - startIdx) * dt * 1000;
+    // Score components in [0..1]:
+    // • peak: normalized against a strong-swing reference (12 m/s for 3D,
+    //   1.5 unit/s for normalized 2D). Clipped at 1.
+    const peakRef = track.is3D ? 12 : 1.5;
+    const peakScore = Math.min(1, burst.peakSpeed / peakRef);
+    // • duration: peak at ~2.3s, half-height at 1s and 4s. Discourages
+    //   micro-motions (waggle) and slow drills.
+    const target = 2300;
+    const durationScore = Math.max(0, 1 - Math.abs(durationMs - target) / target);
+    // • boundedness: whether we actually hit stillness on both sides
+    //   vs. clipping to the video edge.
+    const startBounded = startIdx > 0 ? 1 : 0.5;
+    const endBounded = endIdx < frames.length - 1 ? 1 : 0.5;
+    const boundedScore = (startBounded + endBounded) / 2;
+    const confidence = 0.5 * peakScore + 0.3 * durationScore + 0.2 * boundedScore;
+
+    candidates.push({
+      startIdx,
+      endIdx,
+      startT: frames[startIdx].t,
+      endT: frames[endIdx].t,
+      peakT: frames[burst.peakIdx].t,
+      peakSpeed: burst.peakSpeed,
+      confidence,
+    });
+  }
+
+  // Step 3 · Merge overlapping candidates (keep highest-confidence).
+  candidates.sort((a, b) => a.startIdx - b.startIdx);
+  const merged: typeof candidates = [];
+  for (const c of candidates) {
+    const last = merged[merged.length - 1];
+    if (last && c.startIdx <= last.endIdx) {
+      if (c.confidence > last.confidence) merged[merged.length - 1] = c;
+    } else {
+      merged.push(c);
+    }
+  }
+
+  // Step 4 · Return sorted by confidence, stripping internal indices.
+  return merged
+    .map(({ startT, endT, peakT, peakSpeed, confidence }) => ({
+      startT,
+      endT,
+      peakT,
+      peakSpeed,
+      confidence,
+    }))
+    .sort((a, b) => b.confidence - a.confidence);
 }
 
 /**
@@ -1106,6 +1269,14 @@ export interface AnalyzeSwingOptions {
    * tracker without changing the pipeline.
    */
   clubHeadDetector?: ClubHeadDetector;
+  /**
+   * When true (default), scan the sampled frames for distinct swing bursts
+   * and auto-trim to the highest-confidence one before segmentation. Ignored
+   * when the caller passes an explicit startTime/endTime — those still mean
+   * "analyze exactly this window" for coach workflows that already picked a
+   * segment by hand.
+   */
+  autoTrim?: boolean;
 }
 
 export const swingAnalysisService = {
@@ -1185,19 +1356,65 @@ export const swingAnalysisService = {
 
       onProgress?.({ processedFrames: desired, totalFrames: desired, stage: 'segmenting' });
       const sampledFps = desired / span;
-      const { events, warnings } = segmentEvents(frames, sampledFps);
-      const summary = buildSummary(frames, events, sampledFps, options.clubHeadDetector);
+
+      // ── Auto-trim to the detected swing when the caller didn't specify
+      // an explicit window. Handles unedited golfer footage — waggle before
+      // the swing, walking to the ball, chatter, or multiple swings in one
+      // clip — by picking the highest-confidence burst and running the rest
+      // of the pipeline on just that slice.
+      let workingFrames = frames;
+      let detectedInterval: SwingInterval | undefined;
+      let alternateIntervals: SwingInterval[] | undefined;
+      const autoTrim = options.autoTrim !== false && options.startTime == null && options.endTime == null;
+      const extraWarnings: string[] = [];
+      if (autoTrim) {
+        const candidates = detectSwingIntervals(frames, sampledFps);
+        if (candidates.length > 0) {
+          detectedInterval = candidates[0];
+          alternateIntervals = candidates.slice(1);
+          const startTAbs = detectedInterval.startT;
+          const endTAbs = detectedInterval.endT;
+          workingFrames = frames.filter((f) => f.t >= startTAbs && f.t <= endTAbs);
+          if (workingFrames.length < 8) {
+            // Too aggressive a trim — fall back to full timeline so the
+            // pipeline doesn't fail on an under-sampled slice.
+            workingFrames = frames;
+            detectedInterval = undefined;
+            alternateIntervals = undefined;
+            extraWarnings.push('감지된 스윙 구간이 너무 짧아 전체 영상으로 분석했습니다.');
+          }
+        } else {
+          extraWarnings.push('영상에서 스윙 움직임을 뚜렷하게 찾지 못했습니다. 스윙만 담긴 짧은 영상으로 다시 시도해 보세요.');
+        }
+      }
+
+      const { events, warnings } = segmentEvents(workingFrames, sampledFps);
+      warnings.push(...extraWarnings);
+      const summary = buildSummary(workingFrames, events, sampledFps, options.clubHeadDetector);
 
       onProgress?.({ processedFrames: desired, totalFrames: desired, stage: 'done' });
       log.info('Swing analysis completed', {
-        frames: frames.length,
+        frames: workingFrames.length,
         sampledFps,
         nativeFps,
+        autoTrimmed: detectedInterval !== undefined,
+        detectedInterval,
+        alternates: alternateIntervals?.length ?? 0,
         detected: Object.keys(events),
         cameraView: summary.cameraView,
         tempoRatio: summary.tempoRatio,
       });
-      return { videoUrl, frames, sampledFps, nativeFps, events, warnings, summary };
+      return {
+        videoUrl,
+        frames: workingFrames,
+        sampledFps,
+        nativeFps,
+        detectedInterval,
+        alternateIntervals,
+        events,
+        warnings,
+        summary,
+      };
     } finally {
       video.src = '';
       video.removeAttribute('src');
@@ -1224,4 +1441,5 @@ export const __testing__ = {
   parabolicRefine,
   adaptiveSpeedThresholds,
   percentileFinite,
+  detectSwingIntervals,
 };
