@@ -43,6 +43,7 @@ import {
   formatLessonEntry,
 } from './lessonContext';
 import { resolveApiBaseUrl } from './apiBase';
+import { recordAiCall } from './aiCallLogger';
 
 const log = createLogger('gemini');
 
@@ -63,28 +64,122 @@ interface InlineDataPart {
   };
 }
 
-const invokeBackendAI = async <T>(feature: string, payload: unknown): Promise<T> => {
-  const response = await fetch(getAiApiEndpoint(), {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ feature, payload }),
-  });
+/**
+ * Pull the fields the observability layer wants out of a payload without
+ * caring about the payload's exact shape. All extraction is defensive so a
+ * malformed payload never breaks the AI call itself.
+ */
+const inspectPayload = (payload: unknown): {
+  prompt: string;
+  coachId?: string;
+  hasExemplars: boolean;
+  hasSchema: boolean;
+} => {
+  if (!payload || typeof payload !== 'object') {
+    return { prompt: '', hasExemplars: false, hasSchema: false };
+  }
+  const rec = payload as Record<string, unknown>;
+  const prompt = typeof rec.prompt === 'string' ? rec.prompt : '';
+  const coachId = typeof rec.coachId === 'string' ? rec.coachId : undefined;
+  const systemInstruction = typeof rec.systemInstruction === 'string' ? rec.systemInstruction : '';
+  // Exemplars can appear in either the prompt or the system instruction —
+  // check both so few-shot injection is detected regardless of where it lives.
+  const hasExemplars =
+    prompt.includes('참고 예시') || systemInstruction.includes('참고 예시');
+  const hasSchema = 'responseSchema' in rec && rec.responseSchema != null;
+  return { prompt, coachId, hasExemplars, hasSchema };
+};
 
-  let body: { ok?: boolean; result?: T; error?: string } | null = null;
+const extractResponseText = (result: unknown): string => {
+  if (typeof result === 'string') return result;
+  if (!result || typeof result !== 'object') return '';
+  const rec = result as Record<string, unknown>;
+  if (typeof rec.text === 'string') return rec.text;
+  if (typeof rec.response === 'string') return rec.response;
+  if (typeof rec.output === 'string') return rec.output;
   try {
-    body = await response.json() as { ok?: boolean; result?: T; error?: string };
+    return JSON.stringify(result);
   } catch {
-    if (response.ok) {
-      throw new Error('Failed to parse AI backend response.');
+    return '';
+  }
+};
+
+const invokeBackendAI = async <T>(feature: string, payload: unknown): Promise<T> => {
+  const startedAt = Date.now();
+  const meta = inspectPayload(payload);
+
+  try {
+    const response = await fetch(getAiApiEndpoint(), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ feature, payload }),
+    });
+
+    let body: { ok?: boolean; result?: T; error?: string } | null = null;
+    try {
+      body = await response.json() as { ok?: boolean; result?: T; error?: string };
+    } catch {
+      if (response.ok) {
+        throw new Error('Failed to parse AI backend response.');
+      }
     }
-  }
 
-  if (!response.ok || !body?.ok) {
-    const message = body?.error || `AI backend request failed (HTTP ${response.status})`;
-    throw new Error(message);
-  }
+    if (!response.ok || !body?.ok) {
+      const message = body?.error || `AI backend request failed (HTTP ${response.status})`;
+      throw new Error(message);
+    }
 
-  return body.result as T;
+    // Fire-and-forget success log. Do NOT await — telemetry must never
+    // add latency to the response the caller returns to the user.
+    void recordAiCall({
+      feature,
+      coachId: meta.coachId,
+      prompt: meta.prompt,
+      responseText: extractResponseText(body.result),
+      latencyMs: Date.now() - startedAt,
+      status: 'success',
+      hasExemplars: meta.hasExemplars,
+      hasSchema: meta.hasSchema,
+    });
+
+    return body.result as T;
+  } catch (err) {
+    void recordAiCall({
+      feature,
+      coachId: meta.coachId,
+      prompt: meta.prompt,
+      responseText: '',
+      latencyMs: Date.now() - startedAt,
+      status: 'error',
+      errorMessage: err instanceof Error ? err.message : String(err),
+      hasExemplars: meta.hasExemplars,
+      hasSchema: meta.hasSchema,
+    });
+    throw err;
+  }
+};
+
+/**
+ * Callers that catch an invokeBackendAI failure and swap in a heuristic
+ * response should call this so the dashboard sees the fallback event
+ * (the error branch above already logged the underlying failure — this
+ * annotates that the user still got an answer via the fallback path).
+ */
+export const recordAiFallback = (
+  feature: string,
+  opts: { coachId?: string; prompt?: string; errorMessage?: string; hasExemplars?: boolean; hasSchema?: boolean } = {}
+): void => {
+  void recordAiCall({
+    feature,
+    coachId: opts.coachId,
+    prompt: opts.prompt ?? '',
+    responseText: '',
+    latencyMs: 0,
+    status: 'fallback',
+    errorMessage: opts.errorMessage,
+    hasExemplars: !!opts.hasExemplars,
+    hasSchema: !!opts.hasSchema,
+  });
 };
 
 const getResponseText = (result: unknown): string | null => {

@@ -673,6 +673,53 @@ export type CoachStyleExemplarSource =
  * Later phases (RAG / few-shot) will retrieve top exemplars per target +
  * coachId at inference time so future AI calls mirror the coach's style.
  */
+/**
+ * One record per AI call — captured by the invokeBackendAI wrapper so we can
+ * measure quality, cost, and latency per feature over time. Written as
+ * fire-and-forget from the client after the response returns; a failing
+ * write never affects the AI response itself.
+ *
+ * Design notes:
+ * - `promptHash` (short sha) is stored instead of the raw prompt so that PII
+ *   (member names, phone numbers, coach notes) never leaks into telemetry.
+ * - `promptLength` / `responseLength` are character counts serving as cheap
+ *   token proxies. Real Gemini token counts can be added later via the
+ *   `usageMetadata` field the API returns.
+ * - `status` distinguishes clean success from a fallback-to-heuristic path
+ *   (`'fallback'`) and a hard error (`'error'`). Fallback rate is the single
+ *   most important quality signal we track.
+ */
+export interface AiCallLog {
+  id: string;
+  /** Coach id whose scope the call was made under, if known. */
+  coachId?: string;
+  /** feature name (matches PromptTarget or the invokeBackendAI feature key). */
+  feature: string;
+  /** Short sha-256 hash of the prompt (first 12 chars). Never the raw prompt. */
+  promptHash: string;
+  /** Character count of the prompt sent (token proxy). */
+  promptLength: number;
+  /** Character count of the response received (token proxy). 0 on hard errors. */
+  responseLength: number;
+  /** End-to-end wall-clock latency in ms (client → server → Gemini → back). */
+  latencyMs: number;
+  /**
+   * How the call resolved.
+   * - 'success':  Gemini returned a valid response used by the caller.
+   * - 'fallback': the caller fell back to a heuristic response (Gemini failed
+   *   or was unavailable). This is what "AI feels dumb" numerically looks like.
+   * - 'error':    an unrecoverable exception, no output usable at all.
+   */
+  status: 'success' | 'fallback' | 'error';
+  /** Short error message when status is not 'success' — truncated to 200 chars. */
+  errorMessage?: string;
+  /** True when the request payload included coach-style few-shot exemplars. */
+  hasExemplars: boolean;
+  /** True when responseSchema was attached (structured JSON contract). */
+  hasSchema: boolean;
+  createdAt: number;
+}
+
 export interface CoachStyleExemplar {
   id: string;
   /**
