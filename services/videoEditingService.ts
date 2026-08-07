@@ -28,13 +28,27 @@ class VideoEditingService {
     this.initPromise = (async () => {
       try {
         this.ffmpeg = new FFmpeg();
-        
-        const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd';
-        
-        await this.ffmpeg.load({
-          coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
-          wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
-        });
+
+        // Core must match the version the installed @ffmpeg/ffmpeg worker
+        // expects; the 0.12.15 worker calls APIs (ffprobe/ret/reset) that
+        // only exist in core >= 0.12.9. Loading 0.12.6 here silently broke
+        // every edit operation.
+        const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.9/dist/umd';
+
+        // Some CDNs / networks fail to serve unpkg; fall back to jsDelivr
+        // so users don't get a blank "오류가 발생했습니다" with no cause.
+        const load = async (host: string) => {
+          const coreURL = await toBlobURL(`${host}/ffmpeg-core.js`, 'text/javascript');
+          const wasmURL = await toBlobURL(`${host}/ffmpeg-core.wasm`, 'application/wasm');
+          await this.ffmpeg!.load({ coreURL, wasmURL });
+        };
+
+        try {
+          await load(baseURL);
+        } catch (primaryError) {
+          log.warn('unpkg core load failed, retrying via jsDelivr', primaryError);
+          await load('https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.9/dist/umd');
+        }
 
         this.isInitialized = true;
         log.info('FFmpeg initialized successfully');
