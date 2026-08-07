@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="student-bg" x1="48" y1="44" x2="466" y2="468" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FBBF24" />
+      <stop offset="0.55" stop-color="#F97316" />
+      <stop offset="1" stop-color="#EA580C" />
+    </linearGradient>
+    <linearGradient id="student-accent" x1="164" y1="154" x2="386" y2="368" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0B0F14" />
+      <stop offset="1" stop-color="#1F2937" />
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#student-bg)" />
+  <rect x="44" y="44" width="424" height="424" rx="92" fill="none" stroke="#FFFFFF" stroke-opacity="0.35" stroke-width="7" />
+  <path
+    d="M 184 352 C 127 352 86 311 86 254 C 86 197 127 156 184 156 C 208 156 229 164 247 180"
+    fill="none"
+    stroke="#0B0F14"
+    stroke-width="38"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+  <path d="M 256 168 L 384 344" fill="none" stroke="url(#student-accent)" stroke-width="42" stroke-linecap="round" />
+  <path d="M 384 168 L 256 344" fill="none" stroke="#FFFFFF" stroke-width="31" stroke-linecap="round" />
+  <path
+    d="M 380 88 L 442 108 L 380 128 L 318 108 Z"
+    fill="#0B0F14"
+    stroke="#FFFFFF"
+    stroke-width="4"
+    stroke-linejoin="round"
+  />
+  <path
+    d="M 344 118 L 344 138 C 344 152 362 160 380 160 C 398 160 416 152 416 138 L 416 118"
+    fill="none"
+    stroke="#0B0F14"
+    stroke-width="8"
+    stroke-linecap="round"
+  />
+  <line x1="442" y1="108" x2="442" y2="140" stroke="#0B0F14" stroke-width="6" stroke-linecap="round" />
+  <circle cx="442" cy="146" r="7" fill="#0B0F14" />
+</svg>
