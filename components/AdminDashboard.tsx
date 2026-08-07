@@ -290,57 +290,57 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-6 py-8 space-y-8">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6 sm:space-y-8">
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
           {/* Member Count Card - Updated Design */}
-          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 flex flex-col sm:flex-row items-start sm:items-center gap-4">
-             <div className="w-14 h-14 bg-blue-50 rounded-full flex flex-shrink-0 items-center justify-center text-blue-600">
-                <Users className="w-8 h-8" />
+          <div className="bg-white p-4 sm:p-6 rounded-xl shadow-sm border border-gray-200 flex flex-col sm:flex-row items-start sm:items-center gap-4 min-w-0">
+             <div className="w-12 h-12 sm:w-14 sm:h-14 bg-blue-50 rounded-full flex flex-shrink-0 items-center justify-center text-blue-600">
+                <Users className="w-7 h-7 sm:w-8 sm:h-8" />
              </div>
-             <div className="flex-1 w-full">
-                <p className="text-sm text-gray-500 font-medium">총 회원 수</p>
-                <div className="flex items-baseline gap-1 mb-2">
-                    <h3 className="text-3xl font-bold text-gray-900">{clients.length + coaches.length}</h3>
-                    <span className="text-sm text-gray-400">명</span>
+             <div className="flex-1 w-full min-w-0">
+                <p className="text-sm text-gray-500 font-medium truncate">총 회원 수</p>
+                <div className="flex items-baseline gap-1 mb-2 min-w-0">
+                    <h3 className="text-2xl sm:text-3xl font-bold text-gray-900 truncate">{clients.length + coaches.length}</h3>
+                    <span className="text-sm text-gray-400 flex-shrink-0">명</span>
                 </div>
-                
+
                 <div className="flex gap-2">
-                    <div className="flex-1 bg-indigo-50 rounded-lg p-2 flex items-center justify-between border border-indigo-100">
-                        <span className="text-xs text-indigo-600 font-bold">코치</span>
-                        <span className="text-sm font-bold text-indigo-800">{coaches.length}</span>
+                    <div className="flex-1 bg-indigo-50 rounded-lg p-2 flex items-center justify-between border border-indigo-100 min-w-0">
+                        <span className="text-xs text-indigo-600 font-bold truncate">코치</span>
+                        <span className="text-sm font-bold text-indigo-800 flex-shrink-0 ml-1">{coaches.length}</span>
                     </div>
-                    <div className="flex-1 bg-gray-50 rounded-lg p-2 flex items-center justify-between border border-gray-200">
-                        <span className="text-xs text-gray-600 font-bold">일반</span>
-                        <span className="text-sm font-bold text-gray-800">{clients.length}</span>
+                    <div className="flex-1 bg-gray-50 rounded-lg p-2 flex items-center justify-between border border-gray-200 min-w-0">
+                        <span className="text-xs text-gray-600 font-bold truncate">일반</span>
+                        <span className="text-sm font-bold text-gray-800 flex-shrink-0 ml-1">{clients.length}</span>
                     </div>
                 </div>
-             </div>
-          </div>
-          
-          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 flex items-center gap-4">
-             <div className="w-14 h-14 bg-emerald-50 rounded-full flex items-center justify-center text-emerald-600">
-                <FileText className="w-8 h-8" />
-             </div>
-             <div>
-                <p className="text-sm text-gray-500 font-medium">누적 레슨 수</p>
-                <h3 className="text-3xl font-bold text-gray-900">{lessons.length}개</h3>
              </div>
           </div>
 
-          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 flex items-center gap-4">
-             <div className="w-14 h-14 bg-indigo-50 rounded-full flex items-center justify-center text-indigo-600">
-                {isFbConnected ? <Cloud className="w-8 h-8" /> : <Activity className="w-8 h-8" />}
+          <div className="bg-white p-4 sm:p-6 rounded-xl shadow-sm border border-gray-200 flex items-center gap-4 min-w-0">
+             <div className="w-12 h-12 sm:w-14 sm:h-14 bg-emerald-50 rounded-full flex flex-shrink-0 items-center justify-center text-emerald-600">
+                <FileText className="w-7 h-7 sm:w-8 sm:h-8" />
              </div>
-             <div>
-                <p className="text-sm text-gray-500 font-medium">시스템 상태</p>
-                <div className="flex items-center gap-2">
-                    <h3 className="text-xl font-bold text-gray-900">
+             <div className="min-w-0 flex-1">
+                <p className="text-sm text-gray-500 font-medium truncate">누적 레슨 수</p>
+                <h3 className="text-2xl sm:text-3xl font-bold text-gray-900 truncate">{lessons.length}개</h3>
+             </div>
+          </div>
+
+          <div className="bg-white p-4 sm:p-6 rounded-xl shadow-sm border border-gray-200 flex items-center gap-4 min-w-0">
+             <div className="w-12 h-12 sm:w-14 sm:h-14 bg-indigo-50 rounded-full flex flex-shrink-0 items-center justify-center text-indigo-600">
+                {isFbConnected ? <Cloud className="w-7 h-7 sm:w-8 sm:h-8" /> : <Activity className="w-7 h-7 sm:w-8 sm:h-8" />}
+             </div>
+             <div className="min-w-0 flex-1">
+                <p className="text-sm text-gray-500 font-medium truncate">시스템 상태</p>
+                <div className="flex items-center gap-2 min-w-0">
+                    <h3 className="text-lg sm:text-xl font-bold text-gray-900 truncate">
                         {isFbConnected ? "Online" : "Local Mode"}
                     </h3>
-                    {isFbConnected && <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>}
+                    {isFbConnected && <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse flex-shrink-0"></span>}
                 </div>
-                <p className="text-xs text-gray-400">
+                <p className="text-xs text-gray-400 truncate">
                     {isFbConnected ? "Firebase DB Connected" : "Local Storage Only"}
                 </p>
              </div>

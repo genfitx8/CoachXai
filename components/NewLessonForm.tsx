@@ -1422,7 +1422,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
 
                 {/* Session grid */}
                 <div className="p-3">
-                  <div className="grid grid-cols-4 gap-2 sm:grid-cols-5">
+                  <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-5">
                     {Array.from({ length: pkg.totalSessions }, (_, i) => i + 1).map(
                       (sessionNumber) => {
                         const existingLesson = getSessionLesson(pkg.id, sessionNumber);

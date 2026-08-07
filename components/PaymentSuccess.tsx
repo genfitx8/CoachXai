@@ -159,14 +159,14 @@ export const PaymentSuccess: React.FC<PaymentSuccessProps> = ({
       )}
 
       {status === 'success' && (
-        <div className="bg-white rounded-3xl shadow-xl p-8 max-w-sm w-full text-center space-y-5">
+        <div className="bg-white rounded-3xl shadow-xl p-6 sm:p-8 max-w-sm w-full text-center space-y-5">
           <CheckCircle className="w-20 h-20 text-emerald-700 mx-auto" />
           <div>
             <h2 className="text-2xl font-black text-gray-900">결제 완료!</h2>
             <p className="text-gray-500 mt-1 text-sm">포인트가 충전되었습니다</p>
           </div>
           <div className="bg-emerald-50 rounded-2xl p-4">
-            <div className="text-3xl font-black text-emerald-600">
+            <div className="text-2xl sm:text-3xl font-black text-emerald-600 break-all">
               +{earnedPoints.toLocaleString()}P
             </div>
             <div className="text-sm text-gray-500 mt-1">
@@ -186,7 +186,7 @@ export const PaymentSuccess: React.FC<PaymentSuccessProps> = ({
       )}
 
       {status === 'error' && (
-        <div className="bg-white rounded-3xl shadow-xl p-8 max-w-sm w-full text-center space-y-5">
+        <div className="bg-white rounded-3xl shadow-xl p-6 sm:p-8 max-w-sm w-full text-center space-y-5">
           <AlertCircle className="w-20 h-20 text-red-400 mx-auto" />
           <div>
             <h2 className="text-xl font-black text-gray-900">결제 확인 실패</h2>

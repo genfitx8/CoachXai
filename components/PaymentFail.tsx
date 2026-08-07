@@ -19,7 +19,7 @@ export const PaymentFail: React.FC<PaymentFailProps> = ({ onBack }) => {
       </div>
 
       <div className="flex-1 flex flex-col items-center justify-center p-6">
-        <div className="bg-white rounded-3xl shadow-xl p-8 max-w-sm w-full text-center space-y-5">
+        <div className="bg-white rounded-3xl shadow-xl p-6 sm:p-8 max-w-sm w-full text-center space-y-5">
           <XCircle className="w-20 h-20 text-red-400 mx-auto" />
           <div>
             <h2 className="text-xl font-black text-gray-900">결제 실패</h2>
