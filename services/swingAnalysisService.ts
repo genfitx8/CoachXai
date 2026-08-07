@@ -1,6 +1,7 @@
 import { PoseLandmarker, FilesetResolver } from '@mediapipe/tasks-vision';
 import { SkeletonKeypoint } from '../types/postureAnalysis';
 import {
+  AnalyzedFrameRange,
   CameraView,
   Handedness,
   SwingAnalysis,
@@ -1297,6 +1298,65 @@ export interface AnalyzeSwingOptions {
   autoTrim?: boolean;
 }
 
+/**
+ * Nearest sampled frame index for an absolute video-time in seconds. Handles
+ * out-of-range values by clamping to [0, N-1] so callers can pass raw user
+ * seek values without extra guards.
+ */
+function nearestFrameIndex(frames: SwingFrame[], t: number): number {
+  if (frames.length === 0) return 0;
+  if (t <= frames[0].t) return 0;
+  const last = frames.length - 1;
+  if (t >= frames[last].t) return last;
+  // Linear scan is fine — timelines are ≤500 frames after MAX_FRAMES cap.
+  let bestIdx = 0;
+  let bestDelta = Math.abs(frames[0].t - t);
+  for (let i = 1; i < frames.length; i++) {
+    const d = Math.abs(frames[i].t - t);
+    if (d < bestDelta) {
+      bestDelta = d;
+      bestIdx = i;
+    }
+  }
+  return bestIdx;
+}
+
+/**
+ * Shift every event's `frameIndex` by `offset` in-place so they refer to the
+ * full-video frame array instead of the analysis slice. Event `t` values are
+ * already absolute (they were set from full-video time during sampling), so
+ * only the discrete frame index needs adjusting.
+ */
+function shiftEventIndices(
+  events: Partial<Record<SwingEventName, SwingEvent>>,
+  offset: number,
+): void {
+  if (offset === 0) return;
+  for (const evt of Object.values(events)) {
+    if (!evt) continue;
+    evt.frameIndex += offset;
+  }
+}
+
+/**
+ * Coach-supplied edits for re-running the summary without re-sampling the
+ * video. Every field is optional; unspecified events keep their current
+ * position, and an unspecified interval keeps the current analyzed range.
+ */
+export interface RebuildAnalysisEdits {
+  /** Absolute seconds into the source video for the new analysis window start. */
+  intervalStartSec?: number;
+  /** Absolute seconds into the source video for the new analysis window end. */
+  intervalEndSec?: number;
+  /**
+   * Coach-picked absolute video time (seconds) per event. Overrides the
+   * AI's automatic placement for that event only. Set an event to
+   * `undefined` explicitly to force re-detection instead of keeping the
+   * previous value.
+   */
+  eventTimeOverrides?: Partial<Record<SwingEventName, number>>;
+}
+
 export const swingAnalysisService = {
   async analyzeSwingFromVideo(
     videoUrl: string,
@@ -1380,7 +1440,9 @@ export const swingAnalysisService = {
       // the swing, walking to the ball, chatter, or multiple swings in one
       // clip — by picking the highest-confidence burst and running the rest
       // of the pipeline on just that slice.
-      let workingFrames = frames;
+      let startFrameIdx = 0;
+      let endFrameIdx = frames.length - 1;
+      let analyzedRange: AnalyzedFrameRange | undefined;
       let detectedInterval: SwingInterval | undefined;
       let alternateIntervals: SwingInterval[] | undefined;
       const autoTrim = options.autoTrim !== false && options.startTime == null && options.endTime == null;
@@ -1390,22 +1452,28 @@ export const swingAnalysisService = {
         if (candidates.length > 0) {
           detectedInterval = candidates[0];
           alternateIntervals = candidates.slice(1);
-          const startTAbs = detectedInterval.startT;
-          const endTAbs = detectedInterval.endT;
-          workingFrames = frames.filter((f) => f.t >= startTAbs && f.t <= endTAbs);
-          if (workingFrames.length < 8) {
+          startFrameIdx = nearestFrameIndex(frames, detectedInterval.startT);
+          endFrameIdx = nearestFrameIndex(frames, detectedInterval.endT);
+          if (endFrameIdx - startFrameIdx < 7) {
             // Too aggressive a trim — fall back to full timeline so the
             // pipeline doesn't fail on an under-sampled slice.
-            workingFrames = frames;
+            startFrameIdx = 0;
+            endFrameIdx = frames.length - 1;
             detectedInterval = undefined;
             alternateIntervals = undefined;
             extraWarnings.push('감지된 스윙 구간이 너무 짧아 전체 영상으로 분석했습니다.');
+          } else {
+            analyzedRange = { startFrameIdx, endFrameIdx };
           }
         } else {
           extraWarnings.push('영상에서 스윙 움직임을 뚜렷하게 찾지 못했습니다. 스윙만 담긴 짧은 영상으로 다시 시도해 보세요.');
         }
       }
 
+      // Run the whole pipeline on the analysis slice, then re-anchor event
+      // frame indices back into the full `frames` array so the timeline
+      // editor can display and drag them across the entire video.
+      const workingFrames = frames.slice(startFrameIdx, endFrameIdx + 1);
       const { events, warnings } = segmentEvents(workingFrames, sampledFps);
       warnings.push(...extraWarnings);
       const summary = buildSummary(
@@ -1415,10 +1483,12 @@ export const swingAnalysisService = {
         options.clubHeadDetector,
         options.enableClubTracking === true,
       );
+      shiftEventIndices(events, startFrameIdx);
 
       onProgress?.({ processedFrames: desired, totalFrames: desired, stage: 'done' });
       log.info('Swing analysis completed', {
-        frames: workingFrames.length,
+        allFrames: frames.length,
+        analyzedRange,
         sampledFps,
         nativeFps,
         autoTrimmed: detectedInterval !== undefined,
@@ -1430,7 +1500,8 @@ export const swingAnalysisService = {
       });
       return {
         videoUrl,
-        frames: workingFrames,
+        frames,
+        analyzedRange,
         sampledFps,
         nativeFps,
         detectedInterval,
@@ -1444,6 +1515,98 @@ export const swingAnalysisService = {
       video.removeAttribute('src');
       video.load();
     }
+  },
+
+  /**
+   * Rerun segmentation and summary against the ALREADY-SAMPLED frames of a
+   * previous analysis, applying the coach's manual adjustments. Cheap — no
+   * video re-sampling, no MediaPipe inference — so it fits into the "drag a
+   * marker, click 재분석" edit loop.
+   *
+   * The coach can:
+   *   • move the analysis window (`intervalStartSec` / `intervalEndSec`)
+   *   • override any of the 8 pose markers to a specific video time
+   *
+   * Overrides win over AI detection for that event, but neighbours (and
+   * the rest of the summary — tempo, kinetic sequence, impact diagnostics)
+   * recompute from the overridden values so the coaching read stays
+   * internally consistent.
+   */
+  rebuildAnalysis(prev: SwingAnalysis, edits: RebuildAnalysisEdits): SwingAnalysis {
+    if (prev.frames.length < 8) return prev;
+    const frames = prev.frames;
+    const sampledFps = prev.sampledFps;
+
+    // Resolve the new analysis window.
+    const prevRange = prev.analyzedRange;
+    const startIdxFromEdit =
+      edits.intervalStartSec != null
+        ? nearestFrameIndex(frames, edits.intervalStartSec)
+        : (prevRange?.startFrameIdx ?? 0);
+    const endIdxFromEdit =
+      edits.intervalEndSec != null
+        ? nearestFrameIndex(frames, edits.intervalEndSec)
+        : (prevRange?.endFrameIdx ?? frames.length - 1);
+    let startFrameIdx = Math.max(0, Math.min(startIdxFromEdit, frames.length - 1));
+    let endFrameIdx = Math.max(0, Math.min(endIdxFromEdit, frames.length - 1));
+    if (endFrameIdx <= startFrameIdx) {
+      // Guarantee a non-empty window; nudge end forward when the coach
+      // dragged the handles across each other.
+      endFrameIdx = Math.min(frames.length - 1, startFrameIdx + 7);
+    }
+    const analyzedRange: AnalyzedFrameRange = { startFrameIdx, endFrameIdx };
+
+    const workingFrames = frames.slice(startFrameIdx, endFrameIdx + 1);
+    const { events, warnings } = segmentEvents(workingFrames, sampledFps);
+
+    // Apply coach overrides in absolute frame space, then translate to
+    // local indices for buildSummary. Overrides outside the window get
+    // clamped to the nearest edge — the coach explicitly moved a marker
+    // there, so we honour the intent instead of dropping the override.
+    if (edits.eventTimeOverrides) {
+      for (const [name, tSec] of Object.entries(edits.eventTimeOverrides) as Array<
+        [SwingEventName, number | undefined]
+      >) {
+        if (typeof tSec !== 'number' || !Number.isFinite(tSec)) continue;
+        const absIdx = nearestFrameIndex(frames, tSec);
+        const localIdx = Math.max(
+          0,
+          Math.min(workingFrames.length - 1, absIdx - startFrameIdx),
+        );
+        const t = workingFrames[localIdx]?.t;
+        if (t == null) continue;
+        // Preserve the frame's angle metrics (matches `build` inside
+        // segmentEvents) so downstream metric consumers stay consistent.
+        events[name] = {
+          name,
+          frameIndex: localIdx,
+          t,
+          metrics: { ...(workingFrames[localIdx].angles ?? {}) },
+        };
+      }
+    }
+
+    const summary = buildSummary(
+      workingFrames,
+      events,
+      sampledFps,
+      undefined,
+      false,
+    );
+    shiftEventIndices(events, startFrameIdx);
+
+    log.info('Analysis rebuilt with coach edits', {
+      analyzedRange,
+      overrides: Object.keys(edits.eventTimeOverrides ?? {}),
+    });
+    return {
+      ...prev,
+      frames,
+      analyzedRange,
+      events,
+      warnings,
+      summary,
+    };
   },
 };
 
