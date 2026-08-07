@@ -1,20 +1,26 @@
 import React, { useState, useRef } from 'react';
 import { Button } from './Button';
 import { Mic, Square, Play, Trash2 } from 'lucide-react';
+import {
+  isMediaPermissionError,
+  requestMediaStream,
+} from '../utils/mediaPermissions';
+import { PermissionDeniedModal } from './PermissionDeniedModal';
 
 interface AudioRecorderProps {
   onRecordingComplete: (audioBlob: Blob) => void;
   onCancel: () => void;
 }
 
-export const AudioRecorder: React.FC<AudioRecorderProps> = ({ 
+export const AudioRecorder: React.FC<AudioRecorderProps> = ({
   onRecordingComplete,
-  onCancel 
+  onCancel
 }) => {
   const [isRecording, setIsRecording] = useState(false);
   const [recordedAudio, setRecordedAudio] = useState<Blob | null>(null);
   const [recordingTime, setRecordingTime] = useState(0);
   const [hasPermission, setHasPermission] = useState(false);
+  const [permissionModalOpen, setPermissionModalOpen] = useState(false);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
@@ -23,12 +29,16 @@ export const AudioRecorder: React.FC<AudioRecorderProps> = ({
 
   const requestMicrophonePermission = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const stream = await requestMediaStream({ audio: true });
       setHasPermission(true);
       return stream;
     } catch (error) {
-      console.error('Microphone permission denied:', error);
-      alert('마이크 접근 권한이 필요합니다.');
+      if (isMediaPermissionError(error) && error.kind === 'denied') {
+        setPermissionModalOpen(true);
+      } else {
+        console.error('Microphone unavailable:', error);
+        alert('마이크를 사용할 수 없습니다. 다른 앱이 사용 중이거나 장치를 찾지 못했어요.');
+      }
       return null;
     }
   };
@@ -99,6 +109,15 @@ export const AudioRecorder: React.FC<AudioRecorderProps> = ({
 
   return (
     <div className="space-y-4">
+      <PermissionDeniedModal
+        open={permissionModalOpen}
+        kind="microphone"
+        onClose={() => setPermissionModalOpen(false)}
+        onRetry={() => {
+          setPermissionModalOpen(false);
+          startRecording();
+        }}
+      />
       <div className="bg-gray-50 p-6 rounded-lg text-center">
         {!hasPermission && !isRecording && !recordedAudio && (
           <div className="space-y-4">

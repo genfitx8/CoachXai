@@ -15,6 +15,12 @@ import { storageService } from '../services/storage';
 import { sendLessonNoteViaKakao, buildLessonShareUrl } from '../services/kakaoShareService';
 import { videoEditingService } from '../services/videoEditingService';
 import { videoStore, IDB_PREFIX, resolveSync } from '../services/videoStore';
+import {
+  isMediaPermissionError,
+  requestMediaStream,
+  type MediaKind,
+} from '../utils/mediaPermissions';
+import { PermissionDeniedModal } from './PermissionDeniedModal';
 
 interface LessonDetailProps {
   lesson: Lesson;
@@ -142,6 +148,10 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
   const [recordingTime, setRecordingTime] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const timerRef = useRef<number | null>(null);
+  const [permissionRequest, setPermissionRequest] = useState<{
+    kind: MediaKind;
+    retry: () => void;
+  } | null>(null);
 
   const isClientView = role === 'CLIENT';
   // Always show AI lesson summary if it exists
@@ -604,15 +614,19 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
   const startCamera = async () => {
     try {
       stopMediaStream();
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: { facingMode: 'user' }, 
-        audio: true 
+      const stream = await requestMediaStream({
+        video: { facingMode: 'user' },
+        audio: true
       });
       streamRef.current = stream;
       setAddMode('CAMERA');
     } catch (err) {
-      console.error(err);
-      alert(t('lesson_camera_permission'));
+      if (isMediaPermissionError(err) && err.kind === 'denied') {
+        setPermissionRequest({ kind: 'both', retry: () => startCamera() });
+      } else {
+        console.error(err);
+        alert(t('lesson_camera_permission'));
+      }
     }
   };
 
@@ -671,7 +685,7 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
 
   const startRecordingAudio = async (forClientFeedback = false) => {
     try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const stream = await requestMediaStream({ audio: true });
         streamRef.current = stream;
         
         chunksRef.current = [];
@@ -734,8 +748,15 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
         }
 
     } catch (err) {
-        console.error(err);
-        alert(t('lesson_mic_permission'));
+        if (isMediaPermissionError(err) && err.kind === 'denied') {
+          setPermissionRequest({
+            kind: 'microphone',
+            retry: () => startRecordingAudio(forClientFeedback),
+          });
+        } else {
+          console.error(err);
+          alert(t('lesson_mic_permission'));
+        }
     }
   };
 
@@ -1138,6 +1159,20 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-50 flex flex-col h-full overflow-hidden animate-fade-in">
+      <PermissionDeniedModal
+        open={!!permissionRequest}
+        kind={permissionRequest?.kind ?? 'microphone'}
+        onClose={() => setPermissionRequest(null)}
+        onRetry={
+          permissionRequest
+            ? () => {
+                const retry = permissionRequest.retry;
+                setPermissionRequest(null);
+                retry();
+              }
+            : undefined
+        }
+      />
       {/* ... (Header and Main Content rendering remains same) ... */}
       {/* Header */}
       <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 px-4 py-3 flex items-center justify-between text-white flex-shrink-0 safe-area-top relative shadow-lg">

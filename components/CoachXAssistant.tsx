@@ -12,6 +12,7 @@ import { useTypingReveal } from '../hooks/useTypingReveal';
 import { useTextToSpeech } from '../hooks/useTextToSpeech';
 import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
 import { renderMarkdown } from '../utils/renderMarkdown';
+import { PermissionDeniedModal } from './PermissionDeniedModal';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -432,7 +433,14 @@ export const CoachXAssistant: React.FC<CoachXAssistantProps> = ({
     }
   }, [input, isTyping, clearReveal, addMessage, addAssistantMessage, startBooking, allLessons, clients, coachClients, language, onOpenBayReservation, onOpenReservationManager, onOpenCoachXHub]);
 
-  const { isListening, voiceError, stopListening, toggleListening } = useSpeechRecognition({
+  const {
+    isListening,
+    voiceError,
+    permissionDenied: micPermissionDenied,
+    dismissPermissionDenied: dismissMicPermissionDenied,
+    stopListening,
+    toggleListening,
+  } = useSpeechRecognition({
     language,
     onResult: handleSend,
   });
@@ -639,6 +647,15 @@ export const CoachXAssistant: React.FC<CoachXAssistantProps> = ({
 
   return (
     <div className="flex flex-col bg-gray-950 text-white" style={{ height: '100dvh' }}>
+      <PermissionDeniedModal
+        open={micPermissionDenied}
+        kind="microphone"
+        onClose={dismissMicPermissionDenied}
+        onRetry={() => {
+          dismissMicPermissionDenied();
+          toggleListening();
+        }}
+      />
       {/* Header */}
       <div className="flex items-center gap-3 px-4 py-3 border-b border-white/10 bg-gray-900/90 backdrop-blur-sm sticky top-0 z-10">
         <button

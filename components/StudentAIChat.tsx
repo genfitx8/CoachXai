@@ -14,6 +14,7 @@ import { useTextToSpeech } from '../hooks/useTextToSpeech';
 import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
 import { renderMarkdown } from '../utils/renderMarkdown';
 import { BackButton } from './ui/BackButton';
+import { PermissionDeniedModal } from './PermissionDeniedModal';
 
 type Mode = 'voice' | 'chat';
 type BookingStep = 'idle' | 'loading-slots' | 'slot-selection' | 'confirming' | 'booking';
@@ -293,7 +294,14 @@ export const StudentAIChat: React.FC<StudentAIChatProps> = ({
 
   // ── Voice STT ──────────────────────────────────────────────────────────────
 
-  const { isListening, voiceError, stopListening, toggleListening } = useSpeechRecognition({
+  const {
+    isListening,
+    voiceError,
+    permissionDenied: micPermissionDenied,
+    dismissPermissionDenied: dismissMicPermissionDenied,
+    stopListening,
+    toggleListening,
+  } = useSpeechRecognition({
     language,
     onResult: handleSend,
   });
@@ -485,6 +493,15 @@ export const StudentAIChat: React.FC<StudentAIChatProps> = ({
 
   return (
     <div className="flex flex-col bg-gray-950 text-white" style={{ minHeight: '100dvh' }}>
+      <PermissionDeniedModal
+        open={micPermissionDenied}
+        kind="microphone"
+        onClose={dismissMicPermissionDenied}
+        onRetry={() => {
+          dismissMicPermissionDenied();
+          toggleListening();
+        }}
+      />
       {/* Header */}
       <div className="flex items-center gap-3 px-4 py-3 border-b border-white/10 bg-gray-900/90 backdrop-blur-sm sticky top-0 z-10">
         <BackButton
