@@ -116,6 +116,31 @@ export interface TimeSlot {
   pricePoints: number | null; // null if no price rule
 }
 
+/**
+ * True when an active reservation at `bayId` overlaps the half-open range
+ * [reqStartHour, reqEndHour). CONFIRMED and CANCEL_REQUESTED both count as
+ * blocking — a cancel-requested slot has not yet been approved and must not
+ * be re-booked, and its deterministic-id record must not be silently
+ * overwritten by a new save.
+ */
+function findBayTimeConflict(
+  reservations: BayReservation[],
+  bayId: string,
+  reqStartHour: number,
+  reqEndHour: number
+): BayReservation | undefined {
+  return reservations.find((r) => {
+    if (r.bayId !== bayId) return false;
+    if (r.status !== 'CONFIRMED' && r.status !== 'CANCEL_REQUESTED') return false;
+    const rStartHour = parseInt(r.startTime.slice(11, 13), 10);
+    let rEndHour = parseInt(r.endTime.slice(11, 13), 10);
+    const rEndMin = parseInt(r.endTime.slice(14, 16), 10) || 0;
+    if (rEndMin > 0) rEndHour += 1;
+    if (rEndHour <= rStartHour) rEndHour = rStartHour + 1;
+    return rStartHour < reqEndHour && reqStartHour < rEndHour;
+  });
+}
+
 export interface AvailableBay {
   bay: Bay;
   pricePoints: number;
@@ -197,12 +222,22 @@ export const bayReservationService = {
     );
     if (!rule) return [];
 
+    // A bay counts as booked when a CONFIRMED (or pending-cancellation) reservation
+    // overlaps the requested [startHour, startHour+1) slot. Multi-hour lesson bay
+    // blocks (e.g. 10:00–12:00 stored as one record at hour 10) must also cover 11.
+    const slotEndHour = startHour + 1;
     const bookedBayIds = new Set(
       existingReservations
-        .filter((r) => r.status === 'CONFIRMED')
+        .filter(
+          (r) => r.status === 'CONFIRMED' || r.status === 'CANCEL_REQUESTED'
+        )
         .filter((r) => {
-          const rHour = parseInt(r.startTime.slice(11, 13), 10);
-          return rHour === startHour;
+          const rStartHour = parseInt(r.startTime.slice(11, 13), 10);
+          let rEndHour = parseInt(r.endTime.slice(11, 13), 10);
+          const rEndMin = parseInt(r.endTime.slice(14, 16), 10) || 0;
+          if (rEndMin > 0) rEndHour += 1;
+          if (rEndHour <= rStartHour) rEndHour = rStartHour + 1;
+          return rStartHour < slotEndHour && startHour < rEndHour;
         })
         .map((r) => r.bayId)
     );
@@ -272,9 +307,7 @@ export const bayReservationService = {
     const reservationId = `${branch.id}_${bay.id}_${ymd}_${hh}`;
 
     const existing = await loadReservationsByBranch(branch.id, date);
-    const conflict = existing.find(
-      (r) => r.id === reservationId && r.status === 'CONFIRMED'
-    );
+    const conflict = findBayTimeConflict(existing, bay.id, startHour, startHour + 1);
     if (conflict) {
       throw new Error('이미 예약된 타석입니다. 다른 타석을 선택해주세요.');
     }
@@ -414,15 +447,15 @@ export const bayReservationService = {
       lessonReservationId,
     } = params;
     const startDate = startTime.slice(0, 10);
-    const hour = parseInt(startTime.slice(11, 13), 10);
-    const reservationId = `${branchId}_${bayId}_${toYMD(startDate)}_${String(hour).padStart(2, '0')}`;
+    const startHour = parseInt(startTime.slice(11, 13), 10);
+    let endHour = parseInt(endTime.slice(11, 13), 10);
+    const endMin = parseInt(endTime.slice(14, 16), 10) || 0;
+    if (endMin > 0) endHour += 1;
+    if (endHour <= startHour) endHour = startHour + 1;
+    const reservationId = `${branchId}_${bayId}_${toYMD(startDate)}_${String(startHour).padStart(2, '0')}`;
 
     const existing = await loadReservationsByBranch(branchId, startDate);
-    const conflict = existing.find(
-      (r) =>
-        r.id === reservationId &&
-        r.status === 'CONFIRMED'
-    );
+    const conflict = findBayTimeConflict(existing, bayId, startHour, endHour);
     if (conflict) {
       throw new Error('선택한 타석은 이미 예약되어 있습니다.');
     }
@@ -525,9 +558,7 @@ export const bayReservationService = {
     const reservationId = `${branch.id}_${bay.id}_${ymd}_${hh}`;
 
     const existing = await loadReservationsByBranch(branch.id, date);
-    const conflict = existing.find(
-      (r) => r.id === reservationId && r.status === 'CONFIRMED'
-    );
+    const conflict = findBayTimeConflict(existing, bay.id, startHour, startHour + 1);
     if (conflict) {
       throw new Error('이미 예약된 타석입니다. 다른 타석을 선택해주세요.');
     }

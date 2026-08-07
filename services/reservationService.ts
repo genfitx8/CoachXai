@@ -754,12 +754,22 @@ class ReservationService {
     const workEnd   = parseInt(dayEntry.close.split(':')[0], 10);
     const pad = (n: number) => String(n).padStart(2, '0');
 
-    // Build set of hours blocked by BLOCKED / active booked reservations
-    const unavailableHours = new Set(
-      dateReservations
-        .filter((r) => r.status === 'BLOCKED' || OCCUPIED_SLOT_STATUSES.includes(r.status))
-        .map((r) => new Date(r.startTime).getHours())
-    );
+    // Build set of hours blocked by BLOCKED / active booked reservations.
+    // A reservation spanning multiple hours (e.g. 14:00–16:00) must block
+    // every hour it occupies, not just its start hour.
+    const unavailableHours = new Set<number>();
+    dateReservations
+      .filter((r) => r.status === 'BLOCKED' || OCCUPIED_SLOT_STATUSES.includes(r.status))
+      .forEach((r) => {
+        const startH = parseInt(r.startTime.slice(11, 13), 10);
+        let endH = parseInt(r.endTime.slice(11, 13), 10);
+        const endMin = parseInt(r.endTime.slice(14, 16), 10) || 0;
+        // If the end time falls mid-hour (e.g. 15:30), that hour is still occupied.
+        if (endMin > 0) endH += 1;
+        // Safety: guarantee at least one blocked hour (same-hour or midnight wrap).
+        if (endH <= startH) endH = startH + 1;
+        for (let h = startH; h < endH; h++) unavailableHours.add(h);
+      });
 
     const result: LessonReservation[] = [];
     for (let hour = workStart; hour < workEnd; hour++) {
