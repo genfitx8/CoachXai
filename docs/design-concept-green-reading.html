@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>COACHX AI — 그린 리딩 컨셉</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  *{ box-sizing:border-box; margin:0; padding:0; }
+  body{
+    background:#e5e2da;
+    min-height:100vh;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    font-family:'Inter',sans-serif;
+    padding:28px 12px 60px;
+  }
+  .frame{
+    width:375px;
+    max-width:92vw;
+    height:800px;
+    border-radius:38px;
+    overflow:hidden;
+    position:relative;
+    box-shadow:0 20px 50px rgba(0,0,0,0.25), 0 0 0 8px #111;
+    background:#0f261e;
+    color:#f2f0e9;
+  }
+  .contour-bg{
+    position:absolute; inset:0; opacity:.3; pointer-events:none;
+    background:
+      repeating-radial-gradient(ellipse 620px 420px at 82% 4%,
+        transparent 0px, transparent 26px,
+        rgba(242,240,233,0.06) 27px, rgba(242,240,233,0.06) 28px);
+  }
+  .scroll{
+    position:relative;
+    height:100%;
+    overflow-y:auto;
+    padding-bottom:96px;
+  }
+  .scroll::-webkit-scrollbar{ display:none; }
+
+  .statusbar{
+    height:46px; display:flex; align-items:center; justify-content:space-between;
+    padding:0 22px; font-size:13px; font-weight:600; position:relative;
+  }
+
+  .content{ position:relative; padding:2px 20px 8px; }
+
+  .greet{
+    display:flex; justify-content:space-between; align-items:center;
+    padding-bottom:16px; margin-bottom:18px;
+    border-bottom:1px solid rgba(242,240,233,0.12);
+  }
+  .greet .hi{ font-family:'Space Grotesk',sans-serif; font-size:22px; font-weight:600; letter-spacing:-.01em; }
+  .greet .sub{ font-size:12.5px; color:#9db8a9; margin-top:5px; }
+  .greet .avatar{
+    width:38px; height:38px; border-radius:50%;
+    background:linear-gradient(135deg,#c1442d,#8a2f1f);
+    flex-shrink:0; border:1.5px solid rgba(242,240,233,0.25);
+  }
+
+  .agent-pill{
+    display:flex; align-items:center; gap:11px;
+    background:rgba(242,240,233,0.07);
+    border:1px solid rgba(242,240,233,0.16);
+    border-radius:15px; padding:12px 14px; margin-bottom:22px;
+  }
+  .agent-pill .flag{ flex-shrink:0; }
+  .agent-pill .txt{ font-size:12.5px; color:#dcd8c8; line-height:1.45; }
+  .agent-pill .txt b{ color:#fff; font-weight:600; }
+
+  .ring-card{
+    background:rgba(242,240,233,0.055);
+    border:1px solid rgba(242,240,233,0.14);
+    border-radius:20px; padding:18px 20px;
+    display:flex; align-items:center; gap:16px;
+    margin-bottom:24px;
+  }
+  .ring-card svg{ flex-shrink:0; }
+  .ring-meta .rt{ font-size:11px; letter-spacing:.04em; color:#9db8a9; text-transform:uppercase; font-weight:600; }
+  .ring-meta .rn{ font-family:'Space Grotesk',sans-serif; font-size:26px; font-weight:600; margin-top:4px; }
+  .ring-meta .rb{ font-size:12px; color:#a9c2b3; margin-top:3px; }
+
+  .sec-title{
+    display:flex; justify-content:space-between; align-items:baseline;
+    font-size:11px; letter-spacing:.08em; color:#89a795; font-weight:700;
+    margin:0 0 10px 2px; text-transform:uppercase;
+  }
+  .sec-title .cnt{ color:#5f7d6c; font-weight:500; letter-spacing:0; text-transform:none; }
+
+  .round{ border-top:1px solid rgba(242,240,233,0.12); margin-bottom:24px; }
+  .hole-row{
+    display:flex; align-items:center; gap:13px;
+    padding:13px 2px; border-bottom:1px solid rgba(242,240,233,0.12);
+  }
+  .hole-time{
+    font-family:'IBM Plex Mono',monospace; font-size:13px; width:46px; flex-shrink:0; color:#f2f0e9;
+  }
+  .cat-dot{ width:7px; height:7px; border-radius:50%; flex-shrink:0; }
+  .cat-swing{ background:#7fa88f; }
+  .cat-field{ background:#c1442d; }
+  .cat-fit{ background:#d1a24a; }
+  .hole-info{ flex:1; min-width:0; }
+  .hole-name{ font-size:14px; font-weight:600; }
+  .hole-type{ font-size:11.5px; color:#9db8a9; margin-top:2px; }
+  .chev{ color:#5f7d6c; flex-shrink:0; font-size:14px; }
+
+  .stat-row{ display:flex; gap:10px; margin-bottom:6px; }
+  .stat{
+    flex:1; background:rgba(242,240,233,0.055);
+    border:1px solid rgba(242,240,233,0.14);
+    border-radius:14px; padding:13px 14px;
+  }
+  .stat .n{ font-family:'Space Grotesk',sans-serif; font-size:19px; font-weight:600; }
+  .stat .l{ font-size:10.5px; color:#9db8a9; margin-top:3px; }
+
+  /* bottom nav */
+  .navbar{
+    position:absolute; left:0; right:0; bottom:0;
+    height:78px; padding-bottom:14px;
+    display:flex; align-items:center; justify-content:space-around;
+    background:rgba(15,38,30,0.92);
+    backdrop-filter:blur(10px);
+    border-top:1px solid rgba(242,240,233,0.1);
+  }
+  .navbar .item{ display:flex; flex-direction:column; align-items:center; gap:5px; }
+  .navbar .item .lbl{ font-size:9.5px; color:#5f7d6c; font-weight:600; }
+  .navbar .item.active .lbl{ color:#f2f0e9; }
+  .navbar svg{ display:block; }
+</style>
+</head>
+<body>
+  <div class="frame">
+    <div class="contour-bg"></div>
+    <div class="scroll">
+      <div class="statusbar"><span>9:41</span><span>&#9679;&#9679;&#9679;</span></div>
+
+      <div class="content">
+        <div class="greet">
+          <div>
+            <div class="hi">안녕하세요, Samuelson님</div>
+            <div class="sub">8월 7일 금요일 · 오늘 4개 세션</div>
+          </div>
+          <div class="avatar"></div>
+        </div>
+
+        <div class="agent-pill">
+          <svg class="flag" width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <line x1="4" y1="1.5" x2="4" y2="14.5" stroke="#c1442d" stroke-width="1.4" stroke-linecap="round"/>
+            <path d="M4 2 L12 4.3 L4 6.6 Z" fill="#c1442d"/>
+          </svg>
+          <div class="txt"><b>COACHX 에이전트</b> — 오후 2시 이도윤 학생 스윙 데이터 분석이 끝났어요</div>
+        </div>
+
+        <div class="ring-card">
+          <svg width="88" height="76" viewBox="0 0 120 100">
+            <ellipse cx="52" cy="46" rx="50" ry="40" fill="none" stroke="rgba(242,240,233,0.22)" stroke-width="1.4"/>
+            <ellipse cx="56" cy="49" rx="39" ry="31" fill="none" stroke="rgba(242,240,233,0.28)" stroke-width="1.4"/>
+            <ellipse cx="61" cy="52" rx="27" ry="21" fill="rgba(193,68,45,0.16)" stroke="#c1442d" stroke-width="1.4"/>
+            <ellipse cx="65" cy="55" rx="17" ry="13" fill="rgba(193,68,45,0.32)" stroke="#c1442d" stroke-width="1.4"/>
+            <ellipse cx="69" cy="58" rx="8" ry="6" fill="#c1442d"/>
+            <line x1="69" y1="58" x2="69" y2="40" stroke="#f2f0e9" stroke-width="1.4" stroke-linecap="round"/>
+            <path d="M69 40 L79 43.5 L69 47 Z" fill="#f2f0e9"/>
+          </svg>
+          <div class="ring-meta">
+            <div class="rt">주간 목표 달성</div>
+            <div class="rn">68%</div>
+            <div class="rb">세션 17 / 25 완료</div>
+          </div>
+        </div>
+
+        <div class="sec-title"><span>오늘의 라운드</span><span class="cnt">4개 홀</span></div>
+        <div class="round">
+          <div class="hole-row">
+            <div class="hole-time">10:00</div>
+            <div class="cat-dot cat-swing"></div>
+            <div class="hole-info">
+              <div class="hole-name">박지훈</div>
+              <div class="hole-type">스윙 분석 · 실내 스튜디오</div>
+            </div>
+            <div class="chev">&rsaquo;</div>
+          </div>
+          <div class="hole-row">
+            <div class="hole-time">13:30</div>
+            <div class="cat-dot cat-field"></div>
+            <div class="hole-info">
+              <div class="hole-name">이도윤</div>
+              <div class="hole-type">필드 레슨 · 파3 코스</div>
+            </div>
+            <div class="chev">&rsaquo;</div>
+          </div>
+          <div class="hole-row">
+            <div class="hole-time">16:00</div>
+            <div class="cat-dot cat-fit"></div>
+            <div class="hole-info">
+              <div class="hole-name">최서연</div>
+              <div class="hole-type">피팅 상담 · 드라이버</div>
+            </div>
+            <div class="chev">&rsaquo;</div>
+          </div>
+          <div class="hole-row" style="border-bottom:none;">
+            <div class="hole-time">18:00</div>
+            <div class="cat-dot cat-swing"></div>
+            <div class="hole-info">
+              <div class="hole-name">정하은</div>
+              <div class="hole-type">스윙 분석 · 실내 스튜디오</div>
+            </div>
+            <div class="chev">&rsaquo;</div>
+          </div>
+        </div>
+
+        <div class="stat-row">
+          <div class="stat"><div class="n">4</div><div class="l">오늘 세션</div></div>
+          <div class="stat"><div class="n">12</div><div class="l">활성 학생</div></div>
+          <div class="stat"><div class="n">3.2h</div><div class="l">누적 코칭</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="navbar">
+      <div class="item active">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+          <line x1="6" y1="2" x2="6" y2="18" stroke="#f2f0e9" stroke-width="1.6" stroke-linecap="round"/>
+          <path d="M6 2.5 L16 6 L6 9.5 Z" fill="#f2f0e9"/>
+        </svg>
+        <div class="lbl">홈</div>
+      </div>
+      <div class="item">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#5f7d6c" stroke-width="1.6">
+          <circle cx="10" cy="6.5" r="3.2"/>
+          <path d="M3.5 17c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6" stroke-linecap="round"/>
+        </svg>
+        <div class="lbl">학생</div>
+      </div>
+      <div class="item">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#5f7d6c" stroke-width="1.6">
+          <rect x="3" y="4" width="14" height="13" rx="2"/>
+          <line x1="3" y1="8" x2="17" y2="8"/>
+          <line x1="6.5" y1="2" x2="6.5" y2="5.5" stroke-linecap="round"/>
+          <line x1="13.5" y1="2" x2="13.5" y2="5.5" stroke-linecap="round"/>
+        </svg>
+        <div class="lbl">일정</div>
+      </div>
+      <div class="item">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#5f7d6c" stroke-width="1.6">
+          <circle cx="10" cy="10" r="2.6"/>
+          <path d="M10 2.5v2M10 15.5v2M17.5 10h-2M4.5 10h-2M15.3 4.7l-1.4 1.4M6.1 13.9l-1.4 1.4M15.3 15.3l-1.4-1.4M6.1 6.1L4.7 4.7" stroke-linecap="round"/>
+        </svg>
+        <div class="lbl">설정</div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
