@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="coach-bg" x1="48" y1="44" x2="466" y2="468" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0B0F14" />
+      <stop offset="1" stop-color="#05070A" />
+    </linearGradient>
+    <linearGradient id="coach-accent" x1="164" y1="154" x2="386" y2="368" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#7B61FF" />
+      <stop offset="1" stop-color="#39C6FF" />
+    </linearGradient>
+    <radialGradient id="coach-badge" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#39C6FF" />
+      <stop offset="1" stop-color="#7B61FF" />
+    </radialGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#coach-bg)" />
+  <rect x="44" y="44" width="424" height="424" rx="92" fill="none" stroke="#1F2B3B" stroke-width="7" />
+  <path
+    d="M 184 352 C 127 352 86 311 86 254 C 86 197 127 156 184 156 C 208 156 229 164 247 180"
+    fill="none"
+    stroke="#F5F7FA"
+    stroke-width="38"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+  <path d="M 256 168 L 384 344" fill="none" stroke="url(#coach-accent)" stroke-width="42" stroke-linecap="round" />
+  <path d="M 384 168 L 256 344" fill="none" stroke="#F5F7FA" stroke-width="31" stroke-linecap="round" />
+  <circle cx="410" cy="102" r="30" fill="url(#coach-badge)" />
+  <circle cx="410" cy="102" r="10" fill="#F5F7FA" />
+</svg>
