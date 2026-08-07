@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { __testing__ } from '../services/swingAnalysisService';
-import type { SwingFrame } from '../types/swingAnalysis';
+import { __testing__, swingAnalysisService } from '../services/swingAnalysisService';
+import type { SwingAnalysis, SwingFrame } from '../types/swingAnalysis';
 import type { SkeletonKeypoint } from '../types/postureAnalysis';
 
 const {
@@ -18,6 +18,7 @@ const {
   percentileFinite,
   segmentEvents,
   detectSwingIntervals,
+  buildSummary,
 } = __testing__;
 
 type PointMap = Record<number, { x: number; y: number; z: number }>;
@@ -649,5 +650,106 @@ describe('segmentEvents — integration', () => {
     expect(
       warnings.some((w) => w.includes('어드레스 이후에 시작') || w.includes('백스윙 시작')),
     ).toBe(true);
+  });
+});
+
+describe('swingAnalysisService.rebuildAnalysis', () => {
+  // Build a minimal SwingAnalysis by running segmentEvents on the synthetic
+  // swing, then wrapping the result in the public shape. This is what
+  // analyzeSwingFromVideo would produce in the browser, without needing a
+  // real HTMLVideoElement in unit-test land.
+  function buildSyntheticAnalysis(fps: number): SwingAnalysis {
+    const frames: SwingFrame[] = [];
+    const dt = 1 / fps;
+    const totalT = 2.3;
+    const nFrames = Math.round(totalT * fps);
+    for (let i = 0; i < nFrames; i++) {
+      const t = i * dt;
+      let x: number, y: number;
+      if (t < 0.5) { x = 0; y = 0; }
+      else if (t < 1.3) { const u = (t - 0.5) / 0.8; x = -0.6 * u; y = -1.5 * u; }
+      else if (t < 1.6) {
+        const u = (t - 1.3) / 0.3;
+        const uu = u * u;
+        x = -0.6 + 1.2 * uu; y = -1.5 + 1.7 * uu;
+      }
+      else if (t < 1.9) { const u = (t - 1.6) / 0.3; x = 0.6 - 0.3 * u; y = 0.2 - 0.6 * u; }
+      else { x = 0.3; y = -0.4; }
+      const shoulderL = { x: -0.2, y: -0.7, z: 0 };
+      const shoulderR = { x: 0.2, y: -0.7, z: 0 };
+      const wrist = { x, y, z: 0 };
+      const elbowL = { x: (shoulderL.x + wrist.x) / 2, y: (shoulderL.y + wrist.y) / 2, z: 0 };
+      const elbowR = { x: shoulderR.x - 0.1, y: (shoulderR.y + wrist.y) / 2 - 0.05, z: 0 };
+      frames.push(
+        makeFrame(t, {
+          11: shoulderL, 12: shoulderR, 13: elbowL, 14: elbowR,
+          15: wrist, 16: wrist,
+          23: { x: -0.1, y: 0, z: 0 }, 24: { x: 0.1, y: 0, z: 0 },
+          27: { x: -0.1, y: 0.9, z: 0 }, 28: { x: 0.1, y: 0.9, z: 0 },
+        }),
+      );
+    }
+    const { events, warnings } = segmentEvents(frames, fps);
+    const summary = buildSummary(frames, events, fps, undefined, false);
+    return {
+      videoUrl: 'mock://synthetic',
+      frames,
+      sampledFps: fps,
+      analyzedRange: { startFrameIdx: 0, endFrameIdx: frames.length - 1 },
+      events,
+      warnings,
+      summary,
+    };
+  }
+
+  it('moving the impact override to a new time relocates the event and refreshes tempo', () => {
+    const fps = 60;
+    const analysis = buildSyntheticAnalysis(fps);
+    const originalImpactT = analysis.events.impact!.t;
+    const newImpactT = originalImpactT + 5 / fps; // 5 frames later
+    const rebuilt = swingAnalysisService.rebuildAnalysis(analysis, {
+      eventTimeOverrides: { impact: newImpactT },
+    });
+    // Event t rounds to the nearest sampled frame — within one frame period.
+    expect(Math.abs(rebuilt.events.impact!.t - newImpactT)).toBeLessThan(1 / fps);
+    // Downswing (top → impact) grew relative to the original.
+    expect(rebuilt.summary.downswingMs!).toBeGreaterThan(analysis.summary.downswingMs!);
+    // Original analysis object unchanged (rebuild returns a new object).
+    expect(analysis.events.impact!.t).toBeCloseTo(originalImpactT, 6);
+  });
+
+  it('shrinking the analysis window prunes events that no longer fit inside', () => {
+    const fps = 60;
+    const analysis = buildSyntheticAnalysis(fps);
+    // Original impact lives around t ≈ 1.55s. Cut the window at t=1.4 so the
+    // impact/follow/finish need to be re-detected inside a narrower slice.
+    const rebuilt = swingAnalysisService.rebuildAnalysis(analysis, {
+      intervalStartSec: 0.3,
+      intervalEndSec: 1.4,
+    });
+    expect(rebuilt.analyzedRange!.endFrameIdx).toBeLessThan(analysis.analyzedRange!.endFrameIdx);
+    // Every returned event's frameIndex lies inside the new window (absolute
+    // indices into the full frames array).
+    const { startFrameIdx, endFrameIdx } = rebuilt.analyzedRange!;
+    for (const evt of Object.values(rebuilt.events)) {
+      if (!evt) continue;
+      expect(evt.frameIndex).toBeGreaterThanOrEqual(startFrameIdx);
+      expect(evt.frameIndex).toBeLessThanOrEqual(endFrameIdx);
+    }
+  });
+
+  it('rebuild with no edits returns an equivalent analysis (idempotent)', () => {
+    const fps = 60;
+    const analysis = buildSyntheticAnalysis(fps);
+    const rebuilt = swingAnalysisService.rebuildAnalysis(analysis, {});
+    // Every original event still exists at the same frame (or within the
+    // detection tolerance since we re-run segmentation).
+    for (const name of Object.keys(analysis.events) as Array<keyof typeof analysis.events>) {
+      expect(rebuilt.events[name]).toBeDefined();
+      const dropOff = Math.abs(
+        (rebuilt.events[name]!.frameIndex - analysis.events[name]!.frameIndex),
+      );
+      expect(dropOff).toBeLessThanOrEqual(1);
+    }
   });
 });

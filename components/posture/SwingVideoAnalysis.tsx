@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Upload,
   Loader2,
@@ -8,6 +8,7 @@ import {
   X,
   Stethoscope,
   Dumbbell,
+  Pencil,
 } from 'lucide-react';
 import { swingAnalysisService } from '../../services/swingAnalysisService';
 import { detectFaults } from '../../services/faultDetectionService';
@@ -1122,6 +1123,311 @@ const DiagnosticsSection: React.FC<{ analysis: SwingAnalysis }> = ({ analysis })
   );
 };
 
+// ─────────────────────────────────────────────────────────────────────────
+// TimelineEditor
+//
+// Coach-facing edit surface for the AI's first-pass segmentation. Renders
+// the full video duration as a horizontal strip with:
+//   • two draggable trim handles for the analysis window
+//   • one draggable marker per pose event (address → finish)
+//   • a playhead cursor tied to the video element's currentTime
+// Every drag updates local state and is only applied when the coach clicks
+// "재분석" — the pending state stays visible so coaches can fine-tune
+// several markers before paying the analysis cost.
+// ─────────────────────────────────────────────────────────────────────────
+
+const EVENT_COLORS: Record<SwingEventName, string> = {
+  address: '#38bdf8',
+  takeaway: '#22d3ee',
+  half_backswing: '#a3e635',
+  top: '#facc15',
+  mid_downswing: '#fb923c',
+  impact: '#ef4444',
+  follow_through: '#c084fc',
+  finish: '#e2e8f0',
+};
+
+interface EventEdits {
+  intervalStartSec: number;
+  intervalEndSec: number;
+  eventTimes: Partial<Record<SwingEventName, number>>;
+}
+
+interface TimelineEditorProps {
+  analysis: SwingAnalysis;
+  videoUrl: string;
+  busy: boolean;
+  onApply: (edits: EventEdits) => void;
+  onCancel: () => void;
+}
+
+const TimelineEditor: React.FC<TimelineEditorProps> = ({
+  analysis,
+  videoUrl,
+  busy,
+  onApply,
+  onCancel,
+}) => {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const stripRef = useRef<HTMLDivElement>(null);
+  const [currentT, setCurrentT] = useState(0);
+  const [duration, setDuration] = useState<number>(() => {
+    const last = analysis.frames[analysis.frames.length - 1];
+    return last?.t ?? 0;
+  });
+  const [edits, setEdits] = useState<EventEdits>(() => ({
+    intervalStartSec:
+      analysis.analyzedRange != null
+        ? analysis.frames[analysis.analyzedRange.startFrameIdx]?.t ?? 0
+        : analysis.frames[0]?.t ?? 0,
+    intervalEndSec:
+      analysis.analyzedRange != null
+        ? analysis.frames[analysis.analyzedRange.endFrameIdx]?.t ??
+          (analysis.frames[analysis.frames.length - 1]?.t ?? 0)
+        : analysis.frames[analysis.frames.length - 1]?.t ?? 0,
+    eventTimes: EVENT_ORDER.reduce<Partial<Record<SwingEventName, number>>>((acc, name) => {
+      const evt = analysis.events[name];
+      if (evt) acc[name] = evt.t;
+      return acc;
+    }, {}),
+  }));
+
+  // Track which handle is being dragged. Null means idle. Ref (not state)
+  // so pointermove doesn't cause a re-render per frame.
+  const dragRef = useRef<
+    | { kind: 'trim'; side: 'start' | 'end' }
+    | { kind: 'event'; name: SwingEventName }
+    | null
+  >(null);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    const onMeta = () => {
+      const d = video.duration;
+      if (Number.isFinite(d) && d > 0) setDuration(d);
+    };
+    const onTime = () => setCurrentT(video.currentTime);
+    video.addEventListener('loadedmetadata', onMeta);
+    video.addEventListener('timeupdate', onTime);
+    video.addEventListener('seeked', onTime);
+    return () => {
+      video.removeEventListener('loadedmetadata', onMeta);
+      video.removeEventListener('timeupdate', onTime);
+      video.removeEventListener('seeked', onTime);
+    };
+  }, []);
+
+  const seek = useCallback((t: number) => {
+    const video = videoRef.current;
+    if (!video) return;
+    const clamped = Math.max(0, Math.min(duration || t, t));
+    video.currentTime = clamped;
+    setCurrentT(clamped);
+  }, [duration]);
+
+  const timeFromClientX = useCallback(
+    (clientX: number): number => {
+      const strip = stripRef.current;
+      if (!strip || duration <= 0) return 0;
+      const rect = strip.getBoundingClientRect();
+      const frac = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+      return frac * duration;
+    },
+    [duration],
+  );
+
+  const onStripPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    // Clicking empty timeline (not on a handle) seeks the video.
+    if (dragRef.current) return;
+    seek(timeFromClientX(e.clientX));
+  };
+
+  const onHandlePointerDown = (
+    e: React.PointerEvent<HTMLElement>,
+    ref: NonNullable<typeof dragRef.current>,
+  ) => {
+    e.stopPropagation();
+    e.preventDefault();
+    dragRef.current = ref;
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+  };
+
+  const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    const drag = dragRef.current;
+    if (!drag) return;
+    const t = timeFromClientX(e.clientX);
+    setEdits((prev) => {
+      if (drag.kind === 'trim') {
+        // Prevent the two trim handles from crossing each other.
+        if (drag.side === 'start') {
+          return { ...prev, intervalStartSec: Math.min(t, prev.intervalEndSec - 0.05) };
+        }
+        return { ...prev, intervalEndSec: Math.max(t, prev.intervalStartSec + 0.05) };
+      }
+      return { ...prev, eventTimes: { ...prev.eventTimes, [drag.name]: t } };
+    });
+    seek(t);
+  };
+
+  const onPointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!dragRef.current) return;
+    dragRef.current = null;
+    try {
+      (e.target as HTMLElement).releasePointerCapture(e.pointerId);
+    } catch {
+      /* ignore */
+    }
+  };
+
+  const snapToPlayhead = (name: SwingEventName) => {
+    setEdits((prev) => ({ ...prev, eventTimes: { ...prev.eventTimes, [name]: currentT } }));
+  };
+
+  const pct = (t: number): number =>
+    duration <= 0 ? 0 : Math.max(0, Math.min(100, (t / duration) * 100));
+
+  return (
+    <div className="space-y-3 rounded-lg border border-slate-700 bg-slate-900 p-4">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2 text-sm font-semibold text-slate-100">
+          <Pencil size={14} />
+          <span>수동 편집</span>
+          <span className="text-xs text-slate-400 font-normal">
+            트림 핸들과 포즈 마커를 드래그해 조정하세요.
+          </span>
+        </div>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={onCancel}
+            disabled={busy}
+            className="px-3 py-1.5 text-xs rounded-md border border-slate-700 text-slate-300 hover:bg-slate-800 disabled:opacity-40"
+          >
+            취소
+          </button>
+          <button
+            type="button"
+            onClick={() => onApply(edits)}
+            disabled={busy}
+            className="px-3 py-1.5 text-xs rounded-md bg-emerald-600 hover:bg-emerald-500 text-white font-semibold disabled:opacity-40"
+          >
+            {busy ? '재분석 중…' : '재분석'}
+          </button>
+        </div>
+      </div>
+
+      <video
+        ref={videoRef}
+        src={videoUrl}
+        controls
+        className="w-full rounded-md border border-slate-800 bg-black max-h-[240px]"
+      />
+
+      <div
+        ref={stripRef}
+        onPointerDown={onStripPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerCancel={onPointerUp}
+        className="relative h-14 select-none rounded-md bg-slate-800/70 overflow-hidden touch-none"
+        role="slider"
+        aria-label="스윙 구간 및 포즈 편집 타임라인"
+      >
+        {/* Dimmed regions outside the analysis window. */}
+        <div
+          className="absolute inset-y-0 left-0 bg-black/50"
+          style={{ width: `${pct(edits.intervalStartSec)}%` }}
+        />
+        <div
+          className="absolute inset-y-0 right-0 bg-black/50"
+          style={{ width: `${100 - pct(edits.intervalEndSec)}%` }}
+        />
+        {/* Analysis window highlight. */}
+        <div
+          className="absolute inset-y-0 bg-emerald-500/10 border-y border-emerald-500/40"
+          style={{
+            left: `${pct(edits.intervalStartSec)}%`,
+            width: `${Math.max(0, pct(edits.intervalEndSec) - pct(edits.intervalStartSec))}%`,
+          }}
+        />
+        {/* Playhead. */}
+        <div
+          className="absolute top-0 bottom-0 w-px bg-slate-100/80"
+          style={{ left: `${pct(currentT)}%` }}
+        />
+        {/* Trim handles. */}
+        {(['start', 'end'] as const).map((side) => {
+          const t = side === 'start' ? edits.intervalStartSec : edits.intervalEndSec;
+          return (
+            <div
+              key={side}
+              onPointerDown={(e) => onHandlePointerDown(e, { kind: 'trim', side })}
+              className="absolute top-0 bottom-0 w-2 -translate-x-1/2 cursor-ew-resize bg-emerald-400 hover:bg-emerald-300 shadow"
+              style={{ left: `${pct(t)}%` }}
+              title={`${side === 'start' ? '시작' : '끝'} ${t.toFixed(2)}s`}
+            />
+          );
+        })}
+        {/* Event markers. */}
+        {EVENT_ORDER.map((name) => {
+          const t = edits.eventTimes[name];
+          if (t == null) return null;
+          return (
+            <div
+              key={name}
+              onPointerDown={(e) => onHandlePointerDown(e, { kind: 'event', name })}
+              className="absolute top-1 h-6 w-6 -translate-x-1/2 cursor-grab rounded-full border-2 border-slate-900 shadow-md flex items-center justify-center text-[9px] font-bold text-slate-900 active:cursor-grabbing"
+              style={{ left: `${pct(t)}%`, backgroundColor: EVENT_COLORS[name] }}
+              title={`${EVENT_LABEL[name]} ${t.toFixed(3)}s`}
+            >
+              {EVENT_LABEL[name].slice(0, 1)}
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-[11px]">
+        {EVENT_ORDER.map((name) => {
+          const t = edits.eventTimes[name];
+          return (
+            <div
+              key={name}
+              className="flex items-center gap-2 rounded-md border border-slate-800 bg-slate-950 px-2 py-1.5"
+            >
+              <span
+                className="inline-block h-2.5 w-2.5 rounded-full"
+                style={{ backgroundColor: EVENT_COLORS[name] }}
+              />
+              <span className="flex-1 text-slate-200 font-medium truncate">
+                {EVENT_LABEL[name]}
+              </span>
+              <span className="font-mono text-slate-400">
+                {t != null ? `${t.toFixed(3)}s` : '—'}
+              </span>
+              <button
+                type="button"
+                onClick={() => snapToPlayhead(name)}
+                disabled={busy}
+                className="rounded-sm border border-slate-700 px-1.5 py-0.5 text-[10px] text-slate-300 hover:bg-slate-800 disabled:opacity-40"
+                title="현재 재생 위치로 지정"
+              >
+                현재
+              </button>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="text-[11px] text-slate-500">
+        분석 구간 <span className="font-mono text-slate-300">{edits.intervalStartSec.toFixed(2)}s</span> →{' '}
+        <span className="font-mono text-slate-300">{edits.intervalEndSec.toFixed(2)}s</span>{' '}
+        · 총 {(edits.intervalEndSec - edits.intervalStartSec).toFixed(2)}s
+      </div>
+    </div>
+  );
+};
+
 interface SwingVideoAnalysisProps {
   /** Optional preset video URL. If omitted the user picks a file. */
   initialVideoUrl?: string;
@@ -1138,6 +1444,7 @@ export const SwingVideoAnalysis: React.FC<SwingVideoAnalysisProps> = ({
   const [analysis, setAnalysis] = useState<SwingAnalysis | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [editing, setEditing] = useState(false);
 
   useEffect(() => {
     return () => {
@@ -1154,8 +1461,25 @@ export const SwingVideoAnalysis: React.FC<SwingVideoAnalysisProps> = ({
     setError(null);
   };
 
+  const applyEdits = (edits: EventEdits) => {
+    if (!analysis) return;
+    setBusy(true);
+    try {
+      const rebuilt = swingAnalysisService.rebuildAnalysis(analysis, {
+        intervalStartSec: edits.intervalStartSec,
+        intervalEndSec: edits.intervalEndSec,
+        eventTimeOverrides: edits.eventTimes,
+      });
+      setAnalysis(rebuilt);
+      setEditing(false);
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const runAnalysis = async (window?: { startTime: number; endTime: number }) => {
     if (!videoUrl) return;
+    setEditing(false);
     setBusy(true);
     setError(null);
     setAnalysis(null);
@@ -1284,6 +1608,29 @@ export const SwingVideoAnalysis: React.FC<SwingVideoAnalysisProps> = ({
         {analysis && (
           <div className="space-y-4">
             <SummaryBar summary={analysis.summary} />
+            {videoUrl && !editing && (
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => setEditing(true)}
+                  disabled={busy}
+                  className="flex items-center gap-1.5 rounded-md border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs font-semibold text-slate-100 hover:bg-slate-800 disabled:opacity-40"
+                  title="트림 구간과 포즈 위치를 수동으로 조정"
+                >
+                  <Pencil size={12} />
+                  구간·포즈 수동 편집
+                </button>
+              </div>
+            )}
+            {editing && videoUrl && (
+              <TimelineEditor
+                analysis={analysis}
+                videoUrl={videoUrl}
+                busy={busy}
+                onApply={applyEdits}
+                onCancel={() => setEditing(false)}
+              />
+            )}
             {analysis.detectedInterval && (
               <div className="rounded-lg bg-emerald-950/30 border border-emerald-900/50 p-3 space-y-2">
                 <div className="text-xs text-emerald-300 leading-relaxed">
