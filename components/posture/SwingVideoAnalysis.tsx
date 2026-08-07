@@ -103,9 +103,14 @@ function drawKeypoints(
     ctx.fillStyle = '#0f172a';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
   }
-  ctx.strokeStyle = '#10b981';
-  ctx.lineWidth = 3;
-  ctx.fillStyle = '#f97316';
+  // Skeleton line thickness scales with the canvas so mobile / desktop /
+  // fullscreen all read the same weight. Round caps and joins soften the
+  // segment joins at these thicker widths.
+  const strokePx = Math.max(4, Math.round(canvas.width / 160));
+  const jointR = Math.max(6, Math.round(canvas.width / 100));
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  // Black underlay + emerald overlay = high contrast on any video color.
   POSE_CONNECTIONS.forEach(([a, b]) => {
     const p1 = keypoints[a];
     const p2 = keypoints[b];
@@ -113,13 +118,24 @@ function drawKeypoints(
     ctx.beginPath();
     ctx.moveTo(p1.x * canvas.width, p1.y * canvas.height);
     ctx.lineTo(p2.x * canvas.width, p2.y * canvas.height);
+    ctx.strokeStyle = 'rgba(0,0,0,0.6)';
+    ctx.lineWidth = strokePx + 3;
+    ctx.stroke();
+    ctx.strokeStyle = '#10b981';
+    ctx.lineWidth = strokePx;
     ctx.stroke();
   });
   keypoints.forEach((kp) => {
     if (kp.confidence < 0.3) return;
+    const cx = kp.x * canvas.width;
+    const cy = kp.y * canvas.height;
     ctx.beginPath();
-    ctx.arc(kp.x * canvas.width, kp.y * canvas.height, 4, 0, 2 * Math.PI);
+    ctx.arc(cx, cy, jointR, 0, 2 * Math.PI);
+    ctx.fillStyle = '#f97316';
     ctx.fill();
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = 'rgba(0,0,0,0.75)';
+    ctx.stroke();
   });
   if (overlay) {
     const sx = overlay.start.x * canvas.width;
