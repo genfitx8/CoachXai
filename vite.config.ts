@@ -49,6 +49,9 @@ export default defineConfig(({ mode }) => {
           // Standalone golf swing analysis (no auth / server / routing) —
           // served at /swing.html.
           swing: path.resolve(__dirname, 'swing.html'),
+          // Standalone preview of the green-reading coach home concept —
+          // served at /home-preview.html.
+          homePreview: path.resolve(__dirname, 'home-preview.html'),
         },
       },
     },
