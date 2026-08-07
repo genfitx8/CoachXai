@@ -7,7 +7,43 @@ import {
 } from './reservationPushNotificationService';
 import { createReservationRequestNotification } from './coachNotificationService';
 import { bayReservationService } from './bayReservationService';
+import {
+  scheduleLessonReminders,
+  cancelLessonReminders,
+} from './notificationPreferenceService';
 import { createLogger } from '../utils/logger';
+
+/**
+ * Keep the server-side scheduled push reminders aligned with each
+ * reservation write. CONFIRMED (or COACH_APPROVED) with a future startTime
+ * → (re)schedules the reminder pair; terminal states → cancels.
+ */
+async function syncPushRemindersForReservation(r: LessonReservation): Promise<void> {
+  if (!r.id) return;
+  const CANCEL_STATES: ReservationStatus[] = [
+    'CANCELLED',
+    'REJECTED',
+    'COMPLETED',
+    'BLOCKED',
+    'AVAILABLE',
+  ];
+  if (CANCEL_STATES.includes(r.status)) {
+    await cancelLessonReminders(r.id);
+    return;
+  }
+  if (r.status !== 'CONFIRMED' && r.status !== 'COACH_APPROVED') return;
+  if (!r.startTime || !r.coachId || !r.clientId) return;
+  const startAt = new Date(r.startTime).getTime();
+  if (!Number.isFinite(startAt) || startAt <= Date.now()) return;
+  await scheduleLessonReminders({
+    reservationId: r.id,
+    lessonStartAt: startAt,
+    coachId: r.coachId,
+    clientId: r.clientId,
+    coachName: r.coachName,
+    clientName: r.clientName,
+  });
+}
 
 const log = createLogger('reservation');
 
@@ -47,6 +83,10 @@ class ReservationService {
     } else {
       storageService.updateReservation(reservation);
     }
+    // Fire-and-forget: keep server-side reminder schedule in sync with the
+    // reservation's terminal state. Failures are swallowed so a push-service
+    // outage never blocks a reservation write.
+    void syncPushRemindersForReservation(reservation).catch(() => { /* non-fatal */ });
   }
 
   /**

@@ -2,11 +2,14 @@
 import React, { useState } from 'react';
 import { CoachProfile } from '../types';
 import { Button } from './Button';
-import { X, User, Mail, Phone, CreditCard, Calendar, Users, LogOut, Edit2, Save, XCircle, CalendarDays } from 'lucide-react';
+import { X, User, Mail, Phone, CreditCard, Calendar, Users, LogOut, Edit2, Save, XCircle, CalendarDays, Bell, Megaphone } from 'lucide-react';
+import { NotificationSettings } from './NotificationSettings';
+import { CoachBroadcastComposer } from './CoachBroadcastComposer';
 
 interface CoachProfileModalProps {
   isOpen: boolean;
   coachProfile: CoachProfile;
+  clients?: import('../types').ClientProfile[];
   onClose: () => void;
   onUpdate: (updatedProfile: CoachProfile) => void;
   onManageMembers: () => void;
@@ -14,19 +17,21 @@ interface CoachProfileModalProps {
   onLogout: () => void;
 }
 
-export const CoachProfileModal: React.FC<CoachProfileModalProps> = ({ 
-  isOpen, 
-  coachProfile, 
-  onClose, 
-  onUpdate, 
+export const CoachProfileModal: React.FC<CoachProfileModalProps> = ({
+  isOpen,
+  coachProfile,
+  clients = [],
+  onClose,
+  onUpdate,
   onManageMembers,
   onManageReservations,
-  onLogout 
+  onLogout
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState(coachProfile.name);
   const [editPhone, setEditPhone] = useState(coachProfile.phone || '');
   const [isSaving, setIsSaving] = useState(false);
+  const [subview, setSubview] = useState<'main' | 'notifications' | 'broadcast'>('main');
 
   if (!isOpen) return null;
 
@@ -49,6 +54,40 @@ export const CoachProfileModal: React.FC<CoachProfileModalProps> = ({
       setEditPhone(coachProfile.phone || '');
       setIsEditing(false);
   };
+
+  if (subview === 'notifications' || subview === 'broadcast') {
+    return (
+      <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-fade-in">
+        <div className="bg-slate-900 text-slate-100 rounded-2xl w-full max-w-md overflow-hidden shadow-2xl border border-slate-700/80 max-h-[90vh] flex flex-col">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-slate-700/80">
+            <button
+              onClick={() => setSubview('main')}
+              className="text-sm text-slate-300 hover:text-white"
+            >
+              ← 뒤로
+            </button>
+            <div className="text-sm font-medium">
+              {subview === 'notifications' ? '알림 설정' : '학생 전체 공지'}
+            </div>
+            <button onClick={onClose} className="text-slate-400 hover:text-white">
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+          <div className="overflow-y-auto">
+            {subview === 'notifications' ? (
+              <NotificationSettings />
+            ) : (
+              <CoachBroadcastComposer
+                coachId={coachProfile.id}
+                clients={clients}
+                onClose={() => setSubview('main')}
+              />
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-fade-in">
@@ -139,24 +178,38 @@ export const CoachProfileModal: React.FC<CoachProfileModalProps> = ({
                         </div>
                     ) : (
                         <>
-                            <Button 
-                                onClick={onManageMembers} 
+                            <Button
+                                onClick={onManageMembers}
                                 className="w-full bg-slate-800 text-slate-100 border border-slate-700 hover:bg-slate-700 shadow-sm"
                             >
                                 <Users className="w-4 h-4 mr-2" /> 회원 목록 관리
                             </Button>
-                            
+
                             {onManageReservations && (
-                                <Button 
-                                    onClick={onManageReservations} 
+                                <Button
+                                    onClick={onManageReservations}
                                     className="w-full bg-emerald-500/10 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/20 shadow-sm"
                                 >
                                     <CalendarDays className="w-4 h-4 mr-2" /> 예약 관리
                                 </Button>
                             )}
-                            
-                            <Button 
-                                onClick={onLogout} 
+
+                            <Button
+                                onClick={() => setSubview('notifications')}
+                                className="w-full bg-slate-800 text-slate-100 border border-slate-700 hover:bg-slate-700 shadow-sm"
+                            >
+                                <Bell className="w-4 h-4 mr-2" /> 알림 설정
+                            </Button>
+
+                            <Button
+                                onClick={() => setSubview('broadcast')}
+                                className="w-full bg-indigo-500/10 text-indigo-300 border border-indigo-500/30 hover:bg-indigo-500/20 shadow-sm"
+                            >
+                                <Megaphone className="w-4 h-4 mr-2" /> 학생 전체 공지
+                            </Button>
+
+                            <Button
+                                onClick={onLogout}
                                 variant="secondary"
                                 className="w-full text-red-300 border-red-500/30 hover:bg-red-500/10 hover:text-red-200 hover:border-red-500/50"
                             >

@@ -45,6 +45,7 @@ import { authService } from './services/authService';
 import { firebaseService } from './services/firebase';
 import { apiService } from './services/apiService';
 import { videoStore, IDB_PREFIX } from './services/videoStore';
+import { initializePush, unregisterCurrentDevice } from './services/pushService';
 import {
   getUnreadReservationNotificationsForCoach,
   markNotificationsAsRead,
@@ -576,6 +577,9 @@ const AppContent: React.FC = () => {
       loadAndShowCoachNotifications(data.id);
       checkAndShowLessonSuggestion(data.id);
     }
+
+    // Register this device for FCM push (no-op on web).
+    initializePush().catch(() => { /* logged inside */ });
   };
 
   // Deep-link: when the URL contains #lesson=<id> (e.g. from a KakaoTalk share),
@@ -663,6 +667,8 @@ const AppContent: React.FC = () => {
   }, [coachView, isAutomatedVideoEditingEnabled]);
 
   const handleLogout = () => {
+    // Clear the FCM token association on the server before the JWT is dropped.
+    unregisterCurrentDevice().catch(() => { /* non-fatal */ });
     authService.logout();
     setUserRole(null);
     setCurrentUser(null);
@@ -740,6 +746,22 @@ const AppContent: React.FC = () => {
         setLessons((prev) =>
           prev.map((l) => (l.id === lessonToSave.id ? savedLesson : l))
         );
+
+        // Fire a push notification to the counterparty. A lesson video from a
+        // coach → student's "new lesson video" alert; a student's practice
+        // record → the coach's "practice logged" alert. Wrapped so a push
+        // failure never rolls back the save.
+        try {
+          if (userRole === 'COACH' && savedLesson.id) {
+            const { notifyLessonUploaded } = await import('./services/notificationPreferenceService');
+            void notifyLessonUploaded(savedLesson.id).catch(() => { /* non-fatal */ });
+          } else if (userRole === 'CLIENT' && savedLesson.id) {
+            const { notifyPracticeLogged } = await import('./services/notificationPreferenceService');
+            const parts = [savedLesson.club, savedLesson.targetDistance ? `${savedLesson.targetDistance}m` : null].filter(Boolean);
+            const summary = parts.length > 0 ? parts.join(' · ') : undefined;
+            void notifyPracticeLogged(savedLesson.id, summary).catch(() => { /* non-fatal */ });
+          }
+        } catch { /* non-fatal */ }
 
         if (userRole === 'COACH') {
           if (pendingPackageSession) {
@@ -2374,6 +2396,7 @@ const AppContent: React.FC = () => {
         <CoachProfileModal
           isOpen={showProfileModal}
           coachProfile={coachProfile}
+          clients={clients}
           onClose={() => setShowProfileModal(false)}
           onUpdate={handleUpdateCoachProfile}
           onManageMembers={() => {
