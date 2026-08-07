@@ -8,6 +8,7 @@ interface UseSpeechRecognitionOptions {
 export function useSpeechRecognition({ language, onResult }: UseSpeechRecognitionOptions) {
   const [isListening, setIsListening] = useState(false);
   const [voiceError, setVoiceError] = useState<string | null>(null);
+  const [permissionDenied, setPermissionDenied] = useState(false);
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const onResultRef = useRef(onResult);
 
@@ -19,8 +20,11 @@ export function useSpeechRecognition({ language, onResult }: UseSpeechRecognitio
     setIsListening(false);
   }, []);
 
+  const dismissPermissionDenied = useCallback(() => setPermissionDenied(false), []);
+
   const startListening = useCallback(() => {
     setVoiceError(null);
+    setPermissionDenied(false);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const SRCtor: (new () => SpeechRecognition) | undefined = (window as any).SpeechRecognition ?? (window as any).webkitSpeechRecognition;
     if (!SRCtor) {
@@ -42,14 +46,15 @@ export function useSpeechRecognition({ language, onResult }: UseSpeechRecognitio
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const errType = (e as any).error;
       if (errType === 'aborted') return;
+      if (errType === 'not-allowed' || errType === 'service-not-allowed') {
+        setPermissionDenied(true);
+        setVoiceError(null);
+        return;
+      }
       setVoiceError(
-        errType === 'not-allowed'
-          ? (language === 'en' ? 'Microphone permission denied.'
-            : language === 'ja' ? 'マイクのアクセスが拒否されました。'
-            : '마이크 권한이 거부되었습니다.')
-          : (language === 'en' ? 'Voice recognition error. Please try again.'
-            : language === 'ja' ? '音声認識エラーが発生しました。'
-            : '음성 인식 중 오류가 발생했어요.')
+        language === 'en' ? 'Voice recognition error. Please try again.'
+          : language === 'ja' ? '音声認識エラーが発生しました。'
+          : '음성 인식 중 오류가 발생했어요.'
       );
     };
     rec.onresult = (e: unknown) => {
@@ -66,5 +71,14 @@ export function useSpeechRecognition({ language, onResult }: UseSpeechRecognitio
     else startListening();
   }, [isListening, stopListening, startListening]);
 
-  return { isListening, voiceError, startListening, stopListening, toggleListening, recognitionRef };
+  return {
+    isListening,
+    voiceError,
+    permissionDenied,
+    dismissPermissionDenied,
+    startListening,
+    stopListening,
+    toggleListening,
+    recognitionRef,
+  };
 }

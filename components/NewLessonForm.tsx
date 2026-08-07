@@ -64,6 +64,12 @@ import {
 import { firebaseService } from '../services/firebase';
 import { storageService } from '../services/storage';
 import { videoStore, IDB_PREFIX, resolveSync } from '../services/videoStore';
+import {
+  isMediaPermissionError,
+  requestMediaStream,
+  type MediaKind,
+} from '../utils/mediaPermissions';
+import { PermissionDeniedModal } from './PermissionDeniedModal';
 
 interface NewLessonFormProps {
   existingClients: ClientProfile[];
@@ -290,6 +296,10 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
+  const [permissionRequest, setPermissionRequest] = useState<{
+    kind: MediaKind;
+    retry: () => void;
+  } | null>(null);
 
   const getHoleVoiceUrls = (hole: HoleRecord): string[] => {
     if (hole.voiceUrls && hole.voiceUrls.length > 0) {
@@ -585,7 +595,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
 
   const startHoleRecording = async (holeNum: number) => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const stream = await requestMediaStream({ audio: true });
       holeChunksRef.current = [];
 
       const recorder = new MediaRecorder(stream);
@@ -662,8 +672,15 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
         1000
       );
     } catch (e) {
-      console.error(e);
-      setError(t('new_lesson_mic_required'));
+      if (isMediaPermissionError(e) && e.kind === 'denied') {
+        setPermissionRequest({
+          kind: 'microphone',
+          retry: () => startHoleRecording(holeNum),
+        });
+      } else {
+        console.error(e);
+        setError(t('new_lesson_mic_required'));
+      }
     }
   };
 
@@ -808,7 +825,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
     try {
       setError(null);
       stopMediaStream();
-      const stream = await navigator.mediaDevices.getUserMedia({
+      const stream = await requestMediaStream({
         video: { facingMode: targetMode },
         audio: true,
       });
@@ -818,7 +835,14 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
       }
       setIsMediaReady(true);
     } catch (err) {
-      setError(t('new_lesson_camera_required'));
+      if (isMediaPermissionError(err) && err.kind === 'denied') {
+        setPermissionRequest({
+          kind: 'both',
+          retry: () => startCamera(targetMode),
+        });
+      } else {
+        setError(t('new_lesson_camera_required'));
+      }
     }
   };
 
@@ -833,11 +857,15 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
     try {
       setError(null);
       stopMediaStream();
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const stream = await requestMediaStream({ audio: true });
       streamRef.current = stream;
       setIsMediaReady(true);
     } catch (err) {
-      setError(t('new_lesson_mic_required'));
+      if (isMediaPermissionError(err) && err.kind === 'denied') {
+        setPermissionRequest({ kind: 'microphone', retry: () => startMic() });
+      } else {
+        setError(t('new_lesson_mic_required'));
+      }
     }
   };
 
@@ -1707,6 +1735,20 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
   // STEP: FORM
   return (
     <div className="fixed inset-0 z-50 bg-[#070b12] text-slate-100 flex flex-col overflow-hidden">
+      <PermissionDeniedModal
+        open={!!permissionRequest}
+        kind={permissionRequest?.kind ?? 'microphone'}
+        onClose={() => setPermissionRequest(null)}
+        onRetry={
+          permissionRequest
+            ? () => {
+                const retry = permissionRequest.retry;
+                setPermissionRequest(null);
+                retry();
+              }
+            : undefined
+        }
+      />
       <div
         className={`px-5 py-4 flex justify-between items-center flex-shrink-0 ${
           recordType === 'SCORE'
