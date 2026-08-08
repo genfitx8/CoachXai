@@ -61,6 +61,8 @@ import {
   GolfCourse,
   LessonPackage,
   VideoEditMetadata,
+  SwingLessonAnalysis,
+  SwingLessonCameraView,
 } from '../types';
 import { firebaseService } from '../services/firebase';
 import { storageService } from '../services/storage';
@@ -72,6 +74,13 @@ import {
 } from '../utils/mediaPermissions';
 import { PermissionDeniedModal } from './PermissionDeniedModal';
 import { VideoEditor } from './VideoEditor';
+import { swingAnalysisService } from '../services/swingAnalysisService';
+import type { SwingAnalysisProgress } from '../types/swingAnalysis';
+import {
+  toSwingLessonAnalysis,
+  CAMERA_VIEW_LABEL_KO,
+  KINETIC_ORDER_LABEL_KO,
+} from '../utils/swingLessonAnalysis';
 
 interface NewLessonFormProps {
   existingClients: ClientProfile[];
@@ -319,6 +328,20 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
 
   // Swing-video pre-upload editor state
   const [editorTargetId, setEditorTargetId] = useState<string | null>(null);
+
+  // Swing analysis — coach opts in, picks a view, runs the client-side
+  // pose+kinetic pipeline, and the compact result is saved on the Lesson.
+  const [swingAnalysisTargetId, setSwingAnalysisTargetId] = useState<string | null>(null);
+  const [swingAnalysisCameraView, setSwingAnalysisCameraView] =
+    useState<SwingLessonCameraView>('face_on');
+  const [swingAnalysisResult, setSwingAnalysisResult] =
+    useState<SwingLessonAnalysis | null>(
+      initialData?.swingAnalysis ?? null,
+    );
+  const [swingAnalysisRunning, setSwingAnalysisRunning] = useState(false);
+  const [swingAnalysisProgress, setSwingAnalysisProgress] =
+    useState<SwingAnalysisProgress | null>(null);
+  const [swingAnalysisError, setSwingAnalysisError] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -839,6 +862,41 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
   const editorTargetItem = editorTargetId
     ? mediaItems.find((m) => m.id === editorTargetId)
     : null;
+
+  const runSwingAnalysisOnVideo = async (targetMediaId: string) => {
+    const target = mediaItems.find((m) => m.id === targetMediaId);
+    if (!target || target.type !== 'video') return;
+    const url = target.previewUrl;
+    if (!url) return;
+    setSwingAnalysisTargetId(targetMediaId);
+    setSwingAnalysisRunning(true);
+    setSwingAnalysisError(null);
+    setSwingAnalysisResult(null);
+    setSwingAnalysisProgress({ processedFrames: 0, totalFrames: 0, stage: 'loading' });
+    try {
+      const result = await swingAnalysisService.analyzeSwingFromVideo(url, {
+        cameraView: swingAnalysisCameraView,
+        onProgress: setSwingAnalysisProgress,
+      });
+      const compact = toSwingLessonAnalysis(result, swingAnalysisCameraView);
+      setSwingAnalysisResult(compact);
+    } catch (err) {
+      console.error('[NewLessonForm] Swing analysis failed', err);
+      const msg = err instanceof Error ? err.message : String(err);
+      setSwingAnalysisError(msg || '스윙 분석에 실패했습니다.');
+    } finally {
+      setSwingAnalysisRunning(false);
+      setSwingAnalysisProgress(null);
+    }
+  };
+
+  const clearSwingAnalysis = () => {
+    setSwingAnalysisResult(null);
+    setSwingAnalysisError(null);
+    setSwingAnalysisTargetId(null);
+  };
+
+  const firstVideoMedia = mediaItems.find((m) => m.type === 'video');
 
   const removeMediaItem = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -1368,6 +1426,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
             : initialData?.assignedHomework,
         // Preserve other fields if editing
         swingSequence: initialData?.swingSequence,
+        swingAnalysis: swingAnalysisResult ?? initialData?.swingAnalysis,
         clientFeedback: initialData?.clientFeedback,
         // Attach package/session from the PACKAGE_SELECT step, or preserve from existing record
         lessonPackageId: selectedPackageId ?? initialData?.lessonPackageId,
@@ -2508,6 +2567,196 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
                 </div>
               )}
             </div>
+
+            {/* Swing video analysis (optional). Runs the client-side pose +
+                kinetic pipeline on the first uploaded video and attaches the
+                compact result to the saved lesson. */}
+            {firstVideoMedia && recordType !== 'SCORE' && (
+              <div className="rounded-2xl border border-emerald-900/60 bg-slate-900/70 p-4 space-y-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <div className="flex items-center gap-2 text-emerald-300">
+                      <Sparkles className="w-4 h-4" />
+                      <span className="text-sm font-bold">스윙 영상 분석 (선택)</span>
+                    </div>
+                    <p className="text-xs text-slate-400 mt-1">
+                      업로드한 스윙 영상을 자세·키네틱 파이프라인으로 분석하고
+                      결과를 이 기록에 함께 저장합니다.
+                    </p>
+                  </div>
+                  {swingAnalysisResult && !swingAnalysisRunning && (
+                    <button
+                      type="button"
+                      onClick={clearSwingAnalysis}
+                      className="text-xs text-slate-400 hover:text-slate-200"
+                    >
+                      결과 지우기
+                    </button>
+                  )}
+                </div>
+
+                {!swingAnalysisResult && !swingAnalysisRunning && (
+                  <>
+                    <div>
+                      <div className="text-xs font-semibold text-slate-300 mb-2">
+                        촬영 각도
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        {([
+                          {
+                            value: 'face_on' as const,
+                            label: '정면 (Face-On)',
+                            hint: '체중 이동·머리 스웨이',
+                          },
+                          {
+                            value: 'down_the_line' as const,
+                            label: '측면 (Down-the-Line)',
+                            hint: '스윙 플레인·얼리 익스텐션',
+                          },
+                        ]).map((opt) => (
+                          <button
+                            key={opt.value}
+                            type="button"
+                            disabled={swingAnalysisRunning}
+                            onClick={() => setSwingAnalysisCameraView(opt.value)}
+                            className={`rounded-md border p-2.5 text-left transition-colors disabled:opacity-40 ${
+                              swingAnalysisCameraView === opt.value
+                                ? 'border-emerald-500 bg-emerald-900/30 text-emerald-100'
+                                : 'border-slate-700 bg-slate-950 text-slate-300 hover:border-slate-500'
+                            }`}
+                            aria-pressed={swingAnalysisCameraView === opt.value}
+                          >
+                            <div className="text-xs font-semibold">{opt.label}</div>
+                            <div className="text-[10px] text-slate-400 mt-0.5">
+                              {opt.hint}
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => runSwingAnalysisOnVideo(firstVideoMedia.id)}
+                      className="w-full py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-sm transition-colors flex items-center justify-center gap-2"
+                    >
+                      <Sparkles className="w-4 h-4" />
+                      스윙 분석 실행
+                    </button>
+                  </>
+                )}
+
+                {swingAnalysisRunning && (
+                  <div className="rounded-lg bg-slate-950 border border-slate-800 p-3 space-y-2">
+                    <div className="flex items-center justify-between text-xs text-slate-400">
+                      <span>
+                        {swingAnalysisProgress?.stage === 'loading' && '모델 로딩 중...'}
+                        {swingAnalysisProgress?.stage === 'sampling' && '프레임 샘플링 중...'}
+                        {swingAnalysisProgress?.stage === 'segmenting' && '스윙 세그멘테이션 중...'}
+                        {swingAnalysisProgress?.stage === 'done' && '마무리 중...'}
+                        {!swingAnalysisProgress && '준비 중...'}
+                      </span>
+                      {swingAnalysisProgress && swingAnalysisProgress.totalFrames > 0 && (
+                        <span className="font-mono text-slate-500">
+                          {swingAnalysisProgress.processedFrames}/{swingAnalysisProgress.totalFrames}
+                        </span>
+                      )}
+                    </div>
+                    {swingAnalysisProgress && swingAnalysisProgress.totalFrames > 0 && (
+                      <div className="h-1.5 rounded bg-slate-800 overflow-hidden">
+                        <div
+                          className="h-full bg-emerald-500 transition-all"
+                          style={{
+                            width: `${Math.min(100, Math.round((swingAnalysisProgress.processedFrames / swingAnalysisProgress.totalFrames) * 100))}%`,
+                          }}
+                        />
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {swingAnalysisError && (
+                  <div className="rounded-lg border border-red-800/60 bg-red-900/20 p-3 text-xs text-red-300">
+                    {swingAnalysisError}
+                  </div>
+                )}
+
+                {swingAnalysisResult && !swingAnalysisRunning && (
+                  <div className="rounded-lg border border-emerald-800/60 bg-emerald-900/20 p-3 text-xs text-emerald-100 space-y-2">
+                    <div className="flex items-center gap-2 text-emerald-300">
+                      <CheckCircle className="w-3.5 h-3.5" />
+                      <span className="font-semibold">
+                        분석 완료 — 저장 시 함께 기록됩니다.
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px]">
+                      <div className="text-slate-400">
+                        촬영각도:{' '}
+                        <span className="text-emerald-200 font-medium">
+                          {CAMERA_VIEW_LABEL_KO[swingAnalysisResult.cameraView] ??
+                            swingAnalysisResult.cameraView}
+                        </span>
+                      </div>
+                      {swingAnalysisResult.summary.tempoRatio !== undefined && (
+                        <div className="text-slate-400">
+                          템포비:{' '}
+                          <span className="text-emerald-200 font-medium">
+                            {swingAnalysisResult.summary.tempoRatio.toFixed(2)}
+                          </span>
+                        </div>
+                      )}
+                      {swingAnalysisResult.summary.backswingMs !== undefined && (
+                        <div className="text-slate-400">
+                          백스윙:{' '}
+                          <span className="text-emerald-200 font-medium">
+                            {Math.round(swingAnalysisResult.summary.backswingMs)}ms
+                          </span>
+                        </div>
+                      )}
+                      {swingAnalysisResult.summary.downswingMs !== undefined && (
+                        <div className="text-slate-400">
+                          다운스윙:{' '}
+                          <span className="text-emerald-200 font-medium">
+                            {Math.round(swingAnalysisResult.summary.downswingMs)}ms
+                          </span>
+                        </div>
+                      )}
+                      {(swingAnalysisResult.summary.swingPlaneAngleCorrected ??
+                        swingAnalysisResult.summary.swingPlaneAngle) !== undefined && (
+                        <div className="text-slate-400">
+                          플레인:{' '}
+                          <span className="text-emerald-200 font-medium">
+                            {(swingAnalysisResult.summary.swingPlaneAngleCorrected ??
+                              swingAnalysisResult.summary.swingPlaneAngle!).toFixed(1)}°
+                          </span>
+                        </div>
+                      )}
+                      {swingAnalysisResult.summary.kineticOrder && (
+                        <div className="text-slate-400 col-span-2">
+                          키네틱 순서:{' '}
+                          <span className="text-emerald-200 font-medium">
+                            {KINETIC_ORDER_LABEL_KO[swingAnalysisResult.summary.kineticOrder] ??
+                              swingAnalysisResult.summary.kineticOrder}
+                          </span>
+                        </div>
+                      )}
+                      <div className="text-slate-400 col-span-2">
+                        감지된 이벤트:{' '}
+                        <span className="text-emerald-200 font-medium">
+                          {swingAnalysisResult.events.length}개
+                        </span>
+                      </div>
+                    </div>
+                    {swingAnalysisResult.warnings.length > 0 && (
+                      <ul className="text-[10px] text-amber-300 list-disc pl-4 space-y-0.5">
+                        {swingAnalysisResult.warnings.slice(0, 3).map((w, i) => (
+                          <li key={i}>{w}</li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
           </>
         )}
 

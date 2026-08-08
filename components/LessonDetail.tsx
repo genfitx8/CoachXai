@@ -1,7 +1,12 @@
 
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useLanguage } from './LanguageContext';
-import { Lesson, MediaItem, SwingSequenceItem, HoleRecord, ScorecardDetail, VideoEditMetadata, CompareVideoMetadata, MotionCaptureMeasurement } from '../types';
+import { Lesson, MediaItem, SwingSequenceItem, HoleRecord, ScorecardDetail, VideoEditMetadata, CompareVideoMetadata, MotionCaptureMeasurement, SwingLessonAnalysis } from '../types';
+import {
+  CAMERA_VIEW_LABEL_KO,
+  KINETIC_ORDER_LABEL_KO,
+  SWING_EVENT_LABEL_KO,
+} from '../utils/swingLessonAnalysis';
 import { Button } from './Button';
 import { ArrowLeft, Calendar, User, Sparkles, Mic, Plus, Video, Image as ImageIcon, X, Camera, Square, Trash2, Mic2, PlayCircle, Lock, PenTool, Save, Target, AlertTriangle, MessageCircle, CheckCircle, AlertCircle, Clock, Volume2, StopCircle, Copy, Check, Film, ChevronRight, FileText, MonitorPlay, Scissors, GripHorizontal, RefreshCw, Maximize2, Zap, Play, Pause, ListChecks, Trophy, Wand2, MapPin, Edit2, TrendingUp, Send, Download, Loader2 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
@@ -61,6 +66,142 @@ export async function persistAdditionalMediaSourceForOffline(params: {
     return mediaUrl;
   }
 }
+
+const formatMs = (v?: number) =>
+  v === undefined || !Number.isFinite(v) ? '—' : `${Math.round(v)}ms`;
+const formatDeg = (v?: number, digits = 1) =>
+  v === undefined || !Number.isFinite(v) ? '—' : `${v.toFixed(digits)}°`;
+const formatNum = (v?: number, digits = 2) =>
+  v === undefined || !Number.isFinite(v) ? '—' : v.toFixed(digits);
+const formatKmh = (v?: number) =>
+  v === undefined || !Number.isFinite(v) ? '—' : `${v.toFixed(1)} km/h`;
+
+const SwingAnalysisCard: React.FC<{ analysis: SwingLessonAnalysis }> = ({ analysis }) => {
+  const s = analysis.summary;
+  const plane = s.swingPlaneAngleCorrected ?? s.swingPlaneAngle;
+  return (
+    <div className="bg-white rounded-xl shadow-sm border border-emerald-100 overflow-hidden">
+      <div className="bg-emerald-50 px-4 py-3 border-b border-emerald-100 flex justify-between items-center">
+        <h3 className="font-bold text-emerald-900 flex items-center gap-2">
+          <Zap className="w-5 h-5 text-emerald-600" />
+          스윙 영상 분석
+        </h3>
+        <span className="text-[10px] text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">
+          {CAMERA_VIEW_LABEL_KO[analysis.cameraView] ?? analysis.cameraView}
+        </span>
+      </div>
+      <div className="p-4 space-y-4">
+        {/* Aggregate metric grid */}
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-xs">
+          <MetricTile label="템포비 (백:다운)" value={formatNum(s.tempoRatio)} />
+          <MetricTile label="백스윙" value={formatMs(s.backswingMs)} />
+          <MetricTile label="다운스윙" value={formatMs(s.downswingMs)} />
+          <MetricTile label="스윙 플레인" value={formatDeg(plane)} />
+          <MetricTile label="어택 앵글" value={formatDeg(s.attackAngle)} />
+          <MetricTile label="클럽 헤드 속도" value={formatKmh(s.clubHeadSpeedKmh)} />
+          {s.maxClubHeadSpeedKmh !== undefined && (
+            <MetricTile
+              label="최고 헤드 속도"
+              value={formatKmh(s.maxClubHeadSpeedKmh)}
+            />
+          )}
+          {s.clubPathAtImpactDeg !== undefined && (
+            <MetricTile
+              label="클럽 패스"
+              value={formatDeg(s.clubPathAtImpactDeg)}
+            />
+          )}
+          {s.handedness && s.handedness !== 'unknown' && (
+            <MetricTile
+              label="핸디드니스"
+              value={s.handedness === 'right' ? '오른손잡이' : '왼손잡이'}
+            />
+          )}
+        </div>
+
+        {/* Kinetic sequence */}
+        {s.kineticOrder && (
+          <div className="rounded-lg border border-emerald-100 bg-emerald-50/40 p-3">
+            <div className="text-xs font-semibold text-emerald-800 mb-1">
+              키네틱 시퀀스
+            </div>
+            <div className="text-sm text-gray-700">
+              {KINETIC_ORDER_LABEL_KO[s.kineticOrder] ?? s.kineticOrder}
+              {typeof s.kineticPeakSpanMs === 'number' && (
+                <span className="text-xs text-gray-500 ml-2">
+                  피크 간격 {Math.round(s.kineticPeakSpanMs)}ms
+                </span>
+              )}
+            </div>
+            {s.kineticPeaks && s.kineticPeaks.length > 0 && (
+              <div className="mt-2 grid grid-cols-2 gap-1 text-[11px] text-gray-600">
+                {s.kineticPeaks.map((p) => (
+                  <div key={p.segment} className="flex justify-between">
+                    <span className="text-gray-500">
+                      {p.segment === 'pelvis'
+                        ? '골반'
+                        : p.segment === 'torso'
+                        ? '상체'
+                        : p.segment === 'lead_arm'
+                        ? '리드암'
+                        : '손·클럽'}
+                    </span>
+                    <span className="font-mono">
+                      {p.msFromTop >= 0 ? '+' : ''}
+                      {Math.round(p.msFromTop)}ms
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Detected events timeline */}
+        {analysis.events.length > 0 && (
+          <div>
+            <div className="text-xs font-semibold text-gray-600 mb-2">
+              감지된 스윙 이벤트
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {analysis.events.map((ev) => (
+                <span
+                  key={ev.name}
+                  className="text-[11px] bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full px-2 py-0.5 font-mono"
+                >
+                  {SWING_EVENT_LABEL_KO[ev.name] ?? ev.name}{' '}
+                  <span className="text-emerald-500">{ev.t.toFixed(2)}s</span>
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {analysis.warnings.length > 0 && (
+          <ul className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-2 list-disc pl-5 space-y-0.5">
+            {analysis.warnings.map((w, i) => (
+              <li key={i}>{w}</li>
+            ))}
+          </ul>
+        )}
+
+        <div className="text-[10px] text-gray-400 text-right">
+          분석 시각: {new Date(analysis.analyzedAt).toLocaleString()}
+          {analysis.sampledFps !== undefined && (
+            <> · 샘플링 {analysis.sampledFps.toFixed(1)}fps</>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const MetricTile: React.FC<{ label: string; value: string }> = ({ label, value }) => (
+  <div className="rounded-lg border border-gray-100 bg-gray-50 px-3 py-2">
+    <div className="text-[10px] text-gray-500">{label}</div>
+    <div className="text-sm font-semibold text-gray-800 font-mono">{value}</div>
+  </div>
+);
 
 export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons = [], role = 'COACH', onBack, onUpdate, onDelete, onEdit, onRecordAnotherLesson }) => {
   const { t } = useLanguage();
@@ -1958,6 +2099,10 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
                   currentDate={lesson.date}
               />
           )}
+
+          {/* Swing Analysis Card — surfaces the compact pose+kinetic snapshot
+              captured at upload time. */}
+          {lesson.swingAnalysis && <SwingAnalysisCard analysis={lesson.swingAnalysis} />}
 
           {/* Motion Capture Data Card */}
           {(() => {

@@ -122,6 +122,67 @@ export interface MotionCaptureData {
   analyzedAt: number;
 }
 
+/**
+ * Compact snapshot of the client-side swing analysis pipeline that can be
+ * persisted alongside a lesson record. Excludes per-frame keypoints (kept
+ * in-memory during analysis) so the payload stays lightweight for Firestore.
+ */
+export type SwingLessonCameraView = 'face_on' | 'down_the_line' | 'unknown';
+export type SwingLessonHandedness = 'right' | 'left' | 'unknown';
+
+export interface SwingLessonEvent {
+  /** Event key from types/swingAnalysis::SwingEventName. */
+  name: string;
+  /** Absolute video timestamp in seconds. */
+  t: number;
+  /** Selected numeric metrics captured at this event. */
+  metrics: Record<string, number>;
+}
+
+export interface SwingLessonKineticPeak {
+  segment: 'pelvis' | 'torso' | 'lead_arm' | 'hands';
+  peakValue: number;
+  peakT: number;
+  msFromTop: number;
+}
+
+export interface SwingLessonSummary {
+  cameraView: SwingLessonCameraView;
+  cameraViewDetected?: SwingLessonCameraView;
+  handedness?: SwingLessonHandedness;
+  attackAngle?: number;
+  backswingMs?: number;
+  downswingMs?: number;
+  tempoRatio?: number;
+  swingPlaneAngle?: number;
+  swingPlaneAngleCorrected?: number;
+  gravityAligned?: boolean;
+  clubHeadSpeedKmh?: number;
+  maxClubHeadSpeedKmh?: number;
+  clubPathAtImpactDeg?: number;
+  bodyCenterlineX?: number;
+  kineticOrder?: 'correct' | 'partial' | 'simultaneous' | 'inverted' | 'unknown';
+  kineticPeakSpanMs?: number;
+  kineticPeaks?: SwingLessonKineticPeak[];
+}
+
+export interface SwingLessonAnalysis {
+  /** Camera view the coach chose before running the pipeline. */
+  cameraView: SwingLessonCameraView;
+  /** Aggregate swing metrics. */
+  summary: SwingLessonSummary;
+  /** Detected swing events in temporal order. */
+  events: SwingLessonEvent[];
+  /** Warnings surfaced by the segmentation pipeline. */
+  warnings: string[];
+  /** Sample rate the pipeline achieved (frames per second). */
+  sampledFps?: number;
+  /** Native video frame rate detected during analysis, when available. */
+  nativeFps?: number;
+  /** Epoch ms the analysis was produced. */
+  analyzedAt: number;
+}
+
 export interface Lesson {
   id: string;
   /** Composite key: `${clientName}_${clientPhone}` — the app-wide student identifier. */
@@ -162,6 +223,8 @@ export interface Lesson {
   /** 1-based session number within the lesson package. Always set together with `lessonPackageId`. */
   sessionNumber?: number;
   motionCaptureData?: MotionCaptureData;
+  /** Client-side swing pose/kinetic analysis attached at upload time. */
+  swingAnalysis?: SwingLessonAnalysis;
   createdAt: number;
 }
 
