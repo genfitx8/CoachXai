@@ -63,7 +63,7 @@ interface InlineDataPart {
   };
 }
 
-const invokeBackendAI = async <T>(feature: string, payload: unknown): Promise<T> => {
+export const invokeBackendAI = async <T>(feature: string, payload: unknown): Promise<T> => {
   const response = await fetch(getAiApiEndpoint(), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -87,7 +87,7 @@ const invokeBackendAI = async <T>(feature: string, payload: unknown): Promise<T>
   return body.result as T;
 };
 
-const getResponseText = (result: unknown): string | null => {
+export const getResponseText = (result: unknown): string | null => {
   if (typeof result === 'string') return result;
   if (!result || typeof result !== 'object') return null;
 

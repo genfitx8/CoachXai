@@ -12,6 +12,9 @@ import {
 } from 'lucide-react';
 import { swingAnalysisService } from '../../services/swingAnalysisService';
 import { detectFaults } from '../../services/faultDetectionService';
+import { generateSwingCoachingReport } from '../../services/aiCoachingSummaryService';
+import type { AICoachingReport } from '../../types/aiCoachingReport';
+import type { Lesson } from '../../types';
 import type { SwingFault } from '../../types/swingFault';
 import type {
   KineticOrder,
@@ -1505,15 +1508,196 @@ const TimelineEditor: React.FC<TimelineEditorProps> = ({
   );
 };
 
+// ─────────────────────────────────────────────────────────────────────────
+// AICoachingReportSection
+//
+// The differentiating surface: turns raw metrics into coach-facing insights
+// grounded in the student's own shot / lesson history. Lazy — the coach
+// clicks "AI 리포트 생성" when they want it, so we don't burn API tokens on
+// every re-analysis. Every insight cites its evidence, and any bullet with
+// history evidence lights up amber to signal the correlation.
+// ─────────────────────────────────────────────────────────────────────────
+
+interface AICoachingReportSectionProps {
+  analysis: SwingAnalysis;
+  faults: SwingFault[];
+  studentLessons?: Lesson[];
+  coachNote?: string;
+  coachId?: string;
+}
+
+const CONFIDENCE_STYLE: Record<
+  'strong' | 'plausible' | 'speculative',
+  { label: string; className: string }
+> = {
+  strong: { label: '강한 근거', className: 'bg-emerald-900/50 text-emerald-200 border-emerald-700/60' },
+  plausible: { label: '가능성 있음', className: 'bg-sky-900/50 text-sky-200 border-sky-700/60' },
+  speculative: { label: '추정', className: 'bg-slate-800 text-slate-300 border-slate-700' },
+};
+
+const AICoachingReportSection: React.FC<AICoachingReportSectionProps> = ({
+  analysis,
+  faults,
+  studentLessons,
+  coachNote,
+  coachId,
+}) => {
+  const [report, setReport] = useState<AICoachingReport | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const run = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const r = await generateSwingCoachingReport(analysis, {
+        lessons: studentLessons,
+        faults,
+        coachNote,
+        coachId,
+      });
+      setReport(r);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <section className="rounded-lg border border-slate-700 bg-slate-900">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-slate-800">
+        <div className="flex items-center gap-2 text-sm font-semibold text-slate-100">
+          <span>🤖 AI 코칭 리포트</span>
+          {studentLessons && studentLessons.length > 0 && (
+            <span className="text-[10px] text-emerald-300 font-normal bg-emerald-950/50 border border-emerald-800/60 rounded px-1.5 py-0.5">
+              학생 이력 {studentLessons.length}건 참조
+            </span>
+          )}
+        </div>
+        <button
+          type="button"
+          disabled={loading}
+          onClick={run}
+          className="px-3 py-1.5 text-xs rounded-md bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-semibold"
+        >
+          {loading ? '생성 중…' : report ? '다시 생성' : 'AI 리포트 생성'}
+        </button>
+      </div>
+
+      {error && (
+        <div className="p-4 text-xs text-red-300">
+          <AlertTriangle size={12} className="inline mr-1" />
+          {error}
+        </div>
+      )}
+
+      {!report && !loading && !error && (
+        <div className="p-4 text-xs text-slate-400 leading-relaxed">
+          이 스윙의 정량 지표({analysis.events.impact ? '7 포즈, 키네틱 시퀀스, 임팩트 진단' : '포즈'})
+          와 학생의 최근 샷/레슨 데이터를 함께 참고해 코칭 리포트를 만듭니다.
+          {(!studentLessons || studentLessons.length === 0) && (
+            <span className="text-yellow-300 block mt-1">
+              (학생 이력이 없어 스윙 단독 분석으로 진행됩니다. 레슨 컨텍스트를 붙이면 훨씬 정확한 리포트가 나옵니다.)
+            </span>
+          )}
+        </div>
+      )}
+
+      {report && (
+        <div className="p-4 space-y-4">
+          <div className="rounded-md bg-emerald-950/40 border border-emerald-800/60 p-3">
+            <div className="text-xs text-emerald-300 font-semibold mb-1">헤드라인</div>
+            <div className="text-sm text-slate-100 leading-relaxed">{report.headline}</div>
+            {report.trend && report.trend !== 'insufficient_data' && (
+              <div className="mt-2 text-[11px] text-emerald-200">
+                최근 흐름:{' '}
+                {report.trend === 'improving' ? '개선 중' :
+                 report.trend === 'steady' ? '유지' : '주춤 / 후퇴'}
+              </div>
+            )}
+          </div>
+
+          {report.insights.length > 0 && (
+            <div className="space-y-2">
+              <div className="text-[11px] font-semibold text-slate-400">핵심 인사이트</div>
+              {report.insights.map((ins, i) => {
+                const conf = CONFIDENCE_STYLE[ins.correlationConfidence];
+                return (
+                  <div key={i} className="rounded-md border border-slate-800 bg-slate-950 p-3 space-y-1.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="text-sm text-slate-100 font-semibold">{ins.title}</div>
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded border ${conf.className}`}>
+                        {conf.label}
+                      </span>
+                    </div>
+                    <div className="text-xs text-slate-300 leading-relaxed">{ins.observation}</div>
+                    {ins.swingEvidence.length > 0 && (
+                      <div className="text-[11px] text-slate-400">
+                        <span className="text-slate-500">스윙 근거:</span>{' '}
+                        {ins.swingEvidence.join(' · ')}
+                      </div>
+                    )}
+                    {ins.historyEvidence.length > 0 && (
+                      <div className="text-[11px] text-amber-300">
+                        <span className="text-amber-400">이력 근거:</span>{' '}
+                        {ins.historyEvidence.join(' · ')}
+                      </div>
+                    )}
+                    {ins.recommendation && (
+                      <div className="text-[11px] text-emerald-200 border-l-2 border-emerald-600 pl-2 mt-1">
+                        💡 {ins.recommendation}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {report.nextLessonFocus.length > 0 && (
+            <div className="rounded-md bg-slate-950 border border-slate-800 p-3">
+              <div className="text-[11px] font-semibold text-slate-400 mb-1.5">다음 레슨 우선순위</div>
+              <ol className="text-xs text-slate-200 list-decimal list-inside space-y-1">
+                {report.nextLessonFocus.map((f, i) => (
+                  <li key={i}>{f}</li>
+                ))}
+              </ol>
+            </div>
+          )}
+
+          {report.caveats.length > 0 && (
+            <div className="rounded-md bg-yellow-950/30 border border-yellow-900/50 p-3 space-y-1">
+              <div className="text-[11px] font-semibold text-yellow-300 mb-0.5">주의</div>
+              {report.caveats.map((c, i) => (
+                <div key={i} className="text-[11px] text-yellow-200 flex gap-1">
+                  <AlertTriangle size={10} className="mt-0.5 flex-shrink-0" />
+                  <span>{c}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </section>
+  );
+};
+
 interface SwingVideoAnalysisProps {
   /** Optional preset video URL. If omitted the user picks a file. */
   initialVideoUrl?: string;
   onDone?: (analysis: SwingAnalysis) => void;
+  /** Recent lessons of the student — enables cross-referenced AI report. */
+  studentLessons?: Lesson[];
+  /** Coach id — used for AI system prompt selection. */
+  coachId?: string;
 }
 
 export const SwingVideoAnalysis: React.FC<SwingVideoAnalysisProps> = ({
   initialVideoUrl,
   onDone,
+  studentLessons,
+  coachId,
 }) => {
   const [videoUrl, setVideoUrl] = useState<string | undefined>(initialVideoUrl);
   const [pickedObjectUrl, setPickedObjectUrl] = useState<string | undefined>();
@@ -1847,6 +2031,12 @@ export const SwingVideoAnalysis: React.FC<SwingVideoAnalysisProps> = ({
             <PlaybackSection analysis={analysis} />
             <KineticSequenceSection analysis={analysis} />
             <DiagnosticsSection analysis={analysis} />
+            <AICoachingReportSection
+              analysis={analysis}
+              faults={detectFaults(analysis)}
+              studentLessons={studentLessons}
+              coachId={coachId}
+            />
             <p className="text-[11px] text-slate-500 leading-relaxed">
               총 {analysis.frames.length}프레임 (실효 {analysis.sampledFps.toFixed(1)}fps) 분석 완료.
               {typeof analysis.nativeFps === 'number' && (
