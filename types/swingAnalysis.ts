@@ -163,6 +163,26 @@ export interface SwingSummary {
    * views where a vertical line isn't the right check.
    */
   bodyCenterlineX?: number;
+  /**
+   * Swing-plane bucket derived from `swingPlaneAngleCorrected` (fallback:
+   * `swingPlaneAngle`). Bands map to the coaching vocabulary:
+   *   very_flat   <35°  (baseball-plane, chronic hooks)
+   *   flat        35–44°
+   *   neutral     45–54° (tour driver typical)
+   *   upright     55–64° (iron / wedge typical)
+   *   very_upright ≥65°  (chops, chronic pulls)
+   * Undefined when no plane angle could be computed.
+   */
+  swingPlaneClassification?:
+    | 'very_flat' | 'flat' | 'neutral' | 'upright' | 'very_upright';
+  /**
+   * Wrist arc through the downswing (Top → Impact), sampled every frame.
+   * Normalised 2D image coords for direct canvas overlay. Rendered on the
+   * impact snapshot in DTL view as a proxy for club-head path — the wrist
+   * arc runs nearly parallel to the shaft plane through the release, so
+   * an on-plane vs. off-plane read is meaningful.
+   */
+  downswingWristArc2D?: Array<{ x: number; y: number }>;
   /** Player handedness, inferred from arm extension at Top. */
   handedness?: Handedness;
   /**

@@ -1353,6 +1353,40 @@ function buildSummary(
   if (enableClubTracking) {
     clubHeadAugmentSummary(summary, frames, events, clubHeadDetector);
   }
+  // Swing plane classification — bucket the numeric plane angle into the
+  // coaching vocabulary (very flat → very upright). Only meaningful in DTL
+  // view; from face-on the plane collapses into 2D and the number's an
+  // artefact. Prefer the gravity-corrected angle; fall back to the raw one
+  // when the address stance couldn't recover an "up" vector.
+  const planeAngle = summary.swingPlaneAngleCorrected ?? summary.swingPlaneAngle;
+  if (
+    typeof planeAngle === 'number' &&
+    Number.isFinite(planeAngle) &&
+    cameraView === 'down_the_line'
+  ) {
+    summary.swingPlaneClassification =
+      planeAngle < 35 ? 'very_flat' :
+      planeAngle < 45 ? 'flat' :
+      planeAngle < 55 ? 'neutral' :
+      planeAngle < 65 ? 'upright' : 'very_upright';
+  }
+  // Downswing wrist arc for DTL trajectory overlay. Sample the lead wrist
+  // every frame from Top → Impact in normalised image space so the UI can
+  // draw a polyline without touching the raw frame data. Emit only when
+  // the caller is on DTL (the arc reads as a chord in face-on and just
+  // clutters the snapshot).
+  if (cameraView === 'down_the_line' && events.top && events.impact) {
+    const leadIdx = leadWristIndex(handedness);
+    const arc: Array<{ x: number; y: number }> = [];
+    for (let i = events.top.frameIndex; i <= events.impact.frameIndex; i++) {
+      const kp = frames[i]?.keypoints?.[leadIdx];
+      if (!kp || kp.confidence < 0.3) continue;
+      arc.push({ x: +kp.x.toFixed(4), y: +kp.y.toFixed(4) });
+    }
+    // Need at least 3 samples to draw a meaningful arc — a chord is what
+    // swingPlaneOverlay already renders and duplicating it is noise.
+    if (arc.length >= 3) summary.downswingWristArc2D = arc;
+  }
   if (events.top && events.impact) {
     const kinetic = computeKineticSequence(
       frames,
