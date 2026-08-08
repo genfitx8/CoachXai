@@ -141,8 +141,20 @@ export interface KineticSequence {
 }
 
 export interface SwingSummary {
-  /** Detected camera perspective, inferred from address-window landmarks. */
+  /**
+   * Camera perspective the analysis was run against. This is the coach's
+   * explicit choice at upload time when provided; otherwise the pipeline's
+   * heuristic auto-detection. Downstream UI keys metric visibility off this
+   * value (some metrics are only meaningful in face-on, others in DTL).
+   */
   cameraView: CameraView;
+  /**
+   * Auto-detected view when it disagrees with the coach's declared view.
+   * Populated only when the two differ — the UI surfaces this as a warning
+   * so a mis-selected preset gets caught before the coach reads bogus
+   * lateral metrics off a DTL clip (or vice versa).
+   */
+  cameraViewDetected?: CameraView;
   /** Player handedness, inferred from arm extension at Top. */
   handedness?: Handedness;
   /**

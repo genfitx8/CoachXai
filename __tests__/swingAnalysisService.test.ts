@@ -738,6 +738,20 @@ describe('swingAnalysisService.rebuildAnalysis', () => {
     }
   });
 
+  it('rebuild preserves the coach-declared cameraView across edits', () => {
+    const fps = 60;
+    const analysis = buildSyntheticAnalysis(fps);
+    // Force the analysis to look like the coach explicitly picked DTL — the
+    // synthetic geometry auto-detects as face_on, so overriding is enough
+    // to exercise the "sticky camera view" branch of rebuildAnalysis.
+    const dtlAnalysis: SwingAnalysis = {
+      ...analysis,
+      summary: { ...analysis.summary, cameraView: 'down_the_line' },
+    };
+    const rebuilt = swingAnalysisService.rebuildAnalysis(dtlAnalysis, {});
+    expect(rebuilt.summary.cameraView).toBe('down_the_line');
+  });
+
   it('rebuild with no edits returns an equivalent analysis (idempotent)', () => {
     const fps = 60;
     const analysis = buildSyntheticAnalysis(fps);

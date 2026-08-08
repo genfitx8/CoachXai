@@ -233,6 +233,7 @@ interface EventSnapshotProps {
   overlay?: OverlayLine;
   clubHead?: ClubHeadMarker;
   trajectory?: TrajectoryOverlay;
+  cameraView?: CameraView;
 }
 
 const EventSnapshot: React.FC<EventSnapshotProps> = ({
@@ -242,6 +243,7 @@ const EventSnapshot: React.FC<EventSnapshotProps> = ({
   overlay,
   clubHead,
   trajectory,
+  cameraView,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -327,32 +329,47 @@ const EventSnapshot: React.FC<EventSnapshotProps> = ({
       <div className="grid grid-cols-2 gap-2 p-3 text-[11px]">
         {event.name === 'impact' ? (
           <>
-            <MetricRow
-              label="머리 드리프트"
-              value={metricMm('headSwayMm')}
-              tone={impactTone(event.metrics.headSwayMm, 50, 100)}
-              hint="어드레스 대비 X 이동"
-            />
-            <MetricRow
-              label="얼리 익스텐션"
-              value={metricMm('earlyExtensionMm')}
-              tone={impactTone(event.metrics.earlyExtensionMm, 40, 80)}
-              hint="어드레스 대비 골반 Z 이동"
-            />
-            <MetricRow
-              label="자세 유지"
-              value={metricSignedDeg('spineTiltDelta')}
-              tone={
-                event.metrics.spineTiltDelta == null
-                  ? undefined
-                  : Math.abs(event.metrics.spineTiltDelta) <= 5
-                  ? 'ok'
-                  : Math.abs(event.metrics.spineTiltDelta) <= 12
-                  ? 'warn'
-                  : 'bad'
-              }
-              hint="어드레스 대비 척추 각 변화"
-            />
+            {/* Head sway (X-axis) is only physically meaningful from the
+                face-on camera — from DTL, lateral head motion collapses
+                onto the depth axis where MediaPipe Z is noisy. */}
+            {cameraView !== 'down_the_line' && (
+              <MetricRow
+                label="머리 드리프트"
+                value={metricMm('headSwayMm')}
+                tone={impactTone(event.metrics.headSwayMm, 50, 100)}
+                hint={cameraView === 'face_on' ? '정면 뷰 · X 이동' : '어드레스 대비 X 이동'}
+              />
+            )}
+            {/* Early extension (hip drift toward the camera along Z) reads
+                cleanly from DTL where Z is the depth axis; from face-on
+                it's hidden inside the pose model's Z noise. */}
+            {cameraView !== 'face_on' && (
+              <MetricRow
+                label="얼리 익스텐션"
+                value={metricMm('earlyExtensionMm')}
+                tone={impactTone(event.metrics.earlyExtensionMm, 40, 80)}
+                hint={cameraView === 'down_the_line' ? '측면 뷰 · 골반 Z' : '어드레스 대비 골반 Z 이동'}
+              />
+            )}
+            {/* Spine tilt delta reads accurately from DTL (side profile);
+                from face-on the spine rotates in-plane and the metric noises
+                out — hide instead of showing a misleading number. */}
+            {cameraView !== 'face_on' && (
+              <MetricRow
+                label="자세 유지"
+                value={metricSignedDeg('spineTiltDelta')}
+                tone={
+                  event.metrics.spineTiltDelta == null
+                    ? undefined
+                    : Math.abs(event.metrics.spineTiltDelta) <= 5
+                    ? 'ok'
+                    : Math.abs(event.metrics.spineTiltDelta) <= 12
+                    ? 'warn'
+                    : 'bad'
+                }
+                hint={cameraView === 'down_the_line' ? '측면 뷰 · 척추 각' : '어드레스 대비 척추 각 변화'}
+              />
+            )}
             <MetricRow label="X-Factor" value={metricAngle('hipShoulderSeparation')} />
           </>
         ) : event.name === 'address' ? (
@@ -1461,6 +1478,7 @@ export const SwingVideoAnalysis: React.FC<SwingVideoAnalysisProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [editing, setEditing] = useState(false);
+  const [cameraView, setCameraView] = useState<CameraView>('face_on');
 
   useEffect(() => {
     return () => {
@@ -1503,6 +1521,7 @@ export const SwingVideoAnalysis: React.FC<SwingVideoAnalysisProps> = ({
     try {
       const result = await swingAnalysisService.analyzeSwingFromVideo(videoUrl, {
         onProgress: setProgress,
+        cameraView,
         ...(window ? { startTime: window.startTime, endTime: window.endTime } : {}),
       });
       setAnalysis(result);
@@ -1547,6 +1566,43 @@ export const SwingVideoAnalysis: React.FC<SwingVideoAnalysisProps> = ({
       </div>
 
       <div className="p-4 space-y-4">
+        {/* Camera view picker — required before analysis so the pipeline
+            knows which metrics are physically meaningful for this clip. */}
+        {!analysis && (
+          <div className="rounded-lg border border-slate-800 bg-slate-900 p-3">
+            <div className="text-xs font-semibold text-slate-300 mb-2">촬영 각도</div>
+            <div className="grid grid-cols-2 gap-2">
+              {([
+                {
+                  value: 'face_on' as const,
+                  label: '정면 (Face-On)',
+                  hint: '골퍼 정면에서 촬영 — 체중이동·헤드 스웨이 분석',
+                },
+                {
+                  value: 'down_the_line' as const,
+                  label: '측면 (Down-the-Line)',
+                  hint: '타깃 라인 뒤에서 촬영 — 스윙 플레인·얼리 익스텐션 분석',
+                },
+              ]).map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  disabled={busy}
+                  onClick={() => setCameraView(opt.value)}
+                  className={`rounded-md border p-2.5 text-left transition-colors disabled:opacity-40 ${
+                    cameraView === opt.value
+                      ? 'border-emerald-500 bg-emerald-900/20 text-emerald-100'
+                      : 'border-slate-700 bg-slate-950 text-slate-300 hover:border-slate-500'
+                  }`}
+                  aria-pressed={cameraView === opt.value}
+                >
+                  <div className="text-xs font-semibold">{opt.label}</div>
+                  <div className="text-[10px] text-slate-400 mt-0.5">{opt.hint}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
         {/* Input */}
         {!analysis && (
           <div className="flex flex-col sm:flex-row gap-3 items-stretch">
@@ -1624,6 +1680,20 @@ export const SwingVideoAnalysis: React.FC<SwingVideoAnalysisProps> = ({
         {analysis && (
           <div className="space-y-4">
             <SummaryBar summary={analysis.summary} />
+            {analysis.summary.cameraViewDetected && (
+              <div className="rounded-lg border border-yellow-900/50 bg-yellow-950/30 p-3 text-xs text-yellow-200">
+                <AlertTriangle size={12} className="inline mr-1 -mt-0.5" />
+                촬영 각도로{' '}
+                <span className="font-semibold">
+                  {analysis.summary.cameraView === 'face_on' ? '정면' : '측면'}
+                </span>
+                을 선택했지만, 자동 감지는{' '}
+                <span className="font-semibold">
+                  {analysis.summary.cameraViewDetected === 'face_on' ? '정면' : analysis.summary.cameraViewDetected === 'down_the_line' ? '측면' : '불명확'}
+                </span>
+                으로 나타났습니다. 지표 정확도가 낮을 수 있으니 촬영 각도를 다시 확인해 주세요.
+              </div>
+            )}
             {videoUrl && !editing && (
               <div className="flex justify-end">
                 <button
@@ -1724,6 +1794,7 @@ export const SwingVideoAnalysis: React.FC<SwingVideoAnalysisProps> = ({
                     overlay={overlay}
                     clubHead={clubHead}
                     trajectory={trajectory}
+                    cameraView={analysis.summary.cameraView}
                   />
                 );
               })}
