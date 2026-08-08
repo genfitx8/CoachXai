@@ -742,6 +742,25 @@ describe('swingAnalysisService.rebuildAnalysis', () => {
     }
   });
 
+  it('torso lateral tilt: address populates absolute value, other events populate delta from address', () => {
+    const fps = 60;
+    const analysis = buildSyntheticAnalysis(fps);
+    // Address is by construction upright (shoulder & hip centered on X=0)
+    // so lateral tilt should be near zero.
+    const addrTilt = analysis.events.address!.metrics.torsoLateralTiltDeg;
+    expect(typeof addrTilt).toBe('number');
+    expect(Math.abs(addrTilt as number)).toBeLessThan(3);
+    // Every downstream event exposes both keys (populated by the enrichment
+    // pass); values may be near zero for this symmetric synthetic but the
+    // presence of the delta metric is what the UI keys off.
+    for (const name of ['top', 'impact', 'finish'] as const) {
+      const evt = analysis.events[name];
+      if (!evt) continue;
+      expect(typeof evt.metrics.torsoLateralTiltDeg).toBe('number');
+      expect(typeof evt.metrics.torsoLateralTiltFromAddress).toBe('number');
+    }
+  });
+
   it('rotationFromAddress: address anchors at 0° and other events are deltas', () => {
     const fps = 60;
     const analysis = buildSyntheticAnalysis(fps);

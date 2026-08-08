@@ -184,6 +184,17 @@ function computeGolfAngles(world: SkeletonKeypoint[]): Record<string, number> {
   if (spineLen > 0) {
     const cos = spineVec.y / spineLen;
     angles.spineTilt3D = toDeg(Math.acos(Math.max(-1, Math.min(1, cos))));
+    // Lateral tilt from the frontal camera: angle between the torso axis
+    // and gravity in the X/Y plane (ignoring depth). Positive = leaning
+    // right in image coords; sign carries meaning so a coach can spot
+    // reverse pivots at address (should be near 0) vs. impact (right-hander
+    // typically −5 to −15° meaning trail-side tilt away from target).
+    const lateralDenom = Math.hypot(spineVec.x, spineVec.y);
+    if (lateralDenom > 0) {
+      // atan2(x, -y): -y because MediaPipe world Y is +down, so up is -Y.
+      // We measure from vertical, positive when spine leans toward +X.
+      angles.torsoLateralTiltDeg = toDeg(Math.atan2(spineVec.x, -spineVec.y));
+    }
   }
 
   const shoulderRot = rotationAroundVertical(ls, rs);
@@ -1012,6 +1023,19 @@ function enrichRotationFromAddress(
     ) {
       evt.metrics.hipShoulderSeparationFromAddress = +(
         evt.metrics.shoulderRotationFromAddress - evt.metrics.pelvisRotationFromAddress
+      ).toFixed(1);
+    }
+    // Torso lateral tilt delta from address baseline. Address's absolute
+    // value is the golfer's setup tilt (usually a small trail-side bias
+    // for right-handers); the delta shows how much the tilt CHANGED
+    // through the swing, which is what coaches actually diagnose from.
+    const torsoAtAddress = address.metrics.torsoLateralTiltDeg;
+    if (
+      typeof torsoAtAddress === 'number' &&
+      typeof evt.metrics.torsoLateralTiltDeg === 'number'
+    ) {
+      evt.metrics.torsoLateralTiltFromAddress = +(
+        evt.metrics.torsoLateralTiltDeg - torsoAtAddress
       ).toFixed(1);
     }
   }
