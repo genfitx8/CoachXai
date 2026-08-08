@@ -1192,13 +1192,20 @@ function buildSummary(
   sampledFps: number,
   clubHeadDetector?: ClubHeadDetector,
   enableClubTracking = false,
+  cameraViewOverride?: CameraView,
 ): SwingSummary {
   const addressWindow = events.address
     ? frames.slice(events.address.frameIndex, events.address.frameIndex + 4)
     : frames.slice(0, 4);
-  const cameraView = detectCameraView(addressWindow);
+  const detectedView = detectCameraView(addressWindow);
+  // Coach-specified view wins over the heuristic when provided — auto
+  // detection is a fallback / cross-check, not the source of truth.
+  const cameraView: CameraView = cameraViewOverride ?? detectedView;
 
   const summary: SwingSummary = { cameraView };
+  if (cameraViewOverride && detectedView !== 'unknown' && detectedView !== cameraViewOverride) {
+    summary.cameraViewDetected = detectedView;
+  }
   if (events.address && events.top) {
     summary.backswingMs = Math.round((events.top.t - events.address.t) * 1000);
   }
@@ -1288,6 +1295,12 @@ export interface AnalyzeSwingOptions {
    * flip this on once the ML detector is wired.
    */
   enableClubTracking?: boolean;
+  /**
+   * Coach's declared camera perspective. When set, downstream metrics are
+   * tagged for that view instead of relying on the pose-based auto detector.
+   * Undefined = let auto-detection decide.
+   */
+  cameraView?: CameraView;
   /**
    * When true (default), scan the sampled frames for distinct swing bursts
    * and auto-trim to the highest-confidence one before segmentation. Ignored
@@ -1482,6 +1495,7 @@ export const swingAnalysisService = {
         sampledFps,
         options.clubHeadDetector,
         options.enableClubTracking === true,
+        options.cameraView,
       );
       shiftEventIndices(events, startFrameIdx);
 
@@ -1592,6 +1606,9 @@ export const swingAnalysisService = {
       sampledFps,
       undefined,
       false,
+      // Coach's original camera view sticks across rebuilds so their edits
+      // don't accidentally flip the analysis into the wrong view template.
+      prev.summary.cameraView !== 'unknown' ? prev.summary.cameraView : undefined,
     );
     shiftEventIndices(events, startFrameIdx);
 
