@@ -155,6 +155,14 @@ export interface SwingSummary {
    * lateral metrics off a DTL clip (or vice versa).
    */
   cameraViewDetected?: CameraView;
+  /**
+   * Normalized X (0..1) of the vertical body centerline anchored to the
+   * address stance — midpoint of the ankles. Rendered as a dashed line on
+   * face-on snapshots so coaches can eyeball head sway, hip slide, and
+   * reverse pivot against a fixed reference. Undefined for DTL / unknown
+   * views where a vertical line isn't the right check.
+   */
+  bodyCenterlineX?: number;
   /** Player handedness, inferred from arm extension at Top. */
   handedness?: Handedness;
   /**

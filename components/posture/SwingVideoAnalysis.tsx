@@ -92,6 +92,7 @@ function drawKeypoints(
   overlay?: OverlayLine,
   clubHead?: ClubHeadMarker,
   trajectory?: TrajectoryOverlay,
+  centerlineX?: number,
 ) {
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
@@ -106,6 +107,21 @@ function drawKeypoints(
   } else {
     ctx.fillStyle = '#0f172a';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
+  }
+  // Body centerline — vertical reference drawn under the skeleton so a
+  // coach can eyeball head sway / hip slide / reverse pivot against a fixed
+  // anchor from the address stance. Face-on view only (undefined for DTL).
+  if (typeof centerlineX === 'number' && centerlineX >= 0 && centerlineX <= 1) {
+    const cx = centerlineX * canvas.width;
+    ctx.save();
+    ctx.strokeStyle = 'rgba(56, 189, 248, 0.85)'; // sky-400
+    ctx.lineWidth = 2;
+    ctx.setLineDash([8, 6]);
+    ctx.beginPath();
+    ctx.moveTo(cx, 0);
+    ctx.lineTo(cx, canvas.height);
+    ctx.stroke();
+    ctx.restore();
   }
   // Skeleton line thickness scales with the canvas so mobile / desktop /
   // fullscreen all read the same weight. Round caps and joins soften the
@@ -238,6 +254,7 @@ interface EventSnapshotProps {
   clubHead?: ClubHeadMarker;
   trajectory?: TrajectoryOverlay;
   cameraView?: CameraView;
+  centerlineX?: number;
 }
 
 const EventSnapshot: React.FC<EventSnapshotProps> = ({
@@ -248,6 +265,7 @@ const EventSnapshot: React.FC<EventSnapshotProps> = ({
   clubHead,
   trajectory,
   cameraView,
+  centerlineX,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -260,7 +278,7 @@ const EventSnapshot: React.FC<EventSnapshotProps> = ({
     video.playsInline = true;
     video.crossOrigin = 'anonymous';
     const onSeeked = () => {
-      drawKeypoints(canvas, video, frame.keypoints, overlay, clubHead, trajectory);
+      drawKeypoints(canvas, video, frame.keypoints, overlay, clubHead, trajectory, centerlineX);
       video.removeEventListener('seeked', onSeeked);
       video.src = '';
     };
@@ -272,7 +290,7 @@ const EventSnapshot: React.FC<EventSnapshotProps> = ({
       video.removeEventListener('seeked', onSeeked);
       video.src = '';
     };
-  }, [event, frame, videoUrl, overlay, clubHead, trajectory]);
+  }, [event, frame, videoUrl, overlay, clubHead, trajectory, centerlineX]);
 
   if (!event || !frame) {
     return (
@@ -694,7 +712,15 @@ const PlaybackSection: React.FC<{ analysis: SwingAnalysis }> = ({ analysis }) =>
         canvas.width = video.videoWidth || 640;
         canvas.height = video.videoHeight || 360;
       }
-      drawKeypoints(canvas, null, nearest?.keypoints ?? []);
+      drawKeypoints(
+        canvas,
+        null,
+        nearest?.keypoints ?? [],
+        undefined,
+        undefined,
+        undefined,
+        analysis.summary.bodyCenterlineX,
+      );
       raf = requestAnimationFrame(render);
     };
     raf = requestAnimationFrame(render);
@@ -1813,6 +1839,7 @@ export const SwingVideoAnalysis: React.FC<SwingVideoAnalysisProps> = ({
                     clubHead={clubHead}
                     trajectory={trajectory}
                     cameraView={analysis.summary.cameraView}
+                    centerlineX={analysis.summary.bodyCenterlineX}
                   />
                 );
               })}
