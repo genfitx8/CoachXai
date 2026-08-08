@@ -42,9 +42,13 @@ const EVENT_LABEL: Record<SwingEventName, string> = {
   finish: '피니시',
 };
 
+// The 7 coaching-standard poses. `takeaway` is still emitted by the
+// segmentation service (it anchors the backward-walk that finds Address
+// and bounds the searches for Top / Impact), but it isn't surfaced here —
+// coaches saw it as a near-duplicate of Address, so the display collapses
+// down to the phases they actually diagnose off.
 const EVENT_ORDER: SwingEventName[] = [
   'address',
-  'takeaway',
   'half_backswing',
   'top',
   'mid_downswing',
@@ -1770,7 +1774,7 @@ export const SwingVideoAnalysis: React.FC<SwingVideoAnalysisProps> = ({
                 ))}
               </div>
             )}
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-8 gap-3">
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-7 gap-3">
               {EVENT_ORDER.map((name) => {
                 const evt = analysis.events[name];
                 const frame = evt ? analysis.frames[evt.frameIndex] : undefined;
