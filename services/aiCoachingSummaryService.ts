@@ -122,7 +122,8 @@ function formatFaultsForPrompt(faults: SwingFault[]): string {
   const lines: string[] = ['[결점 감지]'];
   for (const f of faults) {
     const sev = f.severity === 'major' ? '⚠️ 심각' : f.severity === 'minor' ? '주의' : '참고';
-    lines.push(`- ${f.title} [${sev}] · ${f.evidence}`);
+    const ev = f.evidence.length > 0 ? ` · ${f.evidence.join(' | ')}` : '';
+    lines.push(`- ${f.title} [${sev}]${ev} — ${f.description}`);
   }
   return lines.join('\n');
 }
@@ -298,6 +299,9 @@ export async function generateSwingCoachingReport(
     const result = await invokeBackendAI<unknown>('swing_coaching_report', {
       prompt,
       systemInstruction,
+      // Force JSON output — the parser is strict and this saves us from
+      // stripping markdown fences 90% of the time.
+      responseMimeType: 'application/json',
       coachId,
     });
     const text = getResponseText(result);
