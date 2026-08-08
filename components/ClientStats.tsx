@@ -5,7 +5,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsi
 import { ArrowLeft, TrendingUp, TrendingDown, Minus, Target, Wind, Calendar, Trophy, Flag, Activity, LayoutDashboard, Crosshair, Filter, CalendarDays, RefreshCw, Percent, CircleDot, Mic, GitCompareArrows, Sparkles, AlertTriangle, Star } from 'lucide-react';
 import { Button } from './Button';
 import { getTourAverageDistanceM, getTourLabel, TourGender } from '../constants/tourAverages';
-import { analyzeShotStrategy, ShotStrategyReport } from '../services/geminiService';
+import { analyzeShotStrategyStream, ShotStrategyReport } from '../services/geminiService';
 import { renderMarkdown } from '../utils/renderMarkdown';
 import { coachStyleService, tierForSource } from '../services/coachStyleService';
 import { firebaseService } from '../services/firebase';
@@ -77,12 +77,31 @@ export const ClientStats: React.FC<ClientStatsProps> = ({ lessons, onBack, clien
     // A new generation invalidates the previous "starred" state — the
     // exemplar was tied to the previous output.
     setSavedExemplarId(null);
+    // Clear any previous report — the spinner + streaming-in-progress
+    // banner take over until the first chunk arrives.
+    setAiReport(null);
     try {
-      const report = await analyzeShotStrategy({
+      const report = await analyzeShotStrategyStream({
         clientProfile,
         lessons,
         coachId,
+        onChunk: (_delta, accumulated) => {
+          // First-chunk transition: this fires within ~500ms of the click.
+          // The spinner clears (its render condition includes !aiReport)
+          // and the report panel takes over with the growing markdown.
+          setAiReport((prev) =>
+            prev
+              ? { ...prev, markdown: accumulated }
+              : {
+                  markdown: accumulated,
+                  contributingLessonCount: 0,
+                  clubsAnalysed: [],
+                }
+          );
+        },
       });
+      // Final assignment — locks in the fully-formed report with the true
+      // contributingLessonCount / clubsAnalysed from the service.
       setAiReport(report);
     } catch (e) {
       console.error('[ClientStats] shot_analysis error:', e);
@@ -91,6 +110,8 @@ export const ClientStats: React.FC<ClientStatsProps> = ({ lessons, onBack, clien
           ? e.message
           : '리포트를 생성하지 못했습니다. 잠시 후 다시 시도해 주세요.'
       );
+      // Clear any partially-streamed report so the error panel takes over.
+      setAiReport(null);
     } finally {
       setIsGeneratingReport(false);
     }
@@ -707,7 +728,7 @@ export const ClientStats: React.FC<ClientStatsProps> = ({ lessons, onBack, clien
                                 </Button>
                             </>
                         )}
-                        {isGeneratingReport && (
+                        {isGeneratingReport && !aiReport && (
                             <div className="flex items-center gap-2 text-sm text-purple-700 py-6 justify-center">
                                 <Sparkles className="w-4 h-4 animate-pulse" />
                                 AI가 코치님의 방법론을 따라 분석 중입니다…
@@ -731,18 +752,29 @@ export const ClientStats: React.FC<ClientStatsProps> = ({ lessons, onBack, clien
                         {aiReport && (
                             <div className="space-y-3">
                                 <div className="flex items-center justify-between text-[11px] text-gray-500 gap-2">
-                                    <span>
-                                        {aiReport.contributingLessonCount}건의 볼데이터 · 클럽 {aiReport.clubsAnalysed.length}종 분석
+                                    <span className="flex items-center gap-1.5">
+                                        {isGeneratingReport ? (
+                                            <>
+                                                <Sparkles className="w-3 h-3 text-purple-600 animate-pulse" />
+                                                <span className="text-purple-700 font-semibold">스트리밍 중…</span>
+                                            </>
+                                        ) : (
+                                            <>
+                                                {aiReport.contributingLessonCount}건의 볼데이터 · 클럽 {aiReport.clubsAnalysed.length}종 분석
+                                            </>
+                                        )}
                                     </span>
                                     <div className="flex items-center gap-3">
                                         <button
                                             type="button"
                                             onClick={savedExemplarId ? handleUnstarReport : handleStarReport}
-                                            disabled={isSavingExemplar}
+                                            disabled={isSavingExemplar || isGeneratingReport}
                                             aria-pressed={!!savedExemplarId}
                                             aria-label={savedExemplarId ? '즐겨찾기 해제' : '이 리포트를 즐겨찾기로 저장'}
                                             title={
-                                                savedExemplarId
+                                                isGeneratingReport
+                                                    ? '리포트 생성 완료 후 저장할 수 있습니다'
+                                                    : savedExemplarId
                                                     ? '즐겨찾기 해제 (앞으로 이 스타일을 학습 재료에서 제외)'
                                                     : '이 리포트를 코치 스타일 학습 재료로 저장'
                                             }
@@ -761,7 +793,8 @@ export const ClientStats: React.FC<ClientStatsProps> = ({ lessons, onBack, clien
                                         <button
                                             type="button"
                                             onClick={handleGenerateReport}
-                                            className="text-purple-600 font-bold hover:text-purple-800"
+                                            disabled={isGeneratingReport}
+                                            className="text-purple-600 font-bold hover:text-purple-800 disabled:opacity-50"
                                         >
                                             다시 생성
                                         </button>

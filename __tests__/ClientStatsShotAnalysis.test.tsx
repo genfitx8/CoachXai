@@ -18,9 +18,21 @@ import { ClientStats } from '../components/ClientStats';
 import { ClientProfile, Lesson } from '../types';
 
 // The service is stubbed so no real fetch fires.
+// Component now calls the streaming variant; the mock forwards onChunk
+// with the resolved markdown so tests exercise the full stream → final
+// setAiReport path (mimicking real chunked delivery in one tick).
 const analyzeShotStrategyMock = vi.fn();
 vi.mock('../services/geminiService', () => ({
-  analyzeShotStrategy: (...args: unknown[]) => analyzeShotStrategyMock(...args),
+  analyzeShotStrategyStream: async (params: {
+    onChunk?: (delta: string, accumulated: string) => void;
+    [k: string]: unknown;
+  }) => {
+    const result = await analyzeShotStrategyMock(params);
+    if (result && typeof result.markdown === 'string' && params.onChunk) {
+      params.onChunk(result.markdown, result.markdown);
+    }
+    return result;
+  },
 }));
 
 // Track coachStyleService calls so we can verify the star flow persists

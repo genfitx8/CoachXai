@@ -3097,3 +3097,106 @@ ${motionBlock ? `=== 모션 데이터 (최근 측정) ===\n${motionBlock}\n` : '
     clubsAnalysed: aggregates.map((a) => a.club),
   };
 };
+
+/**
+ * Streaming variant of analyzeShotStrategy.
+ *
+ * Same prompt assembly, same return shape — but chunks arrive via `onChunk`
+ * as the model writes each section. shot_analysis runs 20-30s end-to-end;
+ * streaming brings the first paragraph to the coach in ~500ms, turning
+ * the wait from "spinner" into "watching the report take shape".
+ *
+ * If the backend doesn't support streaming (`StreamNotSupportedError`),
+ * we transparently fall back to the non-streaming path — the caller's
+ * `onChunk` fires exactly once with the full text at completion.
+ */
+export const analyzeShotStrategyStream = async (params: {
+  clientProfile: ClientProfile;
+  lessons: Lesson[];
+  coachId?: string;
+  aggregates?: ShotAggregate[];
+  /** Called every time the model emits a text delta. `accumulated` is the
+   *  full markdown produced so far — bind it directly to your UI state. */
+  onChunk: (delta: string, accumulated: string) => void;
+  signal?: AbortSignal;
+}): Promise<ShotStrategyReport> => {
+  const { clientProfile, lessons, coachId, onChunk, signal } = params;
+
+  const lessonsWithData = lessons.filter((l) => l.golfData && l.club);
+  const aggregates =
+    params.aggregates ?? summariseShotsByClub(lessonsWithData);
+
+  if (aggregates.length === 0) {
+    throw new Error('분석할 클럽별 볼 데이터가 없습니다.');
+  }
+
+  const isFirebaseMode = firebaseService.isInitialized();
+  const systemInstruction = await promptService.getActiveSystemPrompt(
+    'shot_analysis',
+    isFirebaseMode,
+    coachId
+  );
+
+  const profileLines = [
+    `이름: ${clientProfile.name}`,
+    clientProfile.handicap != null ? `핸디캡: ${clientProfile.handicap}` : '핸디캡: 미입력',
+    clientProfile.bestScore != null ? `베스트: ${clientProfile.bestScore}` : '',
+    clientProfile.memo ? `메모: ${clientProfile.memo}` : '',
+  ]
+    .filter(Boolean)
+    .join('\n- ');
+
+  const aggregateBlock = aggregates.map(formatShotAggregate).join('\n\n');
+  const bodyBlock = formatBodyAnalysisForShot(clientProfile, lessonsWithData);
+  const motionBlock = formatMotionForShot(lessonsWithData);
+
+  const prompt = `분석 대상 골퍼
+- ${profileLines}
+- 볼 데이터가 있는 레슨·연습 기록: ${lessonsWithData.length}건
+- 커버 클럽: ${aggregates.map((a) => `${a.club}(${a.sampleSize})`).join(', ')}
+
+=== 클럽별 볼·클럽 데이터 요약 (median + IQR, 이상치 이미 필터됨) ===
+${aggregateBlock}
+
+${bodyBlock ? `=== 신체 분석 ===\n${bodyBlock}\n` : '(신체 분석 데이터 없음)\n'}
+${motionBlock ? `=== 모션 데이터 (최근 측정) ===\n${motionBlock}\n` : '(모션 데이터 없음 — 관련 진단은 확률적 추정으로 표시)\n'}
+
+시스템 지시(원칙)에 따라 마크다운 종합 리포트를 작성해 주세요.
+- 각 섹션 헤더 형식 유지
+- 클럽별 캐리·토탈 탄착 좌표는 median 기준으로 추정하되, IQR 폭을 "산포"로 설명
+- 핀 위치별 공략은 실제 sideTotal/spinRate 부호가 있으면 그것을 근거로
+- 데이터가 없는 섹션은 "데이터 부족" 표시`;
+
+  let markdown = '';
+  try {
+    markdown = await invokeBackendAIStream(
+      'shot_analysis',
+      { prompt, systemInstruction },
+      { onChunk, signal }
+    );
+  } catch (streamErr) {
+    if (streamErr instanceof StreamNotSupportedError) {
+      // Backend doesn't support streaming yet — fall back so the coach
+      // still gets a report. Deliver the full text as one chunk so the
+      // UI code path stays uniform.
+      const result = await invokeBackendAI<unknown>('shot_analysis', {
+        prompt,
+        systemInstruction,
+      });
+      markdown = getResponseText(result) ?? '';
+      if (markdown) onChunk(markdown, markdown);
+    } else {
+      throw streamErr;
+    }
+  }
+
+  if (!markdown.trim()) {
+    throw new Error('AI가 빈 응답을 반환했습니다.');
+  }
+
+  return {
+    markdown,
+    contributingLessonCount: lessonsWithData.length,
+    clubsAnalysed: aggregates.map((a) => a.club),
+  };
+};
