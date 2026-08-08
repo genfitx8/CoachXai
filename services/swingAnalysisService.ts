@@ -1258,6 +1258,19 @@ function buildSummary(
   if (cameraViewOverride && detectedView !== 'unknown' && detectedView !== cameraViewOverride) {
     summary.cameraViewDetected = detectedView;
   }
+  // Face-on body centerline: midpoint of the ankles at address in normalized
+  // canvas space. Ankles are more stable than hips (they're planted through
+  // the swing) so they anchor a reference the rest of the body drifts against.
+  if (cameraView === 'face_on' && events.address) {
+    const addressKps = frames[events.address.frameIndex]?.keypoints;
+    if (addressKps) {
+      const la = addressKps[27];
+      const ra = addressKps[28];
+      if (la && ra && la.confidence >= 0.3 && ra.confidence >= 0.3) {
+        summary.bodyCenterlineX = +((la.x + ra.x) / 2).toFixed(4);
+      }
+    }
+  }
   if (events.address && events.top) {
     summary.backswingMs = Math.round((events.top.t - events.address.t) * 1000);
   }
