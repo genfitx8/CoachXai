@@ -19,6 +19,7 @@ const {
   segmentEvents,
   detectSwingIntervals,
   buildSummary,
+  computeGolfAngles,
 } = __testing__;
 
 type PointMap = Record<number, { x: number; y: number; z: number }>;
@@ -680,14 +681,17 @@ describe('swingAnalysisService.rebuildAnalysis', () => {
       const wrist = { x, y, z: 0 };
       const elbowL = { x: (shoulderL.x + wrist.x) / 2, y: (shoulderL.y + wrist.y) / 2, z: 0 };
       const elbowR = { x: shoulderR.x - 0.1, y: (shoulderR.y + wrist.y) / 2 - 0.05, z: 0 };
-      frames.push(
-        makeFrame(t, {
-          11: shoulderL, 12: shoulderR, 13: elbowL, 14: elbowR,
-          15: wrist, 16: wrist,
-          23: { x: -0.1, y: 0, z: 0 }, 24: { x: 0.1, y: 0, z: 0 },
-          27: { x: -0.1, y: 0.9, z: 0 }, 28: { x: 0.1, y: 0.9, z: 0 },
-        }),
-      );
+      const frame = makeFrame(t, {
+        11: shoulderL, 12: shoulderR, 13: elbowL, 14: elbowR,
+        15: wrist, 16: wrist,
+        23: { x: -0.1, y: 0, z: 0 }, 24: { x: 0.1, y: 0, z: 0 },
+        27: { x: -0.1, y: 0.9, z: 0 }, 28: { x: 0.1, y: 0.9, z: 0 },
+      });
+      // The real pipeline pre-computes angles per frame in the sampling
+      // loop; do it here too so segmentEvents' rotation-from-address
+      // enrichment has the same input.
+      frame.angles = computeGolfAngles(frame.worldKeypoints!);
+      frames.push(frame);
     }
     const { events, warnings } = segmentEvents(frames, fps);
     const summary = buildSummary(frames, events, fps, undefined, false);
@@ -735,6 +739,24 @@ describe('swingAnalysisService.rebuildAnalysis', () => {
       if (!evt) continue;
       expect(evt.frameIndex).toBeGreaterThanOrEqual(startFrameIdx);
       expect(evt.frameIndex).toBeLessThanOrEqual(endFrameIdx);
+    }
+  });
+
+  it('rotationFromAddress: address anchors at 0° and other events are deltas', () => {
+    const fps = 60;
+    const analysis = buildSyntheticAnalysis(fps);
+    // Address is by construction the reference.
+    expect(analysis.events.address!.metrics.shoulderRotationFromAddress).toBeCloseTo(0, 4);
+    expect(analysis.events.address!.metrics.pelvisRotationFromAddress).toBeCloseTo(0, 4);
+    // Every downstream event carries a delta (may be near zero for the
+    // synthetic swing where shoulders don't actually turn, but the key
+    // exists — the coach-visible column always populates).
+    for (const name of ['takeaway', 'top', 'impact', 'finish'] as const) {
+      const evt = analysis.events[name];
+      if (!evt) continue;
+      expect(typeof evt.metrics.shoulderRotationFromAddress).toBe('number');
+      expect(typeof evt.metrics.pelvisRotationFromAddress).toBe('number');
+      expect(typeof evt.metrics.hipShoulderSeparationFromAddress).toBe('number');
     }
   });
 
