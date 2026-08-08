@@ -10,7 +10,8 @@ import {
   LessonStructuralMetricInput,
 } from '../types';
 import { Button } from './Button';
-import { ArrowLeft, Award, Briefcase, Save, CalendarClock, Activity, Plus, Trash2, Smartphone, AlertCircle, ScanLine, Camera, X, ImagePlus } from 'lucide-react';
+import { Award, Briefcase, Save, CalendarClock, Activity, Plus, Trash2, Smartphone, AlertCircle, ScanLine, Camera, X, ImagePlus } from 'lucide-react';
+import { BackButton } from './ui/BackButton';
 import { CoachSearch, CoachSearchResult } from './CoachSearch';
 import { useLanguage } from './LanguageContext';
 import { analyzeStructuralFactors, inferSwingTypeFromBodyType } from '../services/bodyAnalysisService';
@@ -437,9 +438,7 @@ export const ClientProfileSettings: React.FC<ClientProfileSettingsProps> = ({ pr
   return (
     <div className="space-y-6 animate-fade-in pb-10 rounded-2xl border border-slate-700/70 bg-gradient-to-b from-slate-900/80 to-slate-950/80 p-4 sm:p-5">
       <div className="flex items-center justify-between">
-        <Button variant="ghost" onClick={onBack} className="pl-0">
-          <ArrowLeft className="w-5 h-5 mr-1" /> {t('back')}
-        </Button>
+        <BackButton onClick={onBack} tone="dark" label={t('back')} />
         <h2 className="text-lg font-bold text-slate-100">{t('my_profile_title')}</h2>
       </div>
 

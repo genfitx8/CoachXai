@@ -13,6 +13,8 @@ import { useTypingReveal } from '../hooks/useTypingReveal';
 import { useTextToSpeech } from '../hooks/useTextToSpeech';
 import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
 import { renderMarkdown } from '../utils/renderMarkdown';
+import { BackButton } from './ui/BackButton';
+import { PermissionDeniedModal } from './PermissionDeniedModal';
 
 type Mode = 'voice' | 'chat';
 type BookingStep = 'idle' | 'loading-slots' | 'slot-selection' | 'confirming' | 'booking';
@@ -292,7 +294,14 @@ export const StudentAIChat: React.FC<StudentAIChatProps> = ({
 
   // ── Voice STT ──────────────────────────────────────────────────────────────
 
-  const { isListening, voiceError, stopListening, toggleListening } = useSpeechRecognition({
+  const {
+    isListening,
+    voiceError,
+    permissionDenied: micPermissionDenied,
+    dismissPermissionDenied: dismissMicPermissionDenied,
+    stopListening,
+    toggleListening,
+  } = useSpeechRecognition({
     language,
     onResult: handleSend,
   });
@@ -484,18 +493,23 @@ export const StudentAIChat: React.FC<StudentAIChatProps> = ({
 
   return (
     <div className="flex flex-col bg-gray-950 text-white" style={{ minHeight: '100dvh' }}>
+      <PermissionDeniedModal
+        open={micPermissionDenied}
+        kind="microphone"
+        onClose={dismissMicPermissionDenied}
+        onRetry={() => {
+          dismissMicPermissionDenied();
+          toggleListening();
+        }}
+      />
       {/* Header */}
       <div className="flex items-center gap-3 px-4 py-3 border-b border-white/10 bg-gray-900/90 backdrop-blur-sm sticky top-0 z-10">
-        <button
+        <BackButton
           onClick={onBack}
-          className="flex items-center gap-1 py-2 px-2.5 rounded-xl hover:bg-white/10 transition-colors min-h-[44px]"
-          aria-label={t('back')}
-        >
-          <ChevronLeft className="w-5 h-5 text-white flex-shrink-0" />
-          <span className="text-sm font-semibold text-white">
-            {language === 'en' ? 'Home' : language === 'ja' ? 'ホーム' : '대시보드'}
-          </span>
-        </button>
+          tone="dark"
+          label={t('back')}
+          ariaLabel={t('back')}
+        />
 
         <div className="relative w-9 h-9 flex items-center justify-center flex-shrink-0">
           <div className="absolute inset-0 rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 student-ai-pulse" />

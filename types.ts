@@ -124,6 +124,8 @@ export interface MotionCaptureData {
 
 export interface Lesson {
   id: string;
+  /** Composite key: `${clientName}_${clientPhone}` — the app-wide student identifier. */
+  clientId?: string;
   clientName: string; // Name of the student/client
   clientPhone: string; // Added: Phone number for unique identification
   coachId?: string; // Added: ID of the coach associated with this lesson

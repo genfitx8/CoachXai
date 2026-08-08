@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { BayReservation, BayReservationStatus, ClientProfile } from '../types';
 import { bayReservationService } from '../services/bayReservationService';
-import { ArrowLeft, Calendar, Clock, Target, MapPin, AlertCircle, Loader, CheckCircle, XCircle, Clock3 } from 'lucide-react';
+import { Calendar, Clock, Target, MapPin, AlertCircle, Loader, CheckCircle, XCircle, Clock3 } from 'lucide-react';
 import { Button } from './Button';
+import { BackButton } from './ui/BackButton';
 
 interface MyBayReservationsProps {
   clientProfile: ClientProfile;
@@ -124,12 +125,7 @@ export const MyBayReservations: React.FC<MyBayReservationsProps> = ({
       {/* Header */}
       <div className="bg-white border-b border-gray-200 sticky top-0 z-10">
         <div className="max-w-lg mx-auto px-4 py-3 flex items-center gap-3">
-          <button
-            onClick={onBack}
-            className="p-1 rounded-lg hover:bg-gray-100 transition-colors"
-          >
-            <ArrowLeft className="w-5 h-5 text-gray-600" />
-          </button>
+          <BackButton onClick={onBack} tone="light" />
           <h1 className="font-bold text-lg text-gray-900">나의 타석 예약</h1>
         </div>
       </div>

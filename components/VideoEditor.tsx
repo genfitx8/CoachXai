@@ -62,7 +62,8 @@ export const VideoEditor: React.FC<VideoEditorProps> = ({
       alert('영상이 성공적으로 잘렸습니다.');
     } catch (error) {
       console.error('Error trimming video:', error);
-      alert('영상 자르기 중 오류가 발생했습니다.');
+      const detail = error instanceof Error ? error.message : String(error);
+      alert(`영상 자르기 중 오류가 발생했습니다.\n${detail}`);
     } finally {
       setIsProcessing(false);
       setProcessingProgress(0);
@@ -97,7 +98,8 @@ export const VideoEditor: React.FC<VideoEditorProps> = ({
       setEditMode('SELECT');
     } catch (error) {
       console.error('Error applying slow motion:', error);
-      alert('슬로모션 처리 중 오류가 발생했습니다.');
+      const detail = error instanceof Error ? error.message : String(error);
+      alert(`슬로모션 처리 중 오류가 발생했습니다.\n${detail}`);
     } finally {
       setIsProcessing(false);
       setProcessingProgress(0);
@@ -143,7 +145,8 @@ export const VideoEditor: React.FC<VideoEditorProps> = ({
       onSave(finalBlob, metadata);
     } catch (error) {
       console.error('Error saving edited video:', error);
-      alert('영상 저장 중 오류가 발생했습니다.');
+      const detail = error instanceof Error ? error.message : String(error);
+      alert(`영상 저장 중 오류가 발생했습니다.\n${detail}`);
     } finally {
       setIsProcessing(false);
       setProcessingProgress(0);

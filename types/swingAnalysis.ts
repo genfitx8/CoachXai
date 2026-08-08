@@ -235,11 +235,33 @@ export interface SwingInterval {
   confidence: number;
 }
 
+/**
+ * The subset of frames the segmentation pipeline actually analyzed. When
+ * present, the coach's timeline editor uses this to render the "current
+ * analysis window" over the full video, and `rebuildAnalysis` lets them
+ * drag the window boundaries without re-sampling.
+ */
+export interface AnalyzedFrameRange {
+  startFrameIdx: number;
+  endFrameIdx: number;
+}
+
 export interface SwingAnalysis {
   /** Video source (blob URL or original URL) used for the run. */
   videoUrl: string;
-  /** Full per-frame timeline sampled from the video. */
+  /**
+   * Every frame sampled from the video (not just the analyzed window).
+   * Coach editors need the full timeline so they can drag events / trim
+   * boundaries past the auto-detected interval. Event `frameIndex` values
+   * are absolute into this array.
+   */
   frames: SwingFrame[];
+  /**
+   * Slice of `frames` that was actually fed into segmentation. Undefined
+   * when the caller passed explicit start/end times or when auto-trim
+   * found nothing (the whole video was analyzed).
+   */
+  analyzedRange?: AnalyzedFrameRange;
   /** Sample rate actually achieved (frames per second). */
   sampledFps: number;
   /**
