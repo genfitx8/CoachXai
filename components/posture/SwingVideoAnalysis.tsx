@@ -96,6 +96,7 @@ function drawKeypoints(
   clubHead?: ClubHeadMarker,
   trajectory?: TrajectoryOverlay,
   centerlineX?: number,
+  wristArc?: Array<{ x: number; y: number }>,
 ) {
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
@@ -266,6 +267,36 @@ function drawKeypoints(
     }
     ctx.restore();
   }
+  // Wrist arc — Top→Impact lead-wrist path. Proxy for shaft plane path
+  // when the club isn't tracked; drawn as a bright polyline so the shape
+  // (steep = upright, shallow = flat) reads at a glance.
+  if (wristArc && wristArc.length >= 2) {
+    ctx.save();
+    // Black underlay for legibility on grass / white background.
+    ctx.strokeStyle = 'rgba(0,0,0,0.6)';
+    ctx.lineWidth = 5;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.beginPath();
+    ctx.moveTo(wristArc[0].x * canvas.width, wristArc[0].y * canvas.height);
+    for (let i = 1; i < wristArc.length; i++) {
+      ctx.lineTo(wristArc[i].x * canvas.width, wristArc[i].y * canvas.height);
+    }
+    ctx.stroke();
+    ctx.strokeStyle = '#22d3ee'; // cyan — distinguishes from emerald skeleton / amber torso axis
+    ctx.lineWidth = 3;
+    ctx.stroke();
+    // Fade markers along the arc for a sense of time-through-frames.
+    for (let i = 0; i < wristArc.length; i++) {
+      const p = wristArc[i];
+      const alpha = 0.4 + 0.6 * (i / (wristArc.length - 1));
+      ctx.fillStyle = `rgba(34, 211, 238, ${alpha.toFixed(2)})`;
+      ctx.beginPath();
+      ctx.arc(p.x * canvas.width, p.y * canvas.height, 2.5, 0, 2 * Math.PI);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
   if (clubHead) {
     const cx = clubHead.x * canvas.width;
     const cy = clubHead.y * canvas.height;
@@ -302,6 +333,7 @@ interface EventSnapshotProps {
   trajectory?: TrajectoryOverlay;
   cameraView?: CameraView;
   centerlineX?: number;
+  wristArc?: Array<{ x: number; y: number }>;
 }
 
 const EventSnapshot: React.FC<EventSnapshotProps> = ({
@@ -313,6 +345,7 @@ const EventSnapshot: React.FC<EventSnapshotProps> = ({
   trajectory,
   cameraView,
   centerlineX,
+  wristArc,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -325,7 +358,7 @@ const EventSnapshot: React.FC<EventSnapshotProps> = ({
     video.playsInline = true;
     video.crossOrigin = 'anonymous';
     const onSeeked = () => {
-      drawKeypoints(canvas, video, frame.keypoints, overlay, clubHead, trajectory, centerlineX);
+      drawKeypoints(canvas, video, frame.keypoints, overlay, clubHead, trajectory, centerlineX, wristArc);
       video.removeEventListener('seeked', onSeeked);
       video.src = '';
     };
@@ -337,7 +370,7 @@ const EventSnapshot: React.FC<EventSnapshotProps> = ({
       video.removeEventListener('seeked', onSeeked);
       video.src = '';
     };
-  }, [event, frame, videoUrl, overlay, clubHead, trajectory, centerlineX]);
+  }, [event, frame, videoUrl, overlay, clubHead, trajectory, centerlineX, wristArc]);
 
   if (!event || !frame) {
     return (
@@ -615,6 +648,23 @@ const SummaryBar: React.FC<SummaryBarProps> = ({ summary }) => {
           <span className={planeTone}>
             {(summary.swingPlaneAngleCorrected ?? summary.swingPlaneAngle)!.toFixed(1)}°
           </span>
+          {summary.swingPlaneClassification && (
+            <span
+              className={`ml-1 text-[9px] font-semibold px-1.5 py-0.5 rounded border ${
+                summary.swingPlaneClassification === 'neutral'
+                  ? 'text-emerald-300 border-emerald-700/60 bg-emerald-900/30'
+                  : summary.swingPlaneClassification === 'flat' ||
+                    summary.swingPlaneClassification === 'upright'
+                  ? 'text-sky-300 border-sky-700/60 bg-sky-900/30'
+                  : 'text-amber-300 border-amber-700/60 bg-amber-900/30'
+              }`}
+            >
+              {summary.swingPlaneClassification === 'very_flat' ? '매우 플랫' :
+               summary.swingPlaneClassification === 'flat' ? '플랫' :
+               summary.swingPlaneClassification === 'neutral' ? '중립' :
+               summary.swingPlaneClassification === 'upright' ? '업라이트' : '매우 업라이트'}
+            </span>
+          )}
           {summary.gravityAligned && summary.swingPlaneAngleCorrected != null && (
             <span className="ml-1 text-[9px] text-emerald-500 font-normal">중력정렬</span>
           )}
@@ -2077,6 +2127,7 @@ export const SwingVideoAnalysis: React.FC<SwingVideoAnalysisProps> = ({
                     trajectory={trajectory}
                     cameraView={analysis.summary.cameraView}
                     centerlineX={analysis.summary.bodyCenterlineX}
+                    wristArc={name === 'impact' ? analysis.summary.downswingWristArc2D : undefined}
                   />
                 );
               })}
