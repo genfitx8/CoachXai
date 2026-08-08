@@ -391,15 +391,29 @@ const EventSnapshot: React.FC<EventSnapshotProps> = ({
               tone={kneeTone}
               hint="목표 150–170°"
             />
-            <MetricRow label="어깨 라인" value={metricSignedDeg('shoulderRotation')} />
-            <MetricRow label="골반 라인" value={metricSignedDeg('pelvisRotation')} />
+            {/* Address anchors the rotation reference — both start at 0° by
+                definition so other events read as delta from here. */}
+            <MetricRow label="어깨 회전" value="0.0°" hint="어드레스 기준 (0°)" />
+            <MetricRow label="골반 회전" value="0.0°" hint="어드레스 기준 (0°)" />
           </>
         ) : (
           <>
-            <MetricRow label="X-Factor" value={metricAngle('hipShoulderSeparation')} />
+            <MetricRow
+              label="어깨 회전"
+              value={metricSignedDeg('shoulderRotationFromAddress')}
+              hint="어드레스 기준"
+            />
+            <MetricRow
+              label="골반 회전"
+              value={metricSignedDeg('pelvisRotationFromAddress')}
+              hint="어드레스 기준"
+            />
+            <MetricRow
+              label="X-Factor"
+              value={metricSignedDeg('hipShoulderSeparationFromAddress')}
+              hint="어깨−골반 (어드레스 기준)"
+            />
             <MetricRow label="척추 기울기" value={metricAngle('spineTilt3D')} />
-            <MetricRow label="어깨 회전" value={metricAngle('shoulderRotation')} />
-            <MetricRow label="골반 회전" value={metricAngle('pelvisRotation')} />
           </>
         )}
       </div>

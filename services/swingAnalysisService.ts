@@ -962,7 +962,59 @@ function segmentEvents(
   if (followThrough) events.follow_through = followThrough;
   if (finish) events.finish = finish;
   enrichImpactDiagnostics(events, frames);
+  enrichRotationFromAddress(events);
   return { events, warnings };
+}
+
+/**
+ * Write shoulder/pelvis rotation deltas from the address pose onto every
+ * event. Coaches read rotations as "how far turned from address", not as
+ * absolute world-frame angles — showing +90° at the top and +40° at impact
+ * is intuitive; showing 174° / 44° in raw atan2 space isn't.
+ *
+ * Sign-preserving: backswing direction stays positive on right-handed swings
+ * (and negative on left-handed) so a coach can spot reverse pivots at a
+ * glance without needing a legend.
+ */
+function enrichRotationFromAddress(
+  events: Partial<Record<SwingEventName, SwingEvent>>,
+): void {
+  const address = events.address;
+  if (!address) return;
+  const shoulderAtAddress = address.metrics.shoulderRotation;
+  const pelvisAtAddress = address.metrics.pelvisRotation;
+  // ±180 wraparound: pick the shorter signed arc so a rotation from 170° to
+  // −170° reads as +20°, not −340°.
+  const shortestArc = (delta: number): number => {
+    let d = delta % 360;
+    if (d > 180) d -= 360;
+    if (d < -180) d += 360;
+    return d;
+  };
+  for (const evt of Object.values(events)) {
+    if (!evt) continue;
+    if (typeof shoulderAtAddress === 'number' && typeof evt.metrics.shoulderRotation === 'number') {
+      evt.metrics.shoulderRotationFromAddress = +shortestArc(
+        evt.metrics.shoulderRotation - shoulderAtAddress,
+      ).toFixed(1);
+    }
+    if (typeof pelvisAtAddress === 'number' && typeof evt.metrics.pelvisRotation === 'number') {
+      evt.metrics.pelvisRotationFromAddress = +shortestArc(
+        evt.metrics.pelvisRotation - pelvisAtAddress,
+      ).toFixed(1);
+    }
+    // X-Factor stretch from address baseline (shoulder − pelvis delta,
+    // relative to address so a coach sees how much MORE separation was
+    // gained through the swing).
+    if (
+      typeof evt.metrics.shoulderRotationFromAddress === 'number' &&
+      typeof evt.metrics.pelvisRotationFromAddress === 'number'
+    ) {
+      evt.metrics.hipShoulderSeparationFromAddress = +(
+        evt.metrics.shoulderRotationFromAddress - evt.metrics.pelvisRotationFromAddress
+      ).toFixed(1);
+    }
+  }
 }
 
 /**
