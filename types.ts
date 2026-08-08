@@ -162,7 +162,38 @@ export interface Lesson {
   /** 1-based session number within the lesson package. Always set together with `lessonPackageId`. */
   sessionNumber?: number;
   motionCaptureData?: MotionCaptureData;
+  /**
+   * When set, this lesson is a snapshot copy owned by the student and
+   * `sourceLessonId` points at the original coach-owned record.
+   * The student keeps the snapshot even if the coach later deletes the original.
+   */
+  sourceLessonId?: string;
+  /** Timestamp (ms) when the coach shared this snapshot to the student. */
+  sharedAt?: number;
   createdAt: number;
+}
+
+/**
+ * AI-generated training plan owned by a student.  Distinct from the
+ * coach-authored `TrainingProgram`: the student triggers generation, the plan
+ * is derived from their accumulated lesson history, and is persisted server
+ * side so the student can revisit it.
+ */
+export type StudentTrainingPlanHorizon = '1M' | '3M' | '6M' | '1Y';
+
+export interface StudentTrainingPlan {
+  id: string;
+  studentId: string;
+  horizon: StudentTrainingPlanHorizon;
+  title?: string;
+  /** Snapshot of the config used to generate the plan (goal, frequency, etc.). */
+  config?: Record<string, unknown>;
+  /** Markdown text of the generated plan. */
+  generatedPlan: string;
+  /** How many lesson records fed the generation (for transparency/debugging). */
+  sourceLessonCount?: number;
+  createdAt: number;
+  updatedAt: number;
 }
 
 /**

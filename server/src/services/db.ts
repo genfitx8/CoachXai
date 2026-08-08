@@ -155,10 +155,20 @@ export async function initDb(): Promise<void> {
     "ALTER TABLE lessons ADD COLUMN IF NOT EXISTS video_edit_metadata JSONB",
     "ALTER TABLE lessons ADD COLUMN IF NOT EXISTS compare_video_url TEXT",
     "ALTER TABLE lessons ADD COLUMN IF NOT EXISTS compare_video_metadata JSONB",
+    // Snapshot-copy support: when a coach shares a lesson to a student, a new
+    // row is inserted with source_lesson_id pointing at the original. The
+    // student then owns the copy, so coach-side deletes of the original do not
+    // touch the student's history.
+    "ALTER TABLE lessons ADD COLUMN IF NOT EXISTS source_lesson_id UUID",
+    "ALTER TABLE lessons ADD COLUMN IF NOT EXISTS shared_at BIGINT",
   ];
   for (const sql of lessonAlters) {
     await pool.query(sql);
   }
+
+  await pool.query(
+    `CREATE INDEX IF NOT EXISTS idx_lessons_source_lesson_id ON lessons (source_lesson_id)`
+  );
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS lesson_packages (
@@ -188,6 +198,27 @@ export async function initDb(): Promise<void> {
       updated_at     BIGINT NOT NULL
     )
   `);
+
+  // AI-generated training plans owned by the student.  Different from
+  // training_programs (coach-authored): here the student triggers generation
+  // themselves, and the plan is scoped to their accumulated lesson history.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS student_training_plans (
+      id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      student_id     UUID NOT NULL,
+      horizon        VARCHAR(20) NOT NULL,
+      title          VARCHAR(500),
+      config         JSONB,
+      generated_plan TEXT,
+      source_lesson_count INTEGER DEFAULT 0,
+      created_at     BIGINT NOT NULL,
+      updated_at     BIGINT NOT NULL
+    )
+  `);
+  await pool.query(
+    `CREATE INDEX IF NOT EXISTS idx_student_training_plans_student
+     ON student_training_plans (student_id, created_at DESC)`
+  );
 
   // ── Curriculum system ────────────────────────────────────────────────────
 

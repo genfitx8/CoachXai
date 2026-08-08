@@ -18,6 +18,8 @@ function mapLesson(row: Record<string, unknown>) {
     coachId: row.coach_id,
     createdBy: row.created_by,
     recordType: row.record_type,
+    sourceLessonId: row.source_lesson_id,
+    sharedAt: row.shared_at,
     title: row.title,
     date: row.date,
     club: row.club,
@@ -61,9 +63,13 @@ router.get('/', async (req: Request, res: Response) => {
 
     let result;
     if (userRole === 'coach') {
-      // Coach: fetch all lessons assigned to this coach
+      // Coach: fetch original lessons authored/owned by this coach.  Snapshots
+      // pushed to students (source_lesson_id IS NOT NULL) are excluded so the
+      // coach doesn't see duplicates of records they already have.
       result = await pool.query(
-        'SELECT * FROM lessons WHERE coach_id = $1 ORDER BY created_at DESC',
+        `SELECT * FROM lessons
+         WHERE coach_id = $1 AND source_lesson_id IS NULL
+         ORDER BY created_at DESC`,
         [userId]
       );
     } else if (userRole === 'client') {
@@ -430,6 +436,161 @@ router.delete('/:id', async (req: Request, res: Response) => {
     res.json({ deleted: true, id });
   } catch (err) {
     console.error('[lessons] DELETE /:id error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+/**
+ * POST /api/lessons/:id/share
+ *
+ * Coach-only.  Creates a snapshot copy of the specified lesson owned by the
+ * target student.  The student sees the copy in their own history; if the
+ * coach later edits or deletes the original, the snapshot is unaffected.
+ *
+ * Body: { studentId?: string, clientName?: string, clientPhone?: string }
+ *   – studentId: prefer this when the coach picks from their client roster
+ *     (server looks up the client's name/phone).
+ *   – clientName+clientPhone: fallback for pre-signup members.
+ *
+ * Idempotency: if a snapshot for the same (source_lesson_id, target client_id)
+ * already exists it is returned instead of creating a duplicate.
+ */
+router.post('/:id/share', async (req: Request, res: Response) => {
+  try {
+    if (req.user!.role !== 'coach') {
+      res.status(403).json({ error: 'Only coaches can share lessons' });
+      return;
+    }
+    const coachId = req.user!.id;
+    const { id: lessonId } = req.params;
+    const { studentId, clientName, clientPhone } = req.body as {
+      studentId?: string;
+      clientName?: string;
+      clientPhone?: string;
+    };
+
+    // Load the source lesson, and confirm the coach owns it.
+    const src = await pool.query(
+      'SELECT * FROM lessons WHERE id = $1 AND coach_id = $2 AND source_lesson_id IS NULL',
+      [lessonId, coachId]
+    );
+    if (src.rows.length === 0) {
+      res.status(404).json({ error: 'Lesson not found or not owned by you' });
+      return;
+    }
+    const source = src.rows[0];
+
+    // Resolve the target student's identity.
+    let targetName: string | null = null;
+    let targetPhone: string | null = null;
+    if (typeof studentId === 'string' && studentId.trim().length > 0) {
+      const c = await pool.query(
+        'SELECT name, phone FROM clients WHERE id = $1',
+        [studentId.trim()]
+      );
+      if (c.rows.length === 0) {
+        res.status(404).json({ error: 'Target student not found' });
+        return;
+      }
+      targetName = c.rows[0].name ?? null;
+      targetPhone = c.rows[0].phone ?? null;
+    } else {
+      targetName =
+        typeof clientName === 'string' && clientName.trim().length > 0
+          ? clientName.trim()
+          : null;
+      targetPhone =
+        typeof clientPhone === 'string' && clientPhone.trim().length > 0
+          ? clientPhone.trim()
+          : null;
+    }
+    if (!targetName || !targetPhone) {
+      res.status(400).json({
+        error: 'studentId or (clientName + clientPhone) is required',
+      });
+      return;
+    }
+
+    const targetCompositeId = `${targetName}_${targetPhone}`;
+
+    // Idempotent check – return the existing snapshot if one is already there.
+    const existingSnap = await pool.query(
+      `SELECT * FROM lessons
+       WHERE source_lesson_id = $1 AND client_id = $2
+       LIMIT 1`,
+      [lessonId, targetCompositeId]
+    );
+    if (existingSnap.rows.length > 0) {
+      res.status(200).json({
+        lesson: mapLesson(existingSnap.rows[0]),
+        created: false,
+      });
+      return;
+    }
+
+    const now = Date.now();
+    const inserted = await pool.query(
+      `INSERT INTO lessons (
+        client_id, client_name, client_phone, coach_id,
+        created_by, record_type,
+        title, date, club, target_distance, score, scorecard_detail,
+        video_url, video_key, media_type, swing_angle,
+        additional_media, thumbnail_url,
+        coach_notes, ai_analysis, scorecard,
+        tags, golf_data, swing_sequence, share_option,
+        client_feedback, feedback_status,
+        member_body_analysis, assigned_homework,
+        edited_video_url, video_edit_metadata,
+        compare_video_url, compare_video_metadata,
+        media, lesson_package_id, session_number,
+        source_lesson_id, shared_at,
+        created_at, updated_at
+      ) VALUES (
+        $1, $2, $3, $4,
+        $5, $6,
+        $7, $8, $9, $10, $11, $12,
+        $13, $14, $15, $16,
+        $17, $18,
+        $19, $20, $21,
+        $22, $23, $24, $25,
+        $26, $27,
+        $28, $29,
+        $30, $31,
+        $32, $33,
+        $34, $35, $36,
+        $37, $38,
+        $39, $40
+      ) RETURNING *`,
+      [
+        targetCompositeId, targetName, targetPhone, coachId,
+        'COACH', source.record_type ?? null,
+        source.title ?? null, source.date ?? null, source.club ?? null,
+        source.target_distance ?? null, source.score ?? null,
+        source.scorecard_detail ?? null,
+        source.video_url ?? null, source.video_key ?? null,
+        source.media_type ?? null, source.swing_angle ?? null,
+        source.additional_media ?? null, source.thumbnail_url ?? null,
+        source.coach_notes ?? null,
+        source.ai_analysis ?? null, source.scorecard ?? null,
+        source.tags ?? null, source.golf_data ?? null,
+        source.swing_sequence ?? null, source.share_option ?? null,
+        source.client_feedback ?? null, source.feedback_status ?? null,
+        source.member_body_analysis ?? null, source.assigned_homework ?? null,
+        source.edited_video_url ?? null, source.video_edit_metadata ?? null,
+        source.compare_video_url ?? null, source.compare_video_metadata ?? null,
+        source.media ?? null,
+        source.lesson_package_id ?? null, source.session_number ?? null,
+        lessonId, now,
+        now, now,
+      ]
+    );
+
+    res.status(201).json({
+      lesson: mapLesson(inserted.rows[0]),
+      created: true,
+    });
+  } catch (err) {
+    console.error('[lessons] POST /:id/share error:', err);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

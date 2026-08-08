@@ -1,4 +1,13 @@
-import type { Lesson, ClientProfile, CoachProfile, LessonPackage, TrainingProgram, Homework } from '../types';
+import type {
+  Lesson,
+  ClientProfile,
+  CoachProfile,
+  LessonPackage,
+  TrainingProgram,
+  Homework,
+  StudentTrainingPlan,
+  StudentTrainingPlanHorizon,
+} from '../types';
 import { resolveApiBaseUrl } from './apiBase';
 
 const BASE_URL = resolveApiBaseUrl();
@@ -219,6 +228,50 @@ export const apiService = {
 
   async deleteLesson(lessonId: string): Promise<void> {
     await req('DELETE', `/api/lessons/${lessonId}`);
+  },
+
+  /**
+   * Coach-only. Creates a snapshot copy of the specified lesson under the
+   * target student's history. Idempotent — repeated calls for the same
+   * (lessonId, studentId) return the existing snapshot without duplicating.
+   */
+  async shareLessonToStudent(
+    lessonId: string,
+    target: { studentId?: string; clientName?: string; clientPhone?: string }
+  ): Promise<{ lesson: Lesson; created: boolean }> {
+    const data = await req<{ lesson: Lesson; created: boolean }>(
+      'POST',
+      `/api/lessons/${lessonId}/share`,
+      target
+    );
+    return { lesson: normalizeLessonMediaUrls(data.lesson), created: data.created };
+  },
+
+  // ── Student training plans (AI-generated) ────────────────────────────────
+
+  async getStudentTrainingPlans(): Promise<StudentTrainingPlan[]> {
+    const data = await req<{ plans: StudentTrainingPlan[] }>(
+      'GET',
+      '/api/student-training-plans'
+    );
+    return data.plans;
+  },
+
+  async saveStudentTrainingPlan(
+    plan: Omit<StudentTrainingPlan, 'id' | 'studentId' | 'createdAt' | 'updatedAt'> & {
+      horizon: StudentTrainingPlanHorizon;
+    }
+  ): Promise<StudentTrainingPlan> {
+    const data = await req<{ plan: StudentTrainingPlan }>(
+      'POST',
+      '/api/student-training-plans',
+      plan
+    );
+    return data.plan;
+  },
+
+  async deleteStudentTrainingPlan(planId: string): Promise<void> {
+    await req('DELETE', `/api/student-training-plans/${planId}`);
   },
 
   async processLessonMedia(lesson: Lesson): Promise<Lesson> {
