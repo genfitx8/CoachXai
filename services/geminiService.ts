@@ -51,6 +51,7 @@ import {
 } from './aiResponseCache';
 import { invokeBackendAIStream, StreamNotSupportedError } from './aiStream';
 import { scanForInjection } from './promptSafety';
+import { buildPhysicsReferenceBlock } from './physicsGrounding';
 
 const log = createLogger('gemini');
 
@@ -3064,6 +3065,17 @@ export const analyzeShotStrategy = async (params: {
   const bodyBlock = formatBodyAnalysisForShot(clientProfile, lessonsWithData);
   const motionBlock = formatMotionForShot(lessonsWithData);
 
+  // Physics grounding — build a Trackman-referenced optimal-range block
+  // for each club that has a measured clubhead speed. Prevents the F2
+  // hallucination (model inventing "7I 최적 런치 18-20°" numbers that
+  // don't match published tour data).
+  const physicsLookups = aggregates
+    .filter((a): a is typeof a & { clubHeadSpeed: { median: number; iqr: [number, number] } } =>
+      !!a.clubHeadSpeed && Number.isFinite(a.clubHeadSpeed.median)
+    )
+    .map((a) => ({ club: a.club, clubSpeedMph: a.clubHeadSpeed.median }));
+  const physicsBlock = buildPhysicsReferenceBlock(physicsLookups);
+
   const prompt = `분석 대상 골퍼
 - ${profileLines}
 - 볼 데이터가 있는 레슨·연습 기록: ${lessonsWithData.length}건
@@ -3072,6 +3084,7 @@ export const analyzeShotStrategy = async (params: {
 === 클럽별 볼·클럽 데이터 요약 (median + IQR, 이상치 이미 필터됨) ===
 ${aggregateBlock}
 
+${physicsBlock ? `${physicsBlock}\n` : ''}
 ${bodyBlock ? `=== 신체 분석 ===\n${bodyBlock}\n` : '(신체 분석 데이터 없음)\n'}
 ${motionBlock ? `=== 모션 데이터 (최근 측정) ===\n${motionBlock}\n` : '(모션 데이터 없음 — 관련 진단은 확률적 추정으로 표시)\n'}
 
@@ -3150,6 +3163,15 @@ export const analyzeShotStrategyStream = async (params: {
   const bodyBlock = formatBodyAnalysisForShot(clientProfile, lessonsWithData);
   const motionBlock = formatMotionForShot(lessonsWithData);
 
+  // Physics grounding — same as the non-streaming variant. Kept in both
+  // so callers on either path get the F2 fix.
+  const physicsLookups = aggregates
+    .filter((a): a is typeof a & { clubHeadSpeed: { median: number; iqr: [number, number] } } =>
+      !!a.clubHeadSpeed && Number.isFinite(a.clubHeadSpeed.median)
+    )
+    .map((a) => ({ club: a.club, clubSpeedMph: a.clubHeadSpeed.median }));
+  const physicsBlock = buildPhysicsReferenceBlock(physicsLookups);
+
   const prompt = `분석 대상 골퍼
 - ${profileLines}
 - 볼 데이터가 있는 레슨·연습 기록: ${lessonsWithData.length}건
@@ -3158,6 +3180,7 @@ export const analyzeShotStrategyStream = async (params: {
 === 클럽별 볼·클럽 데이터 요약 (median + IQR, 이상치 이미 필터됨) ===
 ${aggregateBlock}
 
+${physicsBlock ? `${physicsBlock}\n` : ''}
 ${bodyBlock ? `=== 신체 분석 ===\n${bodyBlock}\n` : '(신체 분석 데이터 없음)\n'}
 ${motionBlock ? `=== 모션 데이터 (최근 측정) ===\n${motionBlock}\n` : '(모션 데이터 없음 — 관련 진단은 확률적 추정으로 표시)\n'}
 
