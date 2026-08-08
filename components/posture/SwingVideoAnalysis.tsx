@@ -160,6 +160,50 @@ function drawKeypoints(
     ctx.strokeStyle = 'rgba(0,0,0,0.75)';
     ctx.stroke();
   });
+  // Torso axis: shoulder midpoint → hip midpoint. Draws even in DTL because
+  // spine geometry is meaningful from either view; the tilt READOUT is
+  // FO-only but the line itself is a useful landmark either way.
+  const ls = keypoints[11];
+  const rs = keypoints[12];
+  const lh = keypoints[23];
+  const rh = keypoints[24];
+  if (
+    ls && rs && lh && rh &&
+    ls.confidence >= 0.3 && rs.confidence >= 0.3 &&
+    lh.confidence >= 0.3 && rh.confidence >= 0.3
+  ) {
+    const sx = ((ls.x + rs.x) / 2) * canvas.width;
+    const sy = ((ls.y + rs.y) / 2) * canvas.height;
+    const hx = ((lh.x + rh.x) / 2) * canvas.width;
+    const hy = ((lh.y + rh.y) / 2) * canvas.height;
+    ctx.save();
+    ctx.lineWidth = Math.max(3, strokePx - 1);
+    ctx.setLineDash([]);
+    // Black underlay for contrast on any background.
+    ctx.strokeStyle = 'rgba(0,0,0,0.7)';
+    ctx.beginPath();
+    ctx.moveTo(sx, sy);
+    ctx.lineTo(hx, hy);
+    ctx.stroke();
+    ctx.strokeStyle = '#f59e0b'; // amber-500 — distinguishes from emerald skeleton.
+    ctx.lineWidth = Math.max(2, strokePx - 2);
+    ctx.beginPath();
+    ctx.moveTo(sx, sy);
+    ctx.lineTo(hx, hy);
+    ctx.stroke();
+    // Small dots at the endpoints so it visually reads as a torso axis, not
+    // just an accidental crossing line.
+    for (const [x, y] of [[sx, sy], [hx, hy]] as const) {
+      ctx.beginPath();
+      ctx.arc(x, y, Math.max(3, jointR * 0.5), 0, 2 * Math.PI);
+      ctx.fillStyle = '#f59e0b';
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(0,0,0,0.75)';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
   if (overlay) {
     const sx = overlay.start.x * canvas.width;
     const sy = overlay.start.y * canvas.height;
@@ -410,16 +454,21 @@ const EventSnapshot: React.FC<EventSnapshotProps> = ({
                   : '목표 30–40°'
               }
             />
+            {/* Address anchors both rotation and torso tilt so downstream
+                events read as delta. Show the ABSOLUTE tilt here — the
+                setup lean — and mark it as the baseline. */}
+            <MetricRow
+              label="상체 측면 기울기"
+              value={metricSignedDeg('torsoLateralTiltDeg')}
+              hint="정면 뷰 · 어드레스 기준값"
+            />
             <MetricRow
               label="무릎 굽힘"
               value={metricAngle('kneeFlex')}
               tone={kneeTone}
               hint="목표 150–170°"
             />
-            {/* Address anchors the rotation reference — both start at 0° by
-                definition so other events read as delta from here. */}
             <MetricRow label="어깨 회전" value="0.0°" hint="어드레스 기준 (0°)" />
-            <MetricRow label="골반 회전" value="0.0°" hint="어드레스 기준 (0°)" />
           </>
         ) : (
           <>
@@ -438,7 +487,11 @@ const EventSnapshot: React.FC<EventSnapshotProps> = ({
               value={metricSignedDeg('hipShoulderSeparationFromAddress')}
               hint="어깨−골반 (어드레스 기준)"
             />
-            <MetricRow label="척추 기울기" value={metricAngle('spineTilt3D')} />
+            <MetricRow
+              label="상체 측면 기울기"
+              value={metricSignedDeg('torsoLateralTiltFromAddress')}
+              hint="정면 뷰 · 어드레스 대비 Δ"
+            />
           </>
         )}
       </div>

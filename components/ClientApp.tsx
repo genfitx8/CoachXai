@@ -801,7 +801,7 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
                         </div>
                     </header>
 
-                    <SwingVideoAnalysis />
+                    <SwingVideoAnalysis studentLessons={allMyLessons} />
 
                     <footer className="pt-4 mt-6 border-t border-slate-800 text-[11px] text-slate-500 leading-relaxed space-y-1.5">
                         <p>
