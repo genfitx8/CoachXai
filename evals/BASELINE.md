@@ -15,22 +15,29 @@ prompt/model configuration.
 5. Commit BASELINE.md changes. Future PRs that regress these numbers
    need to explain why.
 
-## Current baseline — 2026-08-08 (v1)
+## Current baseline — 2026-08-08 (v2)
+
+**Overall pass rate: 12/12 (100%)** after F1/F4 fixes.
+
+### v2 changes from v1
+- **F1 fixed** (unit hallucination): `shot_analysis` system prompt now explicitly forbids unit conversion. Real-run confirms "74 mph" is preserved as "74 mph" (previously became "74 km/h"). All 5 shot_analysis cases now carry `contains "<X> mph"` + `notContains "<X> km/h"` guards to catch any regression.
+- **F4 fixed** (assertion case-sensitivity): `hook-tendency-3-clubs` uses `caseInsensitive: true` for club path terms and `matches` for both English + Korean spellings.
+- **iron-heavy assertion tuned**: "데이터 부족" → matches `데이터(가)?\s*(부족|없)` (accepts natural variants like "데이터가 없어").
+
+## Current baseline — 2026-08-08 (v2)
 
 **Run**: 12 cases across 3 features against `gemini-2.5-flash` (temperature 0.3 for shot/motion, 0.7 for chat).
 
-**Overall pass rate: 11/12 (91.7%)** — one failure is an assertion bug (case-sensitivity on "club path" vs "Club Path"/"클럽 패스"), not a model quality issue.
-
 ### shot_analysis
 
-| Metric | Value | Notes |
-| --- | --- | --- |
-| Pass rate | 4/5 (80%) | 1 failure = assertion bug (see Findings) |
-| Mean latency | **30.8s** | 19s (sparse) → 42s (rich mixed). Too slow for good UX. |
-| P50 latency | ~33s | |
-| Model | gemini-2.5-flash | pinned in eval files |
-| Prompt version | services/promptService.ts@20662b9 | |
-| Coach quality read | **3.5 / 5** | Structure & tone excellent. Grounding has holes (see below). |
+| Metric | Value (v2) | v1 | Notes |
+| --- | --- | --- | --- |
+| Pass rate | **5/5 (100%)** | 4/5 (80%) | v1 failure was assertion bug, fixed |
+| Mean latency | **27.0s** | 30.8s | 23s (sparse) → 31s (hook). Still slow for UX. |
+| P50 latency | ~27s | ~33s | |
+| Model | gemini-2.5-flash | same | pinned in eval files |
+| Prompt version | services/promptService.ts@HEAD | @20662b9 | v2 adds unit-preserve rule |
+| Coach quality read | **4.0 / 5** | 3.5 / 5 | Unit-hallucination fixed. F2 (optimal launch ranges) still to address. |
 
 ### coachx_chat
 
@@ -54,12 +61,12 @@ prompt/model configuration.
 
 ## Findings that need action
 
-### 🔴 F1 — Unit hallucination in shot_analysis (grounding failure)
+### ✅ F1 — Unit hallucination — FIXED in v2
 
-The `iron-heavy-lesson-set` case fed **club speed 74 mph** and **68 mph** as input. Model output rewrote them as **74 km/h** and **68 km/h**. Coaches would catch this immediately as embarrassing. Same input to the driver case correctly kept `105 mph`, so the model isn't consistently wrong — but it CAN silently rewrite units, which for a physics-dependent product is unacceptable.
-
-- **Action**: strengthen system prompt with an explicit "preserve units exactly as provided in the input; do not convert" rule.
-- **Action**: add a preserve-unit assertion to every shot_analysis case (`{ kind: 'contains', needle: '74 mph' }`).
+v1 finding: `iron-heavy-lesson-set` model rewrote **74 mph → 74 km/h**. v2 fix:
+- System prompt (`services/promptService.ts` + `evals/prompts/shot_analysis.system.md`) now carries an explicit "입력된 단위를 절대 변환하지 말 것" rule.
+- Every shot_analysis case gained a `contains "<X> mph"` + `notContains "<X> km/h"` guard.
+- v2 real run confirms all 5 cases preserve mph exactly. Guards remain in place to catch any future regression.
 
 ### 🟡 F2 — Optimal launch/spin values may be invented golf knowledge
 
@@ -75,11 +82,9 @@ The full report typically takes half a minute. That's noticeable when a coach cl
 - **Action**: enable streaming for shot_analysis. Same pattern as coachx_chat streaming — user sees the first section within 300-500ms.
 - **Action (later)**: consider model routing (this is a long-form reasoning task where `gemini-2.5-pro` might be worth the cost).
 
-### 🟢 F4 — Assertion case-sensitivity bug (framework)
+### ✅ F4 — Assertion case-sensitivity — FIXED in v2
 
-`hook-tendency-3-clubs` failed because the assertion looked for `"club path"` but the model correctly used `"클럽 패스"` and `"Club Path"`. This is an eval bug, not a model bug.
-
-- **Action**: fix the assertion (`caseInsensitive: true` or `matches` with both languages).
+`hook-tendency-3-clubs` now uses `caseInsensitive: true` on the English needle and adds a `matches` regex covering both `club path` (English) and `클럽 패스` (Korean).
 
 ### 🟢 Positive baseline facts (things we should NOT regress)
 
