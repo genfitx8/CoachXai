@@ -1325,10 +1325,15 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
 
       const homeworkTitles = homeworkSummaries.map((s) => s.title);
 
+      const trimmedClientName = clientName.trim();
+      const trimmedClientPhone = clientPhone.trim();
       const newLesson: Lesson = {
         id: initialData ? initialData.id : crypto.randomUUID(), // Use existing ID if editing
-        clientName: clientName.trim(),
-        clientPhone: clientPhone.trim(),
+        clientId:
+          initialData?.clientId ||
+          `${trimmedClientName}_${trimmedClientPhone}`,
+        clientName: trimmedClientName,
+        clientPhone: trimmedClientPhone,
         coachId: userRole === 'CLIENT' ? currentUser?.coachId : undefined, // Assign coachId if created by client
         createdBy: userRole as 'COACH' | 'CLIENT',
         recordType,
