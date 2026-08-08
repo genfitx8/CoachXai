@@ -986,6 +986,154 @@ ${lessonContext}
   }
 };
 
+// ── Student-owned AI training plan (1-month scope) ───────────────────────────
+
+export interface StudentMonthlyPlanInput {
+  profile: ClientProfile;
+  lessons: Lesson[];
+  quickLogs?: QuickLogEntry[];
+  goal?: string;
+  frequencyPerWeek?: number;
+  sessionDurationMinutes?: number;
+}
+
+export interface StudentMonthlyPlanResult {
+  markdown: string;
+  usedLessonCount: number;
+}
+
+/**
+ * Generates a detailed 1-month training plan for a student, derived from
+ * their accumulated lesson history (own uploads + coach-shared snapshots).
+ * Designed for the student app – the student triggers this themselves.
+ *
+ * Falls back to a deterministic template when AI is unreachable so the UI
+ * still has something to show.
+ */
+export const generateStudentMonthlyTrainingPlan = async (
+  input: StudentMonthlyPlanInput
+): Promise<StudentMonthlyPlanResult> => {
+  const {
+    profile,
+    lessons,
+    quickLogs = [],
+    goal = '전반적인 실력 향상',
+    frequencyPerWeek = 3,
+    sessionDurationMinutes = 60,
+  } = input;
+
+  // Bound the AI context.  A year of lessons would blow the token budget – for
+  // now we send the most recent 20.  When we later expand to 3M/6M/1Y plans
+  // we'll swap this for lesson-level summaries + embedding retrieval.
+  const recentLessons = [...lessons]
+    .sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0))
+    .slice(0, 20);
+
+  const fallback = (): StudentMonthlyPlanResult => ({
+    usedLessonCount: recentLessons.length,
+    markdown: `## 1개월 AI 훈련 계획 (기본 플랜)
+
+> AI 서비스에 연결할 수 없어 기본 플랜을 제공합니다. 잠시 후 다시 시도해 주세요.
+
+**목표**: ${goal}
+**주간 빈도**: 주 ${frequencyPerWeek}회 · 회당 ${sessionDurationMinutes}분
+
+### 1주차 — 기본기 점검
+- 어드레스·그립·스탠스 셀프 체크 (거울/영상 촬영)
+- 빈스윙 리듬 확인 (템포·밸런스)
+- 퍼팅 10ft 스트로크 반복
+
+### 2주차 — 반복과 리듬
+- 7번 아이언 집중 훈련 (스퀘어 임팩트)
+- 숏게임 40야드 이내 웨지 컨트롤
+- 피니시 자세 3초 유지
+
+### 3주차 — 응용
+- 스크린/필드 라운드 1회 (진행 데이터 기록)
+- 약점 클럽 20분 집중
+- 루틴·멘탈 점검
+
+### 4주차 — 점검 및 재설정
+- 스윙 셀프 영상 촬영 · 첫째 주와 비교
+- 목표 재설정 및 다음 달 준비
+`,
+  });
+
+  try {
+    const handicap = profile.handicap
+      ? `핸디캡: ${profile.handicap}`
+      : '핸디캡 정보 없음';
+    const bestScore = profile.bestScore ? `라베: ${profile.bestScore}` : '';
+    const memoLine = profile.memo ? `목표/메모: ${profile.memo}` : '';
+
+    const lessonContext = recentLessons.length === 0
+      ? '레슨 기록 없음 (기본기 중심으로 구성해 주세요)'
+      : recentLessons
+          .map((l, i) => {
+            const parts: string[] = [
+              `[${i + 1}] ${l.date} · ${l.title || '(제목 없음)'}`,
+            ];
+            if (l.sourceLessonId) parts.push('출처: 코치 공유');
+            if (l.club) parts.push(`클럽: ${l.club}`);
+            if (l.coachNotes) parts.push(`코치메모: ${l.coachNotes.slice(0, 200)}`);
+            if (l.aiAnalysis && typeof l.aiAnalysis === 'string')
+              parts.push(`AI분석: ${l.aiAnalysis.slice(0, 200)}`);
+            if (l.golfData?.carryDistance)
+              parts.push(`캐리: ${l.golfData.carryDistance}m`);
+            if (l.tags?.length) parts.push(`태그: ${l.tags.join(', ')}`);
+            return parts.join(' | ');
+          })
+          .join('\n');
+
+    const quickLogContext = quickLogs.length === 0
+      ? ''
+      : `\n**최근 자율 연습 로그(요약):**\n${quickLogs
+          .slice(0, 10)
+          .map((q) => {
+            const bits: string[] = [`- ${q.logDate ?? ''}`];
+            if (q.goodPoint) bits.push(`좋았던 점: ${q.goodPoint}`);
+            if (q.problemPoint) bits.push(`어려웠던 점: ${q.problemPoint}`);
+            if (q.notes) bits.push(`메모: ${q.notes}`);
+            return bits.join(' | ');
+          })
+          .join('\n')}`;
+
+    const systemInstruction = `당신은 골프 훈련 코치입니다. 학생의 실제 레슨 히스토리를 근거로 4주(1개월) 훈련 프로그램을 마크다운으로 작성하세요.
+- 각 주(1주차~4주차)마다 명확한 테마, 요일별 훈련(주 ${frequencyPerWeek}회 기준), 회당 ${sessionDurationMinutes}분 이내의 세부 드릴을 포함.
+- 학생의 약점/반복되는 코치메모를 우선적으로 반영.
+- 근거 없는 일반론은 피하고, 학생 레슨에서 실제로 언급된 항목을 인용/참조.
+- 마지막에 "이번 달 성공 지표" 섹션을 3개 이하의 측정 가능한 지표로 요약.`;
+
+    const prompt = `**학생 정보:**
+- 이름: ${profile.name}
+- ${handicap}
+${bestScore ? `- ${bestScore}` : ''}
+${memoLine ? `- ${memoLine}` : ''}
+
+**계획 설정:**
+- 기간: 1개월 (4주)
+- 목표: ${goal}
+- 주간 빈도: 주 ${frequencyPerWeek}회
+- 회당 시간: ${sessionDurationMinutes}분
+
+**최근 레슨 기록 (${recentLessons.length}건):**
+${lessonContext}${quickLogContext}
+
+위 내용을 근거로 마크다운 훈련 계획을 작성해 주세요.`;
+
+    const result = await invokeBackendAI<unknown>(
+      'student_monthly_training_plan',
+      { prompt, systemInstruction }
+    );
+    const text = getResponseText(result);
+    if (!text) throw new Error('empty AI response');
+    return { markdown: text, usedLessonCount: recentLessons.length };
+  } catch (error) {
+    log.error('generateStudentMonthlyTrainingPlan error:', error);
+    return fallback();
+  }
+};
+
 // ── Weekly Schedule Generator ────────────────────────────────────────────────
 
 const CATEGORY_LABELS: Record<TrainingCategory, string> = {

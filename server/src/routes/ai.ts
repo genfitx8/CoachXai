@@ -55,6 +55,7 @@ const DEFAULT_TEMPERATURE_BY_FEATURE: Record<string, number> = {
 
   // Generative / conversational — needs warmth and variety.
   training_program: 0.7,
+  student_monthly_training_plan: 0.6,
   golf_missions: 0.7,
   coachx_chat: 0.7,
   student_chat: 0.7,

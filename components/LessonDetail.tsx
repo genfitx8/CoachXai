@@ -129,6 +129,11 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
   const [kakaoShareStatus, setKakaoShareStatus] = useState<'idle' | 'loading' | 'no_key' | 'error'>('idle');
   const [linkCopied, setLinkCopied] = useState(false);
 
+  // Snapshot-share to student app
+  const [studentShareStatus, setStudentShareStatus] = useState<
+    'idle' | 'loading' | 'success' | 'already' | 'error'
+  >('idle');
+
   // Edited video actions state
   const [isDownloadingEditedVideo, setIsDownloadingEditedVideo] = useState(false);
 
@@ -1011,6 +1016,43 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
               setTimeout(() => setLinkCopied(false), 2500);
           }
       }
+  };
+
+  const handleShareToStudent = async () => {
+    if (!lesson.clientName || !lesson.clientPhone) {
+      setStudentShareStatus('error');
+      setTempNotification('학생 이름·전화번호가 없어 공유할 수 없어요.');
+      setTimeout(() => {
+        setStudentShareStatus('idle');
+        setTempNotification(null);
+      }, 3500);
+      return;
+    }
+    setStudentShareStatus('loading');
+    try {
+      const { created } = await apiService.shareLessonToStudent(lesson.id, {
+        clientName: lesson.clientName,
+        clientPhone: lesson.clientPhone,
+      });
+      setStudentShareStatus(created ? 'success' : 'already');
+      setTempNotification(
+        created
+          ? '학생 앱에 공유했습니다. 학생의 레슨 히스토리에 저장돼요.'
+          : '이미 공유된 레슨입니다. 학생 앱에서 바로 확인할 수 있어요.'
+      );
+      setTimeout(() => {
+        setStudentShareStatus('idle');
+        setTempNotification(null);
+      }, 3500);
+    } catch (err) {
+      console.error('[LessonDetail] shareToStudent failed', err);
+      setStudentShareStatus('error');
+      setTempNotification('공유 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.');
+      setTimeout(() => {
+        setStudentShareStatus('idle');
+        setTempNotification(null);
+      }, 3500);
+    }
   };
 
   const handleDownloadEditedVideo = async () => {
@@ -2219,6 +2261,25 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
                     className="w-full py-3 text-red-500 bg-red-50 rounded-lg text-sm font-bold hover:bg-red-100 transition-colors flex items-center justify-center gap-2"
                   >
                       <Trash2 className="w-4 h-4" /> 레슨 기록 삭제하기
+                  </button>
+              )}
+
+              {/* Share to Student App (Coach only, only for coach-created lessons) */}
+              {!isClientView && lesson.createdBy === 'COACH' && (
+                  <button
+                      onClick={handleShareToStudent}
+                      disabled={studentShareStatus === 'loading'}
+                      className="w-full py-3 rounded-lg text-sm font-bold transition-colors flex items-center justify-center gap-2 bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-60"
+                      data-testid="share-to-student-button"
+                  >
+                      <Send className="w-4 h-4" />
+                      {studentShareStatus === 'loading'
+                        ? '학생 앱에 공유 중…'
+                        : studentShareStatus === 'success'
+                        ? '공유 완료'
+                        : studentShareStatus === 'already'
+                        ? '이미 공유됨'
+                        : '학생 앱에 공유하기'}
                   </button>
               )}
 
