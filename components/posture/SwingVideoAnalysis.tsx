@@ -394,6 +394,12 @@ const EventSnapshot: React.FC<EventSnapshotProps> = ({
     const sign = v > 0 ? '+' : '';
     return `${sign}${v.toFixed(1)}°`;
   };
+  const metricSignedMm = (key: string) => {
+    const v = event.metrics[key];
+    if (typeof v !== 'number' || !Number.isFinite(v)) return '—';
+    const sign = v > 0 ? '+' : '';
+    return `${sign}${v.toFixed(0)}mm`;
+  };
 
   const kneeFlex = event.metrics.kneeFlex;
   const kneeTone: MetricTone | undefined =
@@ -502,6 +508,14 @@ const EventSnapshot: React.FC<EventSnapshotProps> = ({
               hint="목표 150–170°"
             />
             <MetricRow label="어깨 회전" value="0.0°" hint="어드레스 기준 (0°)" />
+            {cameraView === 'face_on' && (
+              <>
+                <MetricRow label="머리 좌우" value="0mm" hint="어드레스 기준" />
+                <MetricRow label="머리 상하" value="0mm" hint="어드레스 기준" />
+                <MetricRow label="골반 좌우" value="0mm" hint="어드레스 기준" />
+                <MetricRow label="골반 상하" value="0mm" hint="어드레스 기준" />
+              </>
+            )}
           </>
         ) : (
           <>
@@ -541,6 +555,34 @@ const EventSnapshot: React.FC<EventSnapshotProps> = ({
               value={metricSignedDeg('torsoLateralTiltFromAddress')}
               hint="정면 뷰 · 어드레스 대비 Δ"
             />
+            {/* Face-on lateral / vertical drift readouts — the coach-scan
+                metrics that make a face-on clip actually useful. Hidden in
+                DTL because X/Y drift there mixes true motion with depth
+                projection. */}
+            {cameraView === 'face_on' && (
+              <>
+                <MetricRow
+                  label="머리 좌우"
+                  value={metricSignedMm('headLateralMmFromAddress')}
+                  hint="+ 오른쪽 / − 왼쪽"
+                />
+                <MetricRow
+                  label="머리 상하"
+                  value={metricSignedMm('headVerticalMmFromAddress')}
+                  hint="+ 위 / − 아래"
+                />
+                <MetricRow
+                  label="골반 좌우"
+                  value={metricSignedMm('hipLateralMmFromAddress')}
+                  hint="+ 오른쪽 / − 왼쪽 (체중이동)"
+                />
+                <MetricRow
+                  label="골반 상하"
+                  value={metricSignedMm('hipVerticalMmFromAddress')}
+                  hint="+ 상승 (스탠드업) / − 하강 (스쿼트)"
+                />
+              </>
+            )}
           </>
         )}
       </div>

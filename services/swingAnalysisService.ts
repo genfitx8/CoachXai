@@ -974,6 +974,7 @@ function segmentEvents(
   if (finish) events.finish = finish;
   enrichImpactDiagnostics(events, frames);
   enrichRotationFromAddress(events, frames);
+  enrichLateralVerticalDrift(events, frames);
   return { events, warnings };
 }
 
@@ -1123,6 +1124,88 @@ function enrichRotationFromAddress(
  * cancels out, so these read correctly on handheld shots the raw absolute
  * angles are unreliable on.
  */
+/**
+ * Face-on lateral (X) and vertical (Y) displacement of head and hips at
+ * every pose, in millimeters relative to address. This is the pair of
+ * signals a coach actually reads off a face-on clip:
+ *
+ *   - Head lateral   → 스웨이 / 리버스 피벗
+ *   - Head vertical  → 헤드 바브 (fat/thin, topping 의 근본 원인)
+ *   - Hip lateral    → 체중이동 / 힙 슬라이드
+ *   - Hip vertical   → 스쿼트 / 스탠드업 (얼리 익스텐션의 2D 대응)
+ *
+ * Uses NORMALISED 2D keypoints (image plane, 0..1) scaled to millimeters
+ * via the address shoulder width — that's stable across camera distance
+ * because the golfer's actual shoulder width is a known reference
+ * (assumed 400mm for the average adult). Independent of MediaPipe's
+ * noisy monocular Z.
+ *
+ * Sign convention: +X = right in image; +Y = UP (flipped from MediaPipe's
+ * Y-down) so a rising head reads as positive, matching coach intuition.
+ */
+function enrichLateralVerticalDrift(
+  events: Partial<Record<SwingEventName, SwingEvent>>,
+  frames: SwingFrame[],
+): void {
+  const address = events.address;
+  if (!address) return;
+  const addrKp = frames[address.frameIndex]?.keypoints;
+  if (!addrKp) return;
+  const addrLs = addrKp[11];
+  const addrRs = addrKp[12];
+  const addrLh = addrKp[23];
+  const addrRh = addrKp[24];
+  const addrNose = addrKp[0];
+  if (!addrLs || !addrRs) return; // shoulder-width scale is essential
+  if (addrLs.confidence < 0.3 || addrRs.confidence < 0.3) return;
+  // Scale factor from normalised image units → millimeters, anchored to
+  // the golfer's actual shoulder span at address.
+  const addrShoulderWidthNorm = Math.hypot(
+    addrRs.x - addrLs.x,
+    addrRs.y - addrLs.y,
+  );
+  if (addrShoulderWidthNorm < 0.02) return; // subject too small / facing badly
+  const ASSUMED_SHOULDER_WIDTH_MM = 400;
+  const scaleMm = ASSUMED_SHOULDER_WIDTH_MM / addrShoulderWidthNorm;
+
+  // Head + hip anchors are independent — either can be missing without
+  // blocking the other. Occluded nose (baseball cap / low camera) shouldn't
+  // hide the coach's ability to see hip slide, and vice versa.
+  const headOk =
+    !!addrNose && addrNose.confidence >= 0.3;
+  const hipsOk =
+    !!addrLh && !!addrRh && addrLh.confidence >= 0.3 && addrRh.confidence >= 0.3;
+  const addrHipCx = hipsOk ? (addrLh!.x + addrRh!.x) / 2 : 0;
+  const addrHipCy = hipsOk ? (addrLh!.y + addrRh!.y) / 2 : 0;
+
+  for (const evt of Object.values(events)) {
+    if (!evt) continue;
+    const kp = frames[evt.frameIndex]?.keypoints;
+    if (!kp) continue;
+    if (headOk) {
+      const nose = kp[0];
+      if (nose && nose.confidence >= 0.3) {
+        const dx = (nose.x - addrNose!.x) * scaleMm;
+        const dy = (addrNose!.y - nose.y) * scaleMm; // flip: + = up
+        evt.metrics.headLateralMmFromAddress = +dx.toFixed(0);
+        evt.metrics.headVerticalMmFromAddress = +dy.toFixed(0);
+      }
+    }
+    if (hipsOk) {
+      const lh = kp[23];
+      const rh = kp[24];
+      if (lh && rh && lh.confidence >= 0.3 && rh.confidence >= 0.3) {
+        const hipCx = (lh.x + rh.x) / 2;
+        const hipCy = (lh.y + rh.y) / 2;
+        const dx = (hipCx - addrHipCx) * scaleMm;
+        const dy = (addrHipCy - hipCy) * scaleMm; // flip: + = up
+        evt.metrics.hipLateralMmFromAddress = +dx.toFixed(0);
+        evt.metrics.hipVerticalMmFromAddress = +dy.toFixed(0);
+      }
+    }
+  }
+}
+
 function enrichImpactDiagnostics(
   events: Partial<Record<SwingEventName, SwingEvent>>,
   frames: SwingFrame[],
