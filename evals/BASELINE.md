@@ -33,6 +33,24 @@ prompt/model configuration.
 
 **Run**: 12 cases across 3 features against `gemini-2.5-flash` (temperature 0.3 for shot/motion, 0.7 for chat).
 
+## Model routing (activated 2026-08-09)
+
+Baseline was established on `gemini-2.5-flash`. Routing now shifts specific features off that default:
+
+| Feature | Model | Rationale |
+| --- | --- | --- |
+| `extract_golf_data` | flash-lite | OCR / structured extraction |
+| `analyze_trackman_screen` | flash-lite | OCR |
+| `analyze_body_photos` | flash-lite | Body-shape classification |
+| `analyze_equipment_photo` | flash-lite | Equipment specs from photo |
+| `swing_phase_timestamps` | flash-lite | Video timestamp extraction |
+| `hole_voice_summary` | flash-lite | Short voice transcript summary |
+| everything else (chat, insights, motion, shot_analysis, training_program, etc.) | **gemini-2.5-flash** | Eval baseline model — do not switch without eval:real proof |
+
+**shot_analysis stayed on 2.5-flash** after a live comparison with `gemini-3.5-flash` (newer generation) — 3.5-flash was slower AND produced shorter output with no observable quality lift. `gemini-2.5-pro` was tried too but is deprecated to new API users (returns 404). The current default remains the tested-and-verified 2.5-flash.
+
+The OCR features aren't covered by golden eval cases yet (no `extract_golf_data.eval.json` etc.), so the flash-lite switch is a **trust-the-tier decision** rather than an eval-proven one. Follow-up: add extract-image goldens so we can measure this too.
+
 ### shot_analysis
 
 | Metric | v3 | v2 | v1 | Notes |

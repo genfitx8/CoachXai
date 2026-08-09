@@ -28,8 +28,22 @@ describe('modelRouter.resolveModel', () => {
     __resetModelRouterCacheForTests();
   });
 
-  it('returns the compiled-in fallback when nothing is configured', () => {
+  it('returns the compiled-in fallback for features not in FEATURE_MODEL_OVERRIDES', () => {
     expect(resolveModel('coachx_chat')).toBe('gemini-2.5-flash');
+    expect(resolveModel('shot_analysis')).toBe('gemini-2.5-flash');
+    expect(resolveModel('motion_capture_analysis')).toBe('gemini-2.5-flash');
+  });
+
+  it('routes OCR / extraction features to flash-lite (cost tier)', () => {
+    // These mappings were activated 2026-08-09 based on eval baseline.
+    // Regression-guard: if the map changes, this test should force a
+    // conscious decision instead of a silent switch.
+    expect(resolveModel('extract_golf_data')).toBe('gemini-2.5-flash-lite');
+    expect(resolveModel('analyze_trackman_screen')).toBe('gemini-2.5-flash-lite');
+    expect(resolveModel('analyze_body_photos')).toBe('gemini-2.5-flash-lite');
+    expect(resolveModel('analyze_equipment_photo')).toBe('gemini-2.5-flash-lite');
+    expect(resolveModel('swing_phase_timestamps')).toBe('gemini-2.5-flash-lite');
+    expect(resolveModel('hole_voice_summary')).toBe('gemini-2.5-flash-lite');
   });
 
   it('respects GEMINI_MODEL env for the default', () => {
@@ -38,12 +52,17 @@ describe('modelRouter.resolveModel', () => {
     expect(getDefaultModel()).toBe('gemini-2.5-pro');
   });
 
-  it('env override wins over the default for its feature only', () => {
+  it('env override wins over both the static map and the default', () => {
+    // extract_golf_data is in FEATURE_MODEL_OVERRIDES → flash-lite by
+    // default. Env override should upgrade it to whatever we set here.
     process.env[OVERRIDES_ENV] = JSON.stringify({
-      extract_golf_data: 'gemini-2.5-flash-lite',
+      extract_golf_data: 'gemini-3.5-flash',
     });
-    expect(resolveModel('extract_golf_data')).toBe('gemini-2.5-flash-lite');
-    // Unlisted features still use the default.
+    __resetModelRouterCacheForTests();
+    expect(resolveModel('extract_golf_data')).toBe('gemini-3.5-flash');
+    // Features not touched by env override keep their static-map value.
+    expect(resolveModel('analyze_body_photos')).toBe('gemini-2.5-flash-lite');
+    // Features not in either still use the default.
     expect(resolveModel('coachx_chat')).toBe('gemini-2.5-flash');
   });
 

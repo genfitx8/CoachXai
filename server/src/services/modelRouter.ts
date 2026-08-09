@@ -29,16 +29,33 @@ const OVERRIDES_ENV = 'MODEL_ROUTING_OVERRIDES';
 const FALLBACK_DEFAULT_MODEL = 'gemini-2.5-flash';
 
 /**
- * Static feature → model map. Kept empty by default; add entries here
- * once observability shows a feature would benefit from a different tier.
- * Env-var overrides win over this map at runtime so we can A/B without
- * a redeploy.
+ * Static feature → model map. Env-var `MODEL_ROUTING_OVERRIDES` wins over
+ * this map at runtime so you can A/B without a redeploy.
+ *
+ * Activation record — 2026-08-09
+ *   Deterministic OCR / structured-extraction features are routed to
+ *   `gemini-2.5-flash-lite`. That tier is materially cheaper and faster
+ *   than plain flash, and its downside (slightly weaker long-form
+ *   reasoning) doesn't apply to jobs that just read numbers off a screen
+ *   or classify a body shape. All other features stay on the process
+ *   default (`gemini-2.5-flash`) because the eval baseline was
+ *   established there; changing the router is a quality-affecting
+ *   change and needs eval:real to sign off.
+ *
+ *   shot_analysis was tested against `gemini-3.5-flash` (newer generation)
+ *   and `gemini-2.5-pro` (deprecated to new users, 404s). 3.5-flash was
+ *   slower AND produced shorter output with no observable quality lift
+ *   over 2.5-flash. Keeping shot_analysis on 2.5-flash — the eval baseline
+ *   model — until either 3.5-flash improves or 3.1-pro-preview stabilises.
  */
 const FEATURE_MODEL_OVERRIDES: Record<string, string> = {
-  // Example (commented — enable after eval baseline confirms parity):
-  // extract_golf_data: 'gemini-2.5-flash-lite',
-  // analyze_body_photos: 'gemini-2.5-flash-lite',
-  // shot_analysis: 'gemini-2.5-pro',
+  // OCR / structured extraction — deterministic, benefits from cheap+fast.
+  extract_golf_data: 'gemini-2.5-flash-lite',
+  analyze_trackman_screen: 'gemini-2.5-flash-lite',
+  analyze_body_photos: 'gemini-2.5-flash-lite',
+  analyze_equipment_photo: 'gemini-2.5-flash-lite',
+  swing_phase_timestamps: 'gemini-2.5-flash-lite',
+  hole_voice_summary: 'gemini-2.5-flash-lite',
 };
 
 interface CachedOverrides {
