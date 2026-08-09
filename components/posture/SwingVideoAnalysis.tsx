@@ -505,19 +505,35 @@ const EventSnapshot: React.FC<EventSnapshotProps> = ({
           </>
         ) : (
           <>
+            {/* Face-on view uses foreshortening-based rotation (2D image
+                plane, doesn't touch MediaPipe's noisy monocular Z). DTL
+                view uses the 3D Z-based rotation which is naturally
+                suited to that camera angle. */}
             <MetricRow
               label="어깨 회전"
-              value={metricSignedDeg('shoulderRotationFromAddress')}
-              hint="어드레스 기준"
+              value={metricSignedDeg(
+                cameraView === 'face_on'
+                  ? 'shoulderRotationFromAddress2D'
+                  : 'shoulderRotationFromAddress',
+              )}
+              hint={cameraView === 'face_on' ? '정면 · 포어숏트닝' : '어드레스 기준'}
             />
             <MetricRow
               label="골반 회전"
-              value={metricSignedDeg('pelvisRotationFromAddress')}
-              hint="어드레스 기준"
+              value={metricSignedDeg(
+                cameraView === 'face_on'
+                  ? 'pelvisRotationFromAddress2D'
+                  : 'pelvisRotationFromAddress',
+              )}
+              hint={cameraView === 'face_on' ? '정면 · 포어숏트닝' : '어드레스 기준'}
             />
             <MetricRow
               label="X-Factor"
-              value={metricSignedDeg('hipShoulderSeparationFromAddress')}
+              value={metricSignedDeg(
+                cameraView === 'face_on'
+                  ? 'hipShoulderSeparationFromAddress2D'
+                  : 'hipShoulderSeparationFromAddress',
+              )}
               hint="어깨−골반 (어드레스 기준)"
             />
             <MetricRow

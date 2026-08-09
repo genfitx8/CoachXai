@@ -742,6 +742,25 @@ describe('swingAnalysisService.rebuildAnalysis', () => {
     }
   });
 
+  it('foreshortening rotation: face-on 2D metrics are populated on every event', () => {
+    const fps = 60;
+    const analysis = buildSyntheticAnalysis(fps);
+    // At address, both 2D rotations should be ~0 (same width as address).
+    const addr = analysis.events.address!.metrics;
+    expect(typeof addr.shoulderRotationFromAddress2D).toBe('number');
+    expect(typeof addr.pelvisRotationFromAddress2D).toBe('number');
+    expect(Math.abs(addr.shoulderRotationFromAddress2D as number)).toBeLessThan(1);
+    // Every downstream event exposes the 2D delta key (populated by the
+    // enrichment pass) so the UI can key its face-on read off it.
+    for (const name of ['top', 'impact', 'finish'] as const) {
+      const evt = analysis.events[name];
+      if (!evt) continue;
+      expect(typeof evt.metrics.shoulderRotationFromAddress2D).toBe('number');
+      expect(typeof evt.metrics.pelvisRotationFromAddress2D).toBe('number');
+      expect(typeof evt.metrics.hipShoulderSeparationFromAddress2D).toBe('number');
+    }
+  });
+
   it('torso lateral tilt: address populates absolute value, other events populate delta from address', () => {
     const fps = 60;
     const analysis = buildSyntheticAnalysis(fps);
