@@ -73,6 +73,12 @@ const DEFAULT_TEMPERATURE_BY_FEATURE: Record<string, number> = {
   // Shot data synthesis — data-heavy analytical report. Low temp keeps
   // numbers and conclusions faithful to the input data.
   shot_analysis: 0.3,
+
+  // Swing coaching report — cross-references pose metrics with student
+  // shot / lesson history. Must quote exact numbers back verbatim, so we
+  // stay on the low side; a bit above OCR because the prose bits
+  // (headline, recommendations) benefit from mild variety.
+  swing_coaching_report: 0.35,
 };
 
 const resolveTemperature = (

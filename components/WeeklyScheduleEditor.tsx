@@ -261,7 +261,7 @@ export const WeeklyScheduleEditor: React.FC<WeeklyScheduleEditorProps> = ({
                 {DAY_LABELS.map((d, i) => (
                   <th
                     key={d}
-                    className={`py-1.5 font-bold border-b border-gray-200 min-w-[68px] ${
+                    className={`py-1.5 font-bold border-b border-gray-200 min-w-[48px] sm:min-w-[68px] ${
                       i === 6 ? 'text-red-500' : i === 5 ? 'text-blue-500' : 'text-gray-700'
                     }`}
                   >

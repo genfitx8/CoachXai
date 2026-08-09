@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Upload,
   Loader2,
@@ -8,9 +8,13 @@ import {
   X,
   Stethoscope,
   Dumbbell,
+  Pencil,
 } from 'lucide-react';
 import { swingAnalysisService } from '../../services/swingAnalysisService';
 import { detectFaults } from '../../services/faultDetectionService';
+import { generateSwingCoachingReport } from '../../services/aiCoachingSummaryService';
+import type { AICoachingReport } from '../../types/aiCoachingReport';
+import type { Lesson } from '../../types';
 import type { SwingFault } from '../../types/swingFault';
 import type {
   KineticOrder,
@@ -32,13 +36,29 @@ import { SkeletonKeypoint } from '../../types/postureAnalysis';
 
 const EVENT_LABEL: Record<SwingEventName, string> = {
   address: '어드레스',
-  takeaway: '백스윙',
+  takeaway: '백스윙 시작',
+  half_backswing: '하프 백스윙',
   top: '백스윙 톱',
+  mid_downswing: '다운스윙',
   impact: '임팩트',
+  follow_through: '팔로우 스루',
   finish: '피니시',
 };
 
-const EVENT_ORDER: SwingEventName[] = ['address', 'takeaway', 'top', 'impact', 'finish'];
+// The 7 coaching-standard poses. `takeaway` is still emitted by the
+// segmentation service (it anchors the backward-walk that finds Address
+// and bounds the searches for Top / Impact), but it isn't surfaced here —
+// coaches saw it as a near-duplicate of Address, so the display collapses
+// down to the phases they actually diagnose off.
+const EVENT_ORDER: SwingEventName[] = [
+  'address',
+  'half_backswing',
+  'top',
+  'mid_downswing',
+  'impact',
+  'follow_through',
+  'finish',
+];
 
 const POSE_CONNECTIONS: Array<[number, number]> = [
   [11, 12],
@@ -75,6 +95,8 @@ function drawKeypoints(
   overlay?: OverlayLine,
   clubHead?: ClubHeadMarker,
   trajectory?: TrajectoryOverlay,
+  centerlineX?: number,
+  wristArc?: Array<{ x: number; y: number }>,
 ) {
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
@@ -90,9 +112,29 @@ function drawKeypoints(
     ctx.fillStyle = '#0f172a';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
   }
-  ctx.strokeStyle = '#10b981';
-  ctx.lineWidth = 3;
-  ctx.fillStyle = '#f97316';
+  // Body centerline — vertical reference drawn under the skeleton so a
+  // coach can eyeball head sway / hip slide / reverse pivot against a fixed
+  // anchor from the address stance. Face-on view only (undefined for DTL).
+  if (typeof centerlineX === 'number' && centerlineX >= 0 && centerlineX <= 1) {
+    const cx = centerlineX * canvas.width;
+    ctx.save();
+    ctx.strokeStyle = 'rgba(56, 189, 248, 0.85)'; // sky-400
+    ctx.lineWidth = 2;
+    ctx.setLineDash([8, 6]);
+    ctx.beginPath();
+    ctx.moveTo(cx, 0);
+    ctx.lineTo(cx, canvas.height);
+    ctx.stroke();
+    ctx.restore();
+  }
+  // Skeleton line thickness scales with the canvas so mobile / desktop /
+  // fullscreen all read the same weight. Round caps and joins soften the
+  // segment joins at these thicker widths.
+  const strokePx = Math.max(4, Math.round(canvas.width / 160));
+  const jointR = Math.max(6, Math.round(canvas.width / 100));
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  // Black underlay + emerald overlay = high contrast on any video color.
   POSE_CONNECTIONS.forEach(([a, b]) => {
     const p1 = keypoints[a];
     const p2 = keypoints[b];
@@ -100,14 +142,69 @@ function drawKeypoints(
     ctx.beginPath();
     ctx.moveTo(p1.x * canvas.width, p1.y * canvas.height);
     ctx.lineTo(p2.x * canvas.width, p2.y * canvas.height);
+    ctx.strokeStyle = 'rgba(0,0,0,0.6)';
+    ctx.lineWidth = strokePx + 3;
+    ctx.stroke();
+    ctx.strokeStyle = '#10b981';
+    ctx.lineWidth = strokePx;
     ctx.stroke();
   });
   keypoints.forEach((kp) => {
     if (kp.confidence < 0.3) return;
+    const cx = kp.x * canvas.width;
+    const cy = kp.y * canvas.height;
     ctx.beginPath();
-    ctx.arc(kp.x * canvas.width, kp.y * canvas.height, 4, 0, 2 * Math.PI);
+    ctx.arc(cx, cy, jointR, 0, 2 * Math.PI);
+    ctx.fillStyle = '#f97316';
     ctx.fill();
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = 'rgba(0,0,0,0.75)';
+    ctx.stroke();
   });
+  // Torso axis: shoulder midpoint → hip midpoint. Draws even in DTL because
+  // spine geometry is meaningful from either view; the tilt READOUT is
+  // FO-only but the line itself is a useful landmark either way.
+  const ls = keypoints[11];
+  const rs = keypoints[12];
+  const lh = keypoints[23];
+  const rh = keypoints[24];
+  if (
+    ls && rs && lh && rh &&
+    ls.confidence >= 0.3 && rs.confidence >= 0.3 &&
+    lh.confidence >= 0.3 && rh.confidence >= 0.3
+  ) {
+    const sx = ((ls.x + rs.x) / 2) * canvas.width;
+    const sy = ((ls.y + rs.y) / 2) * canvas.height;
+    const hx = ((lh.x + rh.x) / 2) * canvas.width;
+    const hy = ((lh.y + rh.y) / 2) * canvas.height;
+    ctx.save();
+    ctx.lineWidth = Math.max(3, strokePx - 1);
+    ctx.setLineDash([]);
+    // Black underlay for contrast on any background.
+    ctx.strokeStyle = 'rgba(0,0,0,0.7)';
+    ctx.beginPath();
+    ctx.moveTo(sx, sy);
+    ctx.lineTo(hx, hy);
+    ctx.stroke();
+    ctx.strokeStyle = '#f59e0b'; // amber-500 — distinguishes from emerald skeleton.
+    ctx.lineWidth = Math.max(2, strokePx - 2);
+    ctx.beginPath();
+    ctx.moveTo(sx, sy);
+    ctx.lineTo(hx, hy);
+    ctx.stroke();
+    // Small dots at the endpoints so it visually reads as a torso axis, not
+    // just an accidental crossing line.
+    for (const [x, y] of [[sx, sy], [hx, hy]] as const) {
+      ctx.beginPath();
+      ctx.arc(x, y, Math.max(3, jointR * 0.5), 0, 2 * Math.PI);
+      ctx.fillStyle = '#f59e0b';
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(0,0,0,0.75)';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
   if (overlay) {
     const sx = overlay.start.x * canvas.width;
     const sy = overlay.start.y * canvas.height;
@@ -170,6 +267,36 @@ function drawKeypoints(
     }
     ctx.restore();
   }
+  // Wrist arc — Top→Impact lead-wrist path. Proxy for shaft plane path
+  // when the club isn't tracked; drawn as a bright polyline so the shape
+  // (steep = upright, shallow = flat) reads at a glance.
+  if (wristArc && wristArc.length >= 2) {
+    ctx.save();
+    // Black underlay for legibility on grass / white background.
+    ctx.strokeStyle = 'rgba(0,0,0,0.6)';
+    ctx.lineWidth = 5;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.beginPath();
+    ctx.moveTo(wristArc[0].x * canvas.width, wristArc[0].y * canvas.height);
+    for (let i = 1; i < wristArc.length; i++) {
+      ctx.lineTo(wristArc[i].x * canvas.width, wristArc[i].y * canvas.height);
+    }
+    ctx.stroke();
+    ctx.strokeStyle = '#22d3ee'; // cyan — distinguishes from emerald skeleton / amber torso axis
+    ctx.lineWidth = 3;
+    ctx.stroke();
+    // Fade markers along the arc for a sense of time-through-frames.
+    for (let i = 0; i < wristArc.length; i++) {
+      const p = wristArc[i];
+      const alpha = 0.4 + 0.6 * (i / (wristArc.length - 1));
+      ctx.fillStyle = `rgba(34, 211, 238, ${alpha.toFixed(2)})`;
+      ctx.beginPath();
+      ctx.arc(p.x * canvas.width, p.y * canvas.height, 2.5, 0, 2 * Math.PI);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
   if (clubHead) {
     const cx = clubHead.x * canvas.width;
     const cy = clubHead.y * canvas.height;
@@ -204,6 +331,9 @@ interface EventSnapshotProps {
   overlay?: OverlayLine;
   clubHead?: ClubHeadMarker;
   trajectory?: TrajectoryOverlay;
+  cameraView?: CameraView;
+  centerlineX?: number;
+  wristArc?: Array<{ x: number; y: number }>;
 }
 
 const EventSnapshot: React.FC<EventSnapshotProps> = ({
@@ -213,6 +343,9 @@ const EventSnapshot: React.FC<EventSnapshotProps> = ({
   overlay,
   clubHead,
   trajectory,
+  cameraView,
+  centerlineX,
+  wristArc,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -225,7 +358,7 @@ const EventSnapshot: React.FC<EventSnapshotProps> = ({
     video.playsInline = true;
     video.crossOrigin = 'anonymous';
     const onSeeked = () => {
-      drawKeypoints(canvas, video, frame.keypoints, overlay, clubHead, trajectory);
+      drawKeypoints(canvas, video, frame.keypoints, overlay, clubHead, trajectory, centerlineX, wristArc);
       video.removeEventListener('seeked', onSeeked);
       video.src = '';
     };
@@ -237,7 +370,7 @@ const EventSnapshot: React.FC<EventSnapshotProps> = ({
       video.removeEventListener('seeked', onSeeked);
       video.src = '';
     };
-  }, [event, frame, videoUrl, overlay, clubHead, trajectory]);
+  }, [event, frame, videoUrl, overlay, clubHead, trajectory, centerlineX, wristArc]);
 
   if (!event || !frame) {
     return (
@@ -260,6 +393,12 @@ const EventSnapshot: React.FC<EventSnapshotProps> = ({
     if (typeof v !== 'number' || !Number.isFinite(v)) return '—';
     const sign = v > 0 ? '+' : '';
     return `${sign}${v.toFixed(1)}°`;
+  };
+  const metricSignedMm = (key: string) => {
+    const v = event.metrics[key];
+    if (typeof v !== 'number' || !Number.isFinite(v)) return '—';
+    const sign = v > 0 ? '+' : '';
+    return `${sign}${v.toFixed(0)}mm`;
   };
 
   const kneeFlex = event.metrics.kneeFlex;
@@ -296,37 +435,7 @@ const EventSnapshot: React.FC<EventSnapshotProps> = ({
         />
       </div>
       <div className="grid grid-cols-2 gap-2 p-3 text-[11px]">
-        {event.name === 'impact' ? (
-          <>
-            <MetricRow
-              label="머리 드리프트"
-              value={metricMm('headSwayMm')}
-              tone={impactTone(event.metrics.headSwayMm, 50, 100)}
-              hint="어드레스 대비 X 이동"
-            />
-            <MetricRow
-              label="얼리 익스텐션"
-              value={metricMm('earlyExtensionMm')}
-              tone={impactTone(event.metrics.earlyExtensionMm, 40, 80)}
-              hint="어드레스 대비 골반 Z 이동"
-            />
-            <MetricRow
-              label="자세 유지"
-              value={metricSignedDeg('spineTiltDelta')}
-              tone={
-                event.metrics.spineTiltDelta == null
-                  ? undefined
-                  : Math.abs(event.metrics.spineTiltDelta) <= 5
-                  ? 'ok'
-                  : Math.abs(event.metrics.spineTiltDelta) <= 12
-                  ? 'warn'
-                  : 'bad'
-              }
-              hint="어드레스 대비 척추 각 변화"
-            />
-            <MetricRow label="X-Factor" value={metricAngle('hipShoulderSeparation')} />
-          </>
-        ) : event.name === 'address' ? (
+        {event.name === 'address' ? (
           <>
             <MetricRow
               label="척추 기울기"
@@ -339,21 +448,94 @@ const EventSnapshot: React.FC<EventSnapshotProps> = ({
                   : '목표 30–40°'
               }
             />
+            {/* Address anchors both rotation and torso tilt so downstream
+                events read as delta. Show the ABSOLUTE tilt here — the
+                setup lean — and mark it as the baseline. */}
+            <MetricRow
+              label="상체 측면 기울기"
+              value={metricSignedDeg('torsoLateralTiltDeg')}
+              hint="정면 뷰 · 어드레스 기준값"
+            />
             <MetricRow
               label="무릎 굽힘"
               value={metricAngle('kneeFlex')}
               tone={kneeTone}
               hint="목표 150–170°"
             />
-            <MetricRow label="어깨 라인" value={metricSignedDeg('shoulderRotation')} />
-            <MetricRow label="골반 라인" value={metricSignedDeg('pelvisRotation')} />
+            <MetricRow label="어깨 회전" value="0.0°" hint="어드레스 기준 (0°)" />
+            <MetricRow
+              label={cameraView === 'face_on' ? '머리 좌우' : '머리 앞뒤'}
+              value="0mm"
+              hint="어드레스 기준"
+            />
+            <MetricRow label="머리 상하" value="0mm" hint="어드레스 기준" />
+            <MetricRow
+              label={cameraView === 'face_on' ? '골반 좌우' : '골반 앞뒤'}
+              value="0mm"
+              hint="어드레스 기준"
+            />
+            <MetricRow label="골반 상하" value="0mm" hint="어드레스 기준" />
           </>
         ) : (
           <>
-            <MetricRow label="X-Factor" value={metricAngle('hipShoulderSeparation')} />
-            <MetricRow label="척추 기울기" value={metricAngle('spineTilt3D')} />
-            <MetricRow label="어깨 회전" value={metricAngle('shoulderRotation')} />
-            <MetricRow label="골반 회전" value={metricAngle('pelvisRotation')} />
+            {/* All rotation readouts use the 2D foreshortening method
+                regardless of view — image-plane geometry works for both
+                face-on (shoulders shrink) and DTL (shoulders align).
+                MediaPipe's monocular Z is unreliable in either view, so we
+                don't use it here. */}
+            <MetricRow
+              label="어깨 회전"
+              value={metricSignedDeg('shoulderRotationFromAddress2D')}
+              hint="포어숏트닝 · 2D 측정"
+            />
+            <MetricRow
+              label="골반 회전"
+              value={metricSignedDeg('pelvisRotationFromAddress2D')}
+              hint="포어숏트닝 · 2D 측정"
+            />
+            <MetricRow
+              label="X-Factor"
+              value={metricSignedDeg('hipShoulderSeparationFromAddress2D')}
+              hint="어깨−골반 (어드레스 기준)"
+            />
+            <MetricRow
+              label="상체 측면 기울기"
+              value={metricSignedDeg('torsoLateralTiltFromAddress')}
+              hint="이미지 평면 · 어드레스 대비 Δ"
+            />
+            {/* Lateral / vertical mm drift — the coach-scan movement
+                metrics. Enabled for both views because they measure
+                image-plane displacement, which is meaningful in each:
+                face-on → left/right + vertical; DTL → depth (앞뒤) +
+                vertical. Labels adjust so the coach reads the right axis. */}
+            {(cameraView === 'face_on' || cameraView === 'down_the_line') && (
+              <>
+                <MetricRow
+                  label={cameraView === 'face_on' ? '머리 좌우' : '머리 앞뒤'}
+                  value={metricSignedMm('headLateralMmFromAddress')}
+                  hint={cameraView === 'face_on' ? '+ 오른쪽 / − 왼쪽' : '카메라 기준'}
+                />
+                <MetricRow
+                  label="머리 상하"
+                  value={metricSignedMm('headVerticalMmFromAddress')}
+                  hint="+ 위 / − 아래 (헤드 바브)"
+                />
+                <MetricRow
+                  label={cameraView === 'face_on' ? '골반 좌우' : '골반 앞뒤 (얼리 익스텐션)'}
+                  value={metricSignedMm('hipLateralMmFromAddress')}
+                  hint={
+                    cameraView === 'face_on'
+                      ? '+ 오른쪽 / − 왼쪽 (체중이동)'
+                      : '카메라 방향 이동 = 얼리 익스텐션'
+                  }
+                />
+                <MetricRow
+                  label="골반 상하"
+                  value={metricSignedMm('hipVerticalMmFromAddress')}
+                  hint="+ 상승 (스탠드업) / − 하강 (스쿼트)"
+                />
+              </>
+            )}
           </>
         )}
       </div>
@@ -477,6 +659,23 @@ const SummaryBar: React.FC<SummaryBarProps> = ({ summary }) => {
           <span className={planeTone}>
             {(summary.swingPlaneAngleCorrected ?? summary.swingPlaneAngle)!.toFixed(1)}°
           </span>
+          {summary.swingPlaneClassification && (
+            <span
+              className={`ml-1 text-[9px] font-semibold px-1.5 py-0.5 rounded border ${
+                summary.swingPlaneClassification === 'neutral'
+                  ? 'text-emerald-300 border-emerald-700/60 bg-emerald-900/30'
+                  : summary.swingPlaneClassification === 'flat' ||
+                    summary.swingPlaneClassification === 'upright'
+                  ? 'text-sky-300 border-sky-700/60 bg-sky-900/30'
+                  : 'text-amber-300 border-amber-700/60 bg-amber-900/30'
+              }`}
+            >
+              {summary.swingPlaneClassification === 'very_flat' ? '매우 플랫' :
+               summary.swingPlaneClassification === 'flat' ? '플랫' :
+               summary.swingPlaneClassification === 'neutral' ? '중립' :
+               summary.swingPlaneClassification === 'upright' ? '업라이트' : '매우 업라이트'}
+            </span>
+          )}
           {summary.gravityAligned && summary.swingPlaneAngleCorrected != null && (
             <span className="ml-1 text-[9px] text-emerald-500 font-normal">중력정렬</span>
           )}
@@ -630,7 +829,15 @@ const PlaybackSection: React.FC<{ analysis: SwingAnalysis }> = ({ analysis }) =>
         canvas.width = video.videoWidth || 640;
         canvas.height = video.videoHeight || 360;
       }
-      drawKeypoints(canvas, null, nearest?.keypoints ?? []);
+      drawKeypoints(
+        canvas,
+        null,
+        nearest?.keypoints ?? [],
+        undefined,
+        undefined,
+        undefined,
+        analysis.summary.bodyCenterlineX,
+      );
       raf = requestAnimationFrame(render);
     };
     raf = requestAnimationFrame(render);
@@ -730,7 +937,7 @@ const PlaybackSection: React.FC<{ analysis: SwingAnalysis }> = ({ analysis }) =>
 
         {/* Event jump buttons */}
         <div className="flex flex-wrap gap-2">
-          {(['address', 'takeaway', 'top', 'impact', 'finish'] as SwingEventName[]).map((name) => {
+          {EVENT_ORDER.map((name) => {
             const evt = analysis.events[name];
             if (!evt) return null;
             const active = Math.abs(currentT - evt.t) < 0.05;
@@ -1110,15 +1317,501 @@ const DiagnosticsSection: React.FC<{ analysis: SwingAnalysis }> = ({ analysis })
   );
 };
 
+// ─────────────────────────────────────────────────────────────────────────
+// TimelineEditor
+//
+// Coach-facing edit surface for the AI's first-pass segmentation. Renders
+// the full video duration as a horizontal strip with:
+//   • two draggable trim handles for the analysis window
+//   • one draggable marker per pose event (address → finish)
+//   • a playhead cursor tied to the video element's currentTime
+// Every drag updates local state and is only applied when the coach clicks
+// "재분석" — the pending state stays visible so coaches can fine-tune
+// several markers before paying the analysis cost.
+// ─────────────────────────────────────────────────────────────────────────
+
+const EVENT_COLORS: Record<SwingEventName, string> = {
+  address: '#38bdf8',
+  takeaway: '#22d3ee',
+  half_backswing: '#a3e635',
+  top: '#facc15',
+  mid_downswing: '#fb923c',
+  impact: '#ef4444',
+  follow_through: '#c084fc',
+  finish: '#e2e8f0',
+};
+
+interface EventEdits {
+  intervalStartSec: number;
+  intervalEndSec: number;
+  eventTimes: Partial<Record<SwingEventName, number>>;
+}
+
+interface TimelineEditorProps {
+  analysis: SwingAnalysis;
+  videoUrl: string;
+  busy: boolean;
+  onApply: (edits: EventEdits) => void;
+  onCancel: () => void;
+}
+
+const TimelineEditor: React.FC<TimelineEditorProps> = ({
+  analysis,
+  videoUrl,
+  busy,
+  onApply,
+  onCancel,
+}) => {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const stripRef = useRef<HTMLDivElement>(null);
+  const [currentT, setCurrentT] = useState(0);
+  const [duration, setDuration] = useState<number>(() => {
+    const last = analysis.frames[analysis.frames.length - 1];
+    return last?.t ?? 0;
+  });
+  const [edits, setEdits] = useState<EventEdits>(() => ({
+    intervalStartSec:
+      analysis.analyzedRange != null
+        ? analysis.frames[analysis.analyzedRange.startFrameIdx]?.t ?? 0
+        : analysis.frames[0]?.t ?? 0,
+    intervalEndSec:
+      analysis.analyzedRange != null
+        ? analysis.frames[analysis.analyzedRange.endFrameIdx]?.t ??
+          (analysis.frames[analysis.frames.length - 1]?.t ?? 0)
+        : analysis.frames[analysis.frames.length - 1]?.t ?? 0,
+    eventTimes: EVENT_ORDER.reduce<Partial<Record<SwingEventName, number>>>((acc, name) => {
+      const evt = analysis.events[name];
+      if (evt) acc[name] = evt.t;
+      return acc;
+    }, {}),
+  }));
+
+  // Track which handle is being dragged. Null means idle. Ref (not state)
+  // so pointermove doesn't cause a re-render per frame.
+  const dragRef = useRef<
+    | { kind: 'trim'; side: 'start' | 'end' }
+    | { kind: 'event'; name: SwingEventName }
+    | null
+  >(null);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    const onMeta = () => {
+      const d = video.duration;
+      if (Number.isFinite(d) && d > 0) setDuration(d);
+    };
+    const onTime = () => setCurrentT(video.currentTime);
+    video.addEventListener('loadedmetadata', onMeta);
+    video.addEventListener('timeupdate', onTime);
+    video.addEventListener('seeked', onTime);
+    return () => {
+      video.removeEventListener('loadedmetadata', onMeta);
+      video.removeEventListener('timeupdate', onTime);
+      video.removeEventListener('seeked', onTime);
+    };
+  }, []);
+
+  const seek = useCallback((t: number) => {
+    const video = videoRef.current;
+    if (!video) return;
+    const clamped = Math.max(0, Math.min(duration || t, t));
+    video.currentTime = clamped;
+    setCurrentT(clamped);
+  }, [duration]);
+
+  const timeFromClientX = useCallback(
+    (clientX: number): number => {
+      const strip = stripRef.current;
+      if (!strip || duration <= 0) return 0;
+      const rect = strip.getBoundingClientRect();
+      const frac = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+      return frac * duration;
+    },
+    [duration],
+  );
+
+  const onStripPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    // Clicking empty timeline (not on a handle) seeks the video.
+    if (dragRef.current) return;
+    seek(timeFromClientX(e.clientX));
+  };
+
+  const onHandlePointerDown = (
+    e: React.PointerEvent<HTMLElement>,
+    ref: NonNullable<typeof dragRef.current>,
+  ) => {
+    e.stopPropagation();
+    e.preventDefault();
+    dragRef.current = ref;
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+  };
+
+  const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    const drag = dragRef.current;
+    if (!drag) return;
+    const t = timeFromClientX(e.clientX);
+    setEdits((prev) => {
+      if (drag.kind === 'trim') {
+        // Prevent the two trim handles from crossing each other.
+        if (drag.side === 'start') {
+          return { ...prev, intervalStartSec: Math.min(t, prev.intervalEndSec - 0.05) };
+        }
+        return { ...prev, intervalEndSec: Math.max(t, prev.intervalStartSec + 0.05) };
+      }
+      return { ...prev, eventTimes: { ...prev.eventTimes, [drag.name]: t } };
+    });
+    seek(t);
+  };
+
+  const onPointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!dragRef.current) return;
+    dragRef.current = null;
+    try {
+      (e.target as HTMLElement).releasePointerCapture(e.pointerId);
+    } catch {
+      /* ignore */
+    }
+  };
+
+  const snapToPlayhead = (name: SwingEventName) => {
+    setEdits((prev) => ({ ...prev, eventTimes: { ...prev.eventTimes, [name]: currentT } }));
+  };
+
+  const pct = (t: number): number =>
+    duration <= 0 ? 0 : Math.max(0, Math.min(100, (t / duration) * 100));
+
+  return (
+    <div className="space-y-3 rounded-lg border border-slate-700 bg-slate-900 p-4">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2 text-sm font-semibold text-slate-100">
+          <Pencil size={14} />
+          <span>수동 편집</span>
+          <span className="text-xs text-slate-400 font-normal">
+            트림 핸들과 포즈 마커를 드래그해 조정하세요.
+          </span>
+        </div>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={onCancel}
+            disabled={busy}
+            className="px-3 py-1.5 text-xs rounded-md border border-slate-700 text-slate-300 hover:bg-slate-800 disabled:opacity-40"
+          >
+            취소
+          </button>
+          <button
+            type="button"
+            onClick={() => onApply(edits)}
+            disabled={busy}
+            className="px-3 py-1.5 text-xs rounded-md bg-emerald-600 hover:bg-emerald-500 text-white font-semibold disabled:opacity-40"
+          >
+            {busy ? '재분석 중…' : '재분석'}
+          </button>
+        </div>
+      </div>
+
+      <video
+        ref={videoRef}
+        src={videoUrl}
+        controls
+        className="w-full rounded-md border border-slate-800 bg-black max-h-[240px]"
+      />
+
+      <div
+        ref={stripRef}
+        onPointerDown={onStripPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerCancel={onPointerUp}
+        className="relative h-14 select-none rounded-md bg-slate-800/70 overflow-hidden touch-none"
+        role="slider"
+        aria-label="스윙 구간 및 포즈 편집 타임라인"
+      >
+        {/* Dimmed regions outside the analysis window. */}
+        <div
+          className="absolute inset-y-0 left-0 bg-black/50"
+          style={{ width: `${pct(edits.intervalStartSec)}%` }}
+        />
+        <div
+          className="absolute inset-y-0 right-0 bg-black/50"
+          style={{ width: `${100 - pct(edits.intervalEndSec)}%` }}
+        />
+        {/* Analysis window highlight. */}
+        <div
+          className="absolute inset-y-0 bg-emerald-500/10 border-y border-emerald-500/40"
+          style={{
+            left: `${pct(edits.intervalStartSec)}%`,
+            width: `${Math.max(0, pct(edits.intervalEndSec) - pct(edits.intervalStartSec))}%`,
+          }}
+        />
+        {/* Playhead. */}
+        <div
+          className="absolute top-0 bottom-0 w-px bg-slate-100/80"
+          style={{ left: `${pct(currentT)}%` }}
+        />
+        {/* Trim handles. */}
+        {(['start', 'end'] as const).map((side) => {
+          const t = side === 'start' ? edits.intervalStartSec : edits.intervalEndSec;
+          return (
+            <div
+              key={side}
+              onPointerDown={(e) => onHandlePointerDown(e, { kind: 'trim', side })}
+              className="absolute top-0 bottom-0 w-2 -translate-x-1/2 cursor-ew-resize bg-emerald-400 hover:bg-emerald-300 shadow"
+              style={{ left: `${pct(t)}%` }}
+              title={`${side === 'start' ? '시작' : '끝'} ${t.toFixed(2)}s`}
+            />
+          );
+        })}
+        {/* Event markers. */}
+        {EVENT_ORDER.map((name) => {
+          const t = edits.eventTimes[name];
+          if (t == null) return null;
+          return (
+            <div
+              key={name}
+              onPointerDown={(e) => onHandlePointerDown(e, { kind: 'event', name })}
+              className="absolute top-1 h-6 w-6 -translate-x-1/2 cursor-grab rounded-full border-2 border-slate-900 shadow-md flex items-center justify-center text-[9px] font-bold text-slate-900 active:cursor-grabbing"
+              style={{ left: `${pct(t)}%`, backgroundColor: EVENT_COLORS[name] }}
+              title={`${EVENT_LABEL[name]} ${t.toFixed(3)}s`}
+            >
+              {EVENT_LABEL[name].slice(0, 1)}
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-[11px]">
+        {EVENT_ORDER.map((name) => {
+          const t = edits.eventTimes[name];
+          return (
+            <div
+              key={name}
+              className="flex items-center gap-2 rounded-md border border-slate-800 bg-slate-950 px-2 py-1.5"
+            >
+              <span
+                className="inline-block h-2.5 w-2.5 rounded-full"
+                style={{ backgroundColor: EVENT_COLORS[name] }}
+              />
+              <span className="flex-1 text-slate-200 font-medium truncate">
+                {EVENT_LABEL[name]}
+              </span>
+              <span className="font-mono text-slate-400">
+                {t != null ? `${t.toFixed(3)}s` : '—'}
+              </span>
+              <button
+                type="button"
+                onClick={() => snapToPlayhead(name)}
+                disabled={busy}
+                className="rounded-sm border border-slate-700 px-1.5 py-0.5 text-[10px] text-slate-300 hover:bg-slate-800 disabled:opacity-40"
+                title="현재 재생 위치로 지정"
+              >
+                현재
+              </button>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="text-[11px] text-slate-500">
+        분석 구간 <span className="font-mono text-slate-300">{edits.intervalStartSec.toFixed(2)}s</span> →{' '}
+        <span className="font-mono text-slate-300">{edits.intervalEndSec.toFixed(2)}s</span>{' '}
+        · 총 {(edits.intervalEndSec - edits.intervalStartSec).toFixed(2)}s
+      </div>
+    </div>
+  );
+};
+
+// ─────────────────────────────────────────────────────────────────────────
+// AICoachingReportSection
+//
+// The differentiating surface: turns raw metrics into coach-facing insights
+// grounded in the student's own shot / lesson history. Lazy — the coach
+// clicks "AI 리포트 생성" when they want it, so we don't burn API tokens on
+// every re-analysis. Every insight cites its evidence, and any bullet with
+// history evidence lights up amber to signal the correlation.
+// ─────────────────────────────────────────────────────────────────────────
+
+interface AICoachingReportSectionProps {
+  analysis: SwingAnalysis;
+  faults: SwingFault[];
+  studentLessons?: Lesson[];
+  coachNote?: string;
+  coachId?: string;
+}
+
+const CONFIDENCE_STYLE: Record<
+  'strong' | 'plausible' | 'speculative',
+  { label: string; className: string }
+> = {
+  strong: { label: '강한 근거', className: 'bg-emerald-900/50 text-emerald-200 border-emerald-700/60' },
+  plausible: { label: '가능성 있음', className: 'bg-sky-900/50 text-sky-200 border-sky-700/60' },
+  speculative: { label: '추정', className: 'bg-slate-800 text-slate-300 border-slate-700' },
+};
+
+const AICoachingReportSection: React.FC<AICoachingReportSectionProps> = ({
+  analysis,
+  faults,
+  studentLessons,
+  coachNote,
+  coachId,
+}) => {
+  const [report, setReport] = useState<AICoachingReport | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const run = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const r = await generateSwingCoachingReport(analysis, {
+        lessons: studentLessons,
+        faults,
+        coachNote,
+        coachId,
+      });
+      setReport(r);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <section className="rounded-lg border border-slate-700 bg-slate-900">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-slate-800">
+        <div className="flex items-center gap-2 text-sm font-semibold text-slate-100">
+          <span>🤖 AI 코칭 리포트</span>
+          {studentLessons && studentLessons.length > 0 && (
+            <span className="text-[10px] text-emerald-300 font-normal bg-emerald-950/50 border border-emerald-800/60 rounded px-1.5 py-0.5">
+              학생 이력 {studentLessons.length}건 참조
+            </span>
+          )}
+        </div>
+        <button
+          type="button"
+          disabled={loading}
+          onClick={run}
+          className="px-3 py-1.5 text-xs rounded-md bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-semibold"
+        >
+          {loading ? '생성 중…' : report ? '다시 생성' : 'AI 리포트 생성'}
+        </button>
+      </div>
+
+      {error && (
+        <div className="p-4 text-xs text-red-300">
+          <AlertTriangle size={12} className="inline mr-1" />
+          {error}
+        </div>
+      )}
+
+      {!report && !loading && !error && (
+        <div className="p-4 text-xs text-slate-400 leading-relaxed">
+          이 스윙의 정량 지표({analysis.events.impact ? '7 포즈, 키네틱 시퀀스, 임팩트 진단' : '포즈'})
+          와 학생의 최근 샷/레슨 데이터를 함께 참고해 코칭 리포트를 만듭니다.
+          {(!studentLessons || studentLessons.length === 0) && (
+            <span className="text-yellow-300 block mt-1">
+              (학생 이력이 없어 스윙 단독 분석으로 진행됩니다. 레슨 컨텍스트를 붙이면 훨씬 정확한 리포트가 나옵니다.)
+            </span>
+          )}
+        </div>
+      )}
+
+      {report && (
+        <div className="p-4 space-y-4">
+          <div className="rounded-md bg-emerald-950/40 border border-emerald-800/60 p-3">
+            <div className="text-xs text-emerald-300 font-semibold mb-1">헤드라인</div>
+            <div className="text-sm text-slate-100 leading-relaxed">{report.headline}</div>
+            {report.trend && report.trend !== 'insufficient_data' && (
+              <div className="mt-2 text-[11px] text-emerald-200">
+                최근 흐름:{' '}
+                {report.trend === 'improving' ? '개선 중' :
+                 report.trend === 'steady' ? '유지' : '주춤 / 후퇴'}
+              </div>
+            )}
+          </div>
+
+          {report.insights.length > 0 && (
+            <div className="space-y-2">
+              <div className="text-[11px] font-semibold text-slate-400">핵심 인사이트</div>
+              {report.insights.map((ins, i) => {
+                const conf = CONFIDENCE_STYLE[ins.correlationConfidence];
+                return (
+                  <div key={i} className="rounded-md border border-slate-800 bg-slate-950 p-3 space-y-1.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="text-sm text-slate-100 font-semibold">{ins.title}</div>
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded border ${conf.className}`}>
+                        {conf.label}
+                      </span>
+                    </div>
+                    <div className="text-xs text-slate-300 leading-relaxed">{ins.observation}</div>
+                    {ins.swingEvidence.length > 0 && (
+                      <div className="text-[11px] text-slate-400">
+                        <span className="text-slate-500">스윙 근거:</span>{' '}
+                        {ins.swingEvidence.join(' · ')}
+                      </div>
+                    )}
+                    {ins.historyEvidence.length > 0 && (
+                      <div className="text-[11px] text-amber-300">
+                        <span className="text-amber-400">이력 근거:</span>{' '}
+                        {ins.historyEvidence.join(' · ')}
+                      </div>
+                    )}
+                    {ins.recommendation && (
+                      <div className="text-[11px] text-emerald-200 border-l-2 border-emerald-600 pl-2 mt-1">
+                        💡 {ins.recommendation}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {report.nextLessonFocus.length > 0 && (
+            <div className="rounded-md bg-slate-950 border border-slate-800 p-3">
+              <div className="text-[11px] font-semibold text-slate-400 mb-1.5">다음 레슨 우선순위</div>
+              <ol className="text-xs text-slate-200 list-decimal list-inside space-y-1">
+                {report.nextLessonFocus.map((f, i) => (
+                  <li key={i}>{f}</li>
+                ))}
+              </ol>
+            </div>
+          )}
+
+          {report.caveats.length > 0 && (
+            <div className="rounded-md bg-yellow-950/30 border border-yellow-900/50 p-3 space-y-1">
+              <div className="text-[11px] font-semibold text-yellow-300 mb-0.5">주의</div>
+              {report.caveats.map((c, i) => (
+                <div key={i} className="text-[11px] text-yellow-200 flex gap-1">
+                  <AlertTriangle size={10} className="mt-0.5 flex-shrink-0" />
+                  <span>{c}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </section>
+  );
+};
+
 interface SwingVideoAnalysisProps {
   /** Optional preset video URL. If omitted the user picks a file. */
   initialVideoUrl?: string;
   onDone?: (analysis: SwingAnalysis) => void;
+  /** Recent lessons of the student — enables cross-referenced AI report. */
+  studentLessons?: Lesson[];
+  /** Coach id — used for AI system prompt selection. */
+  coachId?: string;
 }
 
 export const SwingVideoAnalysis: React.FC<SwingVideoAnalysisProps> = ({
   initialVideoUrl,
   onDone,
+  studentLessons,
+  coachId,
 }) => {
   const [videoUrl, setVideoUrl] = useState<string | undefined>(initialVideoUrl);
   const [pickedObjectUrl, setPickedObjectUrl] = useState<string | undefined>();
@@ -1126,6 +1819,8 @@ export const SwingVideoAnalysis: React.FC<SwingVideoAnalysisProps> = ({
   const [analysis, setAnalysis] = useState<SwingAnalysis | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [cameraView, setCameraView] = useState<CameraView>('face_on');
 
   useEffect(() => {
     return () => {
@@ -1142,8 +1837,25 @@ export const SwingVideoAnalysis: React.FC<SwingVideoAnalysisProps> = ({
     setError(null);
   };
 
-  const runAnalysis = async () => {
+  const applyEdits = (edits: EventEdits) => {
+    if (!analysis) return;
+    setBusy(true);
+    try {
+      const rebuilt = swingAnalysisService.rebuildAnalysis(analysis, {
+        intervalStartSec: edits.intervalStartSec,
+        intervalEndSec: edits.intervalEndSec,
+        eventTimeOverrides: edits.eventTimes,
+      });
+      setAnalysis(rebuilt);
+      setEditing(false);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const runAnalysis = async (window?: { startTime: number; endTime: number }) => {
     if (!videoUrl) return;
+    setEditing(false);
     setBusy(true);
     setError(null);
     setAnalysis(null);
@@ -1151,6 +1863,8 @@ export const SwingVideoAnalysis: React.FC<SwingVideoAnalysisProps> = ({
     try {
       const result = await swingAnalysisService.analyzeSwingFromVideo(videoUrl, {
         onProgress: setProgress,
+        cameraView,
+        ...(window ? { startTime: window.startTime, endTime: window.endTime } : {}),
       });
       setAnalysis(result);
       onDone?.(result);
@@ -1194,6 +1908,43 @@ export const SwingVideoAnalysis: React.FC<SwingVideoAnalysisProps> = ({
       </div>
 
       <div className="p-4 space-y-4">
+        {/* Camera view picker — required before analysis so the pipeline
+            knows which metrics are physically meaningful for this clip. */}
+        {!analysis && (
+          <div className="rounded-lg border border-slate-800 bg-slate-900 p-3">
+            <div className="text-xs font-semibold text-slate-300 mb-2">촬영 각도</div>
+            <div className="grid grid-cols-2 gap-2">
+              {([
+                {
+                  value: 'face_on' as const,
+                  label: '정면 (Face-On)',
+                  hint: '골퍼 정면에서 촬영 — 체중이동·헤드 스웨이 분석',
+                },
+                {
+                  value: 'down_the_line' as const,
+                  label: '측면 (Down-the-Line)',
+                  hint: '타깃 라인 뒤에서 촬영 — 스윙 플레인·얼리 익스텐션 분석',
+                },
+              ]).map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  disabled={busy}
+                  onClick={() => setCameraView(opt.value)}
+                  className={`rounded-md border p-2.5 text-left transition-colors disabled:opacity-40 ${
+                    cameraView === opt.value
+                      ? 'border-emerald-500 bg-emerald-900/20 text-emerald-100'
+                      : 'border-slate-700 bg-slate-950 text-slate-300 hover:border-slate-500'
+                  }`}
+                  aria-pressed={cameraView === opt.value}
+                >
+                  <div className="text-xs font-semibold">{opt.label}</div>
+                  <div className="text-[10px] text-slate-400 mt-0.5">{opt.hint}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
         {/* Input */}
         {!analysis && (
           <div className="flex flex-col sm:flex-row gap-3 items-stretch">
@@ -1214,7 +1965,7 @@ export const SwingVideoAnalysis: React.FC<SwingVideoAnalysisProps> = ({
             </label>
             <button
               disabled={!videoUrl || busy}
-              onClick={runAnalysis}
+              onClick={() => runAnalysis()}
               className="px-5 py-3 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-700 disabled:text-slate-500 text-white font-semibold text-sm transition-colors flex items-center justify-center gap-2 min-w-[140px]"
             >
               {busy ? (
@@ -1271,6 +2022,72 @@ export const SwingVideoAnalysis: React.FC<SwingVideoAnalysisProps> = ({
         {analysis && (
           <div className="space-y-4">
             <SummaryBar summary={analysis.summary} />
+            {analysis.summary.cameraViewDetected && (
+              <div className="rounded-lg border border-yellow-900/50 bg-yellow-950/30 p-3 text-xs text-yellow-200">
+                <AlertTriangle size={12} className="inline mr-1 -mt-0.5" />
+                촬영 각도로{' '}
+                <span className="font-semibold">
+                  {analysis.summary.cameraView === 'face_on' ? '정면' : '측면'}
+                </span>
+                을 선택했지만, 자동 감지는{' '}
+                <span className="font-semibold">
+                  {analysis.summary.cameraViewDetected === 'face_on' ? '정면' : analysis.summary.cameraViewDetected === 'down_the_line' ? '측면' : '불명확'}
+                </span>
+                으로 나타났습니다. 지표 정확도가 낮을 수 있으니 촬영 각도를 다시 확인해 주세요.
+              </div>
+            )}
+            {videoUrl && !editing && (
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => setEditing(true)}
+                  disabled={busy}
+                  className="flex items-center gap-1.5 rounded-md border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs font-semibold text-slate-100 hover:bg-slate-800 disabled:opacity-40"
+                  title="트림 구간과 포즈 위치를 수동으로 조정"
+                >
+                  <Pencil size={12} />
+                  구간·포즈 수동 편집
+                </button>
+              </div>
+            )}
+            {editing && videoUrl && (
+              <TimelineEditor
+                analysis={analysis}
+                videoUrl={videoUrl}
+                busy={busy}
+                onApply={applyEdits}
+                onCancel={() => setEditing(false)}
+              />
+            )}
+            {analysis.detectedInterval && (
+              <div className="rounded-lg bg-emerald-950/30 border border-emerald-900/50 p-3 space-y-2">
+                <div className="text-xs text-emerald-300 leading-relaxed">
+                  <span className="font-semibold">스윙 자동 감지</span>: 편집 없이 올린 영상에서 실제 스윙 구간만 추려 분석했습니다 —{' '}
+                  <span className="font-mono">{analysis.detectedInterval.startT.toFixed(2)}s</span>
+                  {' → '}
+                  <span className="font-mono">{analysis.detectedInterval.endT.toFixed(2)}s</span>{' '}
+                  (신뢰도 {Math.round(analysis.detectedInterval.confidence * 100)}%)
+                </div>
+                {analysis.alternateIntervals && analysis.alternateIntervals.length > 0 && (
+                  <div className="flex flex-wrap items-center gap-2 text-[11px]">
+                    <span className="text-slate-400">다른 스윙 후보:</span>
+                    {analysis.alternateIntervals.map((iv, i) => (
+                      <button
+                        key={`${iv.startT.toFixed(2)}-${i}`}
+                        type="button"
+                        disabled={busy}
+                        onClick={() =>
+                          runAnalysis({ startTime: iv.startT, endTime: iv.endT })
+                        }
+                        className="rounded-full border border-emerald-700/60 bg-slate-900 px-2.5 py-0.5 text-emerald-200 hover:bg-emerald-900/30 disabled:opacity-40"
+                      >
+                        {iv.startT.toFixed(1)}s–{iv.endT.toFixed(1)}s · {Math.round(iv.confidence * 100)}%
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
             {analysis.warnings.length > 0 && (
               <div className="rounded-lg bg-yellow-950/30 border border-yellow-900/50 p-3 space-y-1">
                 {analysis.warnings.map((w, i) => (
@@ -1281,7 +2098,7 @@ export const SwingVideoAnalysis: React.FC<SwingVideoAnalysisProps> = ({
                 ))}
               </div>
             )}
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-7 gap-3">
               {EVENT_ORDER.map((name) => {
                 const evt = analysis.events[name];
                 const frame = evt ? analysis.frames[evt.frameIndex] : undefined;
@@ -1319,6 +2136,9 @@ export const SwingVideoAnalysis: React.FC<SwingVideoAnalysisProps> = ({
                     overlay={overlay}
                     clubHead={clubHead}
                     trajectory={trajectory}
+                    cameraView={analysis.summary.cameraView}
+                    centerlineX={analysis.summary.bodyCenterlineX}
+                    wristArc={name === 'impact' ? analysis.summary.downswingWristArc2D : undefined}
                   />
                 );
               })}
@@ -1326,6 +2146,12 @@ export const SwingVideoAnalysis: React.FC<SwingVideoAnalysisProps> = ({
             <PlaybackSection analysis={analysis} />
             <KineticSequenceSection analysis={analysis} />
             <DiagnosticsSection analysis={analysis} />
+            <AICoachingReportSection
+              analysis={analysis}
+              faults={detectFaults(analysis)}
+              studentLessons={studentLessons}
+              coachId={coachId}
+            />
             <p className="text-[11px] text-slate-500 leading-relaxed">
               총 {analysis.frames.length}프레임 (실효 {analysis.sampledFps.toFixed(1)}fps) 분석 완료.
               {typeof analysis.nativeFps === 'number' && (

@@ -16,13 +16,15 @@ import { PaymentFail } from './PaymentFail';
 import { MembershipPurchase } from './MembershipPurchase';
 import { MembershipPaymentSuccess } from './MembershipPaymentSuccess';
 import { StudentAIChat } from './StudentAIChat';
-import { User, LogOut, History, PlayCircle, Plus, BarChart3, Bell, ListChecks, Globe, Calendar, Search, Filter, Eye, EyeOff, ChevronRight, ChevronLeft, Award, Target, ClipboardList, Crown, Briefcase, ScanLine, Sparkles } from 'lucide-react';
+import { SwingVideoAnalysis } from './posture/SwingVideoAnalysis';
+import { User, LogOut, History, PlayCircle, Plus, BarChart3, Bell, ListChecks, Globe, Calendar, Search, Filter, Eye, EyeOff, ChevronRight, Award, Target, ClipboardList, Crown, Briefcase, ScanLine, Sparkles, Video } from 'lucide-react';
 import { firebaseService } from '../services/firebase';
 import { storageService } from '../services/storage';
 import { apiService } from '../services/apiService';
 import { pointService } from '../services/pointService';
 import { NotificationToast } from './NotificationToast';
 import { useLanguage } from './LanguageContext';
+import { BackButton } from './ui/BackButton';
 
 interface ClientAppProps {
   clientProfile: ClientProfile;
@@ -55,7 +57,7 @@ const HIDE_RESERVATION_FEATURES = (import.meta.env.VITE_CLIENT_HIDE_RESERVATION 
 
 export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons, onLogout, onUpdateLesson, onSaveNewRecord, onDeleteLesson, onUpdateProfile, onRefreshLessons }) => {
   const { t, language, setLanguage } = useLanguage();
-  const [view, setView] = useState<ViewState | 'STATS' | 'PROFILE' | 'RESERVATION' | 'BAY_RESERVATION' | 'MY_BAY_RESERVATIONS' | 'POINT_PURCHASE' | 'MEMBERSHIP_PURCHASE' | 'PAYMENT_SUCCESS' | 'MEMBERSHIP_PAYMENT_SUCCESS' | 'PAYMENT_FAIL' | 'RECENT_RECORDS' | 'STUDENT_AI'>(() => {
+  const [view, setView] = useState<ViewState | 'STATS' | 'PROFILE' | 'RESERVATION' | 'BAY_RESERVATION' | 'MY_BAY_RESERVATIONS' | 'POINT_PURCHASE' | 'MEMBERSHIP_PURCHASE' | 'PAYMENT_SUCCESS' | 'MEMBERSHIP_PAYMENT_SUCCESS' | 'PAYMENT_FAIL' | 'RECENT_RECORDS' | 'STUDENT_AI' | 'SWING_ANALYSIS'>(() => {
     const params = new URLSearchParams(window.location.search);
     const purchaseType = params.get('purchase');
     if (params.get('paymentKey') && params.get('orderId')) {
@@ -515,6 +517,28 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
                     <ChevronRight className="w-5 h-5 ml-auto text-indigo-200 group-hover:translate-x-1 transition-transform" />
                 </button>
 
+                {/* ===== 스윙 영상 분석 버튼 ===== */}
+                <button
+                    onClick={() => setView('SWING_ANALYSIS')}
+                    data-testid="swing-analysis-entry-btn"
+                    className="w-full bg-gradient-to-r from-emerald-700 via-teal-600 to-cyan-600 hover:from-emerald-600 hover:via-teal-500 hover:to-cyan-500 text-white rounded-2xl px-6 py-4 shadow-xl shadow-emerald-950/40 hover:shadow-2xl transition-all duration-300 transform hover:scale-[1.02] active:scale-[0.98] flex items-center gap-4 group relative overflow-hidden"
+                >
+                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent translate-x-[-200%] group-hover:translate-x-[200%] transition-transform duration-700" />
+                    <div className="relative bg-white/20 p-2.5 rounded-full group-hover:bg-white/30 transition-colors flex-shrink-0">
+                        <Video className="w-6 h-6" />
+                    </div>
+                    <div className="relative text-left min-w-0">
+                        <div className="text-base font-black flex items-center gap-2">
+                            스윙 영상 분석
+                            <span className="text-[10px] font-bold bg-white/20 text-emerald-50 px-1.5 py-0.5 rounded">BETA</span>
+                        </div>
+                        <div className="text-xs text-emerald-100 font-medium truncate">
+                            {language === 'en' ? 'Upload a swing video for instant AI analysis' : language === 'ja' ? 'スイング動画をアップロードしてAI分析' : '스윙 영상을 업로드하면 즉시 AI가 분석'}
+                        </div>
+                    </div>
+                    <ChevronRight className="w-5 h-5 ml-auto text-emerald-100 group-hover:translate-x-1 transition-transform" />
+                </button>
+
                 {/* ===== 레슨 Section ===== */}
                 <div className="bg-slate-900/80 rounded-2xl p-5 shadow-sm border border-slate-700/70">
                     <div className="flex items-center gap-2 mb-4">
@@ -624,13 +648,7 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
             <div className="space-y-4 animate-fade-in">
                 {/* Header */}
                 <div className="flex items-center gap-3 pb-2">
-                    <button
-                        onClick={handleBackToList}
-                        className="p-3 rounded-xl bg-slate-900 border border-slate-700 hover:bg-slate-800 text-slate-300 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
-                        aria-label={t('back')}
-                    >
-                        <ChevronLeft className="w-5 h-5" />
-                    </button>
+                    <BackButton onClick={handleBackToList} tone="dark" />
                     <div className="w-1 h-6 bg-gradient-to-b from-indigo-500 to-violet-500 rounded-full" />
                     <h2 className="text-xl font-black text-slate-100">{t('recent_records')}</h2>
                     <span className="bg-indigo-500/15 border border-indigo-300/30 text-indigo-200 px-2 py-0.5 rounded-full text-xs font-bold">
@@ -759,6 +777,43 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
                     coachProfile={designatedCoachProfile ?? undefined}
                     onBack={handleBackToList}
                 />
+            </div>
+        )}
+
+        {effectiveView === 'SWING_ANALYSIS' && (
+            <div className="fixed inset-0 z-50 bg-slate-950 overflow-y-auto">
+                <div className="max-w-3xl mx-auto p-4 sm:p-6 space-y-5 text-slate-100">
+                    <header className="pb-4 border-b border-slate-800 flex items-center gap-3">
+                        <BackButton
+                            onClick={handleBackToList}
+                            tone="dark"
+                            ariaLabel={t('back')}
+                            className="flex-shrink-0"
+                            testId="swing-analysis-back-btn"
+                        />
+                        <div className="min-w-0">
+                            <h1 className="text-xl sm:text-2xl font-bold text-slate-100 flex items-center gap-2">
+                                골프 스윙 분석 <span className="text-emerald-400 text-sm">BETA</span>
+                            </h1>
+                            <p className="text-xs sm:text-sm text-slate-400 mt-1 leading-relaxed">
+                                스윙 mp4/mov를 업로드하면 이벤트 세그멘테이션 · 3D 바이오메카닉 지표 · 클럽 헤드 궤적을 즉시 계산합니다.
+                            </p>
+                        </div>
+                    </header>
+
+                    <SwingVideoAnalysis studentLessons={allMyLessons} />
+
+                    <footer className="pt-4 mt-6 border-t border-slate-800 text-[11px] text-slate-500 leading-relaxed space-y-1.5">
+                        <p>
+                            첫 실행 시 MediaPipe Heavy 모델(~30MB)이 CDN에서 다운로드된 뒤 브라우저에 캐시됩니다.
+                            Chrome / Edge 권장 (GPU 가속).
+                        </p>
+                        <p>
+                            권장 촬영: 720p+ · 30fps · 5초 이내 · 정면(FO) 또는 측면(DTL) · 단색 배경.
+                            아이폰 슬로모(240fps) 원본은 QuickTime에서 30fps로 export 필요.
+                        </p>
+                    </footer>
+                </div>
             </div>
         )}
 

@@ -1,6 +1,12 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { Camera, Upload, Check, X, AlertCircle } from 'lucide-react';
 import { PostureCapture } from '../../types/postureAnalysis';
+import {
+  isMediaPermissionError,
+  normalizeMediaError,
+  requestMediaStream,
+} from '../../utils/mediaPermissions';
+import { PermissionDeniedModal } from '../PermissionDeniedModal';
 
 interface DualCameraCaptureProps {
   onCapturesComplete: (front: PostureCapture, side: PostureCapture) => void;
@@ -17,6 +23,7 @@ export const DualCameraCapture: React.FC<DualCameraCaptureProps> = ({
   const [isUsingCamera, setIsUsingCamera] = useState(false);
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [cameraError, setCameraError] = useState<string | null>(null);
+  const [permissionModalOpen, setPermissionModalOpen] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -37,26 +44,28 @@ export const DualCameraCapture: React.FC<DualCameraCaptureProps> = ({
   const startCamera = useCallback(async (view?: 'front' | 'side') => {
     if (view) setActiveView(view);
     setCameraError(null);
+    const constraints: MediaStreamConstraints = {
+      video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
+    };
     try {
-      const mediaStream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
-      });
+      const mediaStream = await requestMediaStream(constraints);
       setStream(mediaStream);
       setIsUsingCamera(true);
     } catch (error: unknown) {
       console.error('Failed to start camera:', error);
-      if (error instanceof Error) {
-        if (error.name === 'NotAllowedError') {
-          setCameraError('카메라 접근 권한이 거부되었습니다. 브라우저 설정에서 카메라 권한을 허용해주세요.');
-        } else if (error.name === 'NotFoundError') {
+      const perm = isMediaPermissionError(error) ? error : normalizeMediaError(error, constraints);
+      switch (perm.kind) {
+        case 'denied':
+          setPermissionModalOpen(true);
+          break;
+        case 'unavailable':
           setCameraError('카메라 장치를 찾을 수 없습니다. 파일 업로드를 사용해주세요.');
-        } else if (error.name === 'NotReadableError') {
+          break;
+        case 'busy':
           setCameraError('카메라가 다른 앱에서 사용 중입니다. 다른 앱을 닫고 다시 시도해주세요.');
-        } else {
+          break;
+        default:
           setCameraError('카메라를 시작할 수 없습니다. 파일 업로드를 사용해주세요.');
-        }
-      } else {
-        setCameraError('카메라를 시작할 수 없습니다. 파일 업로드를 사용해주세요.');
       }
     }
   }, []);
@@ -254,6 +263,16 @@ export const DualCameraCapture: React.FC<DualCameraCaptureProps> = ({
       )}
 
       <canvas ref={canvasRef} className="hidden" />
+
+      <PermissionDeniedModal
+        open={permissionModalOpen}
+        kind="camera"
+        onClose={() => setPermissionModalOpen(false)}
+        onRetry={() => {
+          setPermissionModalOpen(false);
+          startCamera();
+        }}
+      />
     </div>
   );
 };

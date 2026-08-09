@@ -14,12 +14,33 @@ export interface SwingFrame {
 }
 
 /**
- * Segmentation phases of a swing, in temporal order. `takeaway` marks the
- * first frame where the wrists leave the address position (the "start of
- * backswing" in coaching parlance) — added so coaches can see the moment
- * the swing actually begins, separately from the still address pose.
+ * Segmentation phases of a swing, in temporal order.
+ *
+ *   address        — setup pose before the swing starts
+ *   takeaway       — first frame the wrists leave address
+ *   half_backswing — halfway between takeaway and top (roughly lead arm
+ *                    parallel to the ground on the way up)
+ *   top            — highest hands, end of backswing
+ *   mid_downswing  — halfway between top and impact (lead arm parallel on
+ *                    the way down; hands entering the "delivery" zone)
+ *   impact         — ball contact
+ *   follow_through — halfway between impact and finish (trail arm extended,
+ *                    lead arm horizontal on the target side)
+ *   finish         — held pose after the swing settles
+ *
+ * The three "half" markers use a wrist-Y midpoint heuristic between their
+ * parent events — a rock-solid proxy for arm-horizontal that works with any
+ * camera view and doesn't need a gravity reference.
  */
-export type SwingEventName = 'address' | 'takeaway' | 'top' | 'impact' | 'finish';
+export type SwingEventName =
+  | 'address'
+  | 'takeaway'
+  | 'half_backswing'
+  | 'top'
+  | 'mid_downswing'
+  | 'impact'
+  | 'follow_through'
+  | 'finish';
 
 export interface SwingEvent {
   name: SwingEventName;
@@ -120,8 +141,48 @@ export interface KineticSequence {
 }
 
 export interface SwingSummary {
-  /** Detected camera perspective, inferred from address-window landmarks. */
+  /**
+   * Camera perspective the analysis was run against. This is the coach's
+   * explicit choice at upload time when provided; otherwise the pipeline's
+   * heuristic auto-detection. Downstream UI keys metric visibility off this
+   * value (some metrics are only meaningful in face-on, others in DTL).
+   */
   cameraView: CameraView;
+  /**
+   * Auto-detected view when it disagrees with the coach's declared view.
+   * Populated only when the two differ — the UI surfaces this as a warning
+   * so a mis-selected preset gets caught before the coach reads bogus
+   * lateral metrics off a DTL clip (or vice versa).
+   */
+  cameraViewDetected?: CameraView;
+  /**
+   * Normalized X (0..1) of the vertical body centerline anchored to the
+   * address stance — midpoint of the ankles. Rendered as a dashed line on
+   * face-on snapshots so coaches can eyeball head sway, hip slide, and
+   * reverse pivot against a fixed reference. Undefined for DTL / unknown
+   * views where a vertical line isn't the right check.
+   */
+  bodyCenterlineX?: number;
+  /**
+   * Swing-plane bucket derived from `swingPlaneAngleCorrected` (fallback:
+   * `swingPlaneAngle`). Bands map to the coaching vocabulary:
+   *   very_flat   <35°  (baseball-plane, chronic hooks)
+   *   flat        35–44°
+   *   neutral     45–54° (tour driver typical)
+   *   upright     55–64° (iron / wedge typical)
+   *   very_upright ≥65°  (chops, chronic pulls)
+   * Undefined when no plane angle could be computed.
+   */
+  swingPlaneClassification?:
+    | 'very_flat' | 'flat' | 'neutral' | 'upright' | 'very_upright';
+  /**
+   * Wrist arc through the downswing (Top → Impact), sampled every frame.
+   * Normalised 2D image coords for direct canvas overlay. Rendered on the
+   * impact snapshot in DTL view as a proxy for club-head path — the wrist
+   * arc runs nearly parallel to the shaft plane through the release, so
+   * an on-plane vs. off-plane read is meaningful.
+   */
+  downswingWristArc2D?: Array<{ x: number; y: number }>;
   /** Player handedness, inferred from arm extension at Top. */
   handedness?: Handedness;
   /**
@@ -192,13 +253,69 @@ export interface SwingSummary {
   kineticSequence?: KineticSequence;
 }
 
+/**
+ * A candidate swing interval detected in a longer video. Each interval
+ * bounds a distinct swing so unedited footage — with waggle, walking, or
+ * multiple swings — can be sliced down to the meaningful segment.
+ */
+export interface SwingInterval {
+  /** Absolute seconds into the source video where this swing starts. */
+  startT: number;
+  /** Absolute seconds into the source video where this swing ends. */
+  endT: number;
+  /** Peak wrist speed within the interval (m/s if 3D, unit/s if 2D). */
+  peakSpeed: number;
+  /** Time of peak wrist speed in seconds (impact-ish). */
+  peakT: number;
+  /**
+   * 0..1 confidence this interval is a real swing. Combines peak speed,
+   * duration plausibility, and how cleanly the interval is bounded by still
+   * periods on either side. Callers can rank alternate candidates by this.
+   */
+  confidence: number;
+}
+
+/**
+ * The subset of frames the segmentation pipeline actually analyzed. When
+ * present, the coach's timeline editor uses this to render the "current
+ * analysis window" over the full video, and `rebuildAnalysis` lets them
+ * drag the window boundaries without re-sampling.
+ */
+export interface AnalyzedFrameRange {
+  startFrameIdx: number;
+  endFrameIdx: number;
+}
+
 export interface SwingAnalysis {
   /** Video source (blob URL or original URL) used for the run. */
   videoUrl: string;
-  /** Full per-frame timeline sampled from the video. */
+  /**
+   * Every frame sampled from the video (not just the analyzed window).
+   * Coach editors need the full timeline so they can drag events / trim
+   * boundaries past the auto-detected interval. Event `frameIndex` values
+   * are absolute into this array.
+   */
   frames: SwingFrame[];
+  /**
+   * Slice of `frames` that was actually fed into segmentation. Undefined
+   * when the caller passed explicit start/end times or when auto-trim
+   * found nothing (the whole video was analyzed).
+   */
+  analyzedRange?: AnalyzedFrameRange;
   /** Sample rate actually achieved (frames per second). */
   sampledFps: number;
+  /**
+   * Interval that was auto-detected and used for the analysis. Undefined
+   * when the caller passed an explicit startTime/endTime (no auto-detection
+   * ran) or when detection found no plausible swing.
+   */
+  detectedInterval?: SwingInterval;
+  /**
+   * Other swing candidates found in the video, sorted by confidence
+   * descending. Populated only when multiple plausible swings were found —
+   * UI can offer them for re-analysis. Excludes the chosen `detectedInterval`.
+   */
+  alternateIntervals?: SwingInterval[];
   /**
    * Detected source video frame rate. Undefined when the browser's
    * `requestVideoFrameCallback` isn't available (e.g. some Firefox / older

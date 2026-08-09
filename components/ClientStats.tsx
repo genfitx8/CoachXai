@@ -2,7 +2,8 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { ClientProfile, Lesson } from '../types';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine, AreaChart, Area, BarChart, Bar, Cell } from 'recharts';
-import { ArrowLeft, TrendingUp, TrendingDown, Minus, Target, Wind, Calendar, Trophy, Flag, Activity, LayoutDashboard, Crosshair, Filter, CalendarDays, RefreshCw, Percent, CircleDot, Mic, GitCompareArrows, Sparkles, AlertTriangle, Star, Pencil } from 'lucide-react';
+import { TrendingUp, TrendingDown, Minus, Target, Wind, Calendar, Trophy, Flag, Activity, LayoutDashboard, Crosshair, Filter, CalendarDays, RefreshCw, Percent, CircleDot, Mic, GitCompareArrows, Sparkles, AlertTriangle, Star, Pencil } from 'lucide-react';
+import { BackButton } from './ui/BackButton';
 import { Button } from './Button';
 import { getTourAverageDistanceM, getTourLabel, TourGender } from '../constants/tourAverages';
 import { analyzeShotStrategyStream, ShotStrategyReport } from '../services/geminiService';
@@ -696,9 +697,7 @@ export const ClientStats: React.FC<ClientStatsProps> = ({ lessons, onBack, clien
   return (
     <div className="space-y-4 animate-fade-in pb-10">
       <div className="flex items-center justify-between">
-        <Button variant="ghost" onClick={onBack} className="pl-0 hover:bg-transparent">
-             <ArrowLeft className="w-5 h-5 mr-1" /> 목록
-        </Button>
+        <BackButton onClick={onBack} tone="dark" label="목록" ariaLabel="목록으로 돌아가기" />
         <h2 className="text-lg font-bold text-gray-900">분석 리포트</h2>
       </div>
 
@@ -1152,18 +1151,18 @@ export const ClientStats: React.FC<ClientStatsProps> = ({ lessons, onBack, clien
 
                                     {/* Highlight stat card */}
                                     <div className="bg-gradient-to-br from-violet-600 via-purple-700 to-fuchsia-700 rounded-xl p-4 text-white shadow-xl shadow-purple-900/15 mb-4">
-                                        <div className="flex items-end justify-between">
-                                            <div>
+                                        <div className="flex items-end justify-between gap-2">
+                                            <div className="min-w-0">
                                                 <div className="flex items-center gap-1 opacity-90 mb-1 text-xs font-semibold">
-                                                    <Crosshair className="w-3 h-3" /> 평균 핀으로부터 거리
+                                                    <Crosshair className="w-3 h-3 flex-shrink-0" /> <span className="truncate">평균 핀으로부터 거리</span>
                                                 </div>
-                                                <div className="text-3xl font-bold leading-none">
+                                                <div className="text-2xl sm:text-3xl font-bold leading-none truncate">
                                                     {pinDistanceStats.avgPinDistance}
                                                     <span className="text-base font-medium opacity-90 ml-1">m</span>
                                                 </div>
                                             </div>
                                             {pinDistanceStats.count >= 2 && (
-                                                <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-bold ${
+                                                <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-bold flex-shrink-0 whitespace-nowrap ${
                                                     pinDistanceStats.improvement < 0
                                                         ? 'bg-emerald-400/25 text-emerald-50'
                                                         : pinDistanceStats.improvement > 0

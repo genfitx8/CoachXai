@@ -102,6 +102,75 @@ const SAMPLE_COACH: CoachProfile = {
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
+describe('bayReservationService.getAvailableBays', () => {
+  const twoHourBayReservation: BayReservation = {
+    id: 'branch1_bay1_20260325_10',
+    branchId: 'branch1',
+    bayId: 'bay1',
+    startTime: '2026-03-25T10:00:00',
+    endTime: '2026-03-25T12:00:00',
+    clientId: 'lesson_client',
+    clientName: '레슨',
+    clientPhone: '010',
+    paidPoints: 0,
+    status: 'CONFIRMED',
+    createdAt: 1000,
+  };
+
+  beforeEach(() => {
+    vi.mocked(firebaseService.isInitialized).mockReturnValue(false);
+    vi.mocked(storageService.getBays).mockReturnValue(SAMPLE_BAYS);
+    vi.mocked(storageService.getBayPriceRules).mockReturnValue([SAMPLE_PRICE_RULE]);
+  });
+
+  it('marks a bay as booked at every hour a multi-hour CONFIRMED reservation covers', async () => {
+    vi.mocked(storageService.getBayReservationsByBranch).mockReturnValue([
+      twoHourBayReservation,
+    ]);
+    // 2026-03-25 is a Wednesday and the price rule only covers hour 10, so we
+    // additionally exercise a price rule at hour 11 to confirm the bay is
+    // filtered out even when a rule exists.
+    vi.mocked(storageService.getBayPriceRules).mockReturnValue([
+      SAMPLE_PRICE_RULE,
+      { ...SAMPLE_PRICE_RULE, id: 'rule2', startHour: 11 },
+    ]);
+
+    const available = await bayReservationService.getAvailableBays(
+      'branch1',
+      '2026-03-25',
+      11
+    );
+    expect(available).toHaveLength(0);
+  });
+
+  it('treats CANCEL_REQUESTED bays as still booked', async () => {
+    vi.mocked(storageService.getBayReservationsByBranch).mockReturnValue([
+      { ...twoHourBayReservation, status: 'CANCEL_REQUESTED' },
+    ]);
+
+    const available = await bayReservationService.getAvailableBays(
+      'branch1',
+      '2026-03-25',
+      10
+    );
+    expect(available).toHaveLength(0);
+  });
+
+  it('shows the bay again once the reservation is CANCELLED', async () => {
+    vi.mocked(storageService.getBayReservationsByBranch).mockReturnValue([
+      { ...twoHourBayReservation, status: 'CANCELLED' },
+    ]);
+
+    const available = await bayReservationService.getAvailableBays(
+      'branch1',
+      '2026-03-25',
+      10
+    );
+    expect(available).toHaveLength(1);
+    expect(available[0].bay.id).toBe('bay1');
+  });
+});
+
 describe('bayReservationService.getBranchReservations', () => {
   it('uses storageService when firebase is not initialized', async () => {
     vi.mocked(firebaseService.isInitialized).mockReturnValue(false);
@@ -272,6 +341,39 @@ describe('bayReservationService.createCoachBayReservation', () => {
         bay: SAMPLE_BAYS[0],
         date: '2026-03-25',
         startHour: 10,
+        coach: SAMPLE_COACH,
+      })
+    ).rejects.toThrow('이미 예약된 타석');
+  });
+
+  it('throws when a multi-hour lesson bay block already covers the requested hour', async () => {
+    // Existing 10:00–12:00 lesson bay block; the new request at hour 11 has a
+    // different deterministic ID but must still conflict.
+    const multiHourBlock: BayReservation = {
+      id: 'branch1_bay1_20260325_10',
+      branchId: 'branch1',
+      bayId: 'bay1',
+      startTime: '2026-03-25T10:00:00',
+      endTime: '2026-03-25T12:00:00',
+      clientId: 'lesson_client',
+      clientName: 'lesson',
+      clientPhone: '010',
+      paidPoints: 0,
+      status: 'CONFIRMED',
+      createdAt: 999,
+    };
+    vi.mocked(firebaseService.getBayReservationsByBranch).mockResolvedValue([multiHourBlock]);
+    vi.mocked(firebaseService.getBayPriceRules).mockResolvedValue([
+      SAMPLE_PRICE_RULE,
+      { ...SAMPLE_PRICE_RULE, id: 'rule2', startHour: 11 },
+    ]);
+
+    await expect(
+      bayReservationService.createCoachBayReservation({
+        branch: SAMPLE_BRANCH,
+        bay: SAMPLE_BAYS[0],
+        date: '2026-03-25',
+        startHour: 11,
         coach: SAMPLE_COACH,
       })
     ).rejects.toThrow('이미 예약된 타석');

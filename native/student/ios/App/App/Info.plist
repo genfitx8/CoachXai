@@ -47,6 +47,8 @@
 	<true/>
 	<key>NSCameraUsageDescription</key>
 	<string>프로필 사진과 스윙 영상 촬영을 위해 카메라를 사용합니다.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>음성으로 AI 코치와 대화하고 스윙에 대한 음성 메모를 남기기 위해 마이크를 사용합니다.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>스윙 영상과 사진을 올리기 위해 사진 라이브러리에 접근합니다.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>

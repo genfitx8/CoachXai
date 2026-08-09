@@ -361,6 +361,24 @@ describe('reservationService – getAvailableWorkingHourSlots', () => {
     expect(slots.find((s) => s.startTime.includes('T11:'))).toBeUndefined();
   });
 
+  it('excludes every hour a multi-hour CONFIRMED reservation occupies', async () => {
+    // 10:00–12:00 spans hours 10 and 11 — both must be hidden.
+    (storageService.getReservations as any).mockReturnValue([
+      makeReservation({
+        startTime: '2026-04-01T10:00:00',
+        endTime: '2026-04-01T12:00:00',
+        status: 'CONFIRMED',
+        clientId: 'client1',
+      }),
+    ]);
+
+    const slots = await reservationService.getAvailableWorkingHourSlots('coach1', '2026-04-01');
+
+    // Working hours 09–12 minus the two occupied hours leaves only 09.
+    expect(slots).toHaveLength(1);
+    expect(slots[0].startTime).toBe('2026-04-01T09:00:00');
+  });
+
   it('returns empty array for non-working days (isClosed)', async () => {
     const closedCoach: CoachProfile = {
       ...SAMPLE_COACH,

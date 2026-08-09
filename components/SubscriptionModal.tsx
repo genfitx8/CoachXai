@@ -58,25 +58,25 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ role, user
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-gray-900/90 backdrop-blur-md p-4 animate-fade-in">
       <div className="bg-white rounded-2xl w-full max-w-md overflow-hidden shadow-2xl relative">
-        <div className={`px-8 py-8 text-center text-white relative overflow-hidden ${isCoach ? 'bg-slate-800' : 'bg-emerald-800'}`}>
+        <div className={`px-6 sm:px-8 py-6 sm:py-8 text-center text-white relative overflow-hidden ${isCoach ? 'bg-slate-800' : 'bg-emerald-800'}`}>
           <div className="absolute top-0 left-0 w-full h-full bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10"></div>
           <div className="relative z-10">
-            <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 shadow-inner ${isCoach ? 'bg-slate-700' : 'bg-emerald-700'}`}>
-                {isCoach ? <Sparkles className="w-8 h-8 text-yellow-300 fill-current" /> : <Star className="w-8 h-8 text-yellow-300 fill-current" />}
+            <div className={`w-14 h-14 sm:w-16 sm:h-16 rounded-full flex items-center justify-center mx-auto mb-4 shadow-inner ${isCoach ? 'bg-slate-700' : 'bg-emerald-700'}`}>
+                {isCoach ? <Sparkles className="w-7 h-7 sm:w-8 sm:h-8 text-yellow-300 fill-current" /> : <Star className="w-7 h-7 sm:w-8 sm:h-8 text-yellow-300 fill-current" />}
             </div>
-            <h2 className="text-2xl font-bold mb-1">{isCoach ? '프리미엄 코치 1주일 무료' : '멤버십 구독이 필요합니다'}</h2>
-            <p className={`${isCoach ? 'text-slate-300' : 'text-emerald-100'} text-sm`}>
+            <h2 className="text-xl sm:text-2xl font-bold mb-1 break-keep">{isCoach ? '프리미엄 코치 1주일 무료' : '멤버십 구독이 필요합니다'}</h2>
+            <p className={`${isCoach ? 'text-slate-300' : 'text-emerald-100'} text-sm break-keep`}>
                 {isCoach ? '지금 시작하고 7일간 모든 기능을 무료로 체험하세요.' : 'CoachX AI의 모든 기능을 이용해보세요.'}
             </p>
           </div>
         </div>
 
-        <div className="p-8">
+        <div className="p-6 sm:p-8">
           <div className="text-center mb-6">
             <p className="text-gray-500 text-sm font-medium uppercase tracking-wider mb-2">{isCoach ? 'Coach Premium Plan' : 'Member Plan'}</p>
-            <h3 className="text-4xl font-extrabold text-gray-900">
+            <h3 className="text-3xl sm:text-4xl font-extrabold text-gray-900 break-all">
               ₩{finalPrice.toLocaleString()}
-              <span className="text-lg text-gray-400 font-normal"> / 월</span>
+              <span className="text-base sm:text-lg text-gray-400 font-normal break-keep"> / 월</span>
             </h3>
             {discount > 0 && (
                 <p className="text-sm text-emerald-600 font-bold mt-1">

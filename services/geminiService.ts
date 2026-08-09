@@ -148,7 +148,7 @@ const extractModel = (result: unknown): string | undefined => {
   return typeof rec.model === 'string' && rec.model.trim() ? rec.model : undefined;
 };
 
-const invokeBackendAI = async <T>(feature: string, payload: unknown): Promise<T> => {
+export const invokeBackendAI = async <T>(feature: string, payload: unknown): Promise<T> => {
   const startedAt = Date.now();
   const meta = inspectPayload(payload);
   const injection = buildInjectionSignal(meta.userMessage);
@@ -286,7 +286,7 @@ export const recordAiFallback = (
   });
 };
 
-const getResponseText = (result: unknown): string | null => {
+export const getResponseText = (result: unknown): string | null => {
   if (typeof result === 'string') return result;
   if (!result || typeof result !== 'object') return null;
 

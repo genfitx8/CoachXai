@@ -60,10 +60,18 @@ import {
   ScorecardDetail,
   GolfCourse,
   LessonPackage,
+  VideoEditMetadata,
 } from '../types';
 import { firebaseService } from '../services/firebase';
 import { storageService } from '../services/storage';
 import { videoStore, IDB_PREFIX, resolveSync } from '../services/videoStore';
+import {
+  isMediaPermissionError,
+  requestMediaStream,
+  type MediaKind,
+} from '../utils/mediaPermissions';
+import { PermissionDeniedModal } from './PermissionDeniedModal';
+import { VideoEditor } from './VideoEditor';
 
 interface NewLessonFormProps {
   existingClients: ClientProfile[];
@@ -93,6 +101,7 @@ interface PendingMedia {
   duration?: number;
   isRemote?: boolean; // Flag for existing files
   role?: 'BEFORE' | 'AFTER';
+  editMetadata?: VideoEditMetadata; // Populated when user edits the swing video before upload
 }
 
 type RecordType = 'PRACTICE' | 'SCORE' | 'LESSON';
@@ -290,6 +299,10 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
+  const [permissionRequest, setPermissionRequest] = useState<{
+    kind: MediaKind;
+    retry: () => void;
+  } | null>(null);
 
   const getHoleVoiceUrls = (hole: HoleRecord): string[] => {
     if (hole.voiceUrls && hole.voiceUrls.length > 0) {
@@ -303,6 +316,9 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
   const [facingMode, setFacingMode] = useState<'user' | 'environment'>('user'); // Camera facing mode
+
+  // Swing-video pre-upload editor state
+  const [editorTargetId, setEditorTargetId] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -585,7 +601,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
 
   const startHoleRecording = async (holeNum: number) => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const stream = await requestMediaStream({ audio: true });
       holeChunksRef.current = [];
 
       const recorder = new MediaRecorder(stream);
@@ -662,8 +678,15 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
         1000
       );
     } catch (e) {
-      console.error(e);
-      setError(t('new_lesson_mic_required'));
+      if (isMediaPermissionError(e) && e.kind === 'denied') {
+        setPermissionRequest({
+          kind: 'microphone',
+          retry: () => startHoleRecording(holeNum),
+        });
+      } else {
+        console.error(e);
+        setError(t('new_lesson_mic_required'));
+      }
     }
   };
 
@@ -759,7 +782,63 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
 
       setTitle(`${dateStr} ${typeStr}`);
     }
+
+    // Swing video uploads open the built-in editor so the user can trim,
+    // add commentary, draw, or slow down the swing before it is saved.
+    if (type === 'video') {
+      setEditorTargetId(newItem.id);
+    }
   };
+
+  const handleEditorSave = (
+    editedBlob: Blob,
+    metadata: VideoEditMetadata
+  ) => {
+    if (!editorTargetId) return;
+    const targetId = editorTargetId;
+    const editedUrl = URL.createObjectURL(editedBlob);
+    mediaUrlsRef.current.push(editedUrl);
+    const editedFile = new File(
+      [editedBlob],
+      `swing-edited-${Date.now()}.mp4`,
+      { type: editedBlob.type || 'video/mp4' }
+    );
+
+    setMediaItems((prev) =>
+      prev.map((item) =>
+        item.id === targetId
+          ? {
+              ...item,
+              file: editedFile,
+              previewUrl: editedUrl,
+              editMetadata: metadata,
+              isRemote: false,
+            }
+          : item
+      )
+    );
+
+    // Refresh duration for the edited clip.
+    const tempVid = document.createElement('video');
+    tempVid.src = editedUrl;
+    tempVid.onloadedmetadata = () => {
+      const duration = tempVid.duration;
+      setMediaItems((prev) =>
+        prev.map((p) => (p.id === targetId ? { ...p, duration } : p))
+      );
+    };
+
+    setEditorTargetId(null);
+  };
+
+  const handleEditorSkip = () => {
+    // User dismissed the editor without applying edits — keep the original clip.
+    setEditorTargetId(null);
+  };
+
+  const editorTargetItem = editorTargetId
+    ? mediaItems.find((m) => m.id === editorTargetId)
+    : null;
 
   const removeMediaItem = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -808,7 +887,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
     try {
       setError(null);
       stopMediaStream();
-      const stream = await navigator.mediaDevices.getUserMedia({
+      const stream = await requestMediaStream({
         video: { facingMode: targetMode },
         audio: true,
       });
@@ -818,7 +897,14 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
       }
       setIsMediaReady(true);
     } catch (err) {
-      setError(t('new_lesson_camera_required'));
+      if (isMediaPermissionError(err) && err.kind === 'denied') {
+        setPermissionRequest({
+          kind: 'both',
+          retry: () => startCamera(targetMode),
+        });
+      } else {
+        setError(t('new_lesson_camera_required'));
+      }
     }
   };
 
@@ -833,11 +919,15 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
     try {
       setError(null);
       stopMediaStream();
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const stream = await requestMediaStream({ audio: true });
       streamRef.current = stream;
       setIsMediaReady(true);
     } catch (err) {
-      setError(t('new_lesson_mic_required'));
+      if (isMediaPermissionError(err) && err.kind === 'denied') {
+        setPermissionRequest({ kind: 'microphone', retry: () => startMic() });
+      } else {
+        setError(t('new_lesson_mic_required'));
+      }
     }
   };
 
@@ -1235,10 +1325,15 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
 
       const homeworkTitles = homeworkSummaries.map((s) => s.title);
 
+      const trimmedClientName = clientName.trim();
+      const trimmedClientPhone = clientPhone.trim();
       const newLesson: Lesson = {
         id: initialData ? initialData.id : crypto.randomUUID(), // Use existing ID if editing
-        clientName: clientName.trim(),
-        clientPhone: clientPhone.trim(),
+        clientId:
+          initialData?.clientId ||
+          `${trimmedClientName}_${trimmedClientPhone}`,
+        clientName: trimmedClientName,
+        clientPhone: trimmedClientPhone,
         coachId: userRole === 'CLIENT' ? currentUser?.coachId : undefined, // Assign coachId if created by client
         createdBy: userRole as 'COACH' | 'CLIENT',
         recordType,
@@ -1252,6 +1347,14 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
         videoUrl: mainMedia ? mainMedia.previewUrl : '',
         mediaType: mainMedia ? mainMedia.type : 'image',
         additionalMedia: additionalMediaObjects,
+        editedVideoUrl:
+          mainMedia?.type === 'video' && mainMedia.editMetadata
+            ? mainMedia.previewUrl
+            : initialData?.editedVideoUrl,
+        videoEditMetadata:
+          mainMedia?.type === 'video' && mainMedia.editMetadata
+            ? mainMedia.editMetadata
+            : initialData?.videoEditMetadata,
         coachNotes: notes,
         aiAnalysis: analysisResult || undefined,
         golfData: extractedGolfData,
@@ -1422,7 +1525,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
 
                 {/* Session grid */}
                 <div className="p-3">
-                  <div className="grid grid-cols-4 gap-2 sm:grid-cols-5">
+                  <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-5">
                     {Array.from({ length: pkg.totalSessions }, (_, i) => i + 1).map(
                       (sessionNumber) => {
                         const existingLesson = getSessionLesson(pkg.id, sessionNumber);
@@ -1707,6 +1810,20 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
   // STEP: FORM
   return (
     <div className="fixed inset-0 z-50 bg-[#070b12] text-slate-100 flex flex-col overflow-hidden">
+      <PermissionDeniedModal
+        open={!!permissionRequest}
+        kind={permissionRequest?.kind ?? 'microphone'}
+        onClose={() => setPermissionRequest(null)}
+        onRetry={
+          permissionRequest
+            ? () => {
+                const retry = permissionRequest.retry;
+                setPermissionRequest(null);
+                retry();
+              }
+            : undefined
+        }
+      />
       <div
         className={`px-5 py-4 flex justify-between items-center flex-shrink-0 ${
           recordType === 'SCORE'
@@ -2025,7 +2142,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
                           : 'text-slate-400 hover:text-slate-200'
                       }`}
                     >
-                      파일 업로드
+                      스윙 영상 업로드
                     </button>
                     <button
                       type="button"
@@ -2080,10 +2197,10 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
                         <Upload className="w-8 h-8" />
                       </div>
                       <p className="text-sm text-gray-600 font-medium mb-1">
-                        클릭하여 파일 업로드
+                        클릭하여 스윙 영상 업로드
                       </p>
                       <p className="text-xs text-gray-400">
-                        영상, 사진, 오디오 파일 지원 (최대 5GB)
+                        업로드 후 바로 영상 편집 가능 (최대 5GB)
                       </p>
                       <input
                         type="file"
@@ -2773,6 +2890,14 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
         </div>
         </div>
       </form>
+
+      {editorTargetItem && editorTargetItem.type === 'video' && (
+        <VideoEditor
+          videoUrl={editorTargetItem.previewUrl}
+          onSave={handleEditorSave}
+          onCancel={handleEditorSkip}
+        />
+      )}
     </div>
   );
 };

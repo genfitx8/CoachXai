@@ -364,21 +364,21 @@ export const ReservationManager: React.FC<ReservationManagerProps> = ({
           <>
             {/* Stats */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-                <p className="text-xs text-gray-500 mb-1">{t('reservation_count_all')}</p>
-                <p className="text-2xl font-bold text-gray-900">{reservations.length}</p>
+              <div className="bg-white rounded-xl p-3 sm:p-4 shadow-sm border border-gray-100 min-w-0">
+                <p className="text-xs text-gray-500 mb-1 truncate">{t('reservation_count_all')}</p>
+                <p className="text-xl sm:text-2xl font-bold text-gray-900 truncate">{reservations.length}</p>
               </div>
-              <div className="bg-yellow-50 rounded-xl p-4 shadow-sm border border-yellow-100">
-                <p className="text-xs text-yellow-600 mb-1">{t('res_status_pending')}</p>
-                <p className="text-2xl font-bold text-yellow-800">{actionRequiredCount}</p>
+              <div className="bg-yellow-50 rounded-xl p-3 sm:p-4 shadow-sm border border-yellow-100 min-w-0">
+                <p className="text-xs text-yellow-600 mb-1 truncate">{t('res_status_pending')}</p>
+                <p className="text-xl sm:text-2xl font-bold text-yellow-800 truncate">{actionRequiredCount}</p>
               </div>
-              <div className="bg-green-50 rounded-xl p-4 shadow-sm border border-green-100">
-                <p className="text-xs text-green-600 mb-1">{t('res_status_confirmed')}</p>
-                <p className="text-2xl font-bold text-green-800">{confirmedCount}</p>
+              <div className="bg-green-50 rounded-xl p-3 sm:p-4 shadow-sm border border-green-100 min-w-0">
+                <p className="text-xs text-green-600 mb-1 truncate">{t('res_status_confirmed')}</p>
+                <p className="text-xl sm:text-2xl font-bold text-green-800 truncate">{confirmedCount}</p>
               </div>
-              <div className="bg-red-50 rounded-xl p-4 shadow-sm border border-red-100">
-                <p className="text-xs text-red-500 mb-1">{t('res_status_blocked')}</p>
-                <p className="text-2xl font-bold text-red-800">{blockedCount}</p>
+              <div className="bg-red-50 rounded-xl p-3 sm:p-4 shadow-sm border border-red-100 min-w-0">
+                <p className="text-xs text-red-500 mb-1 truncate">{t('res_status_blocked')}</p>
+                <p className="text-xl sm:text-2xl font-bold text-red-800 truncate">{blockedCount}</p>
               </div>
             </div>
 
