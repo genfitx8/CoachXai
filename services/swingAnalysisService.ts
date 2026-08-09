@@ -973,8 +973,57 @@ function segmentEvents(
   if (followThrough) events.follow_through = followThrough;
   if (finish) events.finish = finish;
   enrichImpactDiagnostics(events, frames);
-  enrichRotationFromAddress(events);
+  enrichRotationFromAddress(events, frames);
   return { events, warnings };
+}
+
+/**
+ * Foreshortening-based rotation around vertical, computed from the visible
+ * image-plane distance between two symmetric landmarks (shoulders, hips).
+ * As the golfer rotates away from parallel-to-camera, the projected
+ * distance shrinks exactly as cos(rotation) — a direct measurement that
+ * doesn't touch MediaPipe's monocular Z estimate.
+ *
+ * Sign convention: for a right-hander backswing, the lead (left) shoulder
+ * rises and the trail (right) shoulder drops relative to address; that
+ * tilt asymmetry gives the direction without needing depth.
+ *
+ * Returns undefined when address confidence is too low or the address
+ * distance is degenerate (subject facing camera badly, occluded).
+ */
+function rotationFromForeshortening2D(
+  addressKp: SkeletonKeypoint[] | undefined,
+  currentKp: SkeletonKeypoint[] | undefined,
+  leftIdx: number,
+  rightIdx: number,
+): number | undefined {
+  if (!addressKp || !currentKp) return undefined;
+  const aL = addressKp[leftIdx];
+  const aR = addressKp[rightIdx];
+  const cL = currentKp[leftIdx];
+  const cR = currentKp[rightIdx];
+  if (!aL || !aR || !cL || !cR) return undefined;
+  if (aL.confidence < 0.3 || aR.confidence < 0.3) return undefined;
+  if (cL.confidence < 0.3 || cR.confidence < 0.3) return undefined;
+  const addrWidth = Math.hypot(aR.x - aL.x, aR.y - aL.y);
+  if (addrWidth < 0.02) return undefined; // subject facing badly / occluded
+  const curWidth = Math.hypot(cR.x - cL.x, cR.y - cL.y);
+  // Clamp ratio: numerical noise can push it slightly >1 (both shoulders
+  // moved apart in image due to camera drift) — a negative-rotation
+  // interpretation would be wrong, so cap at 1.
+  const ratio = Math.max(0, Math.min(1, curWidth / addrWidth));
+  const magnitude = toDeg(Math.acos(ratio));
+  // Sign from left/right vertical asymmetry vs address. In face-on view,
+  // a right-handed backswing lifts the LEFT shoulder (y decreases in
+  // MediaPipe image coords) and drops the RIGHT — the tilt change flips
+  // sign as we go through top → impact → finish.
+  const addrTilt = aR.y - aL.y;      // baseline vertical delta
+  const curTilt = cR.y - cL.y;
+  const tiltDelta = curTilt - addrTilt;
+  // Threshold guards against near-zero tilt noise flipping the sign.
+  if (Math.abs(tiltDelta) < 0.003 && magnitude < 5) return 0;
+  const sign = tiltDelta >= 0 ? 1 : -1;
+  return sign * magnitude;
 }
 
 /**
@@ -989,11 +1038,13 @@ function segmentEvents(
  */
 function enrichRotationFromAddress(
   events: Partial<Record<SwingEventName, SwingEvent>>,
+  frames: SwingFrame[],
 ): void {
   const address = events.address;
   if (!address) return;
   const shoulderAtAddress = address.metrics.shoulderRotation;
   const pelvisAtAddress = address.metrics.pelvisRotation;
+  const addressKp = frames[address.frameIndex]?.keypoints;
   // ±180 wraparound: pick the shorter signed arc so a rotation from 170° to
   // −170° reads as +20°, not −340°.
   const shortestArc = (delta: number): number => {
@@ -1004,6 +1055,8 @@ function enrichRotationFromAddress(
   };
   for (const evt of Object.values(events)) {
     if (!evt) continue;
+    // Z-based rotation delta (works well in DTL, noisy in face-on because
+    // MediaPipe's monocular Z is heuristic).
     if (typeof shoulderAtAddress === 'number' && typeof evt.metrics.shoulderRotation === 'number') {
       evt.metrics.shoulderRotationFromAddress = +shortestArc(
         evt.metrics.shoulderRotation - shoulderAtAddress,
@@ -1014,6 +1067,18 @@ function enrichRotationFromAddress(
         evt.metrics.pelvisRotation - pelvisAtAddress,
       ).toFixed(1);
     }
+    // Foreshortening-based rotation delta — the accurate signal for face-on
+    // view. Stored under a separate key so the UI / summary can select the
+    // right one based on cameraView without losing the DTL-native reading.
+    const evtKp = frames[evt.frameIndex]?.keypoints;
+    const shoulderFore = rotationFromForeshortening2D(addressKp, evtKp, 11, 12);
+    if (typeof shoulderFore === 'number') {
+      evt.metrics.shoulderRotationFromAddress2D = +shoulderFore.toFixed(1);
+    }
+    const pelvisFore = rotationFromForeshortening2D(addressKp, evtKp, 23, 24);
+    if (typeof pelvisFore === 'number') {
+      evt.metrics.pelvisRotationFromAddress2D = +pelvisFore.toFixed(1);
+    }
     // X-Factor stretch from address baseline (shoulder − pelvis delta,
     // relative to address so a coach sees how much MORE separation was
     // gained through the swing).
@@ -1023,6 +1088,16 @@ function enrichRotationFromAddress(
     ) {
       evt.metrics.hipShoulderSeparationFromAddress = +(
         evt.metrics.shoulderRotationFromAddress - evt.metrics.pelvisRotationFromAddress
+      ).toFixed(1);
+    }
+    // X-Factor from foreshortening — same idea but using the face-on
+    // accurate rotations.
+    if (
+      typeof evt.metrics.shoulderRotationFromAddress2D === 'number' &&
+      typeof evt.metrics.pelvisRotationFromAddress2D === 'number'
+    ) {
+      evt.metrics.hipShoulderSeparationFromAddress2D = +(
+        evt.metrics.shoulderRotationFromAddress2D - evt.metrics.pelvisRotationFromAddress2D
       ).toFixed(1);
     }
     // Torso lateral tilt delta from address baseline. Address's absolute
