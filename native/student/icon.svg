@@ -8,31 +8,31 @@
   </defs>
 
   <rect width="512" height="512" rx="112" fill="url(#student-bg)" />
-  <rect x="44" y="44" width="424" height="424" rx="92" fill="none" stroke="#FFFFFF" stroke-opacity="0.35" stroke-width="7" />
 
-  <g transform="translate(36,146) scale(0.6875)"
-     fill="none" stroke="#0B0F14"
+  <g transform="translate(64,136) scale(0.75)" fill="none" stroke="#0B0F14"
      stroke-linejoin="miter" stroke-miterlimit="10" stroke-linecap="butt">
-    <path d="M 229 40 L 91 40 L 22 160 L 91 280 L 229 280" stroke-width="32" />
-    <path d="M 198 94 L 122 94 L 84 160 L 122 226 L 198 226" stroke-width="32" />
-    <line x1="304" y1="40" x2="530" y2="280" stroke-width="46" />
-    <line x1="530" y1="40" x2="304" y2="280" stroke-width="46" />
+    <path d="M 250 34 L 96 34 L 20 160 L 96 286 L 250 286" stroke-width="42" />
+    <path d="M 214 96 L 138 96 L 96 160 L 138 224 L 214 224" stroke-width="42" />
+  </g>
+  <g transform="translate(64,136) scale(0.75)" fill="#0B0F14">
+    <path d="M 294 34 L 342 34 L 516 286 L 468 286 Z" />
+    <path d="M 468 34 L 516 34 L 342 286 L 294 286 Z" />
   </g>
 
   <path
-    d="M 380 88 L 442 108 L 380 128 L 318 108 Z"
+    d="M 402 68 L 462 88 L 402 108 L 342 88 Z"
     fill="#0B0F14"
     stroke="#FFFFFF"
     stroke-width="4"
     stroke-linejoin="round"
   />
   <path
-    d="M 344 118 L 344 138 C 344 152 362 160 380 160 C 398 160 416 152 416 138 L 416 118"
+    d="M 368 98 L 368 118 C 368 132 384 140 402 140 C 420 140 436 132 436 118 L 436 98"
     fill="none"
     stroke="#0B0F14"
     stroke-width="8"
     stroke-linecap="round"
   />
-  <line x1="442" y1="108" x2="442" y2="140" stroke="#0B0F14" stroke-width="6" stroke-linecap="round" />
-  <circle cx="442" cy="146" r="7" fill="#0B0F14" />
+  <line x1="462" y1="88" x2="462" y2="120" stroke="#0B0F14" stroke-width="6" stroke-linecap="round" />
+  <circle cx="462" cy="126" r="7" fill="#0B0F14" />
 </svg>

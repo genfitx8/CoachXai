@@ -7,14 +7,14 @@
   </defs>
 
   <rect width="192" height="192" rx="40" fill="url(#cx-bg-192)" />
-  <rect x="16" y="16" width="160" height="160" rx="34" fill="none" stroke="#1F2B3B" stroke-width="2" opacity="0.55" />
 
-  <g transform="translate(13.5,54.75) scale(0.258)"
-     fill="none" stroke="#F5F7FA"
+  <g transform="translate(19,48) scale(0.30)" fill="none" stroke="#0A0F13"
      stroke-linejoin="miter" stroke-miterlimit="10" stroke-linecap="butt">
-    <path d="M 229 40 L 91 40 L 22 160 L 91 280 L 229 280" stroke-width="34" />
-    <path d="M 198 94 L 122 94 L 84 160 L 122 226 L 198 226" stroke-width="34" />
-    <line x1="304" y1="40" x2="530" y2="280" stroke-width="50" />
-    <line x1="530" y1="40" x2="304" y2="280" stroke-width="50" />
+    <path d="M 250 34 L 96 34 L 20 160 L 96 286 L 250 286" stroke-width="46" />
+    <path d="M 214 96 L 138 96 L 96 160 L 138 224 L 214 224" stroke-width="46" />
+  </g>
+  <g transform="translate(19,48) scale(0.30)" fill="#0A0F13">
+    <path d="M 294 34 L 342 34 L 516 286 L 468 286 Z" />
+    <path d="M 468 34 L 516 34 L 342 286 L 294 286 Z" />
   </g>
 </svg>
