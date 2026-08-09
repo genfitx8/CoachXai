@@ -2,7 +2,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { ClientProfile, Lesson } from '../types';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine, AreaChart, Area, BarChart, Bar, Cell } from 'recharts';
-import { ArrowLeft, TrendingUp, TrendingDown, Minus, Target, Wind, Calendar, Trophy, Flag, Activity, LayoutDashboard, Crosshair, Filter, CalendarDays, RefreshCw, Percent, CircleDot, Mic, GitCompareArrows, Sparkles, AlertTriangle, Star } from 'lucide-react';
+import { ArrowLeft, TrendingUp, TrendingDown, Minus, Target, Wind, Calendar, Trophy, Flag, Activity, LayoutDashboard, Crosshair, Filter, CalendarDays, RefreshCw, Percent, CircleDot, Mic, GitCompareArrows, Sparkles, AlertTriangle, Star, Pencil } from 'lucide-react';
 import { Button } from './Button';
 import { getTourAverageDistanceM, getTourLabel, TourGender } from '../constants/tourAverages';
 import { analyzeShotStrategyStream, ShotStrategyReport } from '../services/geminiService';
@@ -64,6 +64,13 @@ export const ClientStats: React.FC<ClientStatsProps> = ({ lessons, onBack, clien
   // its markdown body). Regenerating clears the flag so coach can re-star.
   const [savedExemplarId, setSavedExemplarId] = useState<string | null>(null);
   const [isSavingExemplar, setIsSavingExemplar] = useState(false);
+  // Correction-mode state. When `editingReport` is true the report card
+  // swaps its rendered markdown for a textarea + save/cancel controls;
+  // saving persists an "edited" exemplar (tier 2) alongside any starred
+  // one. Purpose: build coach-labeled training data from real usage.
+  const [editingReport, setEditingReport] = useState(false);
+  const [editDraft, setEditDraft] = useState('');
+  const [savedEditExemplarId, setSavedEditExemplarId] = useState<string | null>(null);
 
   const canGenerateReport = useMemo(
     () => Boolean(clientProfile) && lessons.some((l) => l.golfData && l.club),
@@ -74,9 +81,11 @@ export const ClientStats: React.FC<ClientStatsProps> = ({ lessons, onBack, clien
     if (!clientProfile) return;
     setIsGeneratingReport(true);
     setReportError(null);
-    // A new generation invalidates the previous "starred" state — the
-    // exemplar was tied to the previous output.
+    // A new generation invalidates the previous "starred" and "edited"
+    // exemplar links — both were tied to the previous output.
     setSavedExemplarId(null);
+    setSavedEditExemplarId(null);
+    setEditingReport(false);
     // Clear any previous report — the spinner + streaming-in-progress
     // banner take over until the first chunk arrives.
     setAiReport(null);
@@ -164,6 +173,70 @@ export const ClientStats: React.FC<ClientStatsProps> = ({ lessons, onBack, clien
     } catch (e) {
       console.error('[ClientStats] failed to remove exemplar:', e);
       alert('별표를 해제하지 못했습니다.');
+    } finally {
+      setIsSavingExemplar(false);
+    }
+  };
+
+  const handleStartEditing = () => {
+    if (!aiReport) return;
+    setEditDraft(aiReport.markdown);
+    setEditingReport(true);
+  };
+
+  const handleCancelEditing = () => {
+    setEditingReport(false);
+    setEditDraft('');
+  };
+
+  /**
+   * Save the coach's edited version of the report as an "edited" exemplar
+   * — tier 2, ranked above "auto" but below explicit stars. Purpose: turn
+   * every act of coaching correction into labeled training data. Unlike
+   * ⭐ star, the edit path stores the coach's rewritten output, not the
+   * raw AI text, so it captures the coach's actual voice.
+   */
+  const handleSaveEdit = async () => {
+    if (!aiReport || !clientProfile) return;
+    const trimmed = editDraft.trim();
+    if (!trimmed) {
+      alert('편집 내용이 비어 있습니다.');
+      return;
+    }
+    setIsSavingExemplar(true);
+    try {
+      const id =
+        typeof crypto !== 'undefined' && 'randomUUID' in crypto
+          ? crypto.randomUUID()
+          : `exemplar_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+      const inputSnapshot = [
+        `회원: ${clientProfile.name}${clientProfile.handicap != null ? ` · 핸디캡 ${clientProfile.handicap}` : ''}`,
+        `분석 클럽: ${aiReport.clubsAnalysed.join(', ')}`,
+        `볼데이터 표본: ${aiReport.contributingLessonCount}건`,
+      ].join('\n');
+
+      const exemplar = {
+        id,
+        coachId,
+        target: 'shot_analysis' as const,
+        input: inputSnapshot,
+        output: trimmed,
+        source: 'edited' as const,
+        tier: tierForSource('edited'),
+        reason: '코치가 AI 리포트를 편집 후 저장',
+        createdAt: Date.now(),
+      };
+      const isFirebaseMode = firebaseService.isInitialized();
+      await coachStyleService.save(exemplar, isFirebaseMode);
+      setSavedEditExemplarId(id);
+      // Reflect the coach's edit in the visible report so subsequent
+      // interactions (star, re-generate, etc.) operate on the accepted
+      // version instead of the original AI draft.
+      setAiReport({ ...aiReport, markdown: trimmed });
+      setEditingReport(false);
+    } catch (e) {
+      console.error('[ClientStats] failed to save edited exemplar:', e);
+      alert('편집본을 저장하지 못했습니다.');
     } finally {
       setIsSavingExemplar(false);
     }
@@ -758,6 +831,10 @@ export const ClientStats: React.FC<ClientStatsProps> = ({ lessons, onBack, clien
                                                 <Sparkles className="w-3 h-3 text-purple-600 animate-pulse" />
                                                 <span className="text-purple-700 font-semibold">스트리밍 중…</span>
                                             </>
+                                        ) : savedEditExemplarId ? (
+                                            <>
+                                                {aiReport.contributingLessonCount}건의 볼데이터 · 클럽 {aiReport.clubsAnalysed.length}종 분석 · <span className="text-emerald-700 font-semibold">편집본 저장됨</span>
+                                            </>
                                         ) : (
                                             <>
                                                 {aiReport.contributingLessonCount}건의 볼데이터 · 클럽 {aiReport.clubsAnalysed.length}종 분석
@@ -765,15 +842,29 @@ export const ClientStats: React.FC<ClientStatsProps> = ({ lessons, onBack, clien
                                         )}
                                     </span>
                                     <div className="flex items-center gap-3">
+                                        {!editingReport && (
+                                            <button
+                                                type="button"
+                                                onClick={handleStartEditing}
+                                                disabled={isGeneratingReport || isSavingExemplar}
+                                                title="AI 리포트를 직접 편집해 코치 스타일 학습 재료로 저장 (tier 2)"
+                                                className="inline-flex items-center gap-1 font-bold text-gray-500 hover:text-purple-700 disabled:opacity-50"
+                                            >
+                                                <Pencil className="w-3.5 h-3.5" />
+                                                편집 후 저장
+                                            </button>
+                                        )}
                                         <button
                                             type="button"
                                             onClick={savedExemplarId ? handleUnstarReport : handleStarReport}
-                                            disabled={isSavingExemplar || isGeneratingReport}
+                                            disabled={isSavingExemplar || isGeneratingReport || editingReport}
                                             aria-pressed={!!savedExemplarId}
                                             aria-label={savedExemplarId ? '즐겨찾기 해제' : '이 리포트를 즐겨찾기로 저장'}
                                             title={
                                                 isGeneratingReport
                                                     ? '리포트 생성 완료 후 저장할 수 있습니다'
+                                                    : editingReport
+                                                    ? '편집 중에는 별표할 수 없습니다'
                                                     : savedExemplarId
                                                     ? '즐겨찾기 해제 (앞으로 이 스타일을 학습 재료에서 제외)'
                                                     : '이 리포트를 코치 스타일 학습 재료로 저장'
@@ -793,16 +884,49 @@ export const ClientStats: React.FC<ClientStatsProps> = ({ lessons, onBack, clien
                                         <button
                                             type="button"
                                             onClick={handleGenerateReport}
-                                            disabled={isGeneratingReport}
+                                            disabled={isGeneratingReport || editingReport}
                                             className="text-purple-600 font-bold hover:text-purple-800 disabled:opacity-50"
                                         >
                                             다시 생성
                                         </button>
                                     </div>
                                 </div>
-                                <div className="prose prose-sm max-w-none prose-headings:text-gray-800 prose-headings:font-bold prose-p:text-gray-700 prose-p:leading-relaxed prose-li:text-gray-700 prose-strong:text-purple-700">
-                                    {renderMarkdown(aiReport.markdown)}
-                                </div>
+                                {editingReport ? (
+                                    <div className="space-y-2">
+                                        <p className="text-[11px] text-gray-500 leading-relaxed">
+                                            AI 리포트를 직접 편집해 주세요. 저장하면 <strong>tier 2 exemplar</strong>로 기록되어 이후 이 회원 유형에 대한 리포트 생성 시 코치님의 스타일이 few-shot으로 주입됩니다.
+                                        </p>
+                                        <textarea
+                                            value={editDraft}
+                                            onChange={(e) => setEditDraft(e.target.value)}
+                                            className="w-full min-h-[280px] rounded-lg border border-gray-300 bg-white p-3 text-sm font-mono leading-relaxed text-gray-800 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-200"
+                                            spellCheck={false}
+                                        />
+                                        <div className="flex items-center justify-end gap-2">
+                                            <button
+                                                type="button"
+                                                onClick={handleCancelEditing}
+                                                disabled={isSavingExemplar}
+                                                className="rounded-md px-3 py-1.5 text-xs font-bold text-gray-600 hover:bg-gray-100 disabled:opacity-50"
+                                            >
+                                                취소
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={handleSaveEdit}
+                                                disabled={isSavingExemplar || !editDraft.trim()}
+                                                className="inline-flex items-center gap-1 rounded-md bg-purple-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-purple-700 disabled:opacity-50"
+                                            >
+                                                <Sparkles className="w-3 h-3" />
+                                                {isSavingExemplar ? '저장 중…' : '편집본 저장'}
+                                            </button>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="prose prose-sm max-w-none prose-headings:text-gray-800 prose-headings:font-bold prose-p:text-gray-700 prose-p:leading-relaxed prose-li:text-gray-700 prose-strong:text-purple-700">
+                                        {renderMarkdown(aiReport.markdown)}
+                                    </div>
+                                )}
                             </div>
                         )}
                     </div>
