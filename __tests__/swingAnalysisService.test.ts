@@ -742,6 +742,25 @@ describe('swingAnalysisService.rebuildAnalysis', () => {
     }
   });
 
+  it('lateral/vertical drift: hip mm from address populate on every event', () => {
+    // The synthetic frames don't include a nose landmark (index 0), so head
+    // metrics stay undefined — that's the intended graceful-degradation
+    // path. Hip metrics DO populate because hips are present.
+    const fps = 60;
+    const analysis = buildSyntheticAnalysis(fps);
+    const addr = analysis.events.address!.metrics;
+    expect(addr.hipLateralMmFromAddress).toBe(0);
+    expect(addr.hipVerticalMmFromAddress).toBe(0);
+    for (const name of ['top', 'impact', 'finish'] as const) {
+      const evt = analysis.events[name];
+      if (!evt) continue;
+      expect(typeof evt.metrics.hipLateralMmFromAddress).toBe('number');
+      expect(typeof evt.metrics.hipVerticalMmFromAddress).toBe('number');
+      // Head metrics stay undefined (no nose landmark in synthetic).
+      expect(evt.metrics.headLateralMmFromAddress).toBeUndefined();
+    }
+  });
+
   it('foreshortening rotation: face-on 2D metrics are populated on every event', () => {
     const fps = 60;
     const analysis = buildSyntheticAnalysis(fps);
