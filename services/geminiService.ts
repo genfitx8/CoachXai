@@ -52,6 +52,7 @@ import {
 import { invokeBackendAIStream, StreamNotSupportedError } from './aiStream';
 import { scanForInjection } from './promptSafety';
 import { buildPhysicsReferenceBlock } from './physicsGrounding';
+import { buildFewShotBlock, coachStyleService } from './coachStyleService';
 
 const log = createLogger('gemini');
 
@@ -3054,6 +3055,18 @@ export const analyzeShotStrategy = async (params: {
     coachId
   );
 
+  // Coach-style exemplars — the ⭐ starred and ✏️ edited reports the
+  // coach has saved. Injected as few-shot so the model mirrors the
+  // coach's tone. Falls back to global exemplars when the coach hasn't
+  // saved any yet, so a new coach still gets the benefit of the shared pool.
+  const exemplars = await coachStyleService.getForTarget(
+    'shot_analysis',
+    coachId,
+    isFirebaseMode,
+    { limit: 3 }
+  );
+  const fewShotBlock = buildFewShotBlock(exemplars);
+
   const profileLines = [
     `이름: ${clientProfile.name}`,
     clientProfile.handicap != null ? `핸디캡: ${clientProfile.handicap}` : '핸디캡: 미입력',
@@ -3076,7 +3089,7 @@ export const analyzeShotStrategy = async (params: {
     .map((a) => ({ club: a.club, clubSpeedMph: a.clubHeadSpeed.median }));
   const physicsBlock = buildPhysicsReferenceBlock(physicsLookups);
 
-  const prompt = `분석 대상 골퍼
+  const prompt = `${fewShotBlock ? `${fewShotBlock}\n\n` : ''}분석 대상 골퍼
 - ${profileLines}
 - 볼 데이터가 있는 레슨·연습 기록: ${lessonsWithData.length}건
 - 커버 클럽: ${aggregates.map((a) => `${a.club}(${a.sampleSize})`).join(', ')}
@@ -3150,6 +3163,16 @@ export const analyzeShotStrategyStream = async (params: {
     coachId
   );
 
+  // Same coach-style few-shot injection as the non-streaming variant so
+  // the streamed path also benefits from accumulated exemplars.
+  const exemplars = await coachStyleService.getForTarget(
+    'shot_analysis',
+    coachId,
+    isFirebaseMode,
+    { limit: 3 }
+  );
+  const fewShotBlock = buildFewShotBlock(exemplars);
+
   const profileLines = [
     `이름: ${clientProfile.name}`,
     clientProfile.handicap != null ? `핸디캡: ${clientProfile.handicap}` : '핸디캡: 미입력',
@@ -3172,7 +3195,7 @@ export const analyzeShotStrategyStream = async (params: {
     .map((a) => ({ club: a.club, clubSpeedMph: a.clubHeadSpeed.median }));
   const physicsBlock = buildPhysicsReferenceBlock(physicsLookups);
 
-  const prompt = `분석 대상 골퍼
+  const prompt = `${fewShotBlock ? `${fewShotBlock}\n\n` : ''}분석 대상 골퍼
 - ${profileLines}
 - 볼 데이터가 있는 레슨·연습 기록: ${lessonsWithData.length}건
 - 커버 클럽: ${aggregates.map((a) => `${a.club}(${a.sampleSize})`).join(', ')}

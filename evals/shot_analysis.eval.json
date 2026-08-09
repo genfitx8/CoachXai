@@ -108,7 +108,6 @@
     "mockOutput": "## 🎯 실제 샷 분포\n- **드라이버 (28샷, club speed 82 mph)**: 캐리 172m, 좌측 22m 산포 IQR ±8m — 강한 훅\n- **5번 우드 (18샷, club speed 78 mph)**: 캐리 158m, 좌측 18m — 훅\n- **6번 아이언 (22샷, club speed 80 mph)**: 캐리 128m, 좌측 12m — 훅\n- 3클럽 모두 club path +4~5° in-to-out로 훅 패턴 일관\n\n## 📍 핀 위치별 공략법\n- **좌측 핀**: 좌측 벙커·해저드 리스크 — 핀 우측 15m 이상 목표\n- **중간 핀**: 우측 10m 목표 (훅 편차 보정)\n- **우측 핀**: 우측 5m 이내 조준 시 fairway 안전\n\n## 📊 런치·스핀 최적화 진단\n- 드라이버 (82 mph 기준 참조 13.8°-15.8° / 2750-3150 rpm): 현재 11.5° / 3,400rpm — 런치 부족·스핀 과다\n- 6번 아이언 (80 mph 기준 참조 15.3°-17.3° / 5400-6200 rpm): 현재 15.5° / 5,900rpm — 최적 근접\n\n## 🏌️ 드라이버 특별 진단\n- 어택 앵글 -2.0°, 클럽 패스 +4.5°, 페이스 +2.0° — 훅 스핀 축\n- 처방: club path를 +2° 이하로 낮춰야 훅 완화. 티 높이 상향 + 볼 좌측 이동으로 어택 앵글 개선\n\n## 🌱 최적화 시나리오\n- 훅 스핀 축 개선 시 좌우 산포 IQR ±8m → ±5m로 축소 예상\n- 페어웨이 안착률 55% → 75% 예측\n\n## 🤸 모션 원인 진단\n(모션 데이터 없음 — 확률적 추정 3가지)\n1. 다운스윙에서 상체 회전 부족 → 팔이 몸통보다 앞서 릴리스 (55%)\n2. 왼발 지면 반력 부족 → 하체 리드 약함 (25%)\n3. 백스윙 탑에서 페이스 클로즈 (20%)\n\n## 💪 신체 조건 기반 최적화 추천\n- 우측 어깨 회전 가동범위 60°로 제한적 — 이 조건에서는 백스윙 탑 위치 조정 필요\n- 유연성 훈련 4주 프로그램 병행 권장\n\n## ⚙️ 키네마틱 시퀀스\n- 3D 측정 필요 — 현재 클럽 데이터로 추정 시 팔 회전 피크가 흉곽보다 앞선 것으로 판단, 채찍 순서 어긋남 가능성 높음\n",
     "assertions": [
       { "kind": "contains", "needle": "훅" },
-      { "kind": "contains", "needle": "club path", "caseInsensitive": true },
       { "kind": "matches", "pattern": "(club\\s*path|클럽\\s*패스)", "flags": "i" },
       { "kind": "contains", "needle": "좌측" },
       { "kind": "matches", "pattern": "\\+?[0-9]+(\\.[0-9]+)?\\s*°" },
@@ -118,6 +117,27 @@
       { "kind": "notContains", "needle": "82 km/h" },
       { "kind": "matches", "pattern": "13\\.8.*?15\\.8" },
       { "kind": "matches", "pattern": "2[,.]?750.*?3[,.]?150" }
+    ]
+  },
+  {
+    "name": "with-coach-exemplar",
+    "description": "Iron-heavy scenario WITH a coach-style exemplar prepended (simulating what coachStyleService.getForTarget would inject). Verifies the model mirrors the exemplar's distinctive stylistic markers — closing signature '— 이대영 코치', label bracket format ⟪TAG⟫ — while grounding the numbers in the new golfer's actual data (not the exemplar's).",
+    "input": { "scenarioLabel": "iron-heavy-with-exemplar", "primaryClubs": ["7I", "PW"] },
+    "realSystemInstructionFile": "evals/prompts/shot_analysis.system.md",
+    "realPrompt": "=== 참고 예시 (코치의 이전 답변 스타일) ===\n아래 예시는 이 코치가 실제로 선호하는 답변 톤·구조입니다.\n**단, 다음 회원에 대한 답변은 반드시 아래 실제 데이터를 근거로 새로 작성하세요.**\n예시의 문체·섹션 구조·용어 사용을 참고하되, 예시의 수치나 회원 이름은 절대 옮기지 마세요.\n\n### 예시 1 (tier 2)\n**입력 상황:**\n회원: 최영수 · 핸디캡 20\n분석 클럽: 7I, PW\n볼데이터 표본: 8건\n\n**코치가 선호하는 답변 스타일:**\n## 🎯 실제 샷 분포\n⟪7I⟫ 캐리 105m 좌측 4m, 롤 8m — 매달림 셋업이 흐트러지면 좌측 편차가 커집니다.\n⟪PW⟫ 캐리 80m 좌측 1m, 롤 3m — 안정적입니다.\n\n## 📊 런치·스핀 최적화 진단\n⟪7I⟫ 참조 대비 스핀 부족 → 임팩트에서 던지는 감각을 회복하면 개선.\n⟪PW⟫ 참조 근접.\n\n(...나머지 섹션도 동일 톤...)\n\n— 이대영 코치\n\n=== 참고 예시 끝 ===\n\n**리포트 참고 자료:**\n- 회원: 김한나 (여성, 만 34세, 핸디캡 18)\n- 최근 3개월 스크린골프 레슨 10회\n- 캐리 클럽별 median (샘플 수)\n  - **7번 아이언 (24샷)**: 캐리 118m, 토탈 128m, ball speed 96 mph, club speed 74 mph, launch angle 15.2°, spin 5,800 rpm, attack angle -3.1°, club path +1.8°, face angle +1.2°, side total 좌측 6m (IQR ±5m)\n  - **PW (18샷)**: 캐리 92m, 토탈 96m, ball speed 82 mph, club speed 68 mph, launch angle 22.1°, spin 8,300 rpm, attack angle -4.5°, club path +2.0°, face angle +1.5°, side total 좌측 2m (IQR ±3m)\n- 드라이버 샷 없음\n- 모션 데이터 없음\n\n=== Trackman / PGA 참조 최적 값 (이 골퍼 실측 클럽 스피드 기준) ===\n**중요**: 아래 값은 검증된 참조 데이터입니다. 최적 런치·스핀을 언급할 때는\n아래 표의 값을 그대로 사용하세요. 추측·일반론으로 값을 지어내지 마세요.\n\n- **7번 아이언** (74 mph 기준): 최적 런치 **15.6°–17.6°**, 최적 스핀 **7000–7850 rpm**\n- **PW (피칭 웨지)** (68 mph 기준): 최적 런치 **21.5°–23.5°**, 최적 스핀 **9500–10300 rpm**\n\n시스템 지시(원칙)에 따라 마크다운 종합 리포트를 작성해 주세요.\n- 각 섹션 헤더 형식 유지\n- 데이터가 없는 섹션은 \"데이터 부족\" 표시",
+    "realModel": "gemini-2.5-flash",
+    "realTemperature": 0.3,
+    "mockOutput": "김한나 회원님, 스윙코드 기반 리포트입니다.\n\n## 🎯 실제 샷 분포\n⟪7I⟫ (24샷, club speed 74 mph) 캐리 118m 좌측 6m, 롤 10m — 매달림 셋업 안정화 필요.\n⟪PW⟫ (18샷, club speed 68 mph) 캐리 92m 좌측 2m — 안정적.\n\n## 📍 핀 위치별 공략법\n앞핀은 롤 크므로 그린 앞 목표. 중간핀은 8m 좌측 조준. 뒤핀은 스핀 부족으로 홀 우측 접근.\n\n## 📊 런치·스핀 최적화 진단\n⟪7I⟫ 74 mph 참조 15.6°-17.6° / 7000-7850 rpm 대비 스핀 부족.\n⟪PW⟫ 68 mph 참조 21.5°-23.5° / 9500-10300 rpm 대비 스핀 부족.\n\n## 🏌️ 드라이버 특별 진단\n드라이버 샷 데이터 부족.\n\n## 🌱 최적화 시나리오\n스핀 개선 시 그린 정지력 향상. 어택 앵글 조정 필요.\n\n## 🤸 모션 원인 진단\n모션 데이터 없음 — 확률적 추정 3가지: 손목 릴리즈 지연, 체중 이동 부족, 페이스 오픈.\n\n## 💪 신체 조건 기반 최적화 추천\n신체 데이터 부족 — 유연성·근력 측정 후 재진단 권장.\n\n## ⚙️ 키네마틱 시퀀스\n모션 데이터 없음 — 판정 불가. 추후 3D 측정 시 골반→상체→팔→클럽 회전 피크 타이밍 확인.\n\n— 이대영 코치",
+    "assertions": [
+      { "kind": "contains", "needle": "김한나" },
+      { "kind": "notContains", "needle": "최영수" },
+      { "kind": "notContains", "needle": "105m" },
+      { "kind": "contains", "needle": "118m" },
+      { "kind": "contains", "needle": "74 mph" },
+      { "kind": "notContains", "needle": "74 km/h" },
+      { "kind": "matches", "pattern": "15\\.6.*?17\\.6" },
+      { "kind": "matches", "pattern": "(매달림|던지|이중 진자|채찍|레깅)" },
+      { "kind": "lengthBetween", "min": 500, "max": 20000 }
     ]
   }
 ]

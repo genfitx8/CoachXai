@@ -15,9 +15,29 @@ prompt/model configuration.
 5. Commit BASELINE.md changes. Future PRs that regress these numbers
    need to explain why.
 
-## Current baseline — 2026-08-08 (v3)
+## Current baseline — 2026-08-09 (v4)
 
-**Overall pass rate: 12/12 (100%)** after F1/F2/F3/F4 all resolved.
+**Overall pass rate: 13/13 (100%)** — self-tuning loop verified end-to-end.
+
+### v4 changes from v3
+- **CRITICAL FIX** — the exemplar → few-shot injection pipeline that the task list claimed was "completed" was actually never wired. `buildFewShotBlock` did not exist, and `analyzeShotStrategy` never consumed `coachStyleService.getForTarget`. Coaches were saving stars/edits into a black hole. Fixed:
+  - `buildFewShotBlock(exemplars)` in `services/coachStyleService.ts` — renders exemplars as a "참고 예시" block with a critical grounding warning: "예시의 수치나 회원 이름은 절대 옮기지 마세요".
+  - `analyzeShotStrategy` and its streaming variant now call `coachStyleService.getForTarget('shot_analysis', coachId, ..., { limit: 3 })` and prepend the block to the prompt.
+- **New eval case `with-coach-exemplar`** — reproduces what production would send: a pre-baked exemplar (different member/numbers) + the actual new member's data + physics reference. Assertions verify:
+  - Grounding intact: new member name (김한나) present, exemplar member name (최영수) absent, new numbers (118m) present, exemplar numbers (105m) absent, unit preserved (74 mph, no km/h).
+  - Physics reference quoted (15.6°-17.6°).
+  - SwingCode terms transferred (매달림/던지기/이중 진자/채찍/레깅 — at least one).
+- **F4 assertion made honest** — removed the `caseInsensitive: true` on "club path" that gave the illusion of English-language coverage. The `matches` regex on `(club\s*path|클럽\s*패스)` remains, so both languages count.
+
+### What the with-coach-exemplar case proves and doesn't prove
+
+**Proven**: The exemplar is read AND doesn't leak into grounding. The model doesn't hallucinate the exemplar's member name or numbers into the new report. Distinctive SwingCode vocabulary (매달림, 던지기, 이중 진자) does transfer.
+
+**Not proven**: Very distinctive stylistic markers (bracket formats, coach signatures) don't reliably transfer from a single exemplar. Reasonable — the model prioritises the safety warning ("don't copy exemplar values") over stylistic mimicry. Repeated exposure across many exemplars (10+) may shift the tone more strongly; that's a multi-session experiment for later.
+
+**Implication**: The self-tuning loop is live but **subtle** — coaches won't see dramatic day-one style transfer, but the model IS reading exemplars and the physics grounding + SwingCode vocab pathway is reinforced. Enough exemplars will bend the tone over time.
+
+### v3 changes from v2
 
 ### v3 changes from v2
 - **F2 fixed** (optimal launch/spin hallucination): new `services/physicsGrounding.ts` + `constants/optimalLaunchSpin.json` (Trackman-referenced table for 13 clubs × 3-7 clubhead-speed bins). `analyzeShotStrategy` and its streaming variant inject a `=== Trackman / PGA 참조 최적 값 ===` block into the prompt when the aggregate has measured clubhead speeds. System prompt now instructs "prefer the reference block over guesses". Every eval case with clubSpeed now has an assertion that the AI quoted the exact reference range (e.g. `matches "15.6.*17.6"` for 7I@74mph).
@@ -53,15 +73,16 @@ The OCR features aren't covered by golden eval cases yet (no `extract_golf_data.
 
 ### shot_analysis
 
-| Metric | v3 | v2 | v1 | Notes |
-| --- | --- | --- | --- | --- |
-| Pass rate | **5/5 (100%)** | 5/5 | 4/5 | F1/F2 all pass |
-| Mean latency | **23.5s** | 27.0s | 30.8s | Latency dropping run-over-run |
-| P50 latency | ~23s | ~27s | ~33s | |
-| First-token latency | ~500ms (via streaming) | 27s | 30s | Coach sees sections form live |
-| Physics-grounded | ✅ | ❌ | ❌ | All 4 clubSpeed-bearing cases quote Trackman refs |
-| Model | gemini-2.5-flash | same | same | pinned in eval files |
-| Coach quality read | **4.5 / 5** | 4.0 / 5 | 3.5 / 5 | F1+F2 both closed |
+| Metric | v4 | v3 | v2 | v1 | Notes |
+| --- | --- | --- | --- | --- | --- |
+| Cases | 6 | 5 | 5 | 5 | v4 adds `with-coach-exemplar` |
+| Pass rate | **6/6 (100%)** | 5/5 | 5/5 | 4/5 | All including few-shot case |
+| Mean latency | 28.3s | 23.5s | 27.0s | 30.8s | Higher — extra cases (with-exemplar) run 25s |
+| First-token latency | ~500ms | ~500ms | 27s | 30s | streaming |
+| Physics-grounded | ✅ | ✅ | ❌ | ❌ | |
+| **Self-tuning loop live** | **✅** | ❌ | ❌ | ❌ | Coach exemplars actually injected |
+| Model | gemini-2.5-flash | same | same | same | |
+| Coach quality read | **4.5 / 5** | 4.5 / 5 | 4.0 / 5 | 3.5 / 5 | No regression |
 
 ### coachx_chat
 

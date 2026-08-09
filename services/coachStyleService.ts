@@ -141,3 +141,37 @@ export const coachStyleService = {
     return storageService.getCoachStyleExemplars();
   },
 };
+
+/**
+ * Format a set of ranked exemplars as a "참고 예시" block that can be
+ * prepended to the model prompt. The tag "참고 예시" is also what the
+ * observability logger looks for to set `hasExemplars=true` on the log
+ * entry — keeping the marker consistent avoids silent telemetry drift.
+ *
+ * Returns an empty string when `exemplars` is empty so callers can safely
+ * template the result unconditionally.
+ *
+ * Each exemplar is rendered as:
+ *
+ *   ### 예시 N (tier T)
+ *   **입력 상황:** <input>
+ *   **코치가 선호하는 답변 스타일:**
+ *   <output>
+ */
+export const buildFewShotBlock = (exemplars: CoachStyleExemplar[]): string => {
+  if (!exemplars.length) return '';
+  const rows = exemplars.map((ex, i) => {
+    const header = `### 예시 ${i + 1} (tier ${ex.tier})`;
+    return `${header}\n**입력 상황:**\n${ex.input}\n\n**코치가 선호하는 답변 스타일:**\n${ex.output}`;
+  });
+  return [
+    '=== 참고 예시 (코치의 이전 답변 스타일) ===',
+    '아래 예시는 이 코치가 실제로 선호하는 답변 톤·구조입니다.',
+    '**단, 다음 회원에 대한 답변은 반드시 아래 실제 데이터를 근거로 새로 작성하세요.**',
+    '예시의 문체·섹션 구조·용어 사용을 참고하되, 예시의 수치나 회원 이름은 절대 옮기지 마세요.',
+    '',
+    rows.join('\n\n---\n\n'),
+    '',
+    '=== 참고 예시 끝 ===',
+  ].join('\n');
+};

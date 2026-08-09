@@ -11,7 +11,11 @@
  */
 
 import { beforeEach, describe, expect, it } from 'vitest';
-import { coachStyleService, tierForSource } from '../services/coachStyleService';
+import {
+  buildFewShotBlock,
+  coachStyleService,
+  tierForSource,
+} from '../services/coachStyleService';
 import { storageService } from '../services/storage';
 import type { CoachStyleExemplar, CoachStyleExemplarSource } from '../types';
 
@@ -149,5 +153,50 @@ describe('coachStyleService.save + getForTarget', () => {
 
     await coachStyleService.delete('gone', false);
     expect(storageService.getCoachStyleExemplars()).toHaveLength(0);
+  });
+});
+
+describe('buildFewShotBlock', () => {
+  it('returns empty string when no exemplars are provided', () => {
+    expect(buildFewShotBlock([])).toBe('');
+  });
+
+  it('renders one section per exemplar with input + output', () => {
+    const md = buildFewShotBlock([
+      makeExemplar({
+        id: 'a',
+        tier: 1,
+        input: '회원 A 상황',
+        output: '코치가 준 답변 A',
+      }),
+      makeExemplar({
+        id: 'b',
+        tier: 2,
+        input: '회원 B 상황',
+        output: '코치가 준 답변 B',
+      }),
+    ]);
+    expect(md).toContain('### 예시 1 (tier 1)');
+    expect(md).toContain('### 예시 2 (tier 2)');
+    expect(md).toContain('회원 A 상황');
+    expect(md).toContain('코치가 준 답변 A');
+    expect(md).toContain('회원 B 상황');
+    expect(md).toContain('코치가 준 답변 B');
+  });
+
+  it('carries the "참고 예시" marker so aiCallLogger tags hasExemplars', () => {
+    // The observability layer detects few-shot injection by scanning for
+    // this exact string. Keeping the marker consistent means telemetry
+    // stays honest about which calls carried exemplars.
+    const md = buildFewShotBlock([makeExemplar({ id: 'x' })]);
+    expect(md).toContain('참고 예시');
+  });
+
+  it('warns the model not to copy the exemplar values verbatim', () => {
+    // Without this guard the model tends to hallucinate the exemplar's
+    // numbers into the new report. This regression check prevents a
+    // future edit from silently dropping the instruction.
+    const md = buildFewShotBlock([makeExemplar({ id: 'x' })]);
+    expect(md).toContain('예시의 수치나 회원 이름은 절대 옮기지 마세요');
   });
 });
