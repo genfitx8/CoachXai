@@ -5,23 +5,20 @@
       <stop offset="0.55" stop-color="#F97316" />
       <stop offset="1" stop-color="#EA580C" />
     </linearGradient>
-    <linearGradient id="student-accent" x1="164" y1="154" x2="386" y2="368" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#0B0F14" />
-      <stop offset="1" stop-color="#1F2937" />
-    </linearGradient>
   </defs>
+
   <rect width="512" height="512" rx="112" fill="url(#student-bg)" />
   <rect x="44" y="44" width="424" height="424" rx="92" fill="none" stroke="#FFFFFF" stroke-opacity="0.35" stroke-width="7" />
-  <path
-    d="M 184 352 C 127 352 86 311 86 254 C 86 197 127 156 184 156 C 208 156 229 164 247 180"
-    fill="none"
-    stroke="#0B0F14"
-    stroke-width="38"
-    stroke-linecap="round"
-    stroke-linejoin="round"
-  />
-  <path d="M 256 168 L 384 344" fill="none" stroke="url(#student-accent)" stroke-width="42" stroke-linecap="round" />
-  <path d="M 384 168 L 256 344" fill="none" stroke="#FFFFFF" stroke-width="31" stroke-linecap="round" />
+
+  <g transform="translate(36,146) scale(0.6875)"
+     fill="none" stroke="#0B0F14"
+     stroke-linejoin="miter" stroke-miterlimit="10" stroke-linecap="butt">
+    <path d="M 229 40 L 91 40 L 22 160 L 91 280 L 229 280" stroke-width="32" />
+    <path d="M 198 94 L 122 94 L 84 160 L 122 226 L 198 226" stroke-width="32" />
+    <line x1="304" y1="40" x2="530" y2="280" stroke-width="46" />
+    <line x1="530" y1="40" x2="304" y2="280" stroke-width="46" />
+  </g>
+
   <path
     d="M 380 88 L 442 108 L 380 128 L 318 108 Z"
     fill="#0B0F14"

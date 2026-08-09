@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 320" role="img" aria-label="CoachX">
+  <g fill="none" stroke="currentColor" stroke-linejoin="miter" stroke-miterlimit="10" stroke-linecap="butt">
+    <path d="M 229 40 L 91 40 L 22 160 L 91 280 L 229 280" stroke-width="22" />
+    <path d="M 198 94 L 122 94 L 84 160 L 122 226 L 198 226" stroke-width="22" />
+    <line x1="304" y1="40" x2="530" y2="280" stroke-width="36" />
+    <line x1="530" y1="40" x2="304" y2="280" stroke-width="36" />
+  </g>
+</svg>
