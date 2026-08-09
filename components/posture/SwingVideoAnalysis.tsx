@@ -435,52 +435,7 @@ const EventSnapshot: React.FC<EventSnapshotProps> = ({
         />
       </div>
       <div className="grid grid-cols-2 gap-2 p-3 text-[11px]">
-        {event.name === 'impact' ? (
-          <>
-            {/* Head sway (X-axis) is only physically meaningful from the
-                face-on camera — from DTL, lateral head motion collapses
-                onto the depth axis where MediaPipe Z is noisy. */}
-            {cameraView !== 'down_the_line' && (
-              <MetricRow
-                label="머리 드리프트"
-                value={metricMm('headSwayMm')}
-                tone={impactTone(event.metrics.headSwayMm, 50, 100)}
-                hint={cameraView === 'face_on' ? '정면 뷰 · X 이동' : '어드레스 대비 X 이동'}
-              />
-            )}
-            {/* Early extension (hip drift toward the camera along Z) reads
-                cleanly from DTL where Z is the depth axis; from face-on
-                it's hidden inside the pose model's Z noise. */}
-            {cameraView !== 'face_on' && (
-              <MetricRow
-                label="얼리 익스텐션"
-                value={metricMm('earlyExtensionMm')}
-                tone={impactTone(event.metrics.earlyExtensionMm, 40, 80)}
-                hint={cameraView === 'down_the_line' ? '측면 뷰 · 골반 Z' : '어드레스 대비 골반 Z 이동'}
-              />
-            )}
-            {/* Spine tilt delta reads accurately from DTL (side profile);
-                from face-on the spine rotates in-plane and the metric noises
-                out — hide instead of showing a misleading number. */}
-            {cameraView !== 'face_on' && (
-              <MetricRow
-                label="자세 유지"
-                value={metricSignedDeg('spineTiltDelta')}
-                tone={
-                  event.metrics.spineTiltDelta == null
-                    ? undefined
-                    : Math.abs(event.metrics.spineTiltDelta) <= 5
-                    ? 'ok'
-                    : Math.abs(event.metrics.spineTiltDelta) <= 12
-                    ? 'warn'
-                    : 'bad'
-                }
-                hint={cameraView === 'down_the_line' ? '측면 뷰 · 척추 각' : '어드레스 대비 척추 각 변화'}
-              />
-            )}
-            <MetricRow label="X-Factor" value={metricAngle('hipShoulderSeparation')} />
-          </>
-        ) : event.name === 'address' ? (
+        {event.name === 'address' ? (
           <>
             <MetricRow
               label="척추 기울기"
@@ -508,73 +463,71 @@ const EventSnapshot: React.FC<EventSnapshotProps> = ({
               hint="목표 150–170°"
             />
             <MetricRow label="어깨 회전" value="0.0°" hint="어드레스 기준 (0°)" />
-            {cameraView === 'face_on' && (
-              <>
-                <MetricRow label="머리 좌우" value="0mm" hint="어드레스 기준" />
-                <MetricRow label="머리 상하" value="0mm" hint="어드레스 기준" />
-                <MetricRow label="골반 좌우" value="0mm" hint="어드레스 기준" />
-                <MetricRow label="골반 상하" value="0mm" hint="어드레스 기준" />
-              </>
-            )}
+            <MetricRow
+              label={cameraView === 'face_on' ? '머리 좌우' : '머리 앞뒤'}
+              value="0mm"
+              hint="어드레스 기준"
+            />
+            <MetricRow label="머리 상하" value="0mm" hint="어드레스 기준" />
+            <MetricRow
+              label={cameraView === 'face_on' ? '골반 좌우' : '골반 앞뒤'}
+              value="0mm"
+              hint="어드레스 기준"
+            />
+            <MetricRow label="골반 상하" value="0mm" hint="어드레스 기준" />
           </>
         ) : (
           <>
-            {/* Face-on view uses foreshortening-based rotation (2D image
-                plane, doesn't touch MediaPipe's noisy monocular Z). DTL
-                view uses the 3D Z-based rotation which is naturally
-                suited to that camera angle. */}
+            {/* All rotation readouts use the 2D foreshortening method
+                regardless of view — image-plane geometry works for both
+                face-on (shoulders shrink) and DTL (shoulders align).
+                MediaPipe's monocular Z is unreliable in either view, so we
+                don't use it here. */}
             <MetricRow
               label="어깨 회전"
-              value={metricSignedDeg(
-                cameraView === 'face_on'
-                  ? 'shoulderRotationFromAddress2D'
-                  : 'shoulderRotationFromAddress',
-              )}
-              hint={cameraView === 'face_on' ? '정면 · 포어숏트닝' : '어드레스 기준'}
+              value={metricSignedDeg('shoulderRotationFromAddress2D')}
+              hint="포어숏트닝 · 2D 측정"
             />
             <MetricRow
               label="골반 회전"
-              value={metricSignedDeg(
-                cameraView === 'face_on'
-                  ? 'pelvisRotationFromAddress2D'
-                  : 'pelvisRotationFromAddress',
-              )}
-              hint={cameraView === 'face_on' ? '정면 · 포어숏트닝' : '어드레스 기준'}
+              value={metricSignedDeg('pelvisRotationFromAddress2D')}
+              hint="포어숏트닝 · 2D 측정"
             />
             <MetricRow
               label="X-Factor"
-              value={metricSignedDeg(
-                cameraView === 'face_on'
-                  ? 'hipShoulderSeparationFromAddress2D'
-                  : 'hipShoulderSeparationFromAddress',
-              )}
+              value={metricSignedDeg('hipShoulderSeparationFromAddress2D')}
               hint="어깨−골반 (어드레스 기준)"
             />
             <MetricRow
               label="상체 측면 기울기"
               value={metricSignedDeg('torsoLateralTiltFromAddress')}
-              hint="정면 뷰 · 어드레스 대비 Δ"
+              hint="이미지 평면 · 어드레스 대비 Δ"
             />
-            {/* Face-on lateral / vertical drift readouts — the coach-scan
-                metrics that make a face-on clip actually useful. Hidden in
-                DTL because X/Y drift there mixes true motion with depth
-                projection. */}
-            {cameraView === 'face_on' && (
+            {/* Lateral / vertical mm drift — the coach-scan movement
+                metrics. Enabled for both views because they measure
+                image-plane displacement, which is meaningful in each:
+                face-on → left/right + vertical; DTL → depth (앞뒤) +
+                vertical. Labels adjust so the coach reads the right axis. */}
+            {(cameraView === 'face_on' || cameraView === 'down_the_line') && (
               <>
                 <MetricRow
-                  label="머리 좌우"
+                  label={cameraView === 'face_on' ? '머리 좌우' : '머리 앞뒤'}
                   value={metricSignedMm('headLateralMmFromAddress')}
-                  hint="+ 오른쪽 / − 왼쪽"
+                  hint={cameraView === 'face_on' ? '+ 오른쪽 / − 왼쪽' : '카메라 기준'}
                 />
                 <MetricRow
                   label="머리 상하"
                   value={metricSignedMm('headVerticalMmFromAddress')}
-                  hint="+ 위 / − 아래"
+                  hint="+ 위 / − 아래 (헤드 바브)"
                 />
                 <MetricRow
-                  label="골반 좌우"
+                  label={cameraView === 'face_on' ? '골반 좌우' : '골반 앞뒤 (얼리 익스텐션)'}
                   value={metricSignedMm('hipLateralMmFromAddress')}
-                  hint="+ 오른쪽 / − 왼쪽 (체중이동)"
+                  hint={
+                    cameraView === 'face_on'
+                      ? '+ 오른쪽 / − 왼쪽 (체중이동)'
+                      : '카메라 방향 이동 = 얼리 익스텐션'
+                  }
                 />
                 <MetricRow
                   label="골반 상하"
