@@ -54,6 +54,7 @@ import {
   PromptAttachment,
   PromptTarget,
   CoachStyleExemplar,
+  AiCallLog,
 } from '../types';
 import { createLogger } from '../utils/logger';
 
@@ -1192,5 +1193,30 @@ export const firebaseService = {
   deleteCoachStyleExemplar: async (exemplarId: string): Promise<void> => {
     if (!db) throw new Error('Firebase not initialized');
     await deleteDoc(doc(db, 'coach_style_exemplars', exemplarId));
+  },
+
+  // ── AI Call Log Operations (Observability) ────────────────────────────────
+
+  getAiCallLogs: async (): Promise<AiCallLog[]> => {
+    if (!db) return [];
+    try {
+      const snap = await getDocs(collection(db, 'ai_call_logs'));
+      return snap.docs.map((d) => d.data() as AiCallLog);
+    } catch (e) {
+      log.error('Failed to fetch AI call logs:', e);
+      return [];
+    }
+  },
+
+  saveAiCallLog: async (entry: AiCallLog): Promise<void> => {
+    if (!db) throw new Error('Firebase not initialized');
+    // Normalise optional coachId to null so equality queries against global
+    // rows work, mirroring the pattern used for other collections.
+    const normalised: AiCallLog & { coachId: string | null } = {
+      ...entry,
+      coachId: entry.coachId ?? null,
+    };
+    const cleaned = removeUndefinedFields(normalised);
+    await setDoc(doc(db, 'ai_call_logs', entry.id), cleaned);
   },
 };

@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Lesson, ClientProfile, CoachProfile } from '../types';
 import { ChevronLeft, Send, Sparkles, Bot, Mic, MicOff, Volume2 } from 'lucide-react';
 import { CoachXChatMessage } from '../services/coachXService';
-import { generateCoachXChatResponse } from '../services/geminiService';
+import { generateCoachXChatResponseStream } from '../services/geminiService';
 import { useLanguage } from './LanguageContext';
 import { useTypingReveal } from '../hooks/useTypingReveal';
 import { useTextToSpeech } from '../hooks/useTextToSpeech';
@@ -92,18 +92,56 @@ export const CoachXChat: React.FC<CoachXChatProps> = ({
     stopSpeaking();
 
     const userMsg: CoachXChatMessage = { role: 'user', content: msgText, timestamp: Date.now() };
-    setMessages(prev => [...prev, userMsg]);
+    const assistantTs = Date.now() + 1;
+    // Push the user message AND an empty assistant placeholder up-front so the
+    // stream can update the placeholder in-place. Identified by timestamp
+    // (unique per turn) to avoid touching earlier messages if the user
+    // fires multiple sends in quick succession.
+    setMessages(prev => [
+      ...prev,
+      userMsg,
+      { role: 'assistant', content: '', timestamp: assistantTs },
+    ]);
     setInput('');
     setIsTyping(true);
 
-    const historyForAI = [...messages, userMsg].slice(0, -1).map(m => ({ role: m.role, content: m.content }));
-    const reply = await generateCoachXChatResponse(msgText, allLessons, clients, language, historyForAI);
+    const historyForAI = [...messages, userMsg].map(m => ({ role: m.role, content: m.content }));
 
-    setMessages(prev => [...prev, { role: 'assistant', content: reply, timestamp: Date.now() }]);
+    const reply = await generateCoachXChatResponseStream(
+      msgText,
+      allLessons,
+      clients,
+      (_delta, accumulated) => {
+        // Update the placeholder message in-place as chunks arrive. The
+        // in-place update is why streaming feels instant — the DOM
+        // repaints on every token instead of once at the end.
+        setMessages(prev =>
+          prev.map(m =>
+            m.timestamp === assistantTs && m.role === 'assistant'
+              ? { ...m, content: accumulated }
+              : m
+          )
+        );
+      },
+      language,
+      historyForAI,
+    );
+
+    // Guarantee the final content matches the full reply — covers the
+    // heuristic fallback path where onChunk is called once with the full
+    // text and the streaming path where the last chunk already landed.
+    setMessages(prev =>
+      prev.map(m =>
+        m.timestamp === assistantTs && m.role === 'assistant'
+          ? { ...m, content: reply }
+          : m
+      )
+    );
     setIsTyping(false);
     speak(reply);
-    startReveal(reply);
-  }, [input, messages, allLessons, clients, language, clearReveal, stopSpeaking, speak, startReveal]);
+    // Skip the client-side typing reveal — the natural streaming already
+    // provides that effect and re-revealing on top would double up.
+  }, [input, messages, allLessons, clients, language, clearReveal, stopSpeaking, speak]);
 
   const { isListening, stopListening, toggleListening } = useSpeechRecognition({
     language,

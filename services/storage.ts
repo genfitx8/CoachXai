@@ -1,4 +1,4 @@
-import { Lesson, ClientProfile, Homework, HomeworkTemplate, NotificationMessage, GolfCourse, CoachProfile, LessonReservation, Branch, BranchAdminAccount, Bay, BayPriceRule, BayReservation, LessonPackage, TrainingProgram, QuickLogEntry, WeeklyInsight, PromptTemplate, PromptTarget, PromptAttachment, CoachStyleExemplar } from '../types';
+import { Lesson, ClientProfile, Homework, HomeworkTemplate, NotificationMessage, GolfCourse, CoachProfile, LessonReservation, Branch, BranchAdminAccount, Bay, BayPriceRule, BayReservation, LessonPackage, TrainingProgram, QuickLogEntry, WeeklyInsight, PromptTemplate, PromptTarget, PromptAttachment, CoachStyleExemplar, AiCallLog } from '../types';
 import { createLogger } from '../utils/logger';
 
 const log = createLogger('storage');
@@ -23,7 +23,13 @@ const STORAGE_KEYS = {
   WEEKLY_INSIGHTS: 'swingnote_weekly_insights',
   PROMPT_TEMPLATES: 'swingnote_prompt_templates',
   COACH_STYLE_EXEMPLARS: 'coachxai_style_exemplars',
+  AI_CALL_LOGS: 'coachxai_ai_call_logs',
 };
+
+// Rolling cap so the localStorage bucket doesn't grow without bound. Firestore
+// mode has no such limit — the whole collection is kept there. 1000 records
+// covers roughly a week of heavy solo-coach usage.
+const AI_CALL_LOGS_LOCAL_CAP = 1000;
 
 export const storageService = {
   saveLessons: (lessons: Lesson[]) => {
@@ -811,6 +817,38 @@ export const storageService = {
       );
     } catch (e) {
       log.error('Failed to delete coach style exemplar', e);
+    }
+  },
+
+  // ── AI Call Log Methods (Observability) ────────────────────────────────────
+
+  getAiCallLogs: (): AiCallLog[] => {
+    try {
+      const data = localStorage.getItem(STORAGE_KEYS.AI_CALL_LOGS);
+      return data ? JSON.parse(data) : [];
+    } catch (e) {
+      log.error('Failed to read AI call logs', e);
+      return [];
+    }
+  },
+
+  saveAiCallLog: (entry: AiCallLog): void => {
+    try {
+      const existing = storageService.getAiCallLogs();
+      // Newest first; drop the tail when we exceed the rolling cap so a busy
+      // coach doesn't blow past the localStorage quota.
+      const next = [entry, ...existing].slice(0, AI_CALL_LOGS_LOCAL_CAP);
+      localStorage.setItem(STORAGE_KEYS.AI_CALL_LOGS, JSON.stringify(next));
+    } catch (e) {
+      log.error('Failed to save AI call log', e);
+    }
+  },
+
+  clearAiCallLogs: (): void => {
+    try {
+      localStorage.removeItem(STORAGE_KEYS.AI_CALL_LOGS);
+    } catch (e) {
+      log.error('Failed to clear AI call logs', e);
     }
   },
 };

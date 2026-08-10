@@ -18,6 +18,11 @@ dist-ssr
 capacitor.config.ts
 capacitor.config.ts.bak-*
 
+# Eval run logs — per-timestamp markdown output from scripts/runEval.mjs.
+# Never commit: they capture full model output (may contain member names /
+# scenario data) and rotate on every run.
+evals/runs/
+
 # Local Android build outputs / IDE state
 native/**/android/.gradle/
 native/**/android/build/

@@ -11,6 +11,7 @@ import { AdminBranchStaffManager } from './AdminBranchStaffManager';
 import { AdminPromptManager } from './AdminPromptManager';
 import { AdminCurriculumTemplateManager } from './AdminCurriculumTemplateManager';
 import { AdminCoachActivity } from './AdminCoachActivity';
+import { AdminAiObservability } from './AdminAiObservability';
 import { useLanguage } from './LanguageContext';
 
 interface AdminDashboardProps {
@@ -46,7 +47,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   onChangeSubscriptionPlan
 }) => {
   const { t } = useLanguage();
-  const [activeTab, setActiveTab] = useState<'CLIENTS' | 'LESSONS' | 'SYSTEM' | 'TEMPLATES' | 'MESSAGES' | 'COURSES' | 'BRANCHES' | 'BRANCH_STAFF' | 'AI_PROMPTS' | 'COACH_ACTIVITY' | 'CURRICULUM_TEMPLATES'>('CLIENTS');
+  const [activeTab, setActiveTab] = useState<'CLIENTS' | 'LESSONS' | 'SYSTEM' | 'TEMPLATES' | 'MESSAGES' | 'COURSES' | 'BRANCHES' | 'BRANCH_STAFF' | 'AI_PROMPTS' | 'AI_OBSERVABILITY' | 'COACH_ACTIVITY' | 'CURRICULUM_TEMPLATES'>('CLIENTS');
   const [memberType, setMemberType] = useState<'GENERAL' | 'COACH'>('GENERAL'); 
   
   // Media visibility toggle
@@ -408,6 +409,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 className={`pb-3 text-sm font-bold transition-colors border-b-2 whitespace-nowrap flex items-center gap-1.5 ${activeTab === 'AI_PROMPTS' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
             >
                 <Sparkles className="w-3.5 h-3.5" /> {t('admin_tab_prompts')}
+            </button>
+            <button
+                onClick={() => setActiveTab('AI_OBSERVABILITY')}
+                className={`pb-3 text-sm font-bold transition-colors border-b-2 whitespace-nowrap flex items-center gap-1.5 ${activeTab === 'AI_OBSERVABILITY' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
+            >
+                <Activity className="w-3.5 h-3.5" /> AI 관측성
             </button>
             <button
                 onClick={() => setActiveTab('CURRICULUM_TEMPLATES')}
@@ -878,6 +885,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
             {activeTab === 'AI_PROMPTS' && (
                 <AdminPromptManager isFirebaseMode={isFbConnected} coaches={coaches} />
+            )}
+
+            {activeTab === 'AI_OBSERVABILITY' && (
+                <AdminAiObservability />
             )}
 
             {activeTab === 'CURRICULUM_TEMPLATES' && (

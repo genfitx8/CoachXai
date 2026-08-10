@@ -18,9 +18,21 @@ import { ClientStats } from '../components/ClientStats';
 import { ClientProfile, Lesson } from '../types';
 
 // The service is stubbed so no real fetch fires.
+// Component now calls the streaming variant; the mock forwards onChunk
+// with the resolved markdown so tests exercise the full stream → final
+// setAiReport path (mimicking real chunked delivery in one tick).
 const analyzeShotStrategyMock = vi.fn();
 vi.mock('../services/geminiService', () => ({
-  analyzeShotStrategy: (...args: unknown[]) => analyzeShotStrategyMock(...args),
+  analyzeShotStrategyStream: async (params: {
+    onChunk?: (delta: string, accumulated: string) => void;
+    [k: string]: unknown;
+  }) => {
+    const result = await analyzeShotStrategyMock(params);
+    if (result && typeof result.markdown === 'string' && params.onChunk) {
+      params.onChunk(result.markdown, result.markdown);
+    }
+    return result;
+  },
 }));
 
 // Track coachStyleService calls so we can verify the star flow persists
@@ -244,6 +256,94 @@ describe('ClientStats · AI 종합 분석 리포트', () => {
     await waitFor(() =>
       expect(screen.getByRole('button', { name: /이 리포트를 즐겨찾기로 저장/ })).toBeInTheDocument()
     );
+  });
+
+  it('edit-and-save persists an "edited" exemplar and updates the visible report', async () => {
+    analyzeShotStrategyMock.mockResolvedValue({
+      markdown: '## AI 초안\nAI가 작성한 원본 내용',
+      contributingLessonCount: 5,
+      clubsAnalysed: ['7I', 'PW'],
+    });
+    styleSaveMock.mockResolvedValue(undefined);
+
+    render(
+      <ClientStats
+        lessons={[
+          makeLesson({ id: '1', club: '7I', golfData: { carryDistance: 133 } }),
+          makeLesson({ id: '2', club: '7I', golfData: { carryDistance: 135 } }),
+        ]}
+        onBack={() => {}}
+        clientProfile={client}
+        coachId="coach-edit"
+      />
+    );
+
+    // Generate the report so an aiReport exists to edit.
+    fireEvent.click(screen.getByRole('button', { name: /종합 분석 리포트 생성/ }));
+    await waitFor(() => expect(screen.getByTestId('md')).toBeInTheDocument());
+
+    // Enter edit mode.
+    fireEvent.click(screen.getByRole('button', { name: /편집 후 저장/ }));
+
+    const textarea = await screen.findByRole('textbox');
+    fireEvent.change(textarea, {
+      target: {
+        value: '## 코치 편집본\n코치님이 손질한 최종 문장 — 스윙코드 스타일 반영',
+      },
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /편집본 저장/ }));
+
+    await waitFor(() => expect(styleSaveMock).toHaveBeenCalledTimes(1));
+    const [exemplar, isFirebaseMode] = styleSaveMock.mock.calls[0];
+    expect(isFirebaseMode).toBe(false);
+    expect(exemplar.target).toBe('shot_analysis');
+    expect(exemplar.source).toBe('edited');
+    // tierForSource('edited') returns 2 — mocked to 1 in this suite, so
+    // just verify it's the numeric tier the service produced (mock returns 1).
+    expect(typeof exemplar.tier).toBe('number');
+    expect(exemplar.coachId).toBe('coach-edit');
+    expect(exemplar.output).toContain('코치 편집본');
+    // The visible markdown flips to the coach's edited version and the
+    // "편집본 저장됨" chip appears.
+    await waitFor(() =>
+      expect(screen.getByTestId('md').textContent).toContain('코치 편집본')
+    );
+    expect(screen.getByText('편집본 저장됨')).toBeInTheDocument();
+    // Edit textarea is gone (back to render mode).
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+  });
+
+  it('cancelling edit mode restores the original report untouched', async () => {
+    analyzeShotStrategyMock.mockResolvedValue({
+      markdown: '## 원본\n원본 문장',
+      contributingLessonCount: 3,
+      clubsAnalysed: ['7I'],
+    });
+
+    render(
+      <ClientStats
+        lessons={[
+          makeLesson({ id: '1', club: '7I', golfData: { carryDistance: 133 } }),
+        ]}
+        onBack={() => {}}
+        clientProfile={client}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /종합 분석 리포트 생성/ }));
+    await waitFor(() => expect(screen.getByTestId('md')).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole('button', { name: /편집 후 저장/ }));
+    const textarea = await screen.findByRole('textbox');
+    fireEvent.change(textarea, { target: { value: '이건 취소될 편집' } });
+    fireEvent.click(screen.getByRole('button', { name: '취소' }));
+
+    // No save happened.
+    expect(styleSaveMock).not.toHaveBeenCalled();
+    // Textarea is gone, original markdown still rendered.
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+    expect(screen.getByTestId('md').textContent).toContain('원본 문장');
   });
 
   it('shows an error with a retry affordance when the service throws', async () => {

@@ -43,6 +43,16 @@ import {
   formatLessonEntry,
 } from './lessonContext';
 import { resolveApiBaseUrl } from './apiBase';
+import { recordAiCall, hashPrompt } from './aiCallLogger';
+import {
+  CACHEABLE_FEATURES,
+  getCachedResponse,
+  setCachedResponse,
+} from './aiResponseCache';
+import { invokeBackendAIStream, StreamNotSupportedError } from './aiStream';
+import { scanForInjection } from './promptSafety';
+import { buildPhysicsReferenceBlock } from './physicsGrounding';
+import { buildFewShotBlock, coachStyleService } from './coachStyleService';
 
 const log = createLogger('gemini');
 
@@ -63,28 +73,217 @@ interface InlineDataPart {
   };
 }
 
-export const invokeBackendAI = async <T>(feature: string, payload: unknown): Promise<T> => {
-  const response = await fetch(getAiApiEndpoint(), {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ feature, payload }),
-  });
+/**
+ * Pull the fields the observability layer wants out of a payload without
+ * caring about the payload's exact shape. All extraction is defensive so a
+ * malformed payload never breaks the AI call itself.
+ */
+const inspectPayload = (payload: unknown): {
+  prompt: string;
+  coachId?: string;
+  hasExemplars: boolean;
+  hasSchema: boolean;
+  /**
+   * The subset of the prompt that came from the user (chat message, voice
+   * transcript, etc.). Populated only when the caller explicitly set
+   * `userMessage` in the payload — required to run injection detection.
+   */
+  userMessage?: string;
+} => {
+  if (!payload || typeof payload !== 'object') {
+    return { prompt: '', hasExemplars: false, hasSchema: false };
+  }
+  const rec = payload as Record<string, unknown>;
+  const prompt = typeof rec.prompt === 'string' ? rec.prompt : '';
+  const coachId = typeof rec.coachId === 'string' ? rec.coachId : undefined;
+  const systemInstruction = typeof rec.systemInstruction === 'string' ? rec.systemInstruction : '';
+  const userMessage = typeof rec.userMessage === 'string' ? rec.userMessage : undefined;
+  // Exemplars can appear in either the prompt or the system instruction —
+  // check both so few-shot injection is detected regardless of where it lives.
+  const hasExemplars =
+    prompt.includes('참고 예시') || systemInstruction.includes('참고 예시');
+  const hasSchema = 'responseSchema' in rec && rec.responseSchema != null;
+  return { prompt, coachId, hasExemplars, hasSchema, userMessage };
+};
 
-  let body: { ok?: boolean; result?: T; error?: string } | null = null;
+/**
+ * Wrap a scan result into the two AiCallLog fields the logger accepts.
+ * Returns { undefined, undefined } when there is no user message to scan
+ * so we don't pollute the log with irrelevant false negatives.
+ */
+const buildInjectionSignal = (
+  userMessage: string | undefined
+): { injectionSuspected?: boolean; injectionMatches?: string } => {
+  if (!userMessage) return {};
+  const scan = scanForInjection(userMessage);
+  if (!scan.suspicious) return { injectionSuspected: false };
+  return {
+    injectionSuspected: true,
+    injectionMatches: scan.matches.join(','),
+  };
+};
+
+const extractResponseText = (result: unknown): string => {
+  if (typeof result === 'string') return result;
+  if (!result || typeof result !== 'object') return '';
+  const rec = result as Record<string, unknown>;
+  if (typeof rec.text === 'string') return rec.text;
+  if (typeof rec.response === 'string') return rec.response;
+  if (typeof rec.output === 'string') return rec.output;
   try {
-    body = await response.json() as { ok?: boolean; result?: T; error?: string };
+    return JSON.stringify(result);
   } catch {
-    if (response.ok) {
-      throw new Error('Failed to parse AI backend response.');
+    return '';
+  }
+};
+
+/**
+ * Read the model id the server reported on a response, if any. Older
+ * backends may omit it; that's fine — the logger records `undefined`
+ * and the dashboard shows "unknown" for those calls.
+ */
+const extractModel = (result: unknown): string | undefined => {
+  if (!result || typeof result !== 'object') return undefined;
+  const rec = result as Record<string, unknown>;
+  return typeof rec.model === 'string' && rec.model.trim() ? rec.model : undefined;
+};
+
+export const invokeBackendAI = async <T>(feature: string, payload: unknown): Promise<T> => {
+  const startedAt = Date.now();
+  const meta = inspectPayload(payload);
+  const injection = buildInjectionSignal(meta.userMessage);
+
+  // Cache lookup — only for allowlisted deterministic features. Skip when
+  // the prompt carries few-shot exemplars because the exemplar pool can
+  // shift as coaches star new outputs; a stale cache would defeat that.
+  if (
+    CACHEABLE_FEATURES.has(feature) &&
+    meta.prompt &&
+    !meta.hasExemplars
+  ) {
+    try {
+      const promptHash = await hashPrompt(meta.prompt);
+      const cached = getCachedResponse(feature, promptHash);
+      if (cached != null) {
+        void recordAiCall({
+          feature,
+          coachId: meta.coachId,
+          prompt: meta.prompt,
+          responseText: cached,
+          latencyMs: Date.now() - startedAt,
+          status: 'success',
+          hasExemplars: meta.hasExemplars,
+          hasSchema: meta.hasSchema,
+          cached: true,
+          ...injection,
+        });
+        // The cached response is always a string. Callers that expect a
+        // richer object should still receive the JSON-parseable text they
+        // originally produced — invokeBackendAI's <T> is nominal.
+        return cached as unknown as T;
+      }
+    } catch {
+      // Cache path is best-effort — any failure here just falls through
+      // to the real network call.
     }
   }
 
-  if (!response.ok || !body?.ok) {
-    const message = body?.error || `AI backend request failed (HTTP ${response.status})`;
-    throw new Error(message);
-  }
+  try {
+    const response = await fetch(getAiApiEndpoint(), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ feature, payload }),
+    });
 
-  return body.result as T;
+    let body: { ok?: boolean; result?: T; error?: string } | null = null;
+    try {
+      body = await response.json() as { ok?: boolean; result?: T; error?: string };
+    } catch {
+      if (response.ok) {
+        throw new Error('Failed to parse AI backend response.');
+      }
+    }
+
+    if (!response.ok || !body?.ok) {
+      const message = body?.error || `AI backend request failed (HTTP ${response.status})`;
+      throw new Error(message);
+    }
+
+    const responseText = extractResponseText(body.result);
+    const modelId = extractModel(body.result);
+
+    // Fire-and-forget success log. Do NOT await — telemetry must never
+    // add latency to the response the caller returns to the user.
+    void recordAiCall({
+      feature,
+      coachId: meta.coachId,
+      prompt: meta.prompt,
+      responseText,
+      latencyMs: Date.now() - startedAt,
+      status: 'success',
+      hasExemplars: meta.hasExemplars,
+      hasSchema: meta.hasSchema,
+      model: modelId,
+      ...injection,
+    });
+
+    // Cache write for the eligible features. Same exemplar guard as the
+    // read side so we never poison the cache with an exemplar-conditioned
+    // response and serve it back after the exemplars have changed.
+    if (
+      CACHEABLE_FEATURES.has(feature) &&
+      meta.prompt &&
+      !meta.hasExemplars &&
+      responseText
+    ) {
+      hashPrompt(meta.prompt)
+        .then((promptHash) =>
+          setCachedResponse(feature, promptHash, responseText)
+        )
+        .catch(() => {
+          /* best-effort — cache write failure is silent */
+        });
+    }
+
+    return body.result as T;
+  } catch (err) {
+    void recordAiCall({
+      feature,
+      coachId: meta.coachId,
+      prompt: meta.prompt,
+      responseText: '',
+      latencyMs: Date.now() - startedAt,
+      status: 'error',
+      errorMessage: err instanceof Error ? err.message : String(err),
+      hasExemplars: meta.hasExemplars,
+      hasSchema: meta.hasSchema,
+      ...injection,
+    });
+    throw err;
+  }
+};
+
+/**
+ * Callers that catch an invokeBackendAI failure and swap in a heuristic
+ * response should call this so the dashboard sees the fallback event
+ * (the error branch above already logged the underlying failure — this
+ * annotates that the user still got an answer via the fallback path).
+ */
+export const recordAiFallback = (
+  feature: string,
+  opts: { coachId?: string; prompt?: string; errorMessage?: string; hasExemplars?: boolean; hasSchema?: boolean } = {}
+): void => {
+  void recordAiCall({
+    feature,
+    coachId: opts.coachId,
+    prompt: opts.prompt ?? '',
+    responseText: '',
+    latencyMs: 0,
+    status: 'fallback',
+    errorMessage: opts.errorMessage,
+    hasExemplars: !!opts.hasExemplars,
+    hasSchema: !!opts.hasSchema,
+  });
 };
 
 export const getResponseText = (result: unknown): string | null => {
@@ -1576,12 +1775,150 @@ Do not introduce topics unrelated to the conversation or golf coaching.`;
       prompt,
       systemInstruction,
       language,
+      userMessage,
     });
     const text = getResponseText(result) ?? '';
     if (!text.trim()) throw new Error('Empty response from Gemini');
     return text;
   } catch (error) {
     log.error('CoachX runtime chat error:', error);
+    return fallback();
+  }
+};
+
+/**
+ * Streaming variant of generateCoachXChatResponse. Same context assembly,
+ * same fallback semantics, but chunks arrive incrementally via `onChunk`
+ * so the UI can render as the model writes instead of showing a spinner
+ * for 3-5 seconds.
+ *
+ * If the backend doesn't support streaming (StreamNotSupportedError), we
+ * transparently fall back to the non-streaming variant — the caller's
+ * onChunk simply won't fire, but the final resolved text is identical.
+ */
+export const generateCoachXChatResponseStream = async (
+  userMessage: string,
+  allLessons: Lesson[],
+  clients: ClientProfile[],
+  onChunk: (delta: string, accumulated: string) => void,
+  language: CoachXLanguage = 'ko',
+  conversationHistory: { role: 'user' | 'assistant'; content: string }[] = [],
+  coachId?: string,
+  signal?: AbortSignal
+): Promise<string> => {
+  const fallback = () =>
+    generateHeuristicResponse(userMessage, allLessons, clients, language);
+
+  try {
+    const memberCount = new Set(
+      allLessons.map((l) => `${l.clientName}_${l.clientPhone}`)
+    ).size;
+
+    const recentLessons = [...allLessons]
+      .sort((a, b) => b.createdAt - a.createdAt)
+      .slice(0, 15);
+
+    const lessonContext =
+      recentLessons.length > 0
+        ? recentLessons
+            .map((l) =>
+              formatLessonEntry(l, { includeClientName: true, maxNoteLength: 220 })
+            )
+            .join('\n\n')
+        : '기록 없음';
+
+    const memberOverview = buildMemberActivityOverview(allLessons, clients, {
+      limit: 10,
+      recentDays: 45,
+    });
+
+    const clientContext =
+      clients.length > 0
+        ? clients
+            .slice(0, 15)
+            .map((c) => {
+              const parts = [c.name];
+              if (c.handicap) parts.push(`handicap ${c.handicap}`);
+              return parts.join(', ');
+            })
+            .join('; ')
+        : 'No registered clients.';
+
+    const LANG_INSTRUCTION: Record<CoachXLanguage, string> = {
+      ko: '반드시 한국어로 답변하세요.',
+      en: 'Respond entirely in English.',
+      ja: '必ず日本語で回答してください。',
+      th: 'Respond entirely in English.',
+    };
+
+    const isFirebaseMode = firebaseService.isInitialized();
+    const systemPrompt = await promptService.getActiveSystemPrompt(
+      'coachx_chat',
+      isFirebaseMode,
+      coachId
+    );
+
+    const historyToInclude = conversationHistory.slice(-10);
+    const conversationBlock =
+      historyToInclude.length > 0
+        ? '\nConversation history (oldest → newest):\n' +
+          historyToInclude
+            .map((m) => `${m.role === 'user' ? 'Coach' : 'CoachX'}: ${m.content}`)
+            .join('\n') +
+          '\n'
+        : '';
+
+    const systemInstruction = `${systemPrompt}
+
+Language instruction: ${LANG_INSTRUCTION[language]}`;
+
+    const prompt = `--- Provided data (answer ONLY from this) ---
+Coach context:
+- Total lesson records: ${allLessons.length}
+- Total members: ${memberCount}
+- Registered clients: ${clientContext}
+${memberOverview ? `\n${memberOverview}\n` : ''}
+Recent lesson history (up to ${recentLessons.length} most recent, richest first):
+${lessonContext}
+${conversationBlock}
+--- End of provided data ---
+
+Coach's question: "${userMessage}"
+
+IMPORTANT: Answer strictly based on the provided data and conversation history above.
+When a specific member is mentioned, ground your answer in that member's actual
+lessons, metrics, motion-capture, and scorecard from above.
+Do not introduce topics unrelated to the conversation or golf coaching.`;
+
+    try {
+      const text = await invokeBackendAIStream(
+        'coachx_chat',
+        { prompt, systemInstruction, language, userMessage },
+        { onChunk, signal }
+      );
+      if (!text.trim()) throw new Error('Empty response from Gemini stream');
+      return text;
+    } catch (streamErr) {
+      if (streamErr instanceof StreamNotSupportedError) {
+        // Backend runtime doesn't support streaming — fall through to the
+        // non-streaming path so the user still gets an answer.
+        const result = await invokeBackendAI<unknown>('coachx_chat', {
+          prompt,
+          systemInstruction,
+          language,
+          userMessage,
+        });
+        const text = getResponseText(result) ?? '';
+        if (!text.trim()) throw new Error('Empty response from Gemini');
+        // Deliver the full text as one "chunk" so the caller's UI code
+        // paths stay uniform.
+        onChunk(text, text);
+        return text;
+      }
+      throw streamErr;
+    }
+  } catch (error) {
+    log.error('CoachX runtime chat stream error:', error);
     return fallback();
   }
 };
@@ -2142,6 +2479,7 @@ ${conversationBlock}--- 제공 데이터 끝 ---
       prompt,
       systemInstruction,
       language,
+      userMessage,
     });
     const text = getResponseText(result) ?? '';
     if (!text.trim()) throw new Error('Empty response');
@@ -2717,6 +3055,18 @@ export const analyzeShotStrategy = async (params: {
     coachId
   );
 
+  // Coach-style exemplars — the ⭐ starred and ✏️ edited reports the
+  // coach has saved. Injected as few-shot so the model mirrors the
+  // coach's tone. Falls back to global exemplars when the coach hasn't
+  // saved any yet, so a new coach still gets the benefit of the shared pool.
+  const exemplars = await coachStyleService.getForTarget(
+    'shot_analysis',
+    coachId,
+    isFirebaseMode,
+    { limit: 3 }
+  );
+  const fewShotBlock = buildFewShotBlock(exemplars);
+
   const profileLines = [
     `이름: ${clientProfile.name}`,
     clientProfile.handicap != null ? `핸디캡: ${clientProfile.handicap}` : '핸디캡: 미입력',
@@ -2728,7 +3078,18 @@ export const analyzeShotStrategy = async (params: {
   const bodyBlock = formatBodyAnalysisForShot(clientProfile, lessonsWithData);
   const motionBlock = formatMotionForShot(lessonsWithData);
 
-  const prompt = `분석 대상 골퍼
+  // Physics grounding — build a Trackman-referenced optimal-range block
+  // for each club that has a measured clubhead speed. Prevents the F2
+  // hallucination (model inventing "7I 최적 런치 18-20°" numbers that
+  // don't match published tour data).
+  const physicsLookups = aggregates
+    .filter((a): a is typeof a & { clubHeadSpeed: { median: number; iqr: [number, number] } } =>
+      !!a.clubHeadSpeed && Number.isFinite(a.clubHeadSpeed.median)
+    )
+    .map((a) => ({ club: a.club, clubSpeedMph: a.clubHeadSpeed.median }));
+  const physicsBlock = buildPhysicsReferenceBlock(physicsLookups);
+
+  const prompt = `${fewShotBlock ? `${fewShotBlock}\n\n` : ''}분석 대상 골퍼
 - ${profileLines}
 - 볼 데이터가 있는 레슨·연습 기록: ${lessonsWithData.length}건
 - 커버 클럽: ${aggregates.map((a) => `${a.club}(${a.sampleSize})`).join(', ')}
@@ -2736,6 +3097,7 @@ export const analyzeShotStrategy = async (params: {
 === 클럽별 볼·클럽 데이터 요약 (median + IQR, 이상치 이미 필터됨) ===
 ${aggregateBlock}
 
+${physicsBlock ? `${physicsBlock}\n` : ''}
 ${bodyBlock ? `=== 신체 분석 ===\n${bodyBlock}\n` : '(신체 분석 데이터 없음)\n'}
 ${motionBlock ? `=== 모션 데이터 (최근 측정) ===\n${motionBlock}\n` : '(모션 데이터 없음 — 관련 진단은 확률적 추정으로 표시)\n'}
 
@@ -2751,6 +3113,129 @@ ${motionBlock ? `=== 모션 데이터 (최근 측정) ===\n${motionBlock}\n` : '
   });
 
   const markdown = getResponseText(result) ?? '';
+  if (!markdown.trim()) {
+    throw new Error('AI가 빈 응답을 반환했습니다.');
+  }
+
+  return {
+    markdown,
+    contributingLessonCount: lessonsWithData.length,
+    clubsAnalysed: aggregates.map((a) => a.club),
+  };
+};
+
+/**
+ * Streaming variant of analyzeShotStrategy.
+ *
+ * Same prompt assembly, same return shape — but chunks arrive via `onChunk`
+ * as the model writes each section. shot_analysis runs 20-30s end-to-end;
+ * streaming brings the first paragraph to the coach in ~500ms, turning
+ * the wait from "spinner" into "watching the report take shape".
+ *
+ * If the backend doesn't support streaming (`StreamNotSupportedError`),
+ * we transparently fall back to the non-streaming path — the caller's
+ * `onChunk` fires exactly once with the full text at completion.
+ */
+export const analyzeShotStrategyStream = async (params: {
+  clientProfile: ClientProfile;
+  lessons: Lesson[];
+  coachId?: string;
+  aggregates?: ShotAggregate[];
+  /** Called every time the model emits a text delta. `accumulated` is the
+   *  full markdown produced so far — bind it directly to your UI state. */
+  onChunk: (delta: string, accumulated: string) => void;
+  signal?: AbortSignal;
+}): Promise<ShotStrategyReport> => {
+  const { clientProfile, lessons, coachId, onChunk, signal } = params;
+
+  const lessonsWithData = lessons.filter((l) => l.golfData && l.club);
+  const aggregates =
+    params.aggregates ?? summariseShotsByClub(lessonsWithData);
+
+  if (aggregates.length === 0) {
+    throw new Error('분석할 클럽별 볼 데이터가 없습니다.');
+  }
+
+  const isFirebaseMode = firebaseService.isInitialized();
+  const systemInstruction = await promptService.getActiveSystemPrompt(
+    'shot_analysis',
+    isFirebaseMode,
+    coachId
+  );
+
+  // Same coach-style few-shot injection as the non-streaming variant so
+  // the streamed path also benefits from accumulated exemplars.
+  const exemplars = await coachStyleService.getForTarget(
+    'shot_analysis',
+    coachId,
+    isFirebaseMode,
+    { limit: 3 }
+  );
+  const fewShotBlock = buildFewShotBlock(exemplars);
+
+  const profileLines = [
+    `이름: ${clientProfile.name}`,
+    clientProfile.handicap != null ? `핸디캡: ${clientProfile.handicap}` : '핸디캡: 미입력',
+    clientProfile.bestScore != null ? `베스트: ${clientProfile.bestScore}` : '',
+    clientProfile.memo ? `메모: ${clientProfile.memo}` : '',
+  ]
+    .filter(Boolean)
+    .join('\n- ');
+
+  const aggregateBlock = aggregates.map(formatShotAggregate).join('\n\n');
+  const bodyBlock = formatBodyAnalysisForShot(clientProfile, lessonsWithData);
+  const motionBlock = formatMotionForShot(lessonsWithData);
+
+  // Physics grounding — same as the non-streaming variant. Kept in both
+  // so callers on either path get the F2 fix.
+  const physicsLookups = aggregates
+    .filter((a): a is typeof a & { clubHeadSpeed: { median: number; iqr: [number, number] } } =>
+      !!a.clubHeadSpeed && Number.isFinite(a.clubHeadSpeed.median)
+    )
+    .map((a) => ({ club: a.club, clubSpeedMph: a.clubHeadSpeed.median }));
+  const physicsBlock = buildPhysicsReferenceBlock(physicsLookups);
+
+  const prompt = `${fewShotBlock ? `${fewShotBlock}\n\n` : ''}분석 대상 골퍼
+- ${profileLines}
+- 볼 데이터가 있는 레슨·연습 기록: ${lessonsWithData.length}건
+- 커버 클럽: ${aggregates.map((a) => `${a.club}(${a.sampleSize})`).join(', ')}
+
+=== 클럽별 볼·클럽 데이터 요약 (median + IQR, 이상치 이미 필터됨) ===
+${aggregateBlock}
+
+${physicsBlock ? `${physicsBlock}\n` : ''}
+${bodyBlock ? `=== 신체 분석 ===\n${bodyBlock}\n` : '(신체 분석 데이터 없음)\n'}
+${motionBlock ? `=== 모션 데이터 (최근 측정) ===\n${motionBlock}\n` : '(모션 데이터 없음 — 관련 진단은 확률적 추정으로 표시)\n'}
+
+시스템 지시(원칙)에 따라 마크다운 종합 리포트를 작성해 주세요.
+- 각 섹션 헤더 형식 유지
+- 클럽별 캐리·토탈 탄착 좌표는 median 기준으로 추정하되, IQR 폭을 "산포"로 설명
+- 핀 위치별 공략은 실제 sideTotal/spinRate 부호가 있으면 그것을 근거로
+- 데이터가 없는 섹션은 "데이터 부족" 표시`;
+
+  let markdown = '';
+  try {
+    markdown = await invokeBackendAIStream(
+      'shot_analysis',
+      { prompt, systemInstruction },
+      { onChunk, signal }
+    );
+  } catch (streamErr) {
+    if (streamErr instanceof StreamNotSupportedError) {
+      // Backend doesn't support streaming yet — fall back so the coach
+      // still gets a report. Deliver the full text as one chunk so the
+      // UI code path stays uniform.
+      const result = await invokeBackendAI<unknown>('shot_analysis', {
+        prompt,
+        systemInstruction,
+      });
+      markdown = getResponseText(result) ?? '';
+      if (markdown) onChunk(markdown, markdown);
+    } else {
+      throw streamErr;
+    }
+  }
+
   if (!markdown.trim()) {
     throw new Error('AI가 빈 응답을 반환했습니다.');
   }

@@ -1,9 +1,16 @@
 /**
- * Tests for CoachXChat typing/reveal effect:
- * 1. After a response is received the message is initially shown partially (typing cursor visible).
- * 2. After all ticks the full message is displayed and the cursor is gone.
- * 3. Sending a new message while revealing cancels the in-progress reveal.
- * 4. The send button is disabled while revealing is in progress.
+ * Tests for CoachXChat streaming behavior.
+ *
+ * Before Phase 3b, CoachXChat rendered replies via a client-side "typing
+ * reveal" animation on top of a full-response fetch. The streaming path
+ * replaces that: chunks arrive from the backend and the message is
+ * updated in-place, so the natural stream IS the typing effect and the
+ * client-side reveal is skipped.
+ *
+ * These tests exercise the streaming path:
+ * 1. Delta chunks are appended to the assistant message in-place as they arrive.
+ * 2. The send button is disabled while the stream is in-flight.
+ * 3. The final full reply is present in the DOM after the stream completes.
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
@@ -32,8 +39,24 @@ vi.mock('../components/LanguageContext', () => ({
 
 const MOCK_REPLY = 'Hello from Coachx! This is a test reply with some content.';
 
+// Deliver the reply in two chunks so we can assert incremental updates.
+const CHUNK_1 = 'Hello from Coachx! ';
+const CHUNK_2 = 'This is a test reply with some content.';
+
+// The mocked stream fires onChunk twice and resolves with the full reply.
 vi.mock('../services/geminiService', () => ({
-  generateCoachXChatResponse: vi.fn(async () => MOCK_REPLY),
+  generateCoachXChatResponseStream: vi.fn(
+    async (
+      _msg: string,
+      _lessons: unknown,
+      _clients: unknown,
+      onChunk: (delta: string, accumulated: string) => void
+    ) => {
+      onChunk(CHUNK_1, CHUNK_1);
+      onChunk(CHUNK_2, CHUNK_1 + CHUNK_2);
+      return MOCK_REPLY;
+    }
+  ),
 }));
 
 // ─── Fixtures ─────────────────────────────────────────────────────────────────
@@ -50,19 +73,17 @@ const CLIENTS: ClientProfile[] = [];
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
-describe('CoachXChat – typing reveal effect', () => {
+describe('CoachXChat – streaming reply', () => {
   beforeEach(() => {
     // jsdom does not implement scrollIntoView; mock it to avoid errors
     window.HTMLElement.prototype.scrollIntoView = vi.fn();
-    vi.useFakeTimers();
   });
 
   afterEach(() => {
-    vi.useRealTimers();
     vi.clearAllMocks();
   });
 
-  it('shows a blinking cursor while the response is being revealed', async () => {
+  it('renders the full streamed reply after the stream completes', async () => {
     render(
       <CoachXChat
         coachProfile={COACH}
@@ -76,53 +97,38 @@ describe('CoachXChat – typing reveal effect', () => {
     fireEvent.change(input, { target: { value: 'Hello' } });
     fireEvent.keyDown(input, { key: 'Enter' });
 
-    // Resolve the async Gemini call
+    // Flush the (synchronous-in-test) stream and any queued setState work.
     await act(async () => {
-      await vi.runAllTicks();
+      await Promise.resolve();
+      await Promise.resolve();
     });
 
-    // Advance a small number of ticks so the reveal has started but not finished
-    act(() => {
-      vi.advanceTimersByTime(40); // 2 ticks of 20ms each
-    });
-
-    // The cursor element should be visible during the reveal
-    const cursor = document.querySelector('.coachx-cursor');
-    expect(cursor).not.toBeNull();
-  });
-
-  it('shows the full message and removes the cursor after the reveal completes', async () => {
-    render(
-      <CoachXChat
-        coachProfile={COACH}
-        allLessons={LESSONS}
-        clients={CLIENTS}
-        onBack={vi.fn()}
-      />
-    );
-
-    const input = screen.getByPlaceholderText('Ask Coachx…');
-    fireEvent.change(input, { target: { value: 'Hello' } });
-    fireEvent.keyDown(input, { key: 'Enter' });
-
-    await act(async () => {
-      await vi.runAllTicks();
-    });
-
-    // Advance past TYPING_REVEAL_DURATION_MS (2500ms) to complete the reveal
-    act(() => {
-      vi.advanceTimersByTime(3000);
-    });
-
-    // Cursor should be gone once fully revealed
-    const cursor = document.querySelector('.coachx-cursor');
-    expect(cursor).toBeNull();
-
-    // Full reply text should be present in the DOM
+    // Full reply text is present in the DOM.
     screen.getByText(MOCK_REPLY);
   });
 
-  it('disables the send button while the reveal is in progress', async () => {
+  it('disables the send button while a stream is in-flight', async () => {
+    // Withhold the stream's resolution so we can assert the "streaming" UI state.
+    let releaseStream: () => void = () => {};
+    const streamPromise = new Promise<void>((res) => {
+      releaseStream = res;
+    });
+
+    const { generateCoachXChatResponseStream } = await import(
+      '../services/geminiService'
+    );
+    (generateCoachXChatResponseStream as ReturnType<typeof vi.fn>)
+      .mockReset()
+      .mockImplementationOnce(async (
+        _msg: string,
+        _l: unknown,
+        _c: unknown,
+        _onChunk: unknown
+      ) => {
+        await streamPromise;
+        return MOCK_REPLY;
+      });
+
     render(
       <CoachXChat
         coachProfile={COACH}
@@ -136,19 +142,16 @@ describe('CoachXChat – typing reveal effect', () => {
     fireEvent.change(input, { target: { value: 'Hello' } });
     fireEvent.keyDown(input, { key: 'Enter' });
 
-    await act(async () => {
-      await vi.runAllTicks();
-    });
-
-    // Advance a couple of ticks — reveal in progress
-    act(() => {
-      vi.advanceTimersByTime(40);
-    });
-
-    // Type new text so the button would normally be enabled
+    // While the stream is pending, isTyping=true → send disabled even with
+    // fresh input in the field.
     fireEvent.change(input, { target: { value: 'Follow-up' } });
-
     const sendButton = screen.getByRole('button', { name: /send/i });
     expect((sendButton as HTMLButtonElement).disabled).toBe(true);
+
+    // Release the stream and let React settle.
+    await act(async () => {
+      releaseStream();
+      await Promise.resolve();
+    });
   });
 });

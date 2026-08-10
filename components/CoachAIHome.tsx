@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Lesson, ClientProfile, CoachProfile } from '../types';
 import { CoachXChatMessage } from '../services/coachXService';
-import { generateCoachXChatResponse } from '../services/geminiService';
+import { generateCoachXChatResponseStream } from '../services/geminiService';
 import { useLanguage } from './LanguageContext';
 import { Send, Mic, MicOff, LayoutDashboard, VolumeX, Volume2, MessageSquare, Target } from 'lucide-react';
 import { useTypingReveal } from '../hooks/useTypingReveal';
@@ -86,17 +86,47 @@ export const CoachAIHome: React.FC<CoachAIHomeProps> = ({
     setUserHasSent(true);
 
     const userMsg: CoachXChatMessage = { role: 'user', content: msgText, timestamp: Date.now() };
-    setMessages(prev => [...prev, userMsg]);
+    // Assistant placeholder with a unique timestamp so onChunk can update
+    // this specific message in-place — matches the CoachXChat pattern so
+    // streaming feels the same across every chat surface.
+    const assistantTs = Date.now() + 1;
+    setMessages(prev => [
+      ...prev,
+      userMsg,
+      { role: 'assistant', content: '', timestamp: assistantTs },
+    ]);
     setInput('');
     setIsTyping(true);
 
     const lang = (language as 'ko' | 'en' | 'ja') ?? 'ko';
-    const reply = await generateCoachXChatResponse(msgText, allLessons, clients, lang);
+    const reply = await generateCoachXChatResponseStream(
+      msgText,
+      allLessons,
+      clients,
+      (_delta, accumulated) => {
+        setMessages(prev =>
+          prev.map(m =>
+            m.timestamp === assistantTs && m.role === 'assistant'
+              ? { ...m, content: accumulated }
+              : m
+          )
+        );
+      },
+      lang,
+    );
 
-    setMessages(prev => [...prev, { role: 'assistant', content: reply, timestamp: Date.now() }]);
+    // Final content correction — the heuristic fallback path delivers the
+    // full text as one onChunk call, this ensures the placeholder shows it.
+    setMessages(prev =>
+      prev.map(m =>
+        m.timestamp === assistantTs && m.role === 'assistant'
+          ? { ...m, content: reply }
+          : m
+      )
+    );
     setIsTyping(false);
     speak(reply);
-    startReveal(reply);
+    // Skip the client-side typing reveal — streaming already produced that effect.
   };
 
   const { isListening, voiceError, toggleListening } = useSpeechRecognition({

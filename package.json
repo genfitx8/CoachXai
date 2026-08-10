@@ -13,6 +13,8 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
+    "eval": "node scripts/runEval.mjs evals/shot_analysis.eval.json evals/coachx_chat.eval.json evals/motion_capture.eval.json",
+    "eval:real": "node scripts/runEval.mjs --real evals/shot_analysis.eval.json evals/coachx_chat.eval.json evals/motion_capture.eval.json",
     "dev:server": "cd server && npm run dev",
     "dev:all": "concurrently \"npm run dev\" \"npm run dev:server\"",
     "cap:add:coach:android": "npm run build:coach   && node scripts/cap-run.mjs coach add android",
