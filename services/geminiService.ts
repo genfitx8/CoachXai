@@ -611,7 +611,7 @@ export const extractGolfData = async (
 
     const prompt = `
       이 이미지는 두 가지 중 하나입니다:
-      1. **골프 시뮬레이터/런치모니터(GDR, 카카오VX, 트랙맨, GC Quad, Foresight 등)의 데이터 화면**
+      1. **골프 시뮬레이터/런치모니터(GDR, 카카오VX, 트랙맨/Trackman/Tracey, GC Quad, Foresight, 골프존, JB, K-Motion 등)의 데이터 화면**
       2. **골프 스코어카드(필드 또는 스크린 게임 결과)**
 
       이미지를 분석하여 다음 작업을 수행하고 JSON으로 응답해주세요.
@@ -627,28 +627,42 @@ export const extractGolfData = async (
       **Case 2: 시뮬레이터/런치모니터 데이터인 경우**
       - 화면에 있는 비거리, 스피드 등 수치를 추출하여 'metrics' 객체에 넣으세요.
       - score는 null로 두세요.
-      - **여러 샷이 표(테이블) 형태로 나열되어 있고 'Average'(평균) 행이 있다면, 반드시 그 Average 행의 값을 사용하세요.** 개별 샷 번호(1, 2, 3...) 행의 값을 쓰지 마세요.
-      - 눈 아이콘이 꺼져있거나(hidden), 취소선이 그어져 회색으로 표시된 행은 분석에서 제외된 샷이므로 무시하고, 이미 계산되어 있는 Average 행 값을 그대로 신뢰하세요.
-      - 'Consistency'(일관성) 행은 사용하지 마세요.
-      - 컬럼 이름은 장비/화면마다 다르게 표기될 수 있으니 아래 매핑을 참고해 유사한 의미의 컬럼을 찾아 매핑하세요.
 
-      **추출해야 할 데이터 필드 (반드시 아래 영문 Key 사용, 단위 무시, 숫자만. 부호(+/-)가 있는 값은 부호를 유지):**
-      - score (스코어카드일 때 총 타수)
-      - carryDistance (Carry, 캐리 거리)
-      - totalDistance (Total, 총 거리)
-      - ballSpeed (Ball Speed, 볼 스피드)
-      - clubHeadSpeed (Club Speed, 클럽(헤드) 스피드)
-      - launchAngle (Launch Angle, 발사각 — 없다면 생략, Attack Angle과 혼동하지 말 것)
-      - attackAngle (Attack Ang./Attack Angle, 어택 앵글)
-      - backSpin (Back Spin, 백스핀 — Spin Rate가 백/사이드로 분리되어 있을 때만)
-      - sideSpin (Side Spin, 사이드스핀 — Spin Rate가 백/사이드로 분리되어 있을 때만)
-      - spinRate (Spin Rate, 스핀량 — 백/사이드 분리 없이 총 스핀량 하나만 있을 때)
-      - smashFactor (Smash Factor, 정타율/스매시팩터)
-      - clubPath (Club Path, 클럽 패스)
-      - dynamicLoft (Dyn. Loft/Dynamic Loft, 다이나믹 로프트)
-      - spinLoft (Spin Loft, 스핀 로프트)
-      - faceAngle (Face Angle, 페이스 앵글)
-      - sideTotal (Side Tot./Side Total, 사이드 토탈 거리 — 오른쪽(R)이면 양수(+), 왼쪽(L)이면 음수(-)로 변환)
+      **[매우 중요] 여러 샷 테이블 처리 규칙 — 반드시 지켜라**
+      - 여러 샷이 표(테이블) 형태로 나열되어 있고 '평균' / 'Average' / 'Avg' 행이 있다면 **반드시** 그 평균 행의 값을 사용하세요.
+      - 개별 샷 행(순서/# 열이 1, 2, 3... 8 인 행, 또는 특정 샷이 강조(하이라이트/색상)되어 있어도) 값은 **절대 쓰지 마세요.** 하이라이트되어 있어도 평균이 우선입니다.
+      - '±' / '+/-' / 'SD' / '표준편차' / 'Consistency' / '일관성' 행은 **표준편차/편차 지표**입니다. 절대 metrics 값으로 쓰지 마세요 — 이 행 전체를 무시하세요. (예: '±1.8', '±434' 같은 값은 절대 metrics 에 넣지 말 것)
+      - 눈(👁) 아이콘이 꺼져있거나(hidden), 취소선/회색 처리된 행은 분석에서 제외된 샷 — 이미 평균에 반영되지 않았으니 무시하고 표시된 평균 값을 그대로 신뢰하세요.
+
+      **[중요] 컬럼 헤더 읽기 규칙**
+      - 컬럼 헤더는 보통 두 줄로 표시됩니다: 위쪽 = 지표 이름, 아래쪽 = 단위. 예:
+          "클럽 스피드 / mph", "캐리 / 미터", "다이나믹 로프트 / 도", "스핀량 / rpm"
+        → 두 줄을 **하나의 컬럼**으로 인식하세요. 단위(mph, 미터, 도, m/s, yard, rpm)는 컬럼 이름의 일부일 뿐 데이터가 아닙니다.
+      - 단위는 어떤 것이든 그대로 숫자만 추출하세요. 단위 변환하지 마세요. (mph 를 m/s 로 바꾸지 말 것, 미터를 야드로 바꾸지 말 것.)
+
+      **[중요] 컬럼 이름 매핑 — 한글/영문 모두 대응**
+      아래 매핑을 참고해 유사한 의미의 컬럼을 찾아 매핑하세요. 트랙맨/트레이시/JB 계열은 한글 표기가 흔합니다.
+      - 클럽 스피드 / Club Speed / Club Head Speed / CHS  →  clubHeadSpeed
+      - 볼 스피드 / Ball Speed / BS                       →  ballSpeed
+      - 캐리 / Carry / Carry Distance                     →  carryDistance
+      - 토탈 / Total / Total Distance                     →  totalDistance
+      - 클럽 패스 / Club Path                             →  clubPath
+      - 페이스 앵글 / Face Angle / Face Ang.              →  faceAngle
+      - 어택 앵글 / Attack Angle / Attack Ang. / AoA      →  attackAngle
+      - 다이나믹 로프트 / Dynamic Loft / Dyn. Loft        →  dynamicLoft
+      - 스핀 로프트 / Spin Loft                           →  spinLoft
+      - 발사각 / Launch Angle                             →  launchAngle
+      - 스핀량 / Spin Rate / Total Spin (단일 총스핀)     →  spinRate
+      - 백스핀 / Back Spin (백/사이드가 분리되어 있을 때) →  backSpin
+      - 사이드스핀 / Side Spin (분리되어 있을 때만)       →  sideSpin
+      - 정타율 / 스매시팩터 / Smash Factor / Smash        →  smashFactor
+      - 사이드 토탈 / Side Total / Side Tot. (R=+, L=-)   →  sideTotal
+
+      **추출 규칙 (일반):**
+      - 반드시 위의 영문 Key 를 사용하세요.
+      - 단위는 무시하고 숫자만 넣으세요. 부호(+/-)가 있는 값은 부호를 유지하세요.
+      - 화면에서 확인 가능한 지표만 metrics 에 포함하세요. 이미지에 없는 지표는 아예 포함하지 마세요(null 도 넣지 말 것).
+      - Spin 이 백/사이드로 분리되어 있으면 backSpin / sideSpin 사용, 총 스핀량 하나만 있으면 spinRate 사용. 두 표기 방식을 섞지 마세요.
 
       **응답 형식 (JSON, 필드는 이미지에서 확인 가능한 것만 포함):**
       \`\`\`json
@@ -666,12 +680,32 @@ export const extractGolfData = async (
           "clubPath": -0.1,
           "dynamicLoft": 21.7,
           "spinLoft": 22.7,
-          "sideTotal": 12.7,
-          ...
+          "sideTotal": 12.7
         },
         "comment": "스코어카드: 김철수님의 기록은 85타입니다. / 시뮬레이터: 볼 스피드가 아주 훌륭합니다."
       }
       \`\`\`
+
+      **예시 — 트랙맨/Tracey/JB 스타일 다중 샷 테이블 (8샷 + 평균 + ± 행) 인 경우:**
+      아래와 같이 8개 샷 행 아래에 '평균' 행과 '±' 행이 있는 이미지를 받았을 때:
+        컬럼: 순서 | 클럽 스피드 mph | 클럽 패스 도 | 다이나믹 로프트 도 | 캐리 미터 | 토탈 미터 | 볼 스피드 mph | 스핀량 rpm
+        평균 행: 82.5, -5.9, 18.5, 148.8, 161.7, 115.0, 5001
+        ± 행  : ±1.8, ±1.0, ±1.4, ±4.8, ±5.1, ±2.7, ±434  ← 이 행은 표준편차. **절대 사용 금지.**
+      → 올바른 응답:
+      {
+        "isScorecard": false,
+        "score": null,
+        "metrics": {
+          "clubHeadSpeed": 82.5,
+          "clubPath": -5.9,
+          "dynamicLoft": 18.5,
+          "carryDistance": 148.8,
+          "totalDistance": 161.7,
+          "ballSpeed": 115.0,
+          "spinRate": 5001
+        },
+        "comment": "6번 아이언 8샷 평균: 캐리 148.8m / 볼스피드 115 mph. 클럽 패스 -5.9°로 다소 인-투-아웃."
+      }
     `;
 
     const result = await invokeBackendAI<unknown>('extract_golf_data', {

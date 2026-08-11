@@ -137,6 +137,53 @@ describe('extractGolfData — cache keyed on image content, not prompt alone', (
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
+  it('accepts a Trackman/Tracey multi-shot table Average-row response verbatim', async () => {
+    // Reproduces the exact shape a coach uploads: 8 individual shots
+    // + 평균(Average) row + ±(standard deviation) row. The prompt tells
+    // the model to read the 평균 row and ignore the ± row entirely; this
+    // test locks in that our parsing accepts that response cleanly.
+    const image = new File(['trackman-8-shots-avg'], 'trackman.png', {
+      type: 'image/png',
+    });
+
+    stubBackend({
+      text: JSON.stringify({
+        isScorecard: false,
+        score: null,
+        metrics: {
+          clubHeadSpeed: 82.5,
+          clubPath: -5.9,
+          dynamicLoft: 18.5,
+          carryDistance: 148.8,
+          totalDistance: 161.7,
+          ballSpeed: 115.0,
+          spinRate: 5001,
+        },
+        comment: '6번 아이언 8샷 평균 요약',
+      }),
+      model: 'gemini-2.5-flash-lite',
+    });
+
+    const result = await extractGolfData(
+      { data: image, mimeType: 'image/png' },
+      'Player 5'
+    );
+
+    expect(result.golfData).toEqual({
+      clubHeadSpeed: 82.5,
+      clubPath: -5.9,
+      dynamicLoft: 18.5,
+      carryDistance: 148.8,
+      totalDistance: 161.7,
+      ballSpeed: 115.0,
+      spinRate: 5001,
+    });
+    // 부호(-) 유지 확인 — 클럽 패스가 인-투-아웃 음수인 케이스.
+    expect(result.golfData?.clubPath).toBe(-5.9);
+    // score 는 시뮬레이터 케이스이므로 undefined 여야 함.
+    expect(result.score).toBeUndefined();
+  });
+
   it('strips null metric values that flash-lite emits per schema property', async () => {
     const image = new File(['strip-nulls'], 'nulls.png', { type: 'image/png' });
 
