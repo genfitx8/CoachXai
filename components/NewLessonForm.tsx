@@ -2267,7 +2267,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
                           : 'text-slate-400 hover:text-slate-200'
                       }`}
                     >
-                      스윙 영상 업로드
+                      {recordType === 'SCORE' ? '라운드 기록 업로드' : '스윙 영상 업로드'}
                     </button>
                     <button
                       type="button"
@@ -2322,7 +2322,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
                         <Upload className="w-8 h-8" />
                       </div>
                       <p className="text-sm text-gray-600 font-medium mb-1">
-                        클릭하여 스윙 영상 업로드
+                        {recordType === 'SCORE' ? '클릭하여 라운드 기록 업로드' : '클릭하여 스윙 영상 업로드'}
                       </p>
                       <p className="text-xs text-gray-400">
                         업로드 후 바로 영상 편집 가능 (최대 5GB)
