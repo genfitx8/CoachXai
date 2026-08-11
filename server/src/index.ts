@@ -13,6 +13,8 @@ import lessonPackagesRouter from './routes/lessonPackages';
 import aiRouter from './routes/ai';
 import curriculumsRouter from './routes/curriculums';
 import curriculumTemplatesRouter from './routes/curriculumTemplates';
+import pushRouter from './routes/push';
+import { startScheduledPushRunner } from './services/scheduledPushRunner';
 
 const app = express();
 const PORT = parseInt(process.env.PORT ?? '4000', 10);
@@ -63,6 +65,7 @@ app.use('/api/lesson-packages', lessonPackagesRouter);
 app.use('/api/ai', aiRouter);
 app.use('/api/curriculums', curriculumsRouter);
 app.use('/api/curriculum-templates', curriculumTemplatesRouter);
+app.use('/api/push', pushRouter);
 
 // PayApp payments routes
 app.use('/api/payments/payapp', payappPaymentsRouter);
@@ -73,6 +76,7 @@ initDb()
     app.listen(PORT, () => {
       console.log(`[swingnote-server] running on http://localhost:${PORT}`);
     });
+    startScheduledPushRunner();
   })
   .catch((err) => {
     console.error('[swingnote-server] DB init failed:', err);

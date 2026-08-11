@@ -281,6 +281,85 @@ export async function initDb(): Promise<void> {
     )
   `);
 
+  // ── Push notifications ───────────────────────────────────────────────────
+  //
+  // FCM device tokens per user. One user can have multiple devices (phone,
+  // tablet). Token uniqueness across all users is enforced because FCM tokens
+  // are globally unique per install; when a user switches accounts on the
+  // same device we simply overwrite the old row's user_id.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS device_tokens (
+      token         VARCHAR(500) PRIMARY KEY,
+      user_id       VARCHAR(255) NOT NULL,
+      user_role     VARCHAR(20)  NOT NULL,
+      platform      VARCHAR(20)  NOT NULL,
+      app_variant   VARCHAR(20)  NOT NULL,
+      created_at    BIGINT       NOT NULL,
+      updated_at    BIGINT       NOT NULL
+    )
+  `);
+  await pool.query(
+    `CREATE INDEX IF NOT EXISTS idx_device_tokens_user ON device_tokens (user_id, user_role)`
+  );
+
+  // Per-user notification preferences. Row is auto-created lazily on first
+  // read with defaults, so missing rows don't break send paths.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS notification_preferences (
+      user_id                    VARCHAR(255) NOT NULL,
+      user_role                  VARCHAR(20)  NOT NULL,
+      lesson_reminder_minutes    INTEGER      NOT NULL DEFAULT 30,
+      channels                   JSONB        NOT NULL DEFAULT '{}',
+      quiet_hours_start          VARCHAR(5),
+      quiet_hours_end            VARCHAR(5),
+      updated_at                 BIGINT       NOT NULL,
+      PRIMARY KEY (user_id, user_role)
+    )
+  `);
+
+  // Future-scheduled notifications (lesson reminders). Cron polls this table.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS scheduled_notifications (
+      id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      target_user_id  VARCHAR(255) NOT NULL,
+      target_role     VARCHAR(20)  NOT NULL,
+      fire_at         BIGINT       NOT NULL,
+      type            VARCHAR(50)  NOT NULL,
+      dedup_key       VARCHAR(255),
+      payload         JSONB        NOT NULL DEFAULT '{}',
+      status          VARCHAR(20)  NOT NULL DEFAULT 'PENDING',
+      sent_at         BIGINT,
+      created_at      BIGINT       NOT NULL,
+      updated_at      BIGINT       NOT NULL
+    )
+  `);
+  await pool.query(
+    `CREATE INDEX IF NOT EXISTS idx_scheduled_notifications_pending
+       ON scheduled_notifications (status, fire_at)`
+  );
+  await pool.query(
+    `CREATE INDEX IF NOT EXISTS idx_scheduled_notifications_dedup
+       ON scheduled_notifications (dedup_key)`
+  );
+
+  // Broadcast audit log — one row per coach fan-out send.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS broadcasts (
+      id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      coach_id          UUID         NOT NULL,
+      title             VARCHAR(255) NOT NULL,
+      body              TEXT         NOT NULL,
+      deep_link         VARCHAR(500),
+      recipient_count   INTEGER      NOT NULL DEFAULT 0,
+      delivered_count   INTEGER      NOT NULL DEFAULT 0,
+      failed_count      INTEGER      NOT NULL DEFAULT 0,
+      created_at        BIGINT       NOT NULL
+    )
+  `);
+  await pool.query(
+    `CREATE INDEX IF NOT EXISTS idx_broadcasts_coach ON broadcasts (coach_id, created_at DESC)`
+  );
+
   // Seed the admin-editable templates from the built-in defaults once.
   // ON CONFLICT DO NOTHING preserves any admin edits across restarts/redeploys.
   const now = Date.now();

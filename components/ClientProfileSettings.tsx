@@ -16,6 +16,7 @@ import { CoachSearch, CoachSearchResult } from './CoachSearch';
 import { useLanguage } from './LanguageContext';
 import { analyzeStructuralFactors, inferSwingTypeFromBodyType } from '../services/bodyAnalysisService';
 import { analyzeBodyPhotos } from '../services/geminiService';
+import { NotificationSettings } from './NotificationSettings';
 
 interface ClientProfileSettingsProps {
   profile: ClientProfile;
@@ -925,6 +926,13 @@ export const ClientProfileSettings: React.FC<ClientProfileSettingsProps> = ({ pr
             </Button>
         </div>
       </form>
+
+      <div className="mt-8 pt-6 border-t border-gray-100">
+        <h2 className="text-lg font-semibold text-gray-800 mb-2">알림 설정</h2>
+        <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
+          <NotificationSettings />
+        </div>
+      </div>
     </div>
   );
 };
