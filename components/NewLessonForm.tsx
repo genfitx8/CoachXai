@@ -274,6 +274,32 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
   // Golf Data Extraction Mode
   const [isDataExtractionMode, setIsDataExtractionMode] = useState(false);
 
+  // Manual Shot Data Entry (structured GolfData inputs)
+  const [manualGolfData, setManualGolfData] = useState<Partial<GolfData>>({});
+  const [showManualShotData, setShowManualShotData] = useState(false);
+
+  const updateManualGolfField = (
+    key: keyof GolfData,
+    raw: string
+  ) => {
+    setManualGolfData((prev) => {
+      const next = { ...prev };
+      if (raw === '') {
+        delete next[key];
+      } else {
+        const num = Number(raw);
+        if (Number.isFinite(num)) {
+          next[key] = num;
+        }
+      }
+      return next;
+    });
+  };
+
+  const hasManualGolfData = Object.values(manualGolfData).some(
+    (v) => v !== undefined && v !== null && !Number.isNaN(v)
+  );
+
   // Scorecard Specific Mode State
   const [scoreMode, setScoreMode] = useState<'SIMPLE' | 'DETAILED'>('SIMPLE');
   const [courseName, setCourseName] = useState('');
@@ -367,6 +393,11 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
       );
       setNotes(initialData.coachNotes || '');
       setRecordType(initialData.recordType || 'LESSON');
+
+      if (initialData.golfData) {
+        setManualGolfData({ ...initialData.golfData });
+        setShowManualShotData(true);
+      }
 
       if (initialData.recordType === 'SCORE') {
         if (initialData.scorecardDetail) {
@@ -1125,11 +1156,13 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
     // In Simple Mode, media or memo is required — except for round records
     // where the user typed a total score directly (score alone is enough).
     // In Detailed Scorecard Mode, media is optional (user might just input numbers).
+    // Manual shot data (non-SCORE records) also counts as meaningful content.
     if (recordType !== 'SCORE' || scoreMode === 'SIMPLE') {
       if (
         mediaItems.length === 0 &&
         !hasMeaningfulMemo &&
-        !hasSimpleScore
+        !hasSimpleScore &&
+        !(recordType !== 'SCORE' && hasManualGolfData)
       ) {
         setError(t('new_lesson_media_required'));
         return;
@@ -1287,6 +1320,9 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
 
       if (recordType === 'SCORE') {
         extractedGolfData = undefined;
+      } else if (hasManualGolfData) {
+        // Manual entries take precedence over AI-extracted values.
+        extractedGolfData = { ...(extractedGolfData || {}), ...manualGolfData };
       }
 
       // Convert Media Items to MediaItem objects
@@ -1313,6 +1349,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
       if (club) tags.push(club);
       if (mainMedia?.type === 'audio') tags.push('음성기록');
       else if (isDataExtractionMode) tags.push('데이터정리');
+      if (recordType !== 'SCORE' && hasManualGolfData) tags.push('샷데이터');
 
       let finalScore: number | undefined = undefined;
       if (recordType === 'SCORE') {
@@ -2659,6 +2696,105 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
               )}
             </div>
           )}
+
+        {/* Manual Shot Data Entry (Non-Score Record) */}
+        {recordType !== 'SCORE' && (
+          <div
+            className={`rounded-xl border-2 transition-all ${
+              showManualShotData || hasManualGolfData
+                ? 'border-emerald-500 bg-emerald-900/20'
+                : 'border-slate-700 bg-slate-800/40'
+            }`}
+          >
+            <button
+              type="button"
+              onClick={() => setShowManualShotData((v) => !v)}
+              className="w-full p-4 flex items-center gap-4 text-left"
+              aria-expanded={showManualShotData}
+            >
+              <div
+                className={`p-2 rounded-full ${
+                  showManualShotData || hasManualGolfData
+                    ? 'bg-emerald-500 text-white'
+                    : 'bg-slate-700 text-slate-300'
+                }`}
+              >
+                <BarChart3 className="w-5 h-5" />
+              </div>
+              <div className="flex-1">
+                <h4 className="font-bold text-slate-100 text-sm">
+                  샷 데이터 직접 입력
+                </h4>
+                <p className="text-xs text-slate-400">
+                  런치모니터 수치를 직접 기록으로 남깁니다.
+                  {hasManualGolfData && (
+                    <span className="ml-2 text-emerald-300 font-bold">
+                      · 입력됨
+                    </span>
+                  )}
+                </p>
+              </div>
+              {showManualShotData ? (
+                <ChevronUp className="w-4 h-4 text-slate-400" />
+              ) : (
+                <ChevronDown className="w-4 h-4 text-slate-400" />
+              )}
+            </button>
+
+            {showManualShotData && (
+              <div className="px-4 pb-4 space-y-3 animate-fade-in">
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                  {[
+                    { key: 'carryDistance', label: '캐리 (m)', placeholder: '예: 180' },
+                    { key: 'totalDistance', label: '총 거리 (m)', placeholder: '예: 195' },
+                    { key: 'ballSpeed', label: '볼 스피드 (m/s)', placeholder: '예: 62' },
+                    { key: 'clubHeadSpeed', label: '헤드 스피드 (m/s)', placeholder: '예: 43' },
+                    { key: 'launchAngle', label: '발사각 (°)', placeholder: '예: 15' },
+                    { key: 'smashFactor', label: '정타율', placeholder: '예: 1.44' },
+                    { key: 'backSpin', label: '백스핀 (rpm)', placeholder: '예: 2500' },
+                    { key: 'sideSpin', label: '사이드스핀 (rpm)', placeholder: '예: 200' },
+                    { key: 'clubPath', label: '클럽 패스 (°)', placeholder: '예: -1.5' },
+                    { key: 'faceAngle', label: '페이스 앵글 (°)', placeholder: '예: 0.5' },
+                    { key: 'attackAngle', label: '어택 앵글 (°)', placeholder: '예: -2' },
+                    { key: 'sideTotal', label: '사이드 토탈 (m)', placeholder: '예: -3' },
+                  ].map((field) => {
+                    const value = manualGolfData[field.key as keyof GolfData];
+                    return (
+                      <div key={field.key}>
+                        <label className="block text-[11px] font-bold text-slate-400 mb-1">
+                          {field.label}
+                        </label>
+                        <input
+                          type="number"
+                          inputMode="decimal"
+                          step="any"
+                          value={value === undefined ? '' : value}
+                          onChange={(e) =>
+                            updateManualGolfField(
+                              field.key as keyof GolfData,
+                              e.target.value
+                            )
+                          }
+                          placeholder={field.placeholder}
+                          className="w-full px-3 py-2 border border-slate-700 rounded-lg bg-slate-900/60 text-slate-100 placeholder:text-slate-500 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none text-sm"
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+                {hasManualGolfData && (
+                  <button
+                    type="button"
+                    onClick={() => setManualGolfData({})}
+                    className="text-xs text-slate-400 hover:text-slate-200 flex items-center gap-1"
+                  >
+                    <Trash2 className="w-3 h-3" /> 입력값 지우기
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Coach Notes */}
         <div>
