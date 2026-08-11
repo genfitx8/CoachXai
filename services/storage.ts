@@ -1,4 +1,4 @@
-import { Lesson, ClientProfile, Homework, HomeworkTemplate, NotificationMessage, GolfCourse, CoachProfile, LessonReservation, Branch, BranchAdminAccount, Bay, BayPriceRule, BayReservation, LessonPackage, TrainingProgram, QuickLogEntry, WeeklyInsight, PromptTemplate, PromptTarget, PromptAttachment, CoachStyleExemplar, AiCallLog } from '../types';
+import { Lesson, ClientProfile, Homework, HomeworkTemplate, NotificationMessage, GolfCourse, CoachProfile, LessonReservation, Branch, BranchAdminAccount, Bay, BayPriceRule, BayReservation, LessonPackage, TrainingProgram, QuickLogEntry, WeeklyInsight, PromptTemplate, PromptTarget, PromptAttachment, CoachStyleExemplar, AiCallLog, StudentContext } from '../types';
 import { createLogger } from '../utils/logger';
 
 const log = createLogger('storage');
@@ -24,6 +24,7 @@ const STORAGE_KEYS = {
   PROMPT_TEMPLATES: 'swingnote_prompt_templates',
   COACH_STYLE_EXEMPLARS: 'coachxai_style_exemplars',
   AI_CALL_LOGS: 'coachxai_ai_call_logs',
+  STUDENT_CONTEXTS: 'coachxai_student_contexts',
 };
 
 // Rolling cap so the localStorage bucket doesn't grow without bound. Firestore
@@ -642,6 +643,29 @@ export const storageService = {
       localStorage.setItem(STORAGE_KEYS.QUICK_LOGS, JSON.stringify(all.filter((q) => q.id !== logId)));
     } catch (e) {
       log.error('Failed to delete quick log', e);
+    }
+  },
+
+  // ── Student Context Methods (local cache) ───────────────────────────────────
+
+  getStudentContext: (clientId: string): StudentContext | null => {
+    try {
+      const raw = localStorage.getItem(`${STORAGE_KEYS.STUDENT_CONTEXTS}:${clientId}`);
+      return raw ? (JSON.parse(raw) as StudentContext) : null;
+    } catch (e) {
+      log.error('Failed to load student context', e);
+      return null;
+    }
+  },
+
+  saveStudentContext: (ctx: StudentContext): void => {
+    try {
+      localStorage.setItem(
+        `${STORAGE_KEYS.STUDENT_CONTEXTS}:${ctx.clientId}`,
+        JSON.stringify(ctx)
+      );
+    } catch (e) {
+      log.error('Failed to save student context', e);
     }
   },
 

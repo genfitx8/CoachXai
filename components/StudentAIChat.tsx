@@ -27,6 +27,31 @@ interface StudentAIChatProps {
   coachProfile?: CoachProfile;
   onBack: () => void;
   initialQuery?: string;
+  /**
+   * When provided, replaces the auto-generated greeting used for the very
+   * first assistant message. The AI Home passes a context-aware greeting here.
+   */
+  initialGreeting?: string;
+  /**
+   * Default conversation mode on first render. Falls back to 'voice' for
+   * backwards compatibility with the original entry-point.
+   */
+  defaultMode?: Mode;
+  /**
+   * Force-hide the voice/chat mode selection screen even when no
+   * `initialQuery` is present. Used by the AI Home which is chat-first.
+   */
+  hideModeSelector?: boolean;
+  /**
+   * Hide the back button in the header. Used when this component renders as
+   * the app's home screen and there's no "back" destination.
+   */
+  hideBackButton?: boolean;
+  /**
+   * Optional element to render where the back button normally sits.
+   * The AI Home passes its hamburger button here.
+   */
+  headerLeftSlot?: React.ReactNode;
 }
 
 const SUGGESTED_PROMPTS_KO = [
@@ -107,18 +132,27 @@ export const StudentAIChat: React.FC<StudentAIChatProps> = ({
   coachProfile,
   onBack,
   initialQuery,
+  initialGreeting,
+  defaultMode = 'voice',
+  hideModeSelector = false,
+  hideBackButton = false,
+  headerLeftSlot,
 }) => {
   const { language, t } = useLanguage();
   const lang = (language as 'ko' | 'en' | 'ja') ?? 'ko';
 
-  const greeting = language === 'en'
+  const fallbackGreeting = language === 'en'
     ? `Hi **${clientProfile.name}**! I'm **CoachX AI**, your personal golf assistant. I've reviewed your **${myLessons.length} lesson records**. What can I help you with today? 🏌️`
     : language === 'ja'
     ? `こんにちは、**${clientProfile.name}**さん！私は**CoachX AI**、あなた専用のゴルフアシスタントです。**${myLessons.length}件のレッスン記録**を確認しました。今日は何でもお気軽にどうぞ！ 🏌️`
     : `안녕하세요, **${clientProfile.name}**님! 저는 **CoachX AI**예요. ${myLessons.length}개의 레슨 기록을 바탕으로 맞춤 조언을 드릴게요. 말씀하시거나 타이핑으로 물어보세요! 🏌️`;
 
-  const [mode, setMode] = useState<Mode>('voice');
-  const [showModeSelector, setShowModeSelector] = useState<boolean>(!initialQuery);
+  const greeting = initialGreeting ?? fallbackGreeting;
+
+  const [mode, setMode] = useState<Mode>(defaultMode);
+  const [showModeSelector, setShowModeSelector] = useState<boolean>(
+    hideModeSelector ? false : !initialQuery
+  );
   const [messages, setMessages] = useState<CoachXChatMessage[]>([
     { role: 'assistant', content: greeting, timestamp: Date.now() },
   ]);
@@ -504,12 +538,14 @@ export const StudentAIChat: React.FC<StudentAIChatProps> = ({
       />
       {/* Header */}
       <div className="flex items-center gap-3 px-4 py-3 border-b border-white/10 bg-gray-900/90 backdrop-blur-sm sticky top-0 z-10">
-        <BackButton
-          onClick={onBack}
-          tone="dark"
-          label={t('back')}
-          ariaLabel={t('back')}
-        />
+        {headerLeftSlot ?? (!hideBackButton && (
+          <BackButton
+            onClick={onBack}
+            tone="dark"
+            label={t('back')}
+            ariaLabel={t('back')}
+          />
+        ))}
 
         <div className="relative w-9 h-9 flex items-center justify-center flex-shrink-0">
           <div className="absolute inset-0 rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 student-ai-pulse" />

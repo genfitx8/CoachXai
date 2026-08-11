@@ -3,11 +3,13 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { ClientApp } from '../components/ClientApp';
 import { LanguageProvider } from '../components/LanguageContext';
-import { Lesson, ClientProfile } from '../types';
+import { ClientProfile, Lesson } from '../types';
 
 vi.mock('../services/firebase', () => ({
   firebaseService: {
     isInitialized: vi.fn().mockReturnValue(false),
+    getStudentContext: vi.fn().mockResolvedValue(null),
+    saveStudentContext: vi.fn().mockResolvedValue(undefined),
   },
 }));
 
@@ -16,6 +18,8 @@ vi.mock('../services/storage', () => ({
     getHomework: vi.fn().mockReturnValue([]),
     getQuickLogsByClient: vi.fn().mockReturnValue([]),
     searchCoachesByName: vi.fn().mockReturnValue([]),
+    getStudentContext: vi.fn().mockReturnValue(null),
+    saveStudentContext: vi.fn(),
   },
 }));
 
@@ -26,8 +30,8 @@ const clientProfile: ClientProfile = {
   subscriptionPlan: 'FREE',
 };
 
-const renderClientApp = (lessons: Lesson[] = []) => {
-  return render(
+const renderClientApp = (lessons: Lesson[] = []) =>
+  render(
     <LanguageProvider>
       <ClientApp
         clientProfile={clientProfile}
@@ -37,44 +41,45 @@ const renderClientApp = (lessons: Lesson[] = []) => {
       />
     </LanguageProvider>
   );
-};
 
-describe('ClientApp CoachX premium dark alignment', () => {
+/**
+ * Post-redesign smoke tests for the student app shell:
+ *   - AI Home is the landing tab (no dashboard cards).
+ *   - Bottom nav exposes the three primary tabs.
+ *   - The hamburger button is available in the header for secondary flows.
+ */
+describe('ClientApp AI-home shell', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it('renders member app shell with dark premium surface styling', () => {
+  it('renders the app with the dark premium surface tokens', () => {
     const { container } = renderClientApp();
 
     const root = container.firstElementChild as HTMLDivElement;
     expect(root.className).toContain('from-[#05070A]');
     expect(root.className).toContain('text-slate-100');
-
-    expect(screen.getByText('김회원님')).toBeInTheDocument();
-    expect(screen.queryByText('멤버십 플랜')).toBeNull();
-    expect(screen.queryByText('PRO 멤버십 바로 결제하기')).toBeNull();
-    expect(screen.getByRole('button', { name: '멤버십 결제' })).toBeInTheDocument();
-    expect(screen.getByText('예약')).toBeInTheDocument();
   });
 
-  it('uses CoachX cool accent styling for member primary actions', () => {
+  it('opens on the AI Home tab and shows the hamburger + bottom-nav shell', () => {
     renderClientApp();
 
-    expect(screen.getByText('레슨 기록 시작').closest('button')?.className).toContain('from-indigo-600');
-    expect(screen.getByRole('button', { name: '레슨 예약' })).toBeInTheDocument();
-    expect(screen.queryByText('CoachX AI')).toBeNull();
-    expect(screen.queryByText('주간 인사이트')).toBeNull();
-    expect(screen.getByRole('button', { name: '상세 통계' }).className).toContain('bg-slate-950/70');
+    // Hamburger entry in the AI Home header.
+    expect(screen.getByRole('button', { name: /open menu/i })).toBeInTheDocument();
+
+    // Bottom nav — three tabs visible.
+    const nav = screen.getByRole('navigation', { name: /student navigation/i });
+    expect(nav).toBeInTheDocument();
+    // Home tab is the active one and rendered with role=page.
+    expect(nav.querySelector('[aria-current="page"]')).not.toBeNull();
   });
 
-  it('does not render golf profile and club sections in my info', () => {
+  it('does not render the legacy dashboard cards after the redesign', () => {
     renderClientApp();
 
-    expect(screen.queryByRole('heading', { name: '골프 프로필' })).toBeNull();
-    expect(screen.queryByRole('button', { name: '골프프로필' })).toBeNull();
-    expect(screen.queryByRole('button', { name: '신체분석' })).toBeNull();
-    expect(screen.queryByRole('heading', { name: '내 클럽' })).toBeNull();
-    expect(screen.queryByRole('button', { name: '내 클럽' })).toBeNull();
+    // Old dashboard buttons removed by the redesign.
+    expect(screen.queryByText('레슨 기록 시작')).toBeNull();
+    expect(screen.queryByRole('button', { name: '레슨 예약' })).toBeNull();
+    expect(screen.queryByRole('button', { name: '멤버십 결제' })).toBeNull();
   });
 });

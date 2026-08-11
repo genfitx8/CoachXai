@@ -55,6 +55,7 @@ import {
   PromptTarget,
   CoachStyleExemplar,
   AiCallLog,
+  StudentContext,
 } from '../types';
 import { createLogger } from '../utils/logger';
 
@@ -1007,6 +1008,25 @@ export const firebaseService = {
       log.error('Failed to fetch weekly insights:', e);
       return [];
     }
+  },
+
+  // ── Student Context Operations ───────────────────────────────────────────────
+
+  getStudentContext: async (clientId: string): Promise<StudentContext | null> => {
+    if (!db) return null;
+    try {
+      const snap = await getDoc(doc(db, 'student_contexts', clientId));
+      return snap.exists() ? (snap.data() as StudentContext) : null;
+    } catch (e) {
+      log.error('Failed to fetch student context:', e);
+      return null;
+    }
+  },
+
+  saveStudentContext: async (ctx: StudentContext): Promise<void> => {
+    if (!db) throw new Error('Firebase not initialized');
+    const cleaned = removeUndefinedFields(ctx);
+    await setDoc(doc(db, 'student_contexts', ctx.clientId), cleaned);
   },
 
   // ── Prompt Template Operations ───────────────────────────────────────────────

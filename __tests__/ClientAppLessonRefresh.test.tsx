@@ -8,6 +8,8 @@ import { ClientProfile } from '../types';
 vi.mock('../services/firebase', () => ({
   firebaseService: {
     isInitialized: vi.fn().mockReturnValue(false),
+    getStudentContext: vi.fn().mockResolvedValue(null),
+    saveStudentContext: vi.fn().mockResolvedValue(undefined),
   },
 }));
 
@@ -16,6 +18,8 @@ vi.mock('../services/storage', () => ({
     getHomework: vi.fn().mockReturnValue([]),
     getQuickLogsByClient: vi.fn().mockReturnValue([]),
     searchCoachesByName: vi.fn().mockReturnValue([]),
+    getStudentContext: vi.fn().mockReturnValue(null),
+    saveStudentContext: vi.fn(),
   },
 }));
 
@@ -26,12 +30,17 @@ const clientProfile: ClientProfile = {
   subscriptionPlan: 'FREE',
 };
 
-describe('ClientApp recent-records refresh', () => {
+/**
+ * Post-redesign: the "recent records" list is now the Growth tab, so the
+ * refresh signal that used to fire when the user tapped 최근 기록 now fires
+ * when the user switches to Growth.
+ */
+describe('ClientApp growth-tab refresh', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it('calls onRefreshLessons when the recent-records button is tapped so a lesson the coach just saved shows up without a page reload', () => {
+  it('calls onRefreshLessons when the user switches to the Growth tab', () => {
     const onRefreshLessons = vi.fn();
 
     render(
@@ -46,7 +55,11 @@ describe('ClientApp recent-records refresh', () => {
       </LanguageProvider>
     );
 
-    fireEvent.click(screen.getByRole('button', { name: /최근 기록/i }));
+    // Growth tab lives in the bottom nav labelled "성장" (ko default).
+    const nav = screen.getByRole('navigation', { name: /student navigation/i });
+    const growthTab = nav.querySelector('button:last-child') as HTMLButtonElement;
+    expect(growthTab).not.toBeNull();
+    fireEvent.click(growthTab);
 
     expect(onRefreshLessons).toHaveBeenCalledTimes(1);
   });
@@ -63,8 +76,8 @@ describe('ClientApp recent-records refresh', () => {
       </LanguageProvider>
     );
 
-    expect(() =>
-      fireEvent.click(screen.getByRole('button', { name: /최근 기록/i }))
-    ).not.toThrow();
+    const nav = screen.getByRole('navigation', { name: /student navigation/i });
+    const growthTab = nav.querySelector('button:last-child') as HTMLButtonElement;
+    expect(() => fireEvent.click(growthTab)).not.toThrow();
   });
 });

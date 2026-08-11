@@ -479,6 +479,14 @@ export interface ClubSpec {
   spec2?: string; // Driver: Flex, Iron: Shaft, Putter: Type
 }
 
+/**
+ * Preferred AI tone for the student's CoachX AI conversations.
+ * - `friendly`: warm and encouraging (default).
+ * - `coach`: direct, coach-like feedback.
+ * - `minimal`: short, no fluff, data-first.
+ */
+export type AITone = 'friendly' | 'coach' | 'minimal';
+
 export interface ClientProfile {
   id?: string;
   name: string;
@@ -503,6 +511,94 @@ export interface ClientProfile {
   currentPoints?: number;
   pushToken?: string; // Expo push token for push notifications (web/PWA)
   fcmToken?: string;  // FCM / APNs device token for Capacitor native push notifications
+  aiTone?: AITone;
+}
+
+// ── Student AI Context ───────────────────────────────────────────────────────
+
+/**
+ * A per-club rolling profile aggregated from the student's practice + round data.
+ * Written by `studentContextService` when new golf data lands (video analysis,
+ * practice log OCR, round save). Read at inference time to seed AI prompts so
+ * feedback references the student's actual tendencies instead of generic advice.
+ */
+export interface ClubProfile {
+  club: string;               // e.g. 'DRIVER', '7 IRON', 'PW'
+  avgCarry?: number;          // meters
+  avgBallSpeed?: number;      // m/s or mph — units follow inputs
+  avgClubSpeed?: number;
+  ballFlight?: 'draw' | 'fade' | 'straight' | 'push' | 'pull';
+  missPattern?: 'slice' | 'hook' | 'thin' | 'fat' | 'push' | 'pull' | null;
+  sampleCount: number;
+  updatedAt: number;
+}
+
+/**
+ * Compact summary of one round the student played.
+ * Bigger raw data (hole-by-hole scorecards) stays on Lesson/ScorecardDetail;
+ * this is the tail that stays hot in the context slice for AI prompts.
+ */
+export interface RoundSummary {
+  id: string;
+  date: string;               // YYYY-MM-DD
+  courseName?: string;
+  totalScore?: number;
+  fairwaysHit?: number;
+  greensInRegulation?: number;
+  totalPutts?: number;
+  moodTag?: QuickLogMood;
+  notes?: string;
+  createdAt: number;
+}
+
+/**
+ * A single reflective/emotional entry captured from voice or text.
+ * Kept short — long transcripts belong in QuickLogEntry.notes.
+ */
+export interface EmotionEntry {
+  id: string;
+  date: string;               // YYYY-MM-DD
+  mood: QuickLogMood;
+  tags?: string[];            // e.g. ['자신감', '피로']
+  note?: string;
+  source: 'voice' | 'text';
+  createdAt: number;
+}
+
+/**
+ * A recurring swing fault the AI or coach has flagged for this student.
+ * Used to highlight regression / improvement across sessions.
+ */
+export interface SwingFaultEntry {
+  fault: string;              // e.g. '백스윙 오버', '스웨이'
+  firstSeen: string;          // YYYY-MM-DD
+  lastSeen: string;           // YYYY-MM-DD
+  occurrences: number;
+  lastLessonId?: string;
+  status: 'active' | 'improving' | 'resolved';
+}
+
+/**
+ * Aggregated student memory served to AI features.
+ *
+ * Stored server-side in Firestore (`student_contexts/{clientId}`) with a
+ * localStorage cache for offline reads. Written by `studentContextService`
+ * whenever new golf data arrives; read at prompt-build time by:
+ *   - generateStudentChatResponse (AI home replies)
+ *   - swing analysis prompts (personalized diagnosis)
+ *   - round debrief prompts (why-this-hole-missed inference)
+ *
+ * All fields optional so a brand-new student profile validates as an empty ctx.
+ */
+export interface StudentContext {
+  clientId: string;           // `${name}_${phone}`
+  clubProfiles?: ClubProfile[];
+  recentRounds?: RoundSummary[]; // capped to ~10
+  swingFaultHistory?: SwingFaultEntry[];
+  emotionLog?: EmotionEntry[];   // capped to ~30
+  coachFeedbackDigest?: string[]; // capped to ~10 lines
+  goals?: string[];
+  updatedAt: number;
 }
 
 export interface FirebaseConfig {
