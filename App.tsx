@@ -93,7 +93,10 @@ import {
   Sparkles,
   Dumbbell,
   Home,
+  Menu,
 } from 'lucide-react';
+import { CoachBottomNav, CoachTab } from './components/CoachBottomNav';
+import { CoachHamburgerMenu, CoachHamburgerAction } from './components/CoachHamburgerMenu';
 import { LanguageProvider, useLanguage } from './components/LanguageContext';
 import {
   APP_VARIANT,
@@ -156,7 +159,8 @@ const AppContent: React.FC = () => {
   const [coachProfile, setCoachProfile] = useState<CoachProfile | null>(null);
 
   // View State (Coach)
-  const [coachView, setCoachView] = useState<ViewState | 'RESERVATIONS' | 'BAY_RESERVATION' | 'MY_BAY_RESERVATIONS'>('LIST');
+  const [coachView, setCoachView] = useState<ViewState | 'RESERVATIONS' | 'BAY_RESERVATION' | 'MY_BAY_RESERVATIONS'>('LESSON_LIST');
+  const [hamburgerOpen, setHamburgerOpen] = useState(false);
   const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(null);
   const [selectedClientFilter, setSelectedClientFilter] = useState<string>(''); // '' or clientName
   const [isEditingLesson, setIsEditingLesson] = useState(false); // Track editing mode
@@ -662,7 +666,7 @@ const AppContent: React.FC = () => {
       (coachView === 'LESSON_UPLOAD' || coachView === 'LESSON_IMPACT')
     ) {
       setPendingLessonUpload(null);
-      setCoachView('LIST');
+      setCoachView('LESSON_LIST');
     }
   }, [coachView, isAutomatedVideoEditingEnabled]);
 
@@ -673,7 +677,7 @@ const AppContent: React.FC = () => {
     setUserRole(null);
     setCurrentUser(null);
     setBranchAdminData(null);
-    setCoachView('LIST');
+    setCoachView('LESSON_LIST');
     setSelectedLesson(null);
   };
 
@@ -1466,6 +1470,64 @@ const AppContent: React.FC = () => {
     setCoachView('DIAGNOSIS_PROGRAM');
   };
 
+  // ── Coach tab / hamburger wiring ──────────────────────────────────────────
+
+  /**
+   * Derive which bottom-nav tab is currently "active" from the coach view.
+   * Views that don't map to a tab (DETAIL, NEW, COACHX_*, etc.) return null
+   * so the nav renders as an overlay backdrop without highlighting anything.
+   */
+  const activeCoachTab: CoachTab | null =
+    coachView === 'LESSON_LIST' ? 'LESSON'
+    : coachView === 'CLIENTS' ? 'CLIENTS'
+    : coachView === 'RESERVATIONS' ? 'RESERVATIONS'
+    : null;
+
+  const handleCoachTabChange = (next: CoachTab) => {
+    setSelectedLesson(null);
+    if (next === 'LESSON') setCoachView('LESSON_LIST');
+    else if (next === 'CLIENTS') setCoachView('CLIENTS');
+    else setCoachView('RESERVATIONS');
+  };
+
+  const handleCoachNewRecord = () => {
+    setIsEditingLesson(false);
+    setSelectedLesson(null);
+    setCoachView('NEW');
+  };
+
+  const handleCoachHamburgerAction = (action: CoachHamburgerAction) => {
+    switch (action) {
+      case 'PROFILE':
+        setShowProfileModal(true);
+        break;
+      case 'COACHX_ASSISTANT':
+        setCoachView('COACHX_ASSISTANT');
+        break;
+      case 'DIAGNOSIS_PROGRAM':
+        handleDiagnosisProgramClick();
+        break;
+      case 'CURRICULUM':
+        setCoachView('CURRICULUM');
+        break;
+      case 'LESSON_UPLOAD':
+        setCoachView('LESSON_UPLOAD');
+        break;
+      case 'BAY_RESERVATION':
+        setCoachView('BAY_RESERVATION');
+        break;
+      case 'MY_BAY_RESERVATIONS':
+        setCoachView('MY_BAY_RESERVATIONS');
+        break;
+      case 'LANGUAGE':
+        toggleLanguage();
+        break;
+      case 'LOGOUT':
+        handleLogout();
+        break;
+    }
+  };
+
   const handleDiagnosisCreateResult = (input: DiagnosisInput) => {
     const savedSession = diagnosisService.saveResult(input);
     setSelectedDiagnosisSession(savedSession);
@@ -1796,152 +1858,45 @@ const AppContent: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#05070A] via-[#070b12] to-[#0B1220] text-slate-100 flex flex-col font-sans">
-      {/* Header */}
+      {/* Header — hamburger opens the drawer, brand shows coach name */}
       <header className="bg-[#0A0F1A]/95 border-b border-slate-800 shadow-lg shadow-black/30 sticky top-0 z-40 backdrop-blur-xl">
-        <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between gap-2">
+        <div className="max-w-7xl mx-auto px-3 h-14 flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setHamburgerOpen(true)}
+            aria-label="Open menu"
+            className="p-2 rounded-lg text-slate-200 hover:bg-white/10 transition-colors"
+          >
+            <Menu className="w-5 h-5" />
+          </button>
           {currentUser && 'id' in currentUser && (
-            <div
-              className="flex items-center gap-2 text-sm text-slate-200 hover:bg-slate-800 px-3 py-1.5 rounded-full cursor-pointer transition-colors min-w-0 max-w-[50%]"
+            <button
+              type="button"
               onClick={() => setShowProfileModal(true)}
+              className="flex items-center gap-2 text-sm text-slate-200 hover:bg-slate-800 px-3 py-1.5 rounded-full transition-colors min-w-0"
             >
               <div className="bg-indigo-500/20 p-1 rounded-full text-indigo-300 flex-shrink-0">
                 <User className="w-4 h-4" />
               </div>
-              {/* Always visible Coach Name */}
               <span className="font-bold truncate">
                 {currentUser.name} {t('coach')}
               </span>
-            </div>
-          )}
-
-          <div className="flex items-center gap-1.5 sm:gap-2 md:gap-4 ml-auto flex-shrink-0">
-            {coachView !== 'LIST' && (
-              <button
-                onClick={() => setCoachView('LIST')}
-                data-testid="header-dashboard-btn"
-                aria-label="대시보드로 돌아가기"
-                className="flex items-center gap-1.5 text-sm font-semibold text-slate-200 hover:text-indigo-200 transition-colors bg-slate-900 hover:bg-slate-800 px-2.5 py-1.5 rounded-lg border border-slate-700 hover:border-indigo-500/60"
-              >
-                <Home className="w-4 h-4" />
-                <span className="hidden sm:inline">대시보드</span>
-              </button>
-            )}
-            <button
-              onClick={toggleLanguage}
-              className="flex items-center gap-1 text-sm font-bold text-slate-300 hover:text-cyan-200 transition-colors bg-slate-900 px-2 py-1.5 rounded-lg border border-slate-700"
-            >
-              <Globe className="w-4 h-4" />
-              {language.toUpperCase()}
             </button>
-            <Button
-              variant="ghost"
-              onClick={handleLogout}
-              className="text-slate-400 hover:text-red-400"
-            >
-              <LogOut className="w-5 h-5" />
-            </Button>
-          </div>
+          )}
         </div>
       </header>
 
 
-      <main className="flex-1 max-w-7xl mx-auto w-full px-4 py-6 md:py-8">
-        {coachView === 'LIST' && (
-          <div className="space-y-6 animate-fade-in">
-            <section className="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-4 md:p-5 shadow-xl shadow-black/20">
-              <div className="mb-4">
-                <p className="text-[11px] uppercase tracking-[0.16em] text-indigo-300/80 font-semibold">Coach workspace</p>
-                <h2 className="text-xl font-bold text-slate-50">빠른 실행</h2>
-              </div>
-
-              {/* ── Home actions ─────────────────────────────────────────────── */}
-              <div className="space-y-3">
-                <Button
-                  onClick={() => setCoachView('NEW')}
-                  data-testid="start-lesson-btn"
-                  className="w-full py-4 text-base rounded-2xl border border-indigo-500/40 shadow-lg shadow-indigo-900/30 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 justify-center"
-                  icon={<Play className="w-5 h-5 fill-current" />}
-                >
-                  Lesson start
-                </Button>
-
-                <Button
-                  onClick={() => setCoachView('CLIENTS')}
-                  data-testid="students-entry-btn"
-                  className="w-full py-4 text-base rounded-2xl border border-cyan-500/30 shadow-lg shadow-slate-900/40 bg-gradient-to-r from-slate-900 to-slate-800 hover:from-slate-800 hover:to-slate-700 justify-center"
-                  icon={<User className="w-5 h-5" />}
-                >
-                  Student
-                </Button>
-
-                {isAutomatedVideoEditingEnabled && (
-                  <Button
-                    onClick={() => setCoachView('LESSON_UPLOAD')}
-                    data-testid="lesson-upload-entry-btn"
-                    className="w-full py-4 text-base rounded-2xl border border-violet-500/30 shadow-lg shadow-slate-900/40 bg-gradient-to-r from-slate-900 to-slate-800 hover:from-slate-800 hover:to-slate-700 justify-center"
-                    icon={<Play className="w-5 h-5" />}
-                  >
-                    자동 영상 편집
-                  </Button>
-                )}
-
-                <Button
-                  onClick={() => setCoachView('COACHX_ASSISTANT')}
-                  data-testid="coachx-entry-btn"
-                  className="w-full py-4 text-base rounded-2xl border border-violet-500/50 shadow-lg shadow-slate-900/40 bg-gradient-to-r from-violet-900/60 to-slate-800 hover:from-violet-800/60 hover:to-slate-700 justify-center"
-                  icon={<Sparkles className="w-5 h-5 text-violet-300" />}
-                >
-                  coachx ai
-                </Button>
-
-                <Button
-                  onClick={() => setCoachView('RESERVATIONS')}
-                  data-testid="reservations-entry-btn"
-                  className="w-full py-4 text-base rounded-2xl border border-emerald-500/30 shadow-lg shadow-slate-900/40 bg-gradient-to-r from-slate-900 to-slate-800 hover:from-slate-800 hover:to-slate-700 justify-center"
-                  icon={<Calendar className="w-5 h-5 text-emerald-400" />}
-                >
-                  예약 관리
-                </Button>
-
-                <Button
-                  onClick={handleDiagnosisProgramClick}
-                  data-testid="diagnosis-program-entry-btn"
-                  className="w-full py-4 text-base rounded-2xl border border-violet-500/30 shadow-lg shadow-slate-900/40 bg-gradient-to-r from-slate-900 to-slate-800 hover:from-slate-800 hover:to-slate-700 justify-center"
-                  icon={<Dumbbell className="w-5 h-5 text-violet-400" />}
-                >
-                  coachxai 정밀진단 프로그램
-                </Button>
-
-                <Button
-                  onClick={() => setCoachView('CURRICULUM')}
-                  data-testid="curriculum-entry-btn"
-                  className="w-full py-4 text-base rounded-2xl border border-amber-500/30 shadow-lg shadow-slate-900/40 bg-gradient-to-r from-slate-900 to-slate-800 hover:from-slate-800 hover:to-slate-700 justify-center"
-                  icon={<BookOpen className="w-5 h-5 text-amber-400" />}
-                >
-                  교육 커리큘럼 관리
-                </Button>
-
-              </div>
-            </section>
-          </div>
-        )}
-
+      <main className="flex-1 max-w-7xl mx-auto w-full px-4 py-6 md:py-8 pb-24">
         {coachView === 'LESSON_LIST' && (
           <div className="space-y-6 animate-fade-in">
-            {/* Back to Dashboard */}
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-2 min-w-0">
-                <button
-                  onClick={() => setCoachView('LIST')}
-                  className="flex items-center gap-2 text-sm font-medium text-slate-300 hover:text-slate-100 transition-colors px-3 py-2 rounded-xl hover:bg-slate-800/80 border border-transparent hover:border-slate-700 flex-shrink-0"
-                >
-                  <X className="w-4 h-4" />
-                  대시보드로 돌아가기
-                </button>
-                <h2 className="text-lg sm:text-xl font-bold text-slate-100 flex items-center gap-2 tracking-tight min-w-0">
-                  <BookOpen className="w-5 h-5 text-indigo-300 flex-shrink-0" />
-                  <span className="truncate">레슨 기록</span>
-                </h2>
-              </div>
+            {/* Title — bottom tab already indicates which section we're in */}
+            <div className="flex items-center gap-2 min-w-0">
+              <h2 className="text-lg sm:text-xl font-bold text-slate-100 flex items-center gap-2 tracking-tight min-w-0">
+                <BookOpen className="w-5 h-5 text-indigo-300 flex-shrink-0" />
+                <span className="truncate">레슨 기록</span>
+              </h2>
+            </div>
 
             {/* Client Filter Section */}
             {userRole === 'COACH' && clients.length > 0 && (
@@ -2096,7 +2051,7 @@ const AppContent: React.FC = () => {
                   setPendingPackageSession(null);
                   setCoachView('LESSON_PACKAGE');
                 } else {
-                  setCoachView('LIST');
+                  setCoachView('LESSON_LIST');
                 }
                 setIsEditingLesson(false);
                 setSelectedLesson(null);
@@ -2118,7 +2073,7 @@ const AppContent: React.FC = () => {
         {coachView === 'DIAGNOSIS_PROGRAM' && (
           <DiagnosisProgramSection
             program={diagnosisProgram}
-            onBack={() => setCoachView('LIST')}
+            onBack={() => setCoachView('LESSON_LIST')}
             onCreateResult={handleDiagnosisCreateResult}
             onViewResult={handleDiagnosisResultClick}
             canViewResult={!!selectedDiagnosisSession}
@@ -2130,7 +2085,7 @@ const AppContent: React.FC = () => {
         {coachView === 'DIAGNOSIS_RESULT' && selectedDiagnosisSession && (
           <DiagnosisResultSection
             result={selectedDiagnosisSession.result}
-            onBack={() => setCoachView('LIST')}
+            onBack={() => setCoachView('LESSON_LIST')}
             onBackToProgram={() => setCoachView('DIAGNOSIS_PROGRAM')}
           />
         )}
@@ -2148,7 +2103,7 @@ const AppContent: React.FC = () => {
                 setCoachView('NEW');
                 return;
               }
-              setCoachView('LIST');
+              setCoachView('LESSON_LIST');
             }}
             showAddButton={false}
             autoOpenAddModal={autoOpenAddMemberFromLessonStart}
@@ -2204,7 +2159,7 @@ const AppContent: React.FC = () => {
             coachProfile={currentUser as CoachProfile}
             onBack={() => {
               setCalendarSelectedDate(undefined);
-              setCoachView('LIST');
+              setCoachView('LESSON_LIST');
             }}
             initialDate={calendarSelectedDate}
             onCoachUpdated={handleUpdateCoachProfile}
@@ -2214,7 +2169,7 @@ const AppContent: React.FC = () => {
         {coachView === 'BAY_RESERVATION' && currentUser && 'id' in currentUser && (
           <CoachBayReservation
             coachProfile={currentUser as CoachProfile}
-            onBack={() => setCoachView('LIST')}
+            onBack={() => setCoachView('LESSON_LIST')}
             onCoachUpdated={handleUpdateCoachProfile}
           />
         )}
@@ -2226,7 +2181,7 @@ const AppContent: React.FC = () => {
               phone: (currentUser as CoachProfile).phone ?? '',
             }}
             overrideClientId={(currentUser as CoachProfile).id}
-            onBack={() => setCoachView('LIST')}
+            onBack={() => setCoachView('LESSON_LIST')}
           />
         )}
 
@@ -2261,7 +2216,7 @@ const AppContent: React.FC = () => {
             coachProfile={currentUser as CoachProfile}
             allLessons={allCoachLessons}
             clients={clients}
-            onBack={() => setCoachView('LIST')}
+            onBack={() => setCoachView('LESSON_LIST')}
             onOpenChat={(initialQuery) => {
               setCoachXChatInitialQuery(initialQuery);
               setCoachView('COACHX_CHAT');
@@ -2287,7 +2242,7 @@ const AppContent: React.FC = () => {
             coachProfile={currentUser as CoachProfile}
             allLessons={allCoachLessons}
             clients={clients}
-            onBack={() => setCoachView('LIST')}
+            onBack={() => setCoachView('LESSON_LIST')}
             onOpenBayReservation={() => setCoachView('RESERVATIONS')}
             onOpenReservationManager={() => setCoachView('RESERVATIONS')}
             onOpenCoachXHub={() => setCoachView('COACHX')}
@@ -2305,14 +2260,14 @@ const AppContent: React.FC = () => {
               clientName: l.clientName,
               clientPhone: l.clientPhone,
             }))}
-            onBack={() => setCoachView('LIST')}
+            onBack={() => setCoachView('LESSON_LIST')}
           />
         )}
 
         {isAutomatedVideoEditingEnabled && coachView === 'LESSON_UPLOAD' && (
           <LessonUploadPage
             students={lessonUploadStudents}
-            onBack={() => setCoachView('LIST')}
+            onBack={() => setCoachView('LESSON_LIST')}
             onNext={(upload) => {
               setPendingLessonUpload(upload);
               setCoachView('LESSON_IMPACT');
@@ -2464,6 +2419,26 @@ const AppContent: React.FC = () => {
             markSkippedToday(s.reservation.id);
             setLessonSuggestion(null);
           }}
+        />
+      )}
+
+      {/* Coach hamburger drawer */}
+      {currentUser && 'id' in currentUser && (
+        <CoachHamburgerMenu
+          open={hamburgerOpen}
+          onClose={() => setHamburgerOpen(false)}
+          coachProfile={currentUser as CoachProfile}
+          onAction={handleCoachHamburgerAction}
+          showAutomatedVideoEditing={isAutomatedVideoEditingEnabled}
+        />
+      )}
+
+      {/* Bottom nav — visible on the three primary tabs, hidden on sub-views */}
+      {activeCoachTab && (
+        <CoachBottomNav
+          activeTab={activeCoachTab}
+          onTabChange={handleCoachTabChange}
+          onNewRecord={handleCoachNewRecord}
         />
       )}
     </div>
