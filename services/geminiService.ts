@@ -74,12 +74,44 @@ interface InlineDataPart {
 }
 
 /**
+ * Build a compact fingerprint of the media parts on a payload. Used as
+ * part of the cache key so that two OCR requests with identical prompts
+ * but different images do NOT collide in the cache. Without this the
+ * prompt hash is constant for OCR features (whose prompts are either
+ * fixed or scoped only to a client name), and every second-and-later
+ * upload silently returns the first image's cached response.
+ */
+const fingerprintMediaParts = (rec: Record<string, unknown>): string => {
+  const parts = rec.mediaParts;
+  if (!Array.isArray(parts) || parts.length === 0) return '';
+  const chunks: string[] = [];
+  for (const part of parts) {
+    if (!part || typeof part !== 'object') continue;
+    const inline = (part as Record<string, unknown>).inlineData;
+    if (!inline || typeof inline !== 'object') continue;
+    const inlineRec = inline as Record<string, unknown>;
+    const data = typeof inlineRec.data === 'string' ? inlineRec.data : '';
+    const mime = typeof inlineRec.mimeType === 'string' ? inlineRec.mimeType : '';
+    // Include mime type + full base64 body. hashPrompt collapses this to a
+    // 12-char digest, so the cost is a single SHA-256 over the input.
+    chunks.push(`${mime}:${data}`);
+  }
+  return chunks.join('|');
+};
+
+/**
  * Pull the fields the observability layer wants out of a payload without
  * caring about the payload's exact shape. All extraction is defensive so a
  * malformed payload never breaks the AI call itself.
  */
 const inspectPayload = (payload: unknown): {
   prompt: string;
+  /**
+   * `prompt` + media fingerprint. What we hash for cache lookups so image-
+   * bearing calls (OCR / video analysis) key on the actual image, not just
+   * the invariant prompt text.
+   */
+  cacheKeyInput: string;
   coachId?: string;
   hasExemplars: boolean;
   hasSchema: boolean;
@@ -91,7 +123,7 @@ const inspectPayload = (payload: unknown): {
   userMessage?: string;
 } => {
   if (!payload || typeof payload !== 'object') {
-    return { prompt: '', hasExemplars: false, hasSchema: false };
+    return { prompt: '', cacheKeyInput: '', hasExemplars: false, hasSchema: false };
   }
   const rec = payload as Record<string, unknown>;
   const prompt = typeof rec.prompt === 'string' ? rec.prompt : '';
@@ -103,7 +135,9 @@ const inspectPayload = (payload: unknown): {
   const hasExemplars =
     prompt.includes('참고 예시') || systemInstruction.includes('참고 예시');
   const hasSchema = 'responseSchema' in rec && rec.responseSchema != null;
-  return { prompt, coachId, hasExemplars, hasSchema, userMessage };
+  const mediaFingerprint = fingerprintMediaParts(rec);
+  const cacheKeyInput = mediaFingerprint ? `${prompt}\x1F${mediaFingerprint}` : prompt;
+  return { prompt, cacheKeyInput, coachId, hasExemplars, hasSchema, userMessage };
 };
 
 /**
@@ -158,11 +192,11 @@ export const invokeBackendAI = async <T>(feature: string, payload: unknown): Pro
   // shift as coaches star new outputs; a stale cache would defeat that.
   if (
     CACHEABLE_FEATURES.has(feature) &&
-    meta.prompt &&
+    meta.cacheKeyInput &&
     !meta.hasExemplars
   ) {
     try {
-      const promptHash = await hashPrompt(meta.prompt);
+      const promptHash = await hashPrompt(meta.cacheKeyInput);
       const cached = getCachedResponse(feature, promptHash);
       if (cached != null) {
         void recordAiCall({
@@ -232,11 +266,11 @@ export const invokeBackendAI = async <T>(feature: string, payload: unknown): Pro
     // response and serve it back after the exemplars have changed.
     if (
       CACHEABLE_FEATURES.has(feature) &&
-      meta.prompt &&
+      meta.cacheKeyInput &&
       !meta.hasExemplars &&
       responseText
     ) {
-      hashPrompt(meta.prompt)
+      hashPrompt(meta.cacheKeyInput)
         .then((promptHash) =>
           setCachedResponse(feature, promptHash, responseText)
         )
@@ -650,10 +684,31 @@ export const extractGolfData = async (
     if (!text) throw new Error('분석 실패');
 
     const parsedResult = JSON.parse(text);
+
+    // flash-lite (the model this feature routes to) often satisfies the
+    // response schema by returning every declared metric as `null` when it
+    // couldn't read one, instead of omitting the field. Passing those
+    // nulls straight through pollutes `Lesson.golfData` (typed as
+    // `number | undefined`) and makes the visualiser render "null m".
+    // Strip null/non-finite values here and collapse an empty result to
+    // `null` so callers can treat "no metrics" uniformly.
+    const rawMetrics = parsedResult.metrics;
+    let cleanedMetrics: GolfData | null = null;
+    if (rawMetrics && typeof rawMetrics === 'object' && !Array.isArray(rawMetrics)) {
+      const entries = Object.entries(rawMetrics as Record<string, unknown>).filter(
+        ([, v]) => typeof v === 'number' && Number.isFinite(v)
+      );
+      cleanedMetrics = entries.length > 0 ? (Object.fromEntries(entries) as GolfData) : null;
+    }
+
+    const rawScore = parsedResult.score;
+    const cleanedScore =
+      typeof rawScore === 'number' && Number.isFinite(rawScore) ? rawScore : undefined;
+
     return {
       textAnalysis: parsedResult.comment,
-      golfData: parsedResult.metrics,
-      score: parsedResult.score,
+      golfData: cleanedMetrics,
+      score: cleanedScore,
     };
   } catch (error) {
     log.error('Golf Data Extraction Error:', error);

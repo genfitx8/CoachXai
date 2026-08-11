@@ -1246,10 +1246,15 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
             );
 
             analysisResult = dataResult.textAnalysis;
-            if (dataResult.golfData) {
+            // Only replace existing golfData when the AI actually read at
+            // least one numeric field. An empty object (all nulls stripped)
+            // would silently overwrite whatever the coach had entered.
+            if (dataResult.golfData && Object.keys(dataResult.golfData).length > 0) {
               extractedGolfData = dataResult.golfData;
             }
-            if (dataResult.score) {
+            // Use `!= null` so a legitimate 0-score (rare but possible) is
+            // not treated as "no score".
+            if (dataResult.score != null) {
               extractedScore = dataResult.score;
             }
           } else {

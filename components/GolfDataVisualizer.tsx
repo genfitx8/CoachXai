@@ -64,11 +64,11 @@ export const GolfDataVisualizer: React.FC<GolfDataVisualizerProps> = ({
       }
   ];
 
-  const renderMetricCard = (label: string, value: number | undefined, unit: string, color: string) => (
+  const renderMetricCard = (label: string, value: number | undefined | null, unit: string, color: string) => (
     <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 flex flex-col items-center justify-center">
       <span className="text-gray-500 text-xs font-medium uppercase mb-1">{label}</span>
       <div className={`text-2xl font-bold ${color}`}>
-        {value !== undefined ? value : '-'} <span className="text-sm font-normal text-gray-400">{unit}</span>
+        {value != null ? value : '-'} <span className="text-sm font-normal text-gray-400">{unit}</span>
       </div>
     </div>
   );
