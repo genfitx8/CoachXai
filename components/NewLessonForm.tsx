@@ -300,6 +300,16 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
     (v) => v !== undefined && v !== null && !Number.isNaN(v)
   );
 
+  // Shot Data Photo (launch-monitor screenshot attached inside the shot data panel)
+  const [shotDataPhoto, setShotDataPhoto] = useState<{
+    file: File;
+    previewUrl: string;
+    mediaId: string;
+  } | null>(null);
+  const [isAutoFilling, setIsAutoFilling] = useState(false);
+  const [autoFillError, setAutoFillError] = useState<string | null>(null);
+  const shotDataPhotoInputRef = useRef<HTMLInputElement>(null);
+
   // Scorecard Specific Mode State
   const [scoreMode, setScoreMode] = useState<'SIMPLE' | 'DETAILED'>('SIMPLE');
   const [courseName, setCourseName] = useState('');
@@ -880,6 +890,79 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
       if (newItems.length === 0) setIsAddingMore(false);
       return newItems;
     });
+    if (shotDataPhoto?.mediaId === id) {
+      setShotDataPhoto(null);
+    }
+  };
+
+  const handleShotDataPhotoSelect = (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      setAutoFillError('이미지 파일만 첨부할 수 있습니다.');
+      e.target.value = '';
+      return;
+    }
+
+    // Replace any prior shot-data photo (both in the panel and in mediaItems)
+    if (shotDataPhoto) {
+      setMediaItems((prev) =>
+        prev.filter((item) => item.id !== shotDataPhoto.mediaId)
+      );
+    }
+
+    const previewUrl = URL.createObjectURL(file);
+    mediaUrlsRef.current.push(previewUrl);
+    const mediaId = crypto.randomUUID();
+    const newItem: PendingMedia = {
+      id: mediaId,
+      file,
+      previewUrl,
+      type: 'image',
+      isRemote: false,
+    };
+    setMediaItems((prev) => [...prev, newItem]);
+    setShotDataPhoto({ file, previewUrl, mediaId });
+    setAutoFillError(null);
+    // Allow re-selecting the same file later
+    e.target.value = '';
+  };
+
+  const removeShotDataPhoto = () => {
+    if (!shotDataPhoto) return;
+    setMediaItems((prev) =>
+      prev.filter((item) => item.id !== shotDataPhoto.mediaId)
+    );
+    setShotDataPhoto(null);
+    setAutoFillError(null);
+  };
+
+  const handleAutoFillFromPhoto = async () => {
+    if (!shotDataPhoto) return;
+    setIsAutoFilling(true);
+    setAutoFillError(null);
+    try {
+      const nameToSearch = clientName.split('(')[0].trim();
+      const result = await extractGolfData(
+        {
+          data: shotDataPhoto.file,
+          mimeType: shotDataPhoto.file.type,
+        },
+        nameToSearch
+      );
+      if (result.golfData) {
+        setManualGolfData((prev) => ({ ...prev, ...result.golfData }));
+      } else {
+        setAutoFillError('사진에서 샷 데이터를 찾지 못했습니다.');
+      }
+    } catch (err) {
+      console.error('Shot data auto-fill failed', err);
+      setAutoFillError('사진 분석에 실패했습니다. 다시 시도해주세요.');
+    } finally {
+      setIsAutoFilling(false);
+    }
   };
 
   const toggleVideoCategory = (id: string, e: React.MouseEvent) => {
@@ -2742,7 +2825,76 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
             </button>
 
             {showManualShotData && (
-              <div className="px-4 pb-4 space-y-3 animate-fade-in">
+              <div className="px-4 pb-4 space-y-4 animate-fade-in">
+                {/* Shot data photo upload (launch-monitor screenshot) */}
+                <div className="rounded-lg border border-slate-700 bg-slate-900/40 p-3 space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <label className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
+                      <Camera className="w-3.5 h-3.5" /> 샷 데이터 사진 (선택)
+                    </label>
+                    {shotDataPhoto ? (
+                      <button
+                        type="button"
+                        onClick={removeShotDataPhoto}
+                        className="text-[11px] text-slate-400 hover:text-red-400 flex items-center gap-1"
+                      >
+                        <X className="w-3 h-3" /> 사진 제거
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => shotDataPhotoInputRef.current?.click()}
+                        className="text-[11px] text-emerald-300 hover:text-emerald-200 flex items-center gap-1 font-bold"
+                      >
+                        <Upload className="w-3 h-3" /> 사진 업로드
+                      </button>
+                    )}
+                    <input
+                      ref={shotDataPhotoInputRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handleShotDataPhotoSelect}
+                      data-testid="shot-data-photo-input"
+                    />
+                  </div>
+
+                  {shotDataPhoto ? (
+                    <div className="flex items-start gap-3">
+                      <img
+                        src={shotDataPhoto.previewUrl}
+                        alt="샷 데이터 사진"
+                        className="w-24 h-24 object-cover rounded-lg border border-slate-700 flex-shrink-0"
+                      />
+                      <div className="flex-1 space-y-2">
+                        <p className="text-[11px] text-slate-400 leading-relaxed">
+                          런치모니터 화면 사진을 첨부했습니다. AI로 수치를
+                          자동 채울 수 있습니다.
+                        </p>
+                        <button
+                          type="button"
+                          onClick={handleAutoFillFromPhoto}
+                          disabled={isAutoFilling}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-blue-600 hover:bg-blue-500 disabled:opacity-60 disabled:cursor-not-allowed text-white text-xs font-bold"
+                        >
+                          <Sparkles className="w-3 h-3" />
+                          {isAutoFilling ? '분석 중...' : 'AI로 자동 채우기'}
+                        </button>
+                        {autoFillError && (
+                          <p className="text-[11px] text-red-400">
+                            {autoFillError}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-[11px] text-slate-500 leading-relaxed">
+                      GDR/트랙맨 등의 화면 사진을 첨부하면 기록에 함께 저장되고
+                      AI로 수치를 자동 채울 수 있습니다.
+                    </p>
+                  )}
+                </div>
+
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                   {[
                     { key: 'carryDistance', label: '캐리 (m)', placeholder: '예: 180' },
