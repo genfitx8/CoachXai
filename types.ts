@@ -31,6 +31,67 @@ export interface GolfData {
   sideTotal?: number; // 사이드 토탈, +는 오른쪽(R) / -는 왼쪽(L) (m)
 }
 
+/**
+ * One row of a launch-monitor multi-shot table (Trackman / Tracey / JB
+ * style). `index` is the "순서/#" value from the table if the image showed
+ * one; the rest are the per-shot numeric readings. All optional because
+ * different screens expose different columns.
+ */
+export interface ShotSample {
+  index?: number;
+  carryDistance?: number;
+  totalDistance?: number;
+  ballSpeed?: number;
+  clubHeadSpeed?: number;
+  launchAngle?: number;
+  backSpin?: number;
+  sideSpin?: number;
+  smashFactor?: number;
+  clubPath?: number;
+  faceAngle?: number;
+  attackAngle?: number;
+  spinRate?: number;
+  dynamicLoft?: number;
+  spinLoft?: number;
+  sideTotal?: number;
+}
+
+/**
+ * Session-level roll-up. `average` mirrors `Lesson.golfData` — kept as a
+ * copy here so a coach can drop `shotSession` into a comparison view
+ * without re-joining. `max` / `min` / `stddev` are per-metric partials so
+ * a screen that only exposes carry/ball-speed still yields a useful roll-up.
+ */
+export interface ShotAggregate {
+  average?: GolfData;
+  max?: Partial<GolfData>;
+  min?: Partial<GolfData>;
+  stddev?: Partial<GolfData>;
+}
+
+/**
+ * The raw session captured from one launch-monitor screenshot. This is
+ * the surface future analytics (best-ever, session-over-session, tour-avg
+ * gap, consistency trend) read from — never re-derive from an averaged
+ * lesson.golfData alone.
+ */
+export interface ShotSession {
+  /** Shot count. Prefer the number the image reported; fall back to samples.length. */
+  count: number;
+  samples: ShotSample[];
+  aggregate: ShotAggregate;
+  /**
+   * 'image' when we read the 평균/± rows straight off the screenshot,
+   * 'computed' when we derived them ourselves from `samples`, 'mixed'
+   * when some came from the image and others were filled in from samples.
+   */
+  aggregateSource: 'image' | 'computed' | 'mixed';
+  /** ms since epoch — when the extraction ran. */
+  capturedAt: number;
+  /** Passed through from the lesson (e.g. "6번 아이언") so historical joins can key on club without hitting the parent lesson. */
+  club?: string;
+}
+
 export interface SwingSequenceItem {
   id: string;
   label: string; // 'Address', 'Top', 'Impact', 'Finish', etc.
@@ -146,7 +207,17 @@ export interface Lesson {
   thumbnailUrl?: string;
   coachNotes: string;
   aiAnalysis?: string;
-  golfData?: GolfData; // Added: Extracted launch monitor data
+  golfData?: GolfData; // Added: Extracted launch monitor data (session average — same values as shotSession.aggregate.average when shotSession is present)
+  /**
+   * Per-session shot data from a launch-monitor multi-shot table
+   * (Trackman / Tracey / JB / GDR / 골프존). Present only when the
+   * uploaded image was a multi-shot table with recognisable per-shot
+   * rows; a single-shot summary screen yields `golfData` alone.
+   * Feeds max/avg trends, session-over-session comparison, best-ever
+   * lookups — never re-derive those from `golfData` alone since it's
+   * only the average.
+   */
+  shotSession?: ShotSession;
   swingSequence?: SwingSequenceItem[]; // Added: Extracted swing sequence images
   tags: string[];
   shareOption?: 'MEDIA_ONLY' | 'FULL'; // Control what the client sees

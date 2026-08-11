@@ -1956,6 +1956,7 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
                   clientPhone={lesson.clientPhone}
                   currentClub={lesson.club}
                   currentDate={lesson.date}
+                  currentShotSession={lesson.shotSession}
               />
           )}
 

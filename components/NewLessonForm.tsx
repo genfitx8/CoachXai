@@ -58,6 +58,7 @@ import {
   Homework,
   HoleRecord,
   ScorecardDetail,
+  ShotSession,
   GolfCourse,
   LessonPackage,
   VideoEditMetadata,
@@ -1175,6 +1176,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
     try {
       let analysisResult = initialData?.aiAnalysis || '';
       let extractedGolfData: GolfData | undefined = initialData?.golfData;
+      let extractedShotSession: ShotSession | undefined = initialData?.shotSession;
       let extractedScore: number | undefined = initialData?.score;
       let scorecardDetail: ScorecardDetail | undefined = undefined;
 
@@ -1242,7 +1244,8 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
                 data: extractionTargetImage.file,
                 mimeType: extractionTargetImage.file.type,
               },
-              nameToSearch
+              nameToSearch,
+              { club: club || undefined }
             );
 
             analysisResult = dataResult.textAnalysis;
@@ -1251,6 +1254,12 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
             // would silently overwrite whatever the coach had entered.
             if (dataResult.golfData && Object.keys(dataResult.golfData).length > 0) {
               extractedGolfData = dataResult.golfData;
+            }
+            // shotSession carries per-shot samples + max/min/std so
+            // future history-comparison / best-ever lookups don't re-parse
+            // the image. Only replace when the AI actually produced samples.
+            if (dataResult.shotSession && dataResult.shotSession.samples.length > 0) {
+              extractedShotSession = dataResult.shotSession;
             }
             // Use `!= null` so a legitimate 0-score (rare but possible) is
             // not treated as "no score".
@@ -1292,6 +1301,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
 
       if (recordType === 'SCORE') {
         extractedGolfData = undefined;
+        extractedShotSession = undefined;
       }
 
       // Convert Media Items to MediaItem objects
@@ -1363,6 +1373,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
         coachNotes: notes,
         aiAnalysis: analysisResult || undefined,
         golfData: extractedGolfData,
+        shotSession: extractedShotSession,
         tags: tags,
         createdAt: initialData ? initialData.createdAt : Date.now(), // Preserve creation date
         shareOption: 'FULL',

@@ -9,6 +9,30 @@
  * Type strings follow the OpenAPI 3.0 subset Gemini accepts.
  */
 
+/**
+ * Numeric-metric properties shared by `metrics` (session average) and
+ * each entry in the `shots` array (per-shot row). Kept as a `const` so
+ * both schema slots stay in lockstep — a coach adding a new metric only
+ * has to touch this object.
+ */
+const SHOT_METRIC_PROPERTIES = {
+  carryDistance: { type: 'NUMBER', nullable: true },
+  totalDistance: { type: 'NUMBER', nullable: true },
+  ballSpeed: { type: 'NUMBER', nullable: true },
+  clubHeadSpeed: { type: 'NUMBER', nullable: true },
+  launchAngle: { type: 'NUMBER', nullable: true },
+  attackAngle: { type: 'NUMBER', nullable: true },
+  backSpin: { type: 'NUMBER', nullable: true },
+  sideSpin: { type: 'NUMBER', nullable: true },
+  spinRate: { type: 'NUMBER', nullable: true },
+  smashFactor: { type: 'NUMBER', nullable: true },
+  clubPath: { type: 'NUMBER', nullable: true },
+  dynamicLoft: { type: 'NUMBER', nullable: true },
+  spinLoft: { type: 'NUMBER', nullable: true },
+  faceAngle: { type: 'NUMBER', nullable: true },
+  sideTotal: { type: 'NUMBER', nullable: true },
+} as const;
+
 export const extractGolfDataSchema = {
   type: 'OBJECT',
   properties: {
@@ -17,24 +41,32 @@ export const extractGolfDataSchema = {
     metrics: {
       type: 'OBJECT',
       nullable: true,
-      properties: {
-        carryDistance: { type: 'NUMBER', nullable: true },
-        totalDistance: { type: 'NUMBER', nullable: true },
-        ballSpeed: { type: 'NUMBER', nullable: true },
-        clubHeadSpeed: { type: 'NUMBER', nullable: true },
-        launchAngle: { type: 'NUMBER', nullable: true },
-        attackAngle: { type: 'NUMBER', nullable: true },
-        backSpin: { type: 'NUMBER', nullable: true },
-        sideSpin: { type: 'NUMBER', nullable: true },
-        spinRate: { type: 'NUMBER', nullable: true },
-        smashFactor: { type: 'NUMBER', nullable: true },
-        clubPath: { type: 'NUMBER', nullable: true },
-        dynamicLoft: { type: 'NUMBER', nullable: true },
-        spinLoft: { type: 'NUMBER', nullable: true },
-        faceAngle: { type: 'NUMBER', nullable: true },
-        sideTotal: { type: 'NUMBER', nullable: true },
+      properties: SHOT_METRIC_PROPERTIES,
+    },
+    /**
+     * Per-shot rows from a multi-shot table (Trackman / Tracey / JB /
+     * 골프존 등). One entry per visible shot row, ordered as they appear
+     * in the image. Omitted / empty when the screen is a single-shot
+     * summary. Do NOT include the 평균 / ± / Consistency rows here —
+     * the average lives in `metrics` and ± is a std-dev, not a shot.
+     */
+    shots: {
+      type: 'ARRAY',
+      nullable: true,
+      items: {
+        type: 'OBJECT',
+        properties: {
+          index: { type: 'NUMBER', nullable: true },
+          ...SHOT_METRIC_PROPERTIES,
+        },
       },
     },
+    /**
+     * Shot count the image itself reported (the row-count header, or the
+     * count implied by the table). Optional — samples.length is used as
+     * the fallback source of truth.
+     */
+    shotCount: { type: 'NUMBER', nullable: true },
     comment: { type: 'STRING' },
   },
   required: ['isScorecard', 'comment'],

@@ -1,9 +1,13 @@
 
 import React, { useMemo } from 'react';
-import { GolfData, Lesson } from '../types';
+import { GolfData, Lesson, ShotSession } from '../types';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine } from 'recharts';
 import { ArrowUpRight, ArrowDownRight, Minus, TrendingUp } from 'lucide-react';
 import { lessonBelongsToClient } from '../utils/clientMatch';
+import {
+  bestEverShot,
+  compareToHistory,
+} from '../services/shotDataService';
 
 interface GolfDataVisualizerProps {
   currentData: GolfData;
@@ -12,16 +16,45 @@ interface GolfDataVisualizerProps {
   clientPhone: string;
   currentClub?: string;
   currentDate: string;
+  /**
+   * Present only when the current lesson was extracted from a multi-shot
+   * launch-monitor table. Enables the session-summary strip (샷 수 / 최대
+   * 캐리 / 이전 세션 대비) above the metric cards.
+   */
+  currentShotSession?: ShotSession;
 }
 
-export const GolfDataVisualizer: React.FC<GolfDataVisualizerProps> = ({ 
-  currentData, 
-  allLessons, 
-  clientName, 
+export const GolfDataVisualizer: React.FC<GolfDataVisualizerProps> = ({
+  currentData,
+  allLessons,
+  clientName,
   clientPhone,
   currentClub,
-  currentDate
+  currentDate,
+  currentShotSession,
 }) => {
+
+  // Session-level context — samples count, in-session peak, session-over-
+  // session delta on avg carry, and all-time best carry for this club.
+  // Rendered as a compact strip above the metric cards when this lesson
+  // was extracted from a multi-shot table; entirely hidden otherwise.
+  const sessionSummary = useMemo(() => {
+    if (!currentShotSession) return null;
+    const comparison = compareToHistory(currentShotSession, allLessons, {
+      clientName,
+      clientPhone,
+      club: currentClub,
+    });
+    const best = currentClub
+      ? bestEverShot('carryDistance', allLessons, {
+          clientName,
+          clientPhone,
+          club: currentClub,
+        })
+      : null;
+    return { comparison, best };
+  }, [currentShotSession, allLessons, clientName, clientPhone, currentClub]);
+
   
   // 1. Filter historical data for the same client and club
   const historyData = useMemo(() => {
@@ -86,6 +119,50 @@ export const GolfDataVisualizer: React.FC<GolfDataVisualizerProps> = ({
         </div>
         
         <div className="p-6">
+            {currentShotSession && sessionSummary && (
+                <div className="mb-4 flex flex-wrap gap-2 text-xs">
+                    <span className="inline-flex items-center gap-1 rounded-full bg-slate-900 px-3 py-1 font-semibold text-white">
+                        {currentShotSession.count}샷 세션
+                    </span>
+                    {currentShotSession.aggregate.max?.carryDistance != null && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-3 py-1 font-semibold text-blue-700 border border-blue-100">
+                            최대 캐리 {currentShotSession.aggregate.max.carryDistance}m
+                        </span>
+                    )}
+                    {currentShotSession.aggregate.stddev?.carryDistance != null && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-slate-50 px-3 py-1 font-medium text-slate-600 border border-slate-100">
+                            일관성 ±{currentShotSession.aggregate.stddev.carryDistance}m
+                        </span>
+                    )}
+                    {sessionSummary.comparison.avgDelta.carryDistance && (() => {
+                        const d = sessionSummary.comparison.avgDelta.carryDistance.delta;
+                        const up = d > 0;
+                        const flat = d === 0;
+                        const label = flat ? '변화 없음' : `${up ? '+' : ''}${d}m`;
+                        const cls = flat
+                            ? 'bg-slate-50 text-slate-600 border-slate-100'
+                            : up
+                                ? 'bg-emerald-50 text-emerald-700 border-emerald-100'
+                                : 'bg-rose-50 text-rose-700 border-rose-100';
+                        return (
+                            <span className={`inline-flex items-center gap-1 rounded-full px-3 py-1 font-semibold border ${cls}`}>
+                                {up ? <ArrowUpRight className="w-3 h-3" /> : flat ? <Minus className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
+                                이전 세션 평균 대비 {label}
+                            </span>
+                        );
+                    })()}
+                    {sessionSummary.best && sessionSummary.best.value > (currentShotSession.aggregate.max?.carryDistance ?? -Infinity) && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-3 py-1 font-medium text-amber-700 border border-amber-100">
+                            역대 최고 {sessionSummary.best.value}m ({sessionSummary.best.date.substring(5)})
+                        </span>
+                    )}
+                    {sessionSummary.best && sessionSummary.best.value <= (currentShotSession.aggregate.max?.carryDistance ?? -Infinity) && sessionSummary.comparison.history.length > 0 && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-3 py-1 font-semibold text-amber-800 border border-amber-200">
+                            🏅 오늘 개인 최고 갱신
+                        </span>
+                    )}
+                </div>
+            )}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                 {renderMetricCard("비거리 (Total)", currentData.totalDistance, "m", "text-gray-900")}
                 {renderMetricCard("캐리 (Carry)", currentData.carryDistance, "m", "text-blue-600")}

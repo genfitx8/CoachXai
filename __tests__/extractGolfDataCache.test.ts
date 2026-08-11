@@ -102,9 +102,13 @@ describe('extractGolfData — cache keyed on image content, not prompt alone', (
     expect(fetchMock).toHaveBeenCalledTimes(1);
 
     // Cache writes are fire-and-forget (`.then()` chain, not awaited by
-    // `invokeBackendAI` so telemetry never adds latency). Flush pending
-    // microtasks before asserting cache state.
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    // `invokeBackendAI` so telemetry never adds latency). Poll briefly
+    // for both writes to land — one setTimeout(0) turned out to be too
+    // tight on some runs when the SubtleCrypto → setCachedResponse chain
+    // spanned two microtask ticks.
+    for (let i = 0; i < 20 && getCacheSize() < 2; i++) {
+      await new Promise((resolve) => setTimeout(resolve, 5));
+    }
     // Both images should now be cached — one entry each.
     expect(getCacheSize()).toBe(2);
   });
@@ -182,6 +186,75 @@ describe('extractGolfData — cache keyed on image content, not prompt alone', (
     expect(result.golfData?.clubPath).toBe(-5.9);
     // score 는 시뮬레이터 케이스이므로 undefined 여야 함.
     expect(result.score).toBeUndefined();
+  });
+
+  it('parses a shots[] array into a shotSession with samples + max/min/std', async () => {
+    const image = new File(['multi-shot'], 'multi.png', { type: 'image/png' });
+
+    stubBackend({
+      text: JSON.stringify({
+        isScorecard: false,
+        score: null,
+        metrics: {
+          clubHeadSpeed: 82.5,
+          carryDistance: 148.8,
+          totalDistance: 161.7,
+          ballSpeed: 115.0,
+          spinRate: 5001,
+        },
+        shots: [
+          { index: 1, clubHeadSpeed: 79.5, carryDistance: 145.7, totalDistance: 165.4, ballSpeed: 112.9, spinRate: 4370 },
+          { index: 2, clubHeadSpeed: 80.2, carryDistance: 154.0, totalDistance: 168.7, ballSpeed: 117.5, spinRate: 4700 },
+          // Hidden shot — only index, no metrics. Must be dropped.
+          { index: 3 },
+        ],
+        shotCount: 8,
+        comment: '8샷 세션',
+      }),
+      model: 'gemini-2.5-flash-lite',
+    });
+
+    const result = await extractGolfData(
+      { data: image, mimeType: 'image/png' },
+      'Player 5',
+      { club: '6 Iron' }
+    );
+
+    expect(result.shotSession).toBeDefined();
+    const session = result.shotSession!;
+    // Hidden shot #3 was dropped; only 2 real samples remain.
+    expect(session.samples.length).toBe(2);
+    // shotCount came from the image (8), not samples.length (2).
+    expect(session.count).toBe(8);
+    // Image-reported average wins.
+    expect(session.aggregate.average?.carryDistance).toBe(148.8);
+    // Max/min derived from samples.
+    expect(session.aggregate.max?.carryDistance).toBe(154);
+    expect(session.aggregate.min?.carryDistance).toBe(145.7);
+    expect(session.aggregateSource).toBe('mixed');
+    expect(session.club).toBe('6 Iron');
+  });
+
+  it('omits shotSession for a single-shot summary screen (no shots[] returned)', async () => {
+    const image = new File(['single-shot'], 'single.png', { type: 'image/png' });
+
+    stubBackend({
+      text: JSON.stringify({
+        isScorecard: false,
+        score: null,
+        metrics: { carryDistance: 180 },
+        // shots omitted entirely — screen only had one summary block.
+        comment: '단일 샷 요약',
+      }),
+      model: 'gemini-2.5-flash-lite',
+    });
+
+    const result = await extractGolfData(
+      { data: image, mimeType: 'image/png' },
+      'Player 5'
+    );
+    expect(result.golfData).toEqual({ carryDistance: 180 });
+    expect(result.shotSession).toBeUndefined();
   });
 
   it('strips null metric values that flash-lite emits per schema property', async () => {

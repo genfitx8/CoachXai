@@ -6,6 +6,8 @@ import {
   Lesson,
   Homework,
   ShotMetrics,
+  ShotSample,
+  ShotSession,
   TrainingProgramConfig,
   QuickLogEntry,
   WeeklyInsight,
@@ -17,6 +19,7 @@ import {
   ScheduleSession,
   CategoryAllocation,
 } from '../types';
+import { buildShotSession, SHOT_METRIC_KEYS } from './shotDataService';
 import {
   CoachXLanguage,
   CoachXInsight,
@@ -594,11 +597,19 @@ export const analyzeSwingVideo = async (
  */
 export const extractGolfData = async (
   imageInput: AnalysisInput,
-  clientName?: string // Name to search for in scorecard
+  clientName?: string, // Name to search for in scorecard
+  opts: { club?: string } = {}
 ): Promise<{
   textAnalysis: string;
   golfData: GolfData | null;
   score?: number;
+  /**
+   * Present only when the uploaded image was a multi-shot table with
+   * per-shot rows we could read. Carries the raw samples and the derived
+   * max/min/std so historical comparison and best-ever lookups don't have
+   * to re-parse the image.
+   */
+  shotSession?: ShotSession;
 }> => {
   try {
     let blob: Blob;
@@ -664,6 +675,14 @@ export const extractGolfData = async (
       - 화면에서 확인 가능한 지표만 metrics 에 포함하세요. 이미지에 없는 지표는 아예 포함하지 마세요(null 도 넣지 말 것).
       - Spin 이 백/사이드로 분리되어 있으면 backSpin / sideSpin 사용, 총 스핀량 하나만 있으면 spinRate 사용. 두 표기 방식을 섞지 마세요.
 
+      **[중요] 다중 샷 테이블일 때 — shots 배열도 채우세요**
+      - 여러 샷이 나열된 표라면 metrics(평균)뿐 아니라 **각 샷의 값**을 shots 배열로도 추출하세요.
+      - shots 배열의 각 원소 = 표에서 하나의 개별 샷 행 (평균/±/Consistency 행은 제외).
+      - 각 원소에는 index(순서/# 열 값)와 그 샷의 metric 값을 넣으세요. 화면에 없는 metric은 포함하지 마세요.
+      - hidden(눈 아이콘 꺼짐)/취소선 처리된 샷도 표에 값이 보이면 index 와 값을 포함하세요 — 나중에 필터할 수 있게.
+      - 표에 총 샷 수가 명시되어 있으면(예: "총 8샷") shotCount 에 그 값을 넣으세요.
+      - 단일 샷 요약 화면(개별 샷 표가 없는 경우)이면 shots 는 빈 배열 [] 또는 생략.
+
       **응답 형식 (JSON, 필드는 이미지에서 확인 가능한 것만 포함):**
       \`\`\`json
       {
@@ -682,6 +701,10 @@ export const extractGolfData = async (
           "spinLoft": 22.7,
           "sideTotal": 12.7
         },
+        "shots": [
+          { "index": 1, "carryDistance": 145.7, "totalDistance": 165.4, "ballSpeed": 112.9, "clubHeadSpeed": 79.5, "spinRate": 4370, "clubPath": -7.0, "dynamicLoft": 16.6 }
+        ],
+        "shotCount": 8,
         "comment": "스코어카드: 김철수님의 기록은 85타입니다. / 시뮬레이터: 볼 스피드가 아주 훌륭합니다."
       }
       \`\`\`
@@ -689,6 +712,9 @@ export const extractGolfData = async (
       **예시 — 트랙맨/Tracey/JB 스타일 다중 샷 테이블 (8샷 + 평균 + ± 행) 인 경우:**
       아래와 같이 8개 샷 행 아래에 '평균' 행과 '±' 행이 있는 이미지를 받았을 때:
         컬럼: 순서 | 클럽 스피드 mph | 클럽 패스 도 | 다이나믹 로프트 도 | 캐리 미터 | 토탈 미터 | 볼 스피드 mph | 스핀량 rpm
+        샷 1: 79.5, -7.0, 16.6, 145.7, 165.4, 112.9, 4370
+        샷 2: 80.2, -5.2, 16.9, 154.0, 168.7, 117.5, 4700
+        ... (샷 3~8) ...
         평균 행: 82.5, -5.9, 18.5, 148.8, 161.7, 115.0, 5001
         ± 행  : ±1.8, ±1.0, ±1.4, ±4.8, ±5.1, ±2.7, ±434  ← 이 행은 표준편차. **절대 사용 금지.**
       → 올바른 응답:
@@ -704,6 +730,11 @@ export const extractGolfData = async (
           "ballSpeed": 115.0,
           "spinRate": 5001
         },
+        "shots": [
+          { "index": 1, "clubHeadSpeed": 79.5, "clubPath": -7.0, "dynamicLoft": 16.6, "carryDistance": 145.7, "totalDistance": 165.4, "ballSpeed": 112.9, "spinRate": 4370 },
+          { "index": 2, "clubHeadSpeed": 80.2, "clubPath": -5.2, "dynamicLoft": 16.9, "carryDistance": 154.0, "totalDistance": 168.7, "ballSpeed": 117.5, "spinRate": 4700 }
+        ],
+        "shotCount": 8,
         "comment": "6번 아이언 8샷 평균: 캐리 148.8m / 볼스피드 115 mph. 클럽 패스 -5.9°로 다소 인-투-아웃."
       }
     `;
@@ -739,10 +770,50 @@ export const extractGolfData = async (
     const cleanedScore =
       typeof rawScore === 'number' && Number.isFinite(rawScore) ? rawScore : undefined;
 
+    // Parse per-shot rows for a multi-shot table. Same null-scrubbing
+    // policy as `metrics` — flash-lite fills every schema property, so
+    // we drop non-finite entries per shot and drop shots that end up
+    // with zero readable metrics.
+    const rawShots = parsedResult.shots;
+    const cleanedShots: ShotSample[] = Array.isArray(rawShots)
+      ? rawShots
+          .map((row: unknown): ShotSample | null => {
+            if (!row || typeof row !== 'object') return null;
+            const rec = row as Record<string, unknown>;
+            const sample: ShotSample = {};
+            const rawIndex = rec.index;
+            if (typeof rawIndex === 'number' && Number.isFinite(rawIndex)) {
+              sample.index = rawIndex;
+            }
+            for (const key of SHOT_METRIC_KEYS) {
+              const v = rec[key];
+              if (typeof v === 'number' && Number.isFinite(v)) {
+                (sample as Record<string, number>)[key] = v;
+              }
+            }
+            // A row with only an index and no metrics is a hidden/blank
+            // shot — drop it so downstream max/avg stays honest.
+            return Object.keys(sample).some((k) => k !== 'index') ? sample : null;
+          })
+          .filter((s: ShotSample | null): s is ShotSample => s !== null)
+      : [];
+
+    const rawShotCount = parsedResult.shotCount;
+    const shotCount =
+      typeof rawShotCount === 'number' && Number.isFinite(rawShotCount) && rawShotCount > 0
+        ? rawShotCount
+        : undefined;
+
+    const shotSession = buildShotSession(cleanedShots, cleanedMetrics, {
+      club: opts.club,
+      shotCount,
+    });
+
     return {
       textAnalysis: parsedResult.comment,
       golfData: cleanedMetrics,
       score: cleanedScore,
+      shotSession: shotSession ?? undefined,
     };
   } catch (error) {
     log.error('Golf Data Extraction Error:', error);

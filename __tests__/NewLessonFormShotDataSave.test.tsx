@@ -102,7 +102,11 @@ describe('NewLessonForm – shot data save with mixed lesson inputs', () => {
     expect(extractGolfData).toHaveBeenCalledTimes(1);
     expect(extractGolfData).toHaveBeenCalledWith(
       expect.objectContaining({ mimeType: 'image/png' }),
-      '홍길동'
+      '홍길동',
+      // Third arg: session opts. The club selected in the form is
+      // forwarded so shotSession.club is stamped on the aggregate for
+      // later history-comparison lookups.
+      expect.objectContaining({ club: 'Driver' })
     );
   });
 });
