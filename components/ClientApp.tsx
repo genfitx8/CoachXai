@@ -15,9 +15,13 @@ import { PaymentSuccess } from './PaymentSuccess';
 import { PaymentFail } from './PaymentFail';
 import { MembershipPurchase } from './MembershipPurchase';
 import { MembershipPaymentSuccess } from './MembershipPaymentSuccess';
-import { StudentAIChat } from './StudentAIChat';
+import { StudentHome } from './StudentHome';
+import { StudentBottomNav, StudentTab } from './StudentBottomNav';
+import { StudentHamburgerMenu, HamburgerAction } from './StudentHamburgerMenu';
+import { GrowthTimeline } from './GrowthTimeline';
+import { AIToneSettings } from './AIToneSettings';
 import { SwingVideoAnalysis } from './posture/SwingVideoAnalysis';
-import { User, LogOut, History, PlayCircle, Plus, BarChart3, Bell, ListChecks, Globe, Calendar, Search, Filter, Eye, EyeOff, ChevronRight, Award, Target, ClipboardList, Crown, Briefcase, ScanLine, Sparkles, Video } from 'lucide-react';
+import { PlayCircle, Plus, Filter, Eye, EyeOff, Target, Menu } from 'lucide-react';
 import { firebaseService } from '../services/firebase';
 import { storageService } from '../services/storage';
 import { apiService } from '../services/apiService';
@@ -55,17 +59,48 @@ const getLocalISODate = () => {
 const HIDE_MEMBERSHIP_FEATURES = (import.meta.env.VITE_CLIENT_HIDE_MEMBERSHIP ?? 'false') === 'true';
 const HIDE_RESERVATION_FEATURES = (import.meta.env.VITE_CLIENT_HIDE_RESERVATION ?? 'false') === 'true';
 
+/**
+ * Sub-views layer over the current tab as full-screen overlays. Their back
+ * button clears the sub-view and returns the user to whichever tab they were
+ * on. Kept separate from `StudentTab` so tab identity is preserved across
+ * sub-view visits (e.g. opening a lesson detail from the Growth tab and
+ * closing it lands you back on Growth, not Home).
+ */
+type SubView =
+  | 'DETAIL'
+  | 'NEW'
+  | 'STATS'
+  | 'PROFILE'
+  | 'RECENT_RECORDS'
+  | 'BAY_RESERVATION'
+  | 'MY_BAY_RESERVATIONS'
+  | 'POINT_PURCHASE'
+  | 'MEMBERSHIP_PURCHASE'
+  | 'PAYMENT_SUCCESS'
+  | 'MEMBERSHIP_PAYMENT_SUCCESS'
+  | 'PAYMENT_FAIL'
+  | 'SWING_ANALYSIS';
+
 export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons, onLogout, onUpdateLesson, onSaveNewRecord, onDeleteLesson, onUpdateProfile, onRefreshLessons }) => {
   const { t, language, setLanguage } = useLanguage();
-  const [view, setView] = useState<ViewState | 'STATS' | 'PROFILE' | 'RESERVATION' | 'BAY_RESERVATION' | 'MY_BAY_RESERVATIONS' | 'POINT_PURCHASE' | 'MEMBERSHIP_PURCHASE' | 'PAYMENT_SUCCESS' | 'MEMBERSHIP_PAYMENT_SUCCESS' | 'PAYMENT_FAIL' | 'RECENT_RECORDS' | 'STUDENT_AI' | 'SWING_ANALYSIS'>(() => {
+
+  // Initial routing — payment redirects still land the user directly in the
+  // right success/fail sub-view. Everything else starts on the AI Home tab.
+  const initialSubView = useMemo<SubView | null>(() => {
     const params = new URLSearchParams(window.location.search);
     const purchaseType = params.get('purchase');
     if (params.get('paymentKey') && params.get('orderId')) {
       return purchaseType === 'membership' ? 'MEMBERSHIP_PAYMENT_SUCCESS' : 'PAYMENT_SUCCESS';
     }
     if (params.get('code') || params.get('message')) return 'PAYMENT_FAIL';
-    return 'LIST';
-  });
+    return null;
+  }, []);
+
+  const [tab, setTab] = useState<StudentTab>('HOME');
+  const [subView, setSubView] = useState<SubView | null>(initialSubView);
+  const [isEditingSubmit, setIsEditingSubmit] = useState(false); // reserved
+  const [hamburgerOpen, setHamburgerOpen] = useState(false);
+  const [showToneModal, setShowToneModal] = useState(false);
   const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(null);
   
   // Media visibility toggle
@@ -102,17 +137,18 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
   const clientId = `${clientProfile.name}_${clientProfile.phone}`.trim();
   const isFirebaseMode = firebaseService.isInitialized();
 
-  const effectiveView = useMemo(() => {
-    if (HIDE_MEMBERSHIP_FEATURES && (view === 'MEMBERSHIP_PURCHASE' || view === 'MEMBERSHIP_PAYMENT_SUCCESS')) {
-      return 'LIST';
+  // Apply build-flag gates against the current sub-view. Blocked sub-views
+  // fall back to `null` so the underlying tab shows through.
+  const effectiveSubView = useMemo<SubView | null>(() => {
+    if (subView == null) return null;
+    if (HIDE_MEMBERSHIP_FEATURES && (subView === 'MEMBERSHIP_PURCHASE' || subView === 'MEMBERSHIP_PAYMENT_SUCCESS')) {
+      return null;
     }
-
-    if (HIDE_RESERVATION_FEATURES && (view === 'RESERVATION' || view === 'BAY_RESERVATION' || view === 'MY_BAY_RESERVATIONS')) {
-      return 'LIST';
+    if (HIDE_RESERVATION_FEATURES && (subView === 'BAY_RESERVATION' || subView === 'MY_BAY_RESERVATIONS')) {
+      return null;
     }
-
-    return view;
-  }, [view]);
+    return subView;
+  }, [subView]);
 
   // Load designated coach profile for AI context
   useEffect(() => {
@@ -266,16 +302,16 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
   }, [myLessonsRaw, today]);
   const remainingDailyAI = Math.max(0, FREE_AI_DAILY_LIMIT - todayAIUsage);
 
-  const handleBackToList = () => {
+  const handleBackToTab = () => {
     setSelectedLesson(null);
-    setView('LIST');
+    setSubView(null);
     setIsEditingLesson(false);
   };
 
   const handleSaveProfile = (updatedProfile: ClientProfile) => {
       if (onUpdateProfile) {
           onUpdateProfile(updatedProfile);
-          setView('LIST');
+          setSubView(null);
       }
   };
 
@@ -290,7 +326,7 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
             title: 'FREE 플랜 한도 도달',
             message: `무료 회원은 기록을 최대 ${FREE_RECORD_LIMIT}개까지 저장할 수 있어요. PRO로 업그레이드하면 무제한 기록이 가능합니다.`
           });
-          setView('LIST');
+          setSubView(null);
           return;
       }
 
@@ -333,13 +369,13 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
 
       // 3. Set the lesson as selected so it displays in DETAIL view
       setSelectedLesson(lesson);
-      setView('DETAIL');
+      setSubView('DETAIL');
   };
 
   const handleEditLesson = (lesson: Lesson) => {
       setSelectedLesson(lesson);
       setIsEditingLesson(true);
-      setView('NEW');
+      setSubView('NEW');
   };
 
   const toggleLanguage = () => {
@@ -380,591 +416,500 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
   const openProfileSection = (section: 'OVERVIEW' | 'GOLF_PROFILE' | 'CLUB_BAG' | 'BODY_ANALYSIS') => {
       setProfileSection(section);
       setSelectedLesson(null);
-      setView('PROFILE');
+      setSubView('PROFILE');
   };
 
-  const actionTextTone = 'text-indigo-200';
-  const actionIconTone = 'text-indigo-300';
-  const actionIconContainerTone = 'bg-indigo-500/10 border border-indigo-300/20';
-  const actionIconContainerHoverTone = 'group-hover:bg-indigo-500/20';
+  // ── Hamburger menu wiring ──────────────────────────────────────────────────
+
+  const handleHamburgerAction = useCallback((action: HamburgerAction) => {
+    switch (action) {
+      case 'PROFILE':
+        openProfileSection('OVERVIEW');
+        break;
+      case 'MY_BAY_RESERVATIONS':
+        setSubView('MY_BAY_RESERVATIONS');
+        break;
+      case 'POINT_PURCHASE':
+        setSubView('POINT_PURCHASE');
+        break;
+      case 'MEMBERSHIP_PURCHASE':
+        setSubView('MEMBERSHIP_PURCHASE');
+        break;
+      case 'SWING_ANALYSIS':
+        setSubView('SWING_ANALYSIS');
+        break;
+      case 'AI_TONE':
+        setShowToneModal(true);
+        break;
+      case 'LANGUAGE':
+        toggleLanguage();
+        break;
+      case 'LOGOUT':
+        onLogout();
+        break;
+    }
+  }, [onLogout]);
+  // ↑ toggleLanguage's closure captures the current `language` and is stable
+  //   for a given render, so it is intentionally omitted from deps.
+
+  // Sub-view helpers ─────────────────────────────────────────────────────────
+  const handleNewLessonCTA = () => {
+    if (!isProMember && totalRecordCount >= FREE_RECORD_LIMIT) {
+      setNotification({
+        title: 'FREE 플랜 한도 도달',
+        message: `무료 회원은 기록을 최대 ${FREE_RECORD_LIMIT}개까지 저장할 수 있어요. PRO로 업그레이드하면 무제한 기록이 가능합니다.`,
+      });
+      return;
+    }
+    setIsEditingLesson(false);
+    setSubView('NEW');
+  };
+
+  // Small shell used by non-HOME tabs to provide a top bar with the hamburger
+  // button. HOME tab reuses StudentAIChat's own header via headerLeftSlot.
+  const TabHeader: React.FC<{ title: string; right?: React.ReactNode }> = ({ title, right }) => (
+    <header className="bg-[#0A0F1A]/95 border-b border-slate-800 sticky top-0 z-30 backdrop-blur-xl">
+      <div className="max-w-md mx-auto px-3 h-14 flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => setHamburgerOpen(true)}
+          aria-label="Open menu"
+          className="p-2 rounded-lg text-slate-200 hover:bg-white/10 transition-colors"
+        >
+          <Menu className="w-5 h-5" />
+        </button>
+        <h1 className="text-base font-bold text-slate-100 truncate">{title}</h1>
+        {right && <div className="ml-auto">{right}</div>}
+      </div>
+    </header>
+  );
+
+  const reservationTabTitle =
+    language === 'en' ? 'Book a lesson'
+    : language === 'ja' ? 'レッスン予約'
+    : '레슨 예약';
+
+  const growthTabTitle =
+    language === 'en' ? 'Growth log'
+    : language === 'ja' ? '成長ログ'
+    : '성장 기록';
+
+  const showBottomNav = !effectiveSubView;
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#05070A] via-[#070b12] to-[#0B1220] text-slate-100 font-sans pb-20">
-      <header className="bg-[#0A0F1A]/95 border-b border-slate-800 sticky top-0 z-[60] shadow-lg shadow-black/30 backdrop-blur-xl">
-        <div className="max-w-md mx-auto px-4 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2 cursor-pointer" onClick={() => openProfileSection('OVERVIEW')}>
-            <div className="bg-gradient-to-br from-indigo-500/30 to-violet-500/20 p-2 rounded-full text-indigo-100 border border-indigo-300/20 shadow-md shadow-indigo-950/20">
-                <User className="w-5 h-5" />
-            </div>
-            <div>
-                <h1 className="font-bold text-slate-100 leading-tight">{clientProfile.name}님</h1>
-                <p className="text-[10px] text-slate-400 flex items-center gap-1">
-                    {clientProfile.designatedCoach ? `Coach: ${clientProfile.designatedCoach}` : clientProfile.phone}
-                </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <button 
-                onClick={toggleLanguage}
-                className="flex items-center gap-1 px-2 py-1.5 bg-slate-900 text-slate-300 rounded-lg border border-slate-700 text-xs font-bold hover:text-indigo-200 transition-colors"
-            >
-                <Globe className="w-3.5 h-3.5" />
-                {language.toUpperCase()}
-            </button>
-
-
-            <button 
-                onClick={onLogout} 
-                className="p-2 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded-full transition-all duration-200 relative z-50 cursor-pointer hover:scale-110 transform"
-                aria-label={t('logout')}
-            >
-                <LogOut className="w-5 h-5" />
-            </button>
-          </div>
-        </div>
-      </header>
-
-      <main className="max-w-md mx-auto px-4 py-6 space-y-6">
-        {effectiveView === 'LIST' && (
-            <div className="space-y-6 animate-fade-in">
-                
-
-                {/* Lesson Recording Button - Prominent CTA */}
-                <button
-                    onClick={() => {
-                        if (!isProMember && totalRecordCount >= FREE_RECORD_LIMIT) {
-                            setNotification({
-                                title: 'FREE 플랜 한도 도달',
-                                message: `무료 회원은 기록을 최대 ${FREE_RECORD_LIMIT}개까지 저장할 수 있어요. PRO로 업그레이드하면 무제한 기록이 가능합니다.`
-                            });
-                            return;
-                        }
-                        setView('NEW');
-                    }}
-                    className="w-full bg-gradient-to-r from-indigo-600 via-indigo-500 to-violet-600 hover:from-indigo-500 hover:via-indigo-400 hover:to-violet-500 text-white rounded-2xl px-8 py-5 shadow-xl shadow-indigo-950/40 hover:shadow-2xl transition-all duration-300 transform hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-3 group relative overflow-hidden"
-                >
-                    {/* Animated background overlay */}
-                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent translate-x-[-200%] group-hover:translate-x-[200%] transition-transform duration-700" />
-                    
-                    <div className="relative flex items-center gap-3">
-                        <div className="bg-white/20 p-2.5 rounded-full group-hover:bg-white/30 transition-colors">
-                            <PlayCircle className="w-7 h-7" />
-                        </div>
-                        <div className="text-left">
-                            <div className="text-xl font-black">레슨 기록 시작</div>
-                            <div className="text-xs text-indigo-100 font-medium">새로운 레슨을 기록하세요</div>
-                        </div>
-                    </div>
-                    
-                    <Plus className="w-6 h-6 ml-auto group-hover:rotate-90 transition-transform duration-300" />
-                </button>
-
-                {!HIDE_RESERVATION_FEATURES && (
-                    <div className="bg-slate-900/80 rounded-2xl p-5 shadow-sm border border-slate-700/70">
-                        <div className="flex items-center gap-2 mb-4">
-                            <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${actionIconContainerTone}`}>
-                                <Calendar className={`w-4 h-4 ${actionIconTone}`} />
-                            </div>
-                            <h3 className="font-black text-slate-100 text-base">예약</h3>
-                        </div>
-                        <div className="grid grid-cols-3 gap-2">
-                            <button
-                                onClick={() => { setSelectedLesson(null); setView('RESERVATION'); }}
-                                className="flex flex-col items-center gap-2 py-4 px-2 bg-slate-950/70 hover:bg-slate-800/80 rounded-xl border border-slate-700/70 transition-colors group"
-                            >
-                                <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${actionIconContainerTone} ${actionIconContainerHoverTone} transition-colors`}>
-                                    <Calendar className={`w-4 h-4 ${actionIconTone}`} />
-                                </div>
-                                <span className={`text-[11px] font-bold ${actionTextTone} text-center leading-tight`}>레슨 예약</span>
-                            </button>
-                            <button
-                                onClick={() => { setSelectedLesson(null); setView('BAY_RESERVATION'); }}
-                                className="flex flex-col items-center gap-2 py-4 px-2 bg-slate-950/70 hover:bg-slate-800/80 rounded-xl border border-slate-700/70 transition-colors group"
-                            >
-                                <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${actionIconContainerTone} ${actionIconContainerHoverTone} transition-colors`}>
-                                    <Target className={`w-4 h-4 ${actionIconTone}`} />
-                                </div>
-                                <span className={`text-[11px] font-bold ${actionTextTone} text-center leading-tight`}>타석 예약</span>
-                            </button>
-                            <button
-                                onClick={() => { setSelectedLesson(null); setView('MY_BAY_RESERVATIONS'); }}
-                                className="flex flex-col items-center gap-2 py-4 px-2 bg-slate-950/70 hover:bg-slate-800/80 rounded-xl border border-slate-700/70 transition-colors group"
-                            >
-                                <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${actionIconContainerTone} ${actionIconContainerHoverTone} transition-colors`}>
-                                    <ClipboardList className={`w-4 h-4 ${actionIconTone}`} />
-                                </div>
-                                <span className={`text-[11px] font-bold ${actionTextTone} text-center leading-tight`}>예약 내역</span>
-                            </button>
-                        </div>
-                    </div>
-                )}
-
-                {/* ===== CoachX AI 버튼 ===== */}
-                <button
-                    onClick={() => setView('STUDENT_AI')}
-                    className="w-full bg-gradient-to-r from-violet-700 via-indigo-600 to-blue-600 hover:from-violet-600 hover:via-indigo-500 hover:to-blue-500 text-white rounded-2xl px-6 py-4 shadow-xl shadow-violet-950/40 hover:shadow-2xl transition-all duration-300 transform hover:scale-[1.02] active:scale-[0.98] flex items-center gap-4 group relative overflow-hidden"
-                >
-                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent translate-x-[-200%] group-hover:translate-x-[200%] transition-transform duration-700" />
-                    <div className="relative bg-white/20 p-2.5 rounded-full group-hover:bg-white/30 transition-colors flex-shrink-0">
-                        <Sparkles className="w-6 h-6" />
-                    </div>
-                    <div className="relative text-left min-w-0">
-                        <div className="text-base font-black">CoachX AI</div>
-                        <div className="text-xs text-indigo-100 font-medium truncate">
-                            {language === 'en' ? 'Your AI golf assistant' : language === 'ja' ? 'AIゴルフアシスタント' : '내 전담 AI 골프 어시스턴트'}
-                        </div>
-                    </div>
-                    <ChevronRight className="w-5 h-5 ml-auto text-indigo-200 group-hover:translate-x-1 transition-transform" />
-                </button>
-
-                {/* ===== 스윙 영상 분석 버튼 ===== */}
-                <button
-                    onClick={() => setView('SWING_ANALYSIS')}
-                    data-testid="swing-analysis-entry-btn"
-                    className="w-full bg-gradient-to-r from-emerald-700 via-teal-600 to-cyan-600 hover:from-emerald-600 hover:via-teal-500 hover:to-cyan-500 text-white rounded-2xl px-6 py-4 shadow-xl shadow-emerald-950/40 hover:shadow-2xl transition-all duration-300 transform hover:scale-[1.02] active:scale-[0.98] flex items-center gap-4 group relative overflow-hidden"
-                >
-                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent translate-x-[-200%] group-hover:translate-x-[200%] transition-transform duration-700" />
-                    <div className="relative bg-white/20 p-2.5 rounded-full group-hover:bg-white/30 transition-colors flex-shrink-0">
-                        <Video className="w-6 h-6" />
-                    </div>
-                    <div className="relative text-left min-w-0">
-                        <div className="text-base font-black flex items-center gap-2">
-                            스윙 영상 분석
-                            <span className="text-[10px] font-bold bg-white/20 text-emerald-50 px-1.5 py-0.5 rounded">BETA</span>
-                        </div>
-                        <div className="text-xs text-emerald-100 font-medium truncate">
-                            {language === 'en' ? 'Upload a swing video for instant AI analysis' : language === 'ja' ? 'スイング動画をアップロードしてAI分析' : '스윙 영상을 업로드하면 즉시 AI가 분석'}
-                        </div>
-                    </div>
-                    <ChevronRight className="w-5 h-5 ml-auto text-emerald-100 group-hover:translate-x-1 transition-transform" />
-                </button>
-
-                {/* ===== 레슨 Section ===== */}
-                <div className="bg-slate-900/80 rounded-2xl p-5 shadow-sm border border-slate-700/70">
-                    <div className="flex items-center gap-2 mb-4">
-                        <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${actionIconContainerTone}`}>
-                            <Award className={`w-4 h-4 ${actionIconTone}`} />
-                        </div>
-                        <h3 className="font-black text-slate-100 text-base">Lesson</h3>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2">
-                        <button
-                            onClick={() => {
-                                setSelectedLesson(null);
-                                setView('RECENT_RECORDS');
-                                // Pull the freshest list from the backend so a lesson the
-                                // coach just recorded shows up without a page reload.
-                                onRefreshLessons?.();
-                            }}
-                            className="flex flex-col items-center gap-2 py-4 px-2 bg-slate-950/70 hover:bg-slate-800/80 rounded-xl border border-slate-700/70 transition-colors group"
-                        >
-                            <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${actionIconContainerTone} ${actionIconContainerHoverTone} transition-colors`}>
-                                <History className={`w-4 h-4 ${actionIconTone}`} />
-                            </div>
-                            <span className={`text-[11px] font-bold ${actionTextTone} text-center leading-tight`}>{t('recent_records')}</span>
-                        </button>
-                        <button
-                            onClick={() => { setSelectedLesson(null); setView('STATS'); }}
-                            className="flex flex-col items-center gap-2 py-4 px-2 bg-slate-950/70 hover:bg-slate-800/80 rounded-xl border border-slate-700/70 transition-colors group"
-                        >
-                            <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${actionIconContainerTone} ${actionIconContainerHoverTone} transition-colors`}>
-                                <BarChart3 className={`w-4 h-4 ${actionIconTone}`} />
-                            </div>
-                            <span className={`text-[11px] font-bold ${actionTextTone} text-center leading-tight`}>상세 통계</span>
-                        </button>
-
-                    </div>
-                </div>
-
-                {/* ===== 내 정보 Section ===== */}
-                <div className="bg-slate-900/80 rounded-2xl p-5 shadow-sm border border-slate-700/70">
-                    <div className="flex items-center gap-2 mb-4">
-                        <div className="w-8 h-8 bg-slate-800 rounded-xl flex items-center justify-center border border-slate-600/60">
-                            <User className="w-4 h-4 text-slate-300" />
-                        </div>
-                        <h3 className="font-black text-slate-100 text-base">내 정보</h3>
-                    </div>
-                    <div className="space-y-4">
-                        <div className="grid gap-2 grid-cols-2">
-                            <button
-                                onClick={() => openProfileSection('OVERVIEW')}
-                                className="flex flex-col items-center gap-2 py-4 px-2 bg-slate-950/70 hover:bg-slate-800/80 rounded-xl border border-slate-700/70 transition-colors group"
-                            >
-                                <div className="w-9 h-9 bg-slate-800 group-hover:bg-slate-700 rounded-xl flex items-center justify-center border border-slate-600/60 transition-colors">
-                                    <User className="w-4 h-4 text-slate-300" />
-                                </div>
-                                <span className="text-[11px] font-bold text-slate-300 text-center leading-tight">내 정보</span>
-                            </button>
-                            <button
-                                onClick={() => { setSelectedLesson(null); setView('POINT_PURCHASE'); }}
-                                className="flex flex-col items-center gap-2 py-4 px-2 bg-slate-950/70 hover:bg-slate-800/80 rounded-xl border border-slate-700/70 transition-colors group"
-                            >
-                                <div className="w-9 h-9 bg-cyan-400/10 group-hover:bg-cyan-400/20 rounded-xl flex items-center justify-center border border-cyan-300/20 transition-colors">
-                                    <Target className="w-4 h-4 text-cyan-300" />
-                                </div>
-                                <span className="text-[11px] font-bold text-cyan-200 text-center leading-tight">포인트</span>
-                            </button>
-                            {!HIDE_MEMBERSHIP_FEATURES && (
-                                <button
-                                    onClick={() => { setSelectedLesson(null); setView('MEMBERSHIP_PURCHASE'); }}
-                                    className="flex flex-col items-center gap-2 py-4 px-2 bg-slate-950/70 hover:bg-slate-800/80 rounded-xl border border-slate-700/70 transition-colors group"
-                                >
-                                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${actionIconContainerTone} ${actionIconContainerHoverTone} transition-colors`}>
-                                        <Crown className={`w-4 h-4 ${actionIconTone}`} />
-                                    </div>
-                                    <span className={`text-[11px] font-bold ${actionTextTone} text-center leading-tight`}>멤버십 결제</span>
-                                </button>
-                            )}
-                        </div>
-
-                    </div>
-                </div>
-
-                {/* Today's Mission Card - Compact */}
-                {todaysHomework.filter(h => !h.isCompleted).length > 0 && (
-                    <div 
-                        onClick={() => setShowHomeworkModal(true)}
-                        className="bg-gradient-to-r from-slate-900/90 to-slate-950/90 rounded-xl p-4 border border-amber-300/30 cursor-pointer hover:scale-[1.02] transition-transform flex items-center justify-between"
-                    >
-                        <div className="flex items-center gap-3">
-                            <div className="bg-amber-400/90 p-2 rounded-lg">
-                                <ListChecks className="w-5 h-5 text-white" />
-                            </div>
-                            <div>
-                                <h3 className="font-bold text-slate-100 text-sm">오늘의 미션</h3>
-                                <p className="text-xs text-slate-400">
-                                    {todaysHomework.filter(h => !h.isCompleted).length}개 남음
-                                </p>
-                            </div>
-                        </div>
-                        <ChevronRight className="w-5 h-5 text-amber-300" />
-                    </div>
-                )}
-                
-            </div>
-        )}
-
-        {effectiveView === 'RECENT_RECORDS' && (
-            <div className="space-y-4 animate-fade-in">
-                {/* Header */}
-                <div className="flex items-center gap-3 pb-2">
-                    <BackButton onClick={handleBackToList} tone="dark" />
-                    <div className="w-1 h-6 bg-gradient-to-b from-indigo-500 to-violet-500 rounded-full" />
-                    <h2 className="text-xl font-black text-slate-100">{t('recent_records')}</h2>
-                    <span className="bg-indigo-500/15 border border-indigo-300/30 text-indigo-200 px-2 py-0.5 rounded-full text-xs font-bold">
-                        {allMyLessons.length}
-                    </span>
-                    <div className="ml-auto flex items-center gap-2">
-                        <button
-                            onClick={toggleShowMedia}
-                            className={`p-2 rounded-lg transition-all duration-200 transform hover:scale-110 ${showMedia ? 'bg-gradient-to-br from-indigo-500/20 to-violet-500/20 text-indigo-200 border border-indigo-300/30 shadow-md shadow-indigo-950/20' : 'bg-slate-900 border border-slate-700 text-slate-400 hover:bg-slate-800'}`}
-                            title={showMedia ? '미디어 숨기기' : '미디어 표시'}
-                        >
-                            {showMedia ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
-                        </button>
-                        <button
-                            onClick={() => setShowDateFilter(!showDateFilter)}
-                            className={`p-2 rounded-lg transition-all duration-200 transform hover:scale-110 ${showDateFilter || (searchStartDate || searchEndDate) ? 'bg-gradient-to-br from-indigo-500/20 to-violet-500/20 text-indigo-200 border border-indigo-300/30 shadow-md shadow-indigo-950/20' : 'bg-slate-900 border border-slate-700 text-slate-400 hover:bg-slate-800'}`}
-                        >
-                            <Filter className="w-4 h-4" />
-                        </button>
-                    </div>
-                </div>
-
-                {/* Date Filter Section */}
-                {(showDateFilter || searchStartDate || searchEndDate) && (
-                    <div className="bg-gradient-to-br from-slate-900/90 to-slate-950/90 p-4 rounded-xl border border-slate-700 shadow-md animate-slide-in-up">
-                        <div className="flex gap-2 items-center mb-2">
-                            <div className="flex-1">
-                                <label className="block text-[10px] text-slate-400 font-semibold mb-1">시작일</label>
-                                <input
-                                    type="date"
-                                    value={searchStartDate}
-                                    onChange={(e) => setSearchStartDate(e.target.value)}
-                                    className="w-full text-xs p-2 border border-slate-700 bg-slate-900 text-slate-200 rounded-lg focus:border-indigo-400 focus:ring-2 focus:ring-indigo-400/20 outline-none transition-all"
-                                />
-                            </div>
-                            <span className="text-slate-500 mt-4 font-bold">~</span>
-                            <div className="flex-1">
-                                <label className="block text-[10px] text-slate-400 font-semibold mb-1">종료일</label>
-                                <input
-                                    type="date"
-                                    value={searchEndDate}
-                                    onChange={(e) => setSearchEndDate(e.target.value)}
-                                    className="w-full text-xs p-2 border border-slate-700 bg-slate-900 text-slate-200 rounded-lg focus:border-indigo-400 focus:ring-2 focus:ring-indigo-400/20 outline-none transition-all"
-                                />
-                            </div>
-                        </div>
-                        <div className="flex justify-end">
-                            <button onClick={clearDateFilter} className="text-xs text-slate-400 font-semibold underline hover:text-red-400 transition-colors">
-                                필터 초기화
-                            </button>
-                        </div>
-                    </div>
-                )}
-
-                {/* Lesson List */}
-                {allMyLessons.length === 0 ? (
-                    <div className="text-center py-16 bg-gradient-to-br from-slate-900/90 to-slate-950/90 rounded-2xl border border-slate-700">
-                        <div className="bg-slate-950 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg border border-slate-700">
-                            <PlayCircle className="w-10 h-10 text-slate-500" />
-                        </div>
-                        <h3 className="text-slate-100 font-bold text-lg mb-2">{t('no_records')}</h3>
-                        <p className="text-slate-400 text-sm px-4">
-                            {(searchStartDate || searchEndDate) ? '검색 기간에 해당하는 기록이 없습니다.' : t('no_records_desc')}
-                        </p>
-                        {(searchStartDate || searchEndDate) && (
-                            <button onClick={clearDateFilter} className="mt-4 text-indigo-300 text-sm font-bold hover:underline">
-                                전체 목록 보기
-                            </button>
-                        )}
-                    </div>
-                ) : (
-                    <div className="grid grid-cols-1 gap-4">
-                        {allMyLessons.map((lesson, index) => (
-                            <div
-                                key={lesson.id}
-                                className="h-full animate-fade-in"
-                                style={{ animationDelay: `${index * 50}ms` }}
-                            >
-                                <LessonCard
-                                    lesson={lesson}
-                                    onClick={(l) => { setSelectedLesson(l); setView('DETAIL'); }}
-                                    onShare={() => {}}
-                                    onDelete={lesson.createdBy === 'CLIENT' ? (l, e) => {
-                                        e.stopPropagation();
-                                        if(onDeleteLesson && window.confirm(t('lesson_delete_confirm'))) onDeleteLesson(l.id);
-                                    } : undefined}
-                                    showMedia={showMedia}
-                                />
-                            </div>
-                        ))}
-                    </div>
-                )}
-            </div>
-        )}
-
-        {effectiveView === 'DETAIL' && selectedLesson && (
-            <LessonDetail 
-                lesson={selectedLesson}
-                role="CLIENT"
-                onBack={handleBackToList}
-                onUpdate={handleLocalUpdate}
-                onDelete={selectedLesson.createdBy === 'CLIENT' && onDeleteLesson ? () => {
-                     onDeleteLesson(selectedLesson.id);
-                     handleBackToList();
-                } : undefined}
-                onEdit={handleEditLesson}
-            />
-        )}
-
-        {effectiveView === 'STATS' && (
-            <ClientStats
-                lessons={allMyLessons}
-                onBack={handleBackToList}
-                clientProfile={clientProfile}
-                coachId={clientProfile.coachId}
-            />
-        )}
-
-        {effectiveView === 'STUDENT_AI' && (
-            <div className="fixed inset-0 z-50 bg-gray-950 overflow-y-auto">
-                <StudentAIChat
-                    clientProfile={clientProfile}
-                    myLessons={myLessonsRaw}
-                    homeworkList={homeworkList}
-                    quickLogs={quickLogs}
-                    coachProfile={designatedCoachProfile ?? undefined}
-                    onBack={handleBackToList}
-                />
-            </div>
-        )}
-
-        {effectiveView === 'SWING_ANALYSIS' && (
-            <div className="fixed inset-0 z-50 bg-slate-950 overflow-y-auto">
-                <div className="max-w-3xl mx-auto p-4 sm:p-6 space-y-5 text-slate-100">
-                    <header className="pb-4 border-b border-slate-800 flex items-center gap-3">
-                        <BackButton
-                            onClick={handleBackToList}
-                            tone="dark"
-                            ariaLabel={t('back')}
-                            className="flex-shrink-0"
-                            testId="swing-analysis-back-btn"
-                        />
-                        <div className="min-w-0">
-                            <h1 className="text-xl sm:text-2xl font-bold text-slate-100 flex items-center gap-2">
-                                골프 스윙 분석 <span className="text-emerald-400 text-sm">BETA</span>
-                            </h1>
-                            <p className="text-xs sm:text-sm text-slate-400 mt-1 leading-relaxed">
-                                스윙 mp4/mov를 업로드하면 이벤트 세그멘테이션 · 3D 바이오메카닉 지표 · 클럽 헤드 궤적을 즉시 계산합니다.
-                            </p>
-                        </div>
-                    </header>
-
-                    <SwingVideoAnalysis studentLessons={allMyLessons} />
-
-                    <footer className="pt-4 mt-6 border-t border-slate-800 text-[11px] text-slate-500 leading-relaxed space-y-1.5">
-                        <p>
-                            첫 실행 시 MediaPipe Heavy 모델(~30MB)이 CDN에서 다운로드된 뒤 브라우저에 캐시됩니다.
-                            Chrome / Edge 권장 (GPU 가속).
-                        </p>
-                        <p>
-                            권장 촬영: 720p+ · 30fps · 5초 이내 · 정면(FO) 또는 측면(DTL) · 단색 배경.
-                            아이폰 슬로모(240fps) 원본은 QuickTime에서 30fps로 export 필요.
-                        </p>
-                    </footer>
-                </div>
-            </div>
-        )}
-
-        {effectiveView === 'PROFILE' && (
-            <ClientProfileSettings 
-                profile={clientProfile}
-                allLessons={allMyLessons}
-                onSave={handleSaveProfile}
-                onBack={handleBackToList}
-                onSearchCoach={handleCoachSearchByName}
-                initialSection={profileSection}
-            />
-        )}
-
-        {!HIDE_RESERVATION_FEATURES && effectiveView === 'RESERVATION' && (
-            <ClientReservation
-                clientProfile={clientProfile}
-                onBack={handleBackToList}
-            />
-        )}
-
-        {!HIDE_RESERVATION_FEATURES && effectiveView === 'BAY_RESERVATION' && (
-            <ClientBayReservation
-                clientProfile={clientProfile}
-                onBack={handleBackToList}
-                onPointsUpdated={(updatedProfile) => {
-                    if (onUpdateProfile) onUpdateProfile(updatedProfile);
-                }}
-            />
-        )}
-
-        {!HIDE_RESERVATION_FEATURES && effectiveView === 'MY_BAY_RESERVATIONS' && (
-            <MyBayReservations
-                clientProfile={clientProfile}
-                onBack={handleBackToList}
-            />
-        )}
-
-        {effectiveView === 'POINT_PURCHASE' && (
-            <PointPurchase
-                clientProfile={clientProfile}
-                onBack={handleBackToList}
-            />
-        )}
-
-        {!HIDE_MEMBERSHIP_FEATURES && effectiveView === 'MEMBERSHIP_PURCHASE' && (
-            <MembershipPurchase
-                clientProfile={clientProfile}
-                onBack={handleBackToList}
-            />
-        )}
-
-        {effectiveView === 'PAYMENT_SUCCESS' && (
-            <PaymentSuccess
-                clientProfile={clientProfile}
-                onBack={handleBackToList}
-                onPointsUpdated={(updated) => {
-                    if (onUpdateProfile) onUpdateProfile(updated);
-                    handleBackToList();
-                }}
-            />
-        )}
-
-        {!HIDE_MEMBERSHIP_FEATURES && effectiveView === 'MEMBERSHIP_PAYMENT_SUCCESS' && (
-            <MembershipPaymentSuccess
-                clientProfile={clientProfile}
-                onBack={handleBackToList}
-                onMembershipUpdated={(updated) => {
-                    if (onUpdateProfile) onUpdateProfile(updated);
-                    handleBackToList();
-                }}
-            />
-        )}
-
-        {effectiveView === 'PAYMENT_FAIL' && (
-            <PaymentFail
-                onBack={() => {
-                    const purchaseType = new URLSearchParams(window.location.search).get('purchase');
-                    if (purchaseType === 'membership') {
-                        setView(HIDE_MEMBERSHIP_FEATURES ? 'LIST' : 'MEMBERSHIP_PURCHASE');
-                        return;
-                    }
-                    setView('POINT_PURCHASE');
-                }}
-            />
-        )}
-
-        {/* Floating Add Button */}
-        {(effectiveView === 'LIST' || effectiveView === 'RECENT_RECORDS') && (
-             <button 
-                onClick={() => {
-                    if (!isProMember && totalRecordCount >= FREE_RECORD_LIMIT) {
-                        setNotification({
-                            title: 'FREE 플랜 한도 도달',
-                            message: `무료 회원은 기록을 최대 ${FREE_RECORD_LIMIT}개까지 저장할 수 있어요. PRO로 업그레이드하면 무제한 기록이 가능합니다.`
-                        });
-                        return;
-                    }
-                    setIsEditingLesson(false);
-                    setView('NEW');
-                }}
-                className="group fixed bottom-6 right-6 w-16 h-16 bg-gradient-to-br from-indigo-600 to-violet-500 text-white rounded-full shadow-lg shadow-indigo-950/40 flex items-center justify-center hover:scale-110 transition-all z-40 relative"
-            >
-                <Plus className="w-7 h-7 group-hover:rotate-90 transition-transform duration-300" />
-                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full animate-pulse font-bold">
-                    NEW
-                </span>
-            </button>
-        )}
-
-        {/* New Lesson Form (Self Record or Edit) */}
-        {effectiveView === 'NEW' && (
-            <div className="fixed inset-0 z-50 bg-[#05070A] overflow-y-auto">
-                <NewLessonForm 
-                    existingClients={[clientProfile]} // Pass self
-                    userRole="CLIENT"
-                    currentUser={clientProfile}
-                    onSave={handleSaveRecord}
-                    onCancel={() => {
-                        if (isEditingLesson) {
-                            setView('DETAIL');
-                            setIsEditingLesson(false);
-                        } else {
-                            setView('LIST');
-                        }
-                    }}
-                    initialData={isEditingLesson && selectedLesson ? selectedLesson : undefined}
-                />
-            </div>
-        )}
-
-      </main>
-
-      {showHomeworkModal && (
-          <HomeworkModal 
-            isOpen={showHomeworkModal}
-            onClose={() => setShowHomeworkModal(false)}
-            clientId={clientId}
-            clientName={clientProfile.name}
-            isFirebaseMode={isFirebaseMode}
-            onAssign={handleHomeworkUpdated}
+    <div className="min-h-screen bg-gradient-to-b from-[#05070A] via-[#070b12] to-[#0B1220] text-slate-100 font-sans">
+      {/* ── Tab bodies (only when no sub-view is active) ─────────────────────── */}
+      {!effectiveSubView && tab === 'HOME' && (
+        <div className="pb-20">
+          <StudentHome
+            clientProfile={clientProfile}
+            myLessons={myLessonsRaw}
+            homeworkList={homeworkList}
+            quickLogs={quickLogs}
+            coachProfile={designatedCoachProfile ?? undefined}
+            onOpenMenu={() => setHamburgerOpen(true)}
           />
+        </div>
       )}
 
-      {/* Toast Notification */}
-      <NotificationToast 
-        title={notification?.title || ''} 
-        message={notification?.message || ''} 
-        visible={!!notification} 
-        onClose={() => setNotification(null)} 
+      {!effectiveSubView && tab === 'RESERVATION' && (
+        HIDE_RESERVATION_FEATURES ? (
+          <div>
+            <TabHeader title={reservationTabTitle} />
+            <main className="max-w-md mx-auto px-4 py-10 text-center text-slate-400 text-sm">
+              {language === 'en' ? 'Reservations are disabled for this build.'
+                : language === 'ja' ? 'この環境では予約機能が無効です。'
+                : '이 환경에서는 예약 기능이 비활성화되어 있어요.'}
+            </main>
+          </div>
+        ) : (
+          <div className="pb-20">
+            <TabHeader
+              title={reservationTabTitle}
+              right={
+                <button
+                  onClick={() => setSubView('BAY_RESERVATION')}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800/70 border border-slate-700 text-xs font-semibold text-slate-200 hover:bg-slate-700 transition-colors"
+                >
+                  <Target className="w-3.5 h-3.5" />
+                  {language === 'en' ? 'Bay' : language === 'ja' ? '打席' : '타석'}
+                </button>
+              }
+            />
+            <main className="max-w-md mx-auto">
+              <ClientReservation
+                clientProfile={clientProfile}
+                onBack={() => setTab('HOME')}
+              />
+            </main>
+          </div>
+        )
+      )}
+
+      {!effectiveSubView && tab === 'GROWTH' && (
+        <div className="pb-20">
+          <TabHeader title={growthTabTitle} />
+          <main className="max-w-md mx-auto px-4 py-4">
+            <GrowthTimeline
+              clientProfile={clientProfile}
+              allMyLessons={allMyLessons}
+              onOpenDetailedStats={() => setSubView('STATS')}
+              onOpenLesson={(l) => { setSelectedLesson(l); setSubView('DETAIL'); }}
+            />
+          </main>
+        </div>
+      )}
+
+      {/* ── Sub-view overlays ────────────────────────────────────────────────── */}
+      {effectiveSubView === 'DETAIL' && selectedLesson && (
+        <div className="min-h-screen">
+          <main className="max-w-md mx-auto px-4 py-6">
+            <LessonDetail
+              lesson={selectedLesson}
+              role="CLIENT"
+              onBack={handleBackToTab}
+              onUpdate={handleLocalUpdate}
+              onDelete={selectedLesson.createdBy === 'CLIENT' && onDeleteLesson ? () => {
+                onDeleteLesson(selectedLesson.id);
+                handleBackToTab();
+              } : undefined}
+              onEdit={handleEditLesson}
+            />
+          </main>
+        </div>
+      )}
+
+      {effectiveSubView === 'STATS' && (
+        <div className="min-h-screen">
+          <main className="max-w-md mx-auto px-4 py-6">
+            <ClientStats
+              lessons={allMyLessons}
+              onBack={handleBackToTab}
+              clientProfile={clientProfile}
+              coachId={clientProfile.coachId}
+            />
+          </main>
+        </div>
+      )}
+
+      {effectiveSubView === 'PROFILE' && (
+        <div className="min-h-screen">
+          <main className="max-w-md mx-auto px-4 py-6">
+            <ClientProfileSettings
+              profile={clientProfile}
+              allLessons={allMyLessons}
+              onSave={handleSaveProfile}
+              onBack={handleBackToTab}
+              onSearchCoach={handleCoachSearchByName}
+              initialSection={profileSection}
+            />
+          </main>
+        </div>
+      )}
+
+      {effectiveSubView === 'RECENT_RECORDS' && (
+        <div className="min-h-screen">
+          <main className="max-w-md mx-auto px-4 py-6">
+            <div className="space-y-4 animate-fade-in">
+              <div className="flex items-center gap-3 pb-2">
+                <BackButton onClick={handleBackToTab} tone="dark" />
+                <div className="w-1 h-6 bg-gradient-to-b from-indigo-500 to-violet-500 rounded-full" />
+                <h2 className="text-xl font-black text-slate-100">{t('recent_records')}</h2>
+                <span className="bg-indigo-500/15 border border-indigo-300/30 text-indigo-200 px-2 py-0.5 rounded-full text-xs font-bold">
+                  {allMyLessons.length}
+                </span>
+                <div className="ml-auto flex items-center gap-2">
+                  <button
+                    onClick={toggleShowMedia}
+                    className={`p-2 rounded-lg transition-colors ${showMedia ? 'bg-indigo-500/20 text-indigo-200 border border-indigo-300/30' : 'bg-slate-900 border border-slate-700 text-slate-400 hover:bg-slate-800'}`}
+                    title={showMedia ? '미디어 숨기기' : '미디어 표시'}
+                  >
+                    {showMedia ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+                  </button>
+                  <button
+                    onClick={() => setShowDateFilter(!showDateFilter)}
+                    className={`p-2 rounded-lg transition-colors ${showDateFilter || (searchStartDate || searchEndDate) ? 'bg-indigo-500/20 text-indigo-200 border border-indigo-300/30' : 'bg-slate-900 border border-slate-700 text-slate-400 hover:bg-slate-800'}`}
+                  >
+                    <Filter className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+
+              {(showDateFilter || searchStartDate || searchEndDate) && (
+                <div className="bg-slate-900/90 p-4 rounded-xl border border-slate-700">
+                  <div className="flex gap-2 items-center mb-2">
+                    <div className="flex-1">
+                      <label className="block text-[10px] text-slate-400 font-semibold mb-1">시작일</label>
+                      <input
+                        type="date"
+                        value={searchStartDate}
+                        onChange={(e) => setSearchStartDate(e.target.value)}
+                        className="w-full text-xs p-2 border border-slate-700 bg-slate-900 text-slate-200 rounded-lg outline-none"
+                      />
+                    </div>
+                    <span className="text-slate-500 mt-4 font-bold">~</span>
+                    <div className="flex-1">
+                      <label className="block text-[10px] text-slate-400 font-semibold mb-1">종료일</label>
+                      <input
+                        type="date"
+                        value={searchEndDate}
+                        onChange={(e) => setSearchEndDate(e.target.value)}
+                        className="w-full text-xs p-2 border border-slate-700 bg-slate-900 text-slate-200 rounded-lg outline-none"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex justify-end">
+                    <button onClick={clearDateFilter} className="text-xs text-slate-400 font-semibold underline hover:text-red-400 transition-colors">
+                      필터 초기화
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {allMyLessons.length === 0 ? (
+                <div className="text-center py-16 bg-slate-900/90 rounded-2xl border border-slate-700">
+                  <div className="bg-slate-950 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 border border-slate-700">
+                    <PlayCircle className="w-10 h-10 text-slate-500" />
+                  </div>
+                  <h3 className="text-slate-100 font-bold text-lg mb-2">{t('no_records')}</h3>
+                  <p className="text-slate-400 text-sm px-4">
+                    {(searchStartDate || searchEndDate) ? '검색 기간에 해당하는 기록이 없습니다.' : t('no_records_desc')}
+                  </p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 gap-4">
+                  {allMyLessons.map((lesson, index) => (
+                    <div
+                      key={lesson.id}
+                      className="h-full animate-fade-in"
+                      style={{ animationDelay: `${index * 50}ms` }}
+                    >
+                      <LessonCard
+                        lesson={lesson}
+                        onClick={(l) => { setSelectedLesson(l); setSubView('DETAIL'); }}
+                        onShare={() => {}}
+                        onDelete={lesson.createdBy === 'CLIENT' ? (l, e) => {
+                          e.stopPropagation();
+                          if (onDeleteLesson && window.confirm(t('lesson_delete_confirm'))) onDeleteLesson(l.id);
+                        } : undefined}
+                        showMedia={showMedia}
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </main>
+        </div>
+      )}
+
+      {effectiveSubView === 'SWING_ANALYSIS' && (
+        <div className="fixed inset-0 z-50 bg-slate-950 overflow-y-auto">
+          <div className="max-w-3xl mx-auto p-4 sm:p-6 space-y-5 text-slate-100">
+            <header className="pb-4 border-b border-slate-800 flex items-center gap-3">
+              <BackButton
+                onClick={handleBackToTab}
+                tone="dark"
+                ariaLabel={t('back')}
+                className="flex-shrink-0"
+                testId="swing-analysis-back-btn"
+              />
+              <div className="min-w-0">
+                <h1 className="text-xl sm:text-2xl font-bold text-slate-100 flex items-center gap-2">
+                  골프 스윙 분석 <span className="text-emerald-400 text-sm">BETA</span>
+                </h1>
+                <p className="text-xs sm:text-sm text-slate-400 mt-1 leading-relaxed">
+                  스윙 mp4/mov를 업로드하면 이벤트 세그멘테이션 · 3D 바이오메카닉 지표 · 클럽 헤드 궤적을 즉시 계산합니다.
+                </p>
+              </div>
+            </header>
+            <SwingVideoAnalysis studentLessons={allMyLessons} />
+            <footer className="pt-4 mt-6 border-t border-slate-800 text-[11px] text-slate-500 leading-relaxed space-y-1.5">
+              <p>첫 실행 시 MediaPipe Heavy 모델(~30MB)이 CDN에서 다운로드된 뒤 브라우저에 캐시됩니다. Chrome / Edge 권장 (GPU 가속).</p>
+              <p>권장 촬영: 720p+ · 30fps · 5초 이내 · 정면(FO) 또는 측면(DTL) · 단색 배경.</p>
+            </footer>
+          </div>
+        </div>
+      )}
+
+      {!HIDE_RESERVATION_FEATURES && effectiveSubView === 'BAY_RESERVATION' && (
+        <div className="min-h-screen">
+          <main className="max-w-md mx-auto px-4 py-6">
+            <ClientBayReservation
+              clientProfile={clientProfile}
+              onBack={handleBackToTab}
+              onPointsUpdated={(updatedProfile) => {
+                if (onUpdateProfile) onUpdateProfile(updatedProfile);
+              }}
+            />
+          </main>
+        </div>
+      )}
+
+      {!HIDE_RESERVATION_FEATURES && effectiveSubView === 'MY_BAY_RESERVATIONS' && (
+        <div className="min-h-screen">
+          <main className="max-w-md mx-auto px-4 py-6">
+            <MyBayReservations
+              clientProfile={clientProfile}
+              onBack={handleBackToTab}
+            />
+          </main>
+        </div>
+      )}
+
+      {effectiveSubView === 'POINT_PURCHASE' && (
+        <div className="min-h-screen">
+          <main className="max-w-md mx-auto px-4 py-6">
+            <PointPurchase
+              clientProfile={clientProfile}
+              onBack={handleBackToTab}
+            />
+          </main>
+        </div>
+      )}
+
+      {!HIDE_MEMBERSHIP_FEATURES && effectiveSubView === 'MEMBERSHIP_PURCHASE' && (
+        <div className="min-h-screen">
+          <main className="max-w-md mx-auto px-4 py-6">
+            <MembershipPurchase
+              clientProfile={clientProfile}
+              onBack={handleBackToTab}
+            />
+          </main>
+        </div>
+      )}
+
+      {effectiveSubView === 'PAYMENT_SUCCESS' && (
+        <div className="min-h-screen">
+          <main className="max-w-md mx-auto px-4 py-6">
+            <PaymentSuccess
+              clientProfile={clientProfile}
+              onBack={handleBackToTab}
+              onPointsUpdated={(updated) => {
+                if (onUpdateProfile) onUpdateProfile(updated);
+                handleBackToTab();
+              }}
+            />
+          </main>
+        </div>
+      )}
+
+      {!HIDE_MEMBERSHIP_FEATURES && effectiveSubView === 'MEMBERSHIP_PAYMENT_SUCCESS' && (
+        <div className="min-h-screen">
+          <main className="max-w-md mx-auto px-4 py-6">
+            <MembershipPaymentSuccess
+              clientProfile={clientProfile}
+              onBack={handleBackToTab}
+              onMembershipUpdated={(updated) => {
+                if (onUpdateProfile) onUpdateProfile(updated);
+                handleBackToTab();
+              }}
+            />
+          </main>
+        </div>
+      )}
+
+      {effectiveSubView === 'PAYMENT_FAIL' && (
+        <div className="min-h-screen">
+          <main className="max-w-md mx-auto px-4 py-6">
+            <PaymentFail
+              onBack={() => {
+                const purchaseType = new URLSearchParams(window.location.search).get('purchase');
+                if (purchaseType === 'membership') {
+                  setSubView(HIDE_MEMBERSHIP_FEATURES ? null : 'MEMBERSHIP_PURCHASE');
+                  return;
+                }
+                setSubView('POINT_PURCHASE');
+              }}
+            />
+          </main>
+        </div>
+      )}
+
+      {effectiveSubView === 'NEW' && (
+        <div className="fixed inset-0 z-50 bg-[#05070A] overflow-y-auto">
+          <NewLessonForm
+            existingClients={[clientProfile]}
+            userRole="CLIENT"
+            currentUser={clientProfile}
+            onSave={handleSaveRecord}
+            onCancel={() => {
+              if (isEditingLesson) {
+                setSubView('DETAIL');
+                setIsEditingLesson(false);
+              } else {
+                setSubView(null);
+              }
+            }}
+            initialData={isEditingLesson && selectedLesson ? selectedLesson : undefined}
+          />
+        </div>
+      )}
+
+      {/* ── Floating "new lesson" FAB — HOME and GROWTH tabs, no sub-view ───── */}
+      {!effectiveSubView && (tab === 'HOME' || tab === 'GROWTH') && (
+        <button
+          onClick={handleNewLessonCTA}
+          aria-label={language === 'en' ? 'New record' : language === 'ja' ? '新規記録' : '새 기록'}
+          className="group fixed bottom-24 right-5 w-14 h-14 bg-gradient-to-br from-indigo-600 to-violet-500 text-white rounded-full shadow-lg shadow-indigo-950/40 flex items-center justify-center hover:scale-110 transition-all z-30"
+        >
+          <Plus className="w-6 h-6 group-hover:rotate-90 transition-transform duration-300" />
+        </button>
+      )}
+
+      {/* ── Bottom tab nav ────────────────────────────────────────────────── */}
+      {showBottomNav && (
+        <StudentBottomNav
+          activeTab={tab}
+          onTabChange={(next) => {
+            setSelectedLesson(null);
+            setTab(next);
+            // Growth relies on the freshest lesson list from the backend so a
+            // lesson the coach just saved shows up without a page reload.
+            if (next === 'GROWTH') {
+              onRefreshLessons?.();
+            }
+          }}
+        />
+      )}
+
+      {/* ── Global overlays ───────────────────────────────────────────────── */}
+      <StudentHamburgerMenu
+        open={hamburgerOpen}
+        onClose={() => setHamburgerOpen(false)}
+        clientProfile={clientProfile}
+        onAction={handleHamburgerAction}
+        hideMembership={HIDE_MEMBERSHIP_FEATURES}
+        hideReservation={HIDE_RESERVATION_FEATURES}
+      />
+
+      <AIToneSettings
+        open={showToneModal}
+        onClose={() => setShowToneModal(false)}
+        profile={clientProfile}
+        onSave={(updated) => {
+          if (onUpdateProfile) onUpdateProfile(updated);
+        }}
+      />
+
+      {showHomeworkModal && (
+        <HomeworkModal
+          isOpen={showHomeworkModal}
+          onClose={() => setShowHomeworkModal(false)}
+          clientId={clientId}
+          clientName={clientProfile.name}
+          isFirebaseMode={isFirebaseMode}
+          onAssign={handleHomeworkUpdated}
+        />
+      )}
+
+      <NotificationToast
+        title={notification?.title || ''}
+        message={notification?.message || ''}
+        visible={!!notification}
+        onClose={() => setNotification(null)}
       />
     </div>
   );
 };
+
