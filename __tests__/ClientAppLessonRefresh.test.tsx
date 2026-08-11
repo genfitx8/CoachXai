@@ -56,10 +56,7 @@ describe('ClientApp growth-tab refresh', () => {
     );
 
     // Growth tab lives in the bottom nav labelled "성장" (ko default).
-    const nav = screen.getByRole('navigation', { name: /student navigation/i });
-    const growthTab = nav.querySelector('button:last-child') as HTMLButtonElement;
-    expect(growthTab).not.toBeNull();
-    fireEvent.click(growthTab);
+    fireEvent.click(screen.getByRole('button', { name: '성장' }));
 
     expect(onRefreshLessons).toHaveBeenCalledTimes(1);
   });
@@ -76,8 +73,8 @@ describe('ClientApp growth-tab refresh', () => {
       </LanguageProvider>
     );
 
-    const nav = screen.getByRole('navigation', { name: /student navigation/i });
-    const growthTab = nav.querySelector('button:last-child') as HTMLButtonElement;
-    expect(() => fireEvent.click(growthTab)).not.toThrow();
+    expect(() =>
+      fireEvent.click(screen.getByRole('button', { name: '성장' }))
+    ).not.toThrow();
   });
 });

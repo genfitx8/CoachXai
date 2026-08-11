@@ -21,7 +21,7 @@ import { StudentHamburgerMenu, HamburgerAction } from './StudentHamburgerMenu';
 import { GrowthTimeline } from './GrowthTimeline';
 import { AIToneSettings } from './AIToneSettings';
 import { SwingVideoAnalysis } from './posture/SwingVideoAnalysis';
-import { PlayCircle, Plus, Filter, Eye, EyeOff, Target, Menu } from 'lucide-react';
+import { PlayCircle, Filter, Eye, EyeOff, Target, Menu } from 'lucide-react';
 import { firebaseService } from '../services/firebase';
 import { storageService } from '../services/storage';
 import { apiService } from '../services/apiService';
@@ -846,18 +846,7 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
         </div>
       )}
 
-      {/* ── Floating "new lesson" FAB — HOME and GROWTH tabs, no sub-view ───── */}
-      {!effectiveSubView && (tab === 'HOME' || tab === 'GROWTH') && (
-        <button
-          onClick={handleNewLessonCTA}
-          aria-label={language === 'en' ? 'New record' : language === 'ja' ? '新規記録' : '새 기록'}
-          className="group fixed bottom-24 right-5 w-14 h-14 bg-gradient-to-br from-indigo-600 to-violet-500 text-white rounded-full shadow-lg shadow-indigo-950/40 flex items-center justify-center hover:scale-110 transition-all z-30"
-        >
-          <Plus className="w-6 h-6 group-hover:rotate-90 transition-transform duration-300" />
-        </button>
-      )}
-
-      {/* ── Bottom tab nav ────────────────────────────────────────────────── */}
+      {/* ── Bottom tab nav (record CTA is the raised center button) ───────── */}
       {showBottomNav && (
         <StudentBottomNav
           activeTab={tab}
@@ -870,6 +859,7 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
               onRefreshLessons?.();
             }
           }}
+          onNewRecord={handleNewLessonCTA}
         />
       )}
 
