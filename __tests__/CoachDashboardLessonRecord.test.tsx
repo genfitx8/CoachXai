@@ -86,81 +86,49 @@ vi.mock('../components/CoachReservationNotificationModal', () => ({
 
 const renderCoachApp = async () => {
   render(<App />);
+  // Lesson tab is the landing tab after the redesign — wait for its title.
   await waitFor(() => {
-    expect(screen.getByTestId('start-lesson-btn')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /레슨 기록/i })).toBeInTheDocument();
   });
 };
 
-describe('Coach dashboard – lesson-first MVP home', () => {
+const openHamburger = () =>
+  fireEvent.click(screen.getByRole('button', { name: /open menu/i }));
+
+describe('Coach app shell (post-redesign)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it('shows exactly three main home buttons with required labels', async () => {
+  it('lands on the Lesson tab with the bottom nav and hamburger present', async () => {
     await renderCoachApp();
 
-    const startButton = screen.getByTestId('start-lesson-btn');
-    const coachxButton = screen.getByTestId('coachx-entry-btn');
-    const studentsButton = screen.getByTestId('students-entry-btn');
+    // Bottom nav — coach navigation aria label from CoachBottomNav.
+    const nav = screen.getByRole('navigation', { name: /coach navigation/i });
+    expect(nav).toBeInTheDocument();
+    // Lesson tab is active.
+    expect(nav.querySelector('[aria-current="page"]')).not.toBeNull();
 
-    expect(startButton).toBeInTheDocument();
-    expect(coachxButton).toBeInTheDocument();
-    expect(studentsButton).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Lesson start' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'coachx ai' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Student' })).toBeInTheDocument();
-    expect(studentsButton.compareDocumentPosition(coachxButton)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
-    [startButton, coachxButton, studentsButton].forEach((button) => {
-      expect(button.className).toContain('rounded-2xl');
-      expect(button.className).toContain('border');
-    });
-    expect(screen.queryByTestId('lesson-records-entry-btn')).toBeNull();
-    expect(screen.queryByTestId('coachx-attention-card')).toBeNull();
+    // Hamburger button in header.
+    expect(screen.getByRole('button', { name: /open menu/i })).toBeInTheDocument();
   });
 
-  it('hides lesson upload entry from coach home', async () => {
+  it('does not render the legacy dashboard quick-action buttons', async () => {
     await renderCoachApp();
 
+    expect(screen.queryByTestId('start-lesson-btn')).toBeNull();
+    expect(screen.queryByTestId('coachx-entry-btn')).toBeNull();
+    expect(screen.queryByTestId('students-entry-btn')).toBeNull();
+    expect(screen.queryByTestId('reservations-entry-btn')).toBeNull();
     expect(screen.queryByTestId('lesson-upload-entry-btn')).toBeNull();
-    expect(screen.queryByRole('button', { name: '자동 영상 편집' })).toBeNull();
+    expect(screen.queryByTestId('diagnosis-program-entry-btn')).toBeNull();
   });
 
-  it('does not show separate album entry on coach home', async () => {
+  it('opens the diagnosis program from the hamburger menu', async () => {
     await renderCoachApp();
+    openHamburger();
 
-    expect(screen.queryByTestId('album-entry-btn')).toBeNull();
-    expect(screen.queryByRole('button', { name: '영상 앨범' })).toBeNull();
-  });
-
-  it('hides non-core surfaces from the coach home', async () => {
-    await renderCoachApp();
-
-    expect(screen.queryByText(/최근 레슨 기록/i)).toBeNull();
-    expect(screen.queryByText(/예약 및 회원 관리/i)).toBeNull();
-    expect(screen.getByRole('button', { name: /예약 관리/i })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /타석 예약/i })).toBeNull();
-  });
-
-  it('keeps calendar hidden on the simplified coach home', async () => {
-    await renderCoachApp();
-    expect(screen.queryByTestId('calendar-view')).toBeNull();
-  });
-
-  it('does not show direct member registration button in Student category', async () => {
-    await renderCoachApp();
-    fireEvent.click(screen.getByTestId('students-entry-btn'));
-    expect(screen.queryByTestId('coach-client-add-btn')).toBeNull();
-  });
-
-  it('does not show training program creation button in Student category', async () => {
-    await renderCoachApp();
-    fireEvent.click(screen.getByTestId('students-entry-btn'));
-    expect(screen.queryByRole('button', { name: /훈련 프로그램 생성|create training program/i })).toBeNull();
-  });
-
-  it('opens diagnosis program intro section from diagnosis entry', async () => {
-    await renderCoachApp();
-    fireEvent.click(screen.getByTestId('diagnosis-program-entry-btn'));
+    fireEvent.click(screen.getByRole('button', { name: /정밀진단/i }));
 
     await waitFor(() => {
       expect(screen.getByTestId('diagnosis-program-section')).toBeInTheDocument();
@@ -168,14 +136,14 @@ describe('Coach dashboard – lesson-first MVP home', () => {
     expect(screen.getAllByText('골퍼 기본정보 입력').length).toBeGreaterThan(0);
     expect(screen.getByText('프로세스 1 / 6')).toBeInTheDocument();
     expect(screen.getByTestId('diagnosis-view-result-btn')).toBeInTheDocument();
-    expect(screen.queryByText('회원 관리')).toBeNull();
   });
 
-  it('moves to diagnosis result and returns to diagnosis intro', async () => {
+  it('completes the diagnosis flow and returns to the intro screen', async () => {
     const expectedOverallScore = Math.round((90 + 85 + 80) / 3);
 
     await renderCoachApp();
-    fireEvent.click(screen.getByTestId('diagnosis-program-entry-btn'));
+    openHamburger();
+    fireEvent.click(screen.getByRole('button', { name: /정밀진단/i }));
 
     await waitFor(() => {
       expect(screen.getByTestId('diagnosis-program-section')).toBeInTheDocument();
@@ -240,9 +208,10 @@ describe('Coach dashboard – lesson-first MVP home', () => {
     });
   });
 
-  it('allows moving to the next diagnosis step before golfer profile inputs are complete', async () => {
+  it('allows advancing past the golfer inputs step without full completion', async () => {
     await renderCoachApp();
-    fireEvent.click(screen.getByTestId('diagnosis-program-entry-btn'));
+    openHamburger();
+    fireEvent.click(screen.getByRole('button', { name: /정밀진단/i }));
 
     await waitFor(() => {
       expect(screen.getByTestId('diagnosis-program-section')).toBeInTheDocument();
@@ -257,12 +226,13 @@ describe('Coach dashboard – lesson-first MVP home', () => {
     expect(screen.getByText('신체 체형 진단')).toBeInTheDocument();
   });
 
-  it('moves direct member registration entry into Lesson start flow', async () => {
+  it('opens NewLessonForm and offers a direct-registration entry when + record is tapped', async () => {
     await renderCoachApp();
 
-    fireEvent.click(screen.getByTestId('start-lesson-btn'));
+    // Tap the raised "+ 기록" button on the bottom nav.
+    fireEvent.click(screen.getByRole('button', { name: /^기록$/ }));
 
-    const lessonRecordStartBtn = screen.getByRole('button', { name: /레슨 기록 시작/i });
+    const lessonRecordStartBtn = await screen.findByRole('button', { name: /레슨 기록 시작/i });
     const directRegisterBtn = screen.getByTestId('lesson-start-direct-register-btn');
     const buttonGroup = lessonRecordStartBtn.parentElement;
     expect(buttonGroup).not.toBeNull();
@@ -270,7 +240,6 @@ describe('Coach dashboard – lesson-first MVP home', () => {
     expect(buttonsInOrder.indexOf(directRegisterBtn)).toBeGreaterThan(
       buttonsInOrder.indexOf(lessonRecordStartBtn)
     );
-    expect(directRegisterBtn).toBeInTheDocument();
 
     fireEvent.click(directRegisterBtn);
     await waitFor(() => {
