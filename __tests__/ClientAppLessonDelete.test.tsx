@@ -63,9 +63,7 @@ const renderClientApp = (onDeleteLesson = vi.fn()) =>
 
 const openLessonDetailFromGrowth = () => {
   // Growth tab in the bottom nav.
-  const nav = screen.getByRole('navigation', { name: /student navigation/i });
-  const growthTab = nav.querySelector('button:last-child') as HTMLButtonElement;
-  fireEvent.click(growthTab);
+  fireEvent.click(screen.getByRole('button', { name: '성장' }));
 
   // Growth tab renders the lesson row — click it to open DETAIL.
   fireEvent.click(screen.getByText('드라이버 스윙'));
