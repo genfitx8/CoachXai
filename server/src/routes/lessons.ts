@@ -113,9 +113,25 @@ router.get('/', async (req: Request, res: Response) => {
 
     let result;
     if (userRole === 'coach') {
-      // Coach: fetch all lessons assigned to this coach
+      // Coach: fetch every lesson the coach has ever owned — current
+      // assignment (coach_id), original creator (original_coach_id), or
+      // a previous owner from the handover chain (previous_coach_ids).
+      //
+      // 3-tier ownership (#309): the coach handover flow reassigns
+      // coach_id to the new coach. Filtering on coach_id alone would
+      // wipe the outgoing coach's teaching history from their own view
+      // the moment a handover completes. Including the ownership chain
+      // preserves that history as read-only — PUT/DELETE still require
+      // the current coach_id via loadOwnedLesson.
+      //
+      // COALESCE guards against NULL previous_coach_ids (legacy rows
+      // pre-#309) since $1 = ANY(NULL) is NULL, which fails a WHERE OR.
       result = await pool.query(
-        'SELECT * FROM lessons WHERE coach_id = $1 ORDER BY created_at DESC',
+        `SELECT * FROM lessons
+           WHERE coach_id = $1
+              OR original_coach_id = $1
+              OR $1 = ANY(COALESCE(previous_coach_ids, ARRAY[]::uuid[]))
+           ORDER BY created_at DESC`,
         [userId]
       );
     } else if (userRole === 'client') {
