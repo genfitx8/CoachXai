@@ -13,6 +13,7 @@ import { MyBayReservations } from './MyBayReservations';
 import { StudentReservationSummary } from './StudentReservationSummary';
 import { PracticeUploadFlow } from './PracticeUploadFlow';
 import { GolfPassportScreen } from './GolfPassportScreen';
+import { CoachHandoverFlow } from './CoachHandoverFlow';
 import { PointPurchase } from './PointPurchase';
 import { PaymentSuccess } from './PaymentSuccess';
 import { PaymentFail } from './PaymentFail';
@@ -126,6 +127,7 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
   const [homeworkList, setHomeworkList] = useState<Homework[]>([]);
   const [showPracticeUpload, setShowPracticeUpload] = useState(false);
   const [practiceUploadHomeworkId, setPracticeUploadHomeworkId] = useState<string | null>(null);
+  const [showHandoverFlow, setShowHandoverFlow] = useState(false);
   const [notification, setNotification] = useState<{title: string, message: string} | null>(null);
   
   // Mission/Homework Modal State
@@ -649,9 +651,9 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
           clientProfile={clientProfile}
           lessons={allMyLessons}
           onBack={handleBackToTab}
-          // onStartHandover / onExportData intentionally omitted — the
-          // component renders them as "곧 제공" placeholders until 7a
-          // and the export flow land in follow-up PRs.
+          onStartHandover={() => setShowHandoverFlow(true)}
+          // onExportData intentionally omitted — export flow is a
+          // follow-up PR; the CTA renders as "곧 제공" until then.
         />
       )}
 
@@ -926,6 +928,19 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
       )}
 
       {/* ── Global overlays ───────────────────────────────────────────────── */}
+      {showHandoverFlow && (
+        <CoachHandoverFlow
+          clientProfile={clientProfile}
+          onCoachChanged={(updated) => {
+            // Propagate the new coach + designated coach name upward so
+            // sub-screens (passport, home cards, etc.) re-render against
+            // the new relationship on the next tick.
+            onUpdateProfile?.(updated);
+          }}
+          onClose={() => setShowHandoverFlow(false)}
+        />
+      )}
+
       {showPracticeUpload && (
         <PracticeUploadFlow
           clientProfile={clientProfile}

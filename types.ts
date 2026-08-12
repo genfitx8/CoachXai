@@ -598,6 +598,15 @@ export interface ClientProfile {
   detailedBag?: ClubSpec[]; // Added: Structured club data
   designatedCoach?: string; // Name of the coach
   coachId?: string; // Added: ID of the designated coach
+  /**
+   * Handover trail (redesign 7a, backed by #309 `previous_coach_ids`).
+   * Every prior coach this student worked with, in chronological
+   * assignment order. Populated automatically server-side when
+   * coach_id changes. The 골프 여권 (6f) surfaces it as "코치 이력";
+   * the future 인수인계 summary reads from here to know whose lesson
+   * history to include.
+   */
+  previousCoachIds?: string[];
   memo?: string;
   memberBodyAnalysis?: LessonBodyAnalysis; // Member body analysis managed in My Info
   // Added: Points
