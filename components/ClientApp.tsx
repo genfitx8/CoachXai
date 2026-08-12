@@ -11,6 +11,7 @@ import { ClientReservation } from './ClientReservation';
 import { ClientBayReservation } from './ClientBayReservation';
 import { MyBayReservations } from './MyBayReservations';
 import { StudentReservationSummary } from './StudentReservationSummary';
+import { PracticeUploadFlow } from './PracticeUploadFlow';
 import { PointPurchase } from './PointPurchase';
 import { PaymentSuccess } from './PaymentSuccess';
 import { PaymentFail } from './PaymentFail';
@@ -121,6 +122,8 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
 
   // Homework State
   const [homeworkList, setHomeworkList] = useState<Homework[]>([]);
+  const [showPracticeUpload, setShowPracticeUpload] = useState(false);
+  const [practiceUploadHomeworkId, setPracticeUploadHomeworkId] = useState<string | null>(null);
   const [notification, setNotification] = useState<{title: string, message: string} | null>(null);
   
   // Mission/Homework Modal State
@@ -528,14 +531,13 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
                 });
               }
             }}
-            onUploadPractice={(_homeworkId) => {
-              // The redesign wires this to the practice-clip upload flow.
-              // For now, drop into the existing new-record path so the
-              // student can attach a video; a dedicated homework-scoped
-              // upload can replace this once the 5d screen is designed.
-              setIsEditingLesson(false);
-              setSelectedLesson(null);
-              setSubView('NEW');
+            onUploadPractice={(homeworkId) => {
+              // 5d flow: open the dedicated practice-upload sheet
+              // (PracticeUploadFlow) rooted on the tapped homework row.
+              // Falls back to a free practice upload when the id doesn't
+              // resolve — the sheet handles either case.
+              setPracticeUploadHomeworkId(homeworkId ?? null);
+              setShowPracticeUpload(true);
             }}
           />
         </div>
@@ -908,6 +910,40 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
       )}
 
       {/* ── Global overlays ───────────────────────────────────────────────── */}
+      {showPracticeUpload && (
+        <PracticeUploadFlow
+          clientProfile={clientProfile}
+          homework={
+            practiceUploadHomeworkId
+              ? homeworkList.find((h) => h.id === practiceUploadHomeworkId)
+              : undefined
+          }
+          onSaveLesson={async (lesson) => {
+            // Persist through the app's existing lesson save path so the
+            // record lands in the same store as coach-authored lessons.
+            if (onSaveNewRecord) {
+              await onSaveNewRecord(lesson);
+            }
+          }}
+          onMarkHomeworkComplete={(id) => {
+            setHomeworkList((prev) =>
+              prev.map((h) => (h.id === id ? { ...h, isCompleted: true } : h))
+            );
+            storageService.updateHomeworkStatus(id, true);
+            if (apiService.isAvailable()) {
+              void firebaseService.updateHomeworkStatus?.(id, true).catch(() => {
+                /* best-effort */
+              });
+            }
+          }}
+          onClose={() => {
+            setShowPracticeUpload(false);
+            setPracticeUploadHomeworkId(null);
+            onRefreshLessons?.();
+          }}
+        />
+      )}
+
       <StudentHamburgerMenu
         open={hamburgerOpen}
         onClose={() => setHamburgerOpen(false)}

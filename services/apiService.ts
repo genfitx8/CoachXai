@@ -333,6 +333,24 @@ export const apiService = {
     return uploadBlobToR2(videoBlob, `compare-videos/${userId}/${lessonId}_${Date.now()}.mp4`);
   },
 
+  /**
+   * Upload a student's practice-drill clip to the storage layer.
+   *
+   * The redesign's 5d flow lands the video against a brand-new lesson UUID
+   * so it flows through the same `lessons/{uuid}/main.mp4` key path the
+   * signed-token gate already recognises — no widening of the presign
+   * allowlist required. The returned absolute URL is safe to drop straight
+   * into `<video src>` because it carries the HMAC token from
+   * `/api/files/presign` (added in PR #313, issue #308).
+   *
+   * Caller is responsible for creating the matching lesson row via
+   * POST /api/lessons afterwards; this method only handles the R2 hop.
+   */
+  async uploadPracticeVideo(videoBlob: Blob, lessonId: string): Promise<string> {
+    const ext = (videoBlob.type.split('/')[1] || 'mp4').toLowerCase();
+    return uploadBlobToR2(videoBlob, `lessons/${lessonId}/main.${ext}`);
+  },
+
   // ── Clients ───────────────────────────────────────────────────────────────
 
   async getMyClientProfile(): Promise<ClientProfile> {
