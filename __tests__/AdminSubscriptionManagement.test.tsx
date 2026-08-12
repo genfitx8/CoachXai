@@ -18,6 +18,7 @@ vi.mock('../services/firebase', () => ({
     init: vi.fn().mockReturnValue(false),
     getHomeworkTemplates: vi.fn().mockResolvedValue([]),
     getNotifications: vi.fn().mockResolvedValue([]),
+    getBranches: vi.fn().mockResolvedValue([]),
   },
 }));
 
@@ -30,6 +31,7 @@ vi.mock('../services/storage', () => ({
     getClients: vi.fn().mockReturnValue([]),
     saveClients: vi.fn(),
     clearAllData: vi.fn(),
+    getBranches: vi.fn().mockReturnValue([]),
   },
 }));
 
@@ -67,6 +69,10 @@ const BASE_PROPS = {
 describe('AdminDashboard subscription management entrypoint', () => {
   it('opens the subscription manager when clicking 관리 on a member row', async () => {
     render(<AdminDashboard {...BASE_PROPS} />);
+
+    // 7d redesign: admins land on the OVERVIEW tab first; jump to CLIENTS
+    // before exercising the per-row subscription entrypoint.
+    fireEvent.click(screen.getByText('admin_tab_clients'));
 
     expect(screen.queryByText('회원 구독 플랜')).toBeNull();
 

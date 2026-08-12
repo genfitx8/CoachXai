@@ -36,6 +36,7 @@ vi.mock('../services/firebase', () => ({
     isInitialized: vi.fn().mockReturnValue(false),
     getHomeworkTemplates: vi.fn().mockResolvedValue([]),
     getNotifications: vi.fn().mockResolvedValue([]),
+    getBranches: vi.fn().mockResolvedValue([]),
   },
 }));
 
@@ -44,6 +45,7 @@ vi.mock('../services/storage', () => ({
     getHomeworkTemplates: vi.fn().mockReturnValue([]),
     getNotifications: vi.fn().mockReturnValue([]),
     saveNotification: vi.fn(),
+    getBranches: vi.fn().mockReturnValue([]),
   },
 }));
 

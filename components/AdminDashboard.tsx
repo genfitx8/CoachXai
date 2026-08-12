@@ -12,6 +12,7 @@ import { AdminPromptManager } from './AdminPromptManager';
 import { AdminCurriculumTemplateManager } from './AdminCurriculumTemplateManager';
 import { AdminCoachActivity } from './AdminCoachActivity';
 import { AdminAiObservability } from './AdminAiObservability';
+import { AdminOverview, type AdminJumpTarget } from './AdminOverview';
 import { useLanguage } from './LanguageContext';
 
 interface AdminDashboardProps {
@@ -47,7 +48,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   onChangeSubscriptionPlan
 }) => {
   const { t } = useLanguage();
-  const [activeTab, setActiveTab] = useState<'CLIENTS' | 'LESSONS' | 'SYSTEM' | 'TEMPLATES' | 'MESSAGES' | 'COURSES' | 'BRANCHES' | 'BRANCH_STAFF' | 'AI_PROMPTS' | 'AI_OBSERVABILITY' | 'COACH_ACTIVITY' | 'CURRICULUM_TEMPLATES'>('CLIENTS');
+  const [activeTab, setActiveTab] = useState<'OVERVIEW' | 'CLIENTS' | 'LESSONS' | 'SYSTEM' | 'TEMPLATES' | 'MESSAGES' | 'COURSES' | 'BRANCHES' | 'BRANCH_STAFF' | 'AI_PROMPTS' | 'AI_OBSERVABILITY' | 'COACH_ACTIVITY' | 'CURRICULUM_TEMPLATES'>('OVERVIEW');
   const [memberType, setMemberType] = useState<'GENERAL' | 'COACH'>('GENERAL'); 
   
   // Media visibility toggle
@@ -350,7 +351,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
         {/* Tabs */}
         <div className="border-b border-gray-200 flex gap-6 overflow-x-auto">
-            <button 
+            <button
+                onClick={() => setActiveTab('OVERVIEW')}
+                className={`pb-3 text-sm font-bold transition-colors border-b-2 whitespace-nowrap flex items-center gap-1.5 ${activeTab === 'OVERVIEW' ? 'border-emerald-600 text-emerald-600' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
+            >
+                <LayoutDashboard className="w-3.5 h-3.5" /> 개요
+            </button>
+            <button
                 onClick={() => setActiveTab('CLIENTS')}
                 className={`pb-3 text-sm font-bold transition-colors border-b-2 whitespace-nowrap ${activeTab === 'CLIENTS' ? 'border-gray-900 text-gray-900' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
             >
@@ -426,6 +433,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
         {/* Content Area */}
         <div className="animate-fade-in">
+            {activeTab === 'OVERVIEW' && (
+                <AdminOverview
+                    clients={clients}
+                    coaches={coaches}
+                    lessons={lessons}
+                    isFbConnected={isFbConnected}
+                    onJump={(target: AdminJumpTarget) => setActiveTab(target)}
+                />
+            )}
             {activeTab === 'CLIENTS' && (
                 <div className="space-y-4">
                     <div className="flex items-center justify-between">
