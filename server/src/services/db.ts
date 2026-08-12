@@ -155,10 +155,28 @@ export async function initDb(): Promise<void> {
     "ALTER TABLE lessons ADD COLUMN IF NOT EXISTS video_edit_metadata JSONB",
     "ALTER TABLE lessons ADD COLUMN IF NOT EXISTS compare_video_url TEXT",
     "ALTER TABLE lessons ADD COLUMN IF NOT EXISTS compare_video_metadata JSONB",
+    // ─── Data ownership 3-tier (#309) ──────────────────────────────────────
+    // ownership: 'student' | 'shared' | 'coach' — governs what stays with
+    // the student when they change coaches. Lessons are the joint work of a
+    // coach and student, so default to 'shared' (student keeps read access,
+    // coach retains it too but only sees aggregated stats for former
+    // students once handover UI lands).
+    "ALTER TABLE lessons ADD COLUMN IF NOT EXISTS ownership VARCHAR(20) DEFAULT 'shared'",
+    // visibility: 'self' | 'coach' | 'branch' — governs who can read the
+    // media attached to this lesson. Default to담당 coach; the student can
+    // downgrade to 'self' (본인만) or the coach upgrade to 'branch' via UI.
+    "ALTER TABLE lessons ADD COLUMN IF NOT EXISTS visibility VARCHAR(20) DEFAULT 'coach'",
+    // original_coach_id: preserved across handovers so past attribution
+    // survives when coach_id is reassigned (or set NULL after a coach
+    // account is closed but the student keeps their lesson history).
+    "ALTER TABLE lessons ADD COLUMN IF NOT EXISTS original_coach_id UUID",
   ];
   for (const sql of lessonAlters) {
     await pool.query(sql);
   }
+  await pool.query(
+    `UPDATE lessons SET original_coach_id = coach_id WHERE original_coach_id IS NULL AND coach_id IS NOT NULL`
+  );
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS lesson_packages (
@@ -268,6 +286,36 @@ export async function initDb(): Promise<void> {
 
   await pool.query(
     `CREATE INDEX IF NOT EXISTS idx_part_lesson_records_part ON part_lesson_records (part_id, student_id)`
+  );
+
+  // ── Data ownership 3-tier (#309) additive columns ────────────────────────
+  // curriculums are coach-owned templates. student_curriculums join rows are
+  // shared (student keeps read access to what was assigned). part_lesson_records
+  // are the coach's private notes — the student never sees them — so keep
+  // ownership='coach' and allow coach_id to go NULL when a coach account is
+  // closed but the record itself is retained for aggregate stats.
+  const ownershipAlters = [
+    "ALTER TABLE curriculums ADD COLUMN IF NOT EXISTS ownership VARCHAR(20) DEFAULT 'coach'",
+    "ALTER TABLE student_curriculums ADD COLUMN IF NOT EXISTS ownership VARCHAR(20) DEFAULT 'shared'",
+    "ALTER TABLE part_lesson_records ADD COLUMN IF NOT EXISTS ownership VARCHAR(20) DEFAULT 'coach'",
+    "ALTER TABLE part_lesson_records ADD COLUMN IF NOT EXISTS original_coach_id UUID",
+    // Relax NOT NULL so a closed coach account can leave the record behind
+    // for the student to reassign to a new coach. original_coach_id
+    // preserves attribution.
+    "ALTER TABLE part_lesson_records ALTER COLUMN coach_id DROP NOT NULL",
+    // clients: previous_coach_ids tracks the handover trail. The current
+    // coach_id already reassigns cleanly; this array records who came
+    // before so the AI can build the "인수인계 패키지" summary the redesign
+    // (§2 코치를 바꿀 때) calls for.
+    "ALTER TABLE clients ADD COLUMN IF NOT EXISTS previous_coach_ids UUID[] DEFAULT '{}'",
+    "ALTER TABLE lesson_packages ADD COLUMN IF NOT EXISTS ownership VARCHAR(20) DEFAULT 'shared'",
+    "ALTER TABLE training_programs ADD COLUMN IF NOT EXISTS ownership VARCHAR(20) DEFAULT 'shared'",
+  ];
+  for (const sql of ownershipAlters) {
+    await pool.query(sql);
+  }
+  await pool.query(
+    `UPDATE part_lesson_records SET original_coach_id = coach_id WHERE original_coach_id IS NULL AND coach_id IS NOT NULL`
   );
 
   await pool.query(`

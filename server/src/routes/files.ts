@@ -3,8 +3,68 @@ import jwt from 'jsonwebtoken';
 import { authMiddleware } from '../middleware/auth';
 import { generateUploadUrl, generateDownloadUrl } from '../services/r2';
 import { signMediaUrl, verifyMediaToken } from '../services/mediaAccess';
+import pool from '../services/db';
 
 const router = Router();
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Guard a presign request against uploading over someone else's lesson.
+ *
+ * Keys follow `lessons/{lessonId}/{file}` (see services/apiService.ts). If
+ * that lesson id already exists in the DB, only its coach or its student
+ * may presign for it — otherwise anyone with a valid JWT could overwrite
+ * an existing swing video. When no lesson row exists yet the presign is
+ * allowed: the new-lesson flow generates a UUID client-side, presigns,
+ * uploads, then POSTs /api/lessons; UUID v4 collision is astronomically
+ * unlikely so allowing this path is safe.
+ *
+ * Non-lesson keys aren't currently issued anywhere in the app, so reject
+ * them outright to keep the surface small.
+ */
+async function isKeyOwnedByUser(
+  key: string,
+  userId: string,
+  userRole: 'coach' | 'client'
+): Promise<{ ok: true } | { ok: false; reason: string; status: number }> {
+  const parts = key.split('/');
+  if (parts[0] !== 'lessons' || !parts[1]) {
+    return { ok: false, reason: 'Only lesson media keys are allowed', status: 400 };
+  }
+  const lessonId = parts[1];
+  if (!UUID_PATTERN.test(lessonId)) {
+    return { ok: false, reason: 'Invalid lesson id in key', status: 400 };
+  }
+  const row = await pool.query(
+    'SELECT coach_id, client_id, client_phone FROM lessons WHERE id = $1',
+    [lessonId]
+  );
+  if (row.rows.length === 0) {
+    // Brand-new lesson — the row will be created after the upload lands.
+    return { ok: true };
+  }
+  const lesson = row.rows[0];
+  if (userRole === 'coach') {
+    if (lesson.coach_id === userId) return { ok: true };
+    return { ok: false, reason: 'Not this lesson\'s coach', status: 403 };
+  }
+  // client role — match either the composite client_id or the phone.
+  const clientRow = await pool.query(
+    'SELECT name, phone FROM clients WHERE id = $1',
+    [userId]
+  );
+  if (clientRow.rows.length === 0) {
+    return { ok: false, reason: 'Client not found', status: 404 };
+  }
+  const { name, phone } = clientRow.rows[0];
+  const composite = `${name}_${phone}`;
+  const normalizedLesson = String(lesson.client_phone ?? '').replace(/[^0-9]/g, '');
+  const normalizedClient = String(phone ?? '').replace(/[^0-9]/g, '');
+  if (lesson.client_id === composite) return { ok: true };
+  if (normalizedLesson && normalizedLesson === normalizedClient) return { ok: true };
+  return { ok: false, reason: 'Not this lesson\'s student', status: 403 };
+}
 
 // Per-type upload size caps. Enforced trust-based against the client-reported
 // contentLength — R2 direct PUT can't be capped after presigning, so a client
@@ -57,6 +117,13 @@ router.post('/presign', authMiddleware, async (req: Request, res: Response) => {
   console.log(
     `[files] POST /presign key="${key}" contentType="${contentType}" contentLength=${contentLength ?? '?'} user=${req.user?.id}`
   );
+
+  const ownership = await isKeyOwnedByUser(key, req.user!.id, req.user!.role);
+  if (!ownership.ok) {
+    console.warn(`[files] Presign rejected: ${ownership.reason} (key="${key}", user=${req.user?.id})`);
+    res.status(ownership.status).json({ error: ownership.reason });
+    return;
+  }
 
   try {
     const uploadUrl = await generateUploadUrl(key, contentType);
