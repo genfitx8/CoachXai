@@ -898,7 +898,9 @@ export interface PromptTemplate {
 
 // ── Weekly Insight Types ─────────────────────────────────────────────────────
 
-export interface WeeklyInsight {
+import type { AIEvidenceEnvelope } from './types/aiEvidence';
+
+export interface WeeklyInsight extends AIEvidenceEnvelope {
   id: string;
   clientId: string; // `${name}_${phone}`
   coachId?: string;

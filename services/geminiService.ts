@@ -1624,8 +1624,8 @@ export const generateWeeklyInsight = async (
   logs: QuickLogEntry[],
   recentLessons: Lesson[] = [],
   clientProfile?: ClientProfile
-): Promise<Pick<WeeklyInsight, 'summary' | 'keyPatterns' | 'recommendedFocus'>> => {
-  const fallback = (): Pick<WeeklyInsight, 'summary' | 'keyPatterns' | 'recommendedFocus'> => {
+): Promise<Pick<WeeklyInsight, 'summary' | 'keyPatterns' | 'recommendedFocus' | 'swingEvidence' | 'historyEvidence' | 'confidence' | 'caveats'>> => {
+  const fallback = (): Pick<WeeklyInsight, 'summary' | 'keyPatterns' | 'recommendedFocus' | 'swingEvidence' | 'historyEvidence' | 'confidence' | 'caveats'> => {
     const goodPoints = logs.map((l) => l.goodPoint).filter(Boolean);
     const problems = logs.map((l) => l.problemPoint).filter(Boolean);
     return {
@@ -1676,12 +1676,21 @@ ${logSummaries}${lessonContext}
 - summary: 이번 주 전반적인 흐름을 2~3문장으로 요약 (한국어)
 - keyPatterns: 반복되는 패턴이나 두드러진 이슈 2~4개를 배열로 (각 항목 한 문장)
 - recommendedFocus: 다음 주 핵심 집중 포인트 1~2개를 포함한 실용적 제안 (2~3문장)
+- swingEvidence: summary/keyPatterns 를 뒷받침하는 실제 수치 인용 1~4개 (예: "3라운드 평균 스코어 89").
+- historyEvidence: 이전 주와의 대비가 있을 때 1~3개. 없으면 [].
+- confidence: 근거가 충분하면 "strong", 추이가 뚜렷하지 않으면 "plausible", 데이터가 부족하면 "speculative".
+- caveats: 신뢰도가 낮은 지점이나 데이터 공백을 짧게. 없으면 [].
+- 근거 없는 추정은 금지. 스윙 지표만으로 부족하면 caveats 에 명시하고 confidence 를 낮춘다.
 
 반드시 아래 JSON 형식으로만 응답하세요:
 {
   "summary": "...",
   "keyPatterns": ["...", "..."],
-  "recommendedFocus": "..."
+  "recommendedFocus": "...",
+  "swingEvidence": ["..."],
+  "historyEvidence": ["..."],
+  "confidence": "strong" | "plausible" | "speculative",
+  "caveats": ["..."]
 }`;
 
     const result = await invokeBackendAI<unknown>('weekly_insight', {
@@ -1698,6 +1707,14 @@ ${logSummaries}${lessonContext}
       summary: parsed.summary as string,
       keyPatterns: parsed.keyPatterns as string[],
       recommendedFocus: parsed.recommendedFocus as string,
+      swingEvidence: Array.isArray(parsed.swingEvidence) ? parsed.swingEvidence as string[] : undefined,
+      historyEvidence: Array.isArray(parsed.historyEvidence) ? parsed.historyEvidence as string[] : undefined,
+      confidence:
+        typeof parsed.confidence === 'string' &&
+        ['strong', 'plausible', 'speculative'].includes(parsed.confidence)
+          ? (parsed.confidence as 'strong' | 'plausible' | 'speculative')
+          : undefined,
+      caveats: Array.isArray(parsed.caveats) ? parsed.caveats as string[] : undefined,
     };
   } catch (error) {
     log.error('Generate Weekly Insight Error:', error);
