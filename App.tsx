@@ -177,7 +177,11 @@ const AppContent: React.FC = () => {
   const [coachProfile, setCoachProfile] = useState<CoachProfile | null>(null);
 
   // View State (Coach)
-  const [coachView, setCoachView] = useState<ViewState | 'RESERVATIONS' | 'BAY_RESERVATION' | 'MY_BAY_RESERVATIONS' | 'COACHX_DASHBOARD' | 'LESSON_REVIEW' | 'STUDENT_DETAIL' | 'LIVE_LESSON'>('LESSON_LIST');
+  // Coach lands on the redesigned CoachAIHome (COACHX) by default. The
+  // legacy lesson-list surface is still reachable via bottom-nav LESSON
+  // → "전체 레슨" link inside CoachAIHome, but the default entry needs to
+  // be the conversational home so the UX개편 is visible on first login.
+  const [coachView, setCoachView] = useState<ViewState | 'RESERVATIONS' | 'BAY_RESERVATION' | 'MY_BAY_RESERVATIONS' | 'COACHX_DASHBOARD' | 'LESSON_REVIEW' | 'STUDENT_DETAIL' | 'LIVE_LESSON'>('COACHX');
   const [selectedStudentForDetail, setSelectedStudentForDetail] = useState<ClientProfile | null>(null);
   const [hamburgerOpen, setHamburgerOpen] = useState(false);
   const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(null);
@@ -743,7 +747,7 @@ const AppContent: React.FC = () => {
     setUserRole(null);
     setCurrentUser(null);
     setBranchAdminData(null);
-    setCoachView('LESSON_LIST');
+    setCoachView('COACHX');
     setSelectedLesson(null);
   };
 

@@ -86,9 +86,11 @@ vi.mock('../components/CoachReservationNotificationModal', () => ({
 
 const renderCoachApp = async () => {
   render(<App />);
-  // Lesson tab is the landing tab after the redesign — wait for its title.
+  // Coach lands on CoachAIHome (the redesign home) — wait for the
+  // brand line in its header. The legacy 레슨 기록 list is still
+  // reachable via the LESSON tab, just not the default.
   await waitFor(() => {
-    expect(screen.getByRole('heading', { name: /레슨 기록/i })).toBeInTheDocument();
+    expect(screen.getByText('CoachX AI')).toBeInTheDocument();
   });
 };
 
