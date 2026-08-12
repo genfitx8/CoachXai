@@ -52,6 +52,13 @@ interface StudentAIChatProps {
    * The AI Home passes its hamburger button here.
    */
   headerLeftSlot?: React.ReactNode;
+  /**
+   * Optional banner rendered directly above the message stream in chat
+   * mode. Used by the AI Home to surface the redesign's "오늘의 한 가지"
+   * and "이번 주 드릴" cards without swapping out the whole chat surface.
+   * Scrolls with the messages so it doesn't consume permanent screen space.
+   */
+  topBannerSlot?: React.ReactNode;
 }
 
 const SUGGESTED_PROMPTS_KO = [
@@ -137,6 +144,7 @@ export const StudentAIChat: React.FC<StudentAIChatProps> = ({
   hideModeSelector = false,
   hideBackButton = false,
   headerLeftSlot,
+  topBannerSlot,
 }) => {
   const { language, t } = useLanguage();
   const lang = (language as 'ko' | 'en' | 'ja') ?? 'ko';
@@ -657,7 +665,9 @@ export const StudentAIChat: React.FC<StudentAIChatProps> = ({
       ) : (
       <>
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
+      <div className="flex-1 overflow-y-auto py-4 space-y-4">
+        {topBannerSlot ? <div className="mb-2">{topBannerSlot}</div> : null}
+        <div className="px-4 space-y-4">
         {messages.map((msg, idx) => {
           const isLastAssistant = msg.role === 'assistant' && idx === messages.length - 1;
           const isRevealing = isLastAssistant && revealedChars !== null;
@@ -738,6 +748,7 @@ export const StudentAIChat: React.FC<StudentAIChatProps> = ({
         )}
 
         <div ref={bottomRef} />
+        </div>
       </div>
 
       {/* Booking slot loading indicator */}

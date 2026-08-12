@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Menu, Bell } from 'lucide-react';
 import { ClientProfile, CoachProfile, Homework, Lesson, QuickLogEntry, StudentContext } from '../types';
 import { StudentAIChat } from './StudentAIChat';
+import { StudentHomeCards } from './StudentHomeCards';
 import { useLanguage } from './LanguageContext';
 import { buildContextAwareGreeting, getStudentContext } from '../services/studentContextService';
 
@@ -14,6 +15,15 @@ interface StudentHomeProps {
   onOpenMenu: () => void;
   onOpenNotifications?: () => void;
   unreadNotifications?: number;
+  /**
+   * Tap a lesson card in the home banner → open that lesson's detail.
+   * Optional: when omitted the card is still rendered but unclickable.
+   */
+  onOpenLesson?: (lessonId: string) => void;
+  /** Toggle a homework item's completion state from the drill card. */
+  onToggleHomework?: (homeworkId: string, isCompleted: boolean) => void;
+  /** Tap the upload chip in the drill card → open the practice upload flow. */
+  onUploadPractice?: (homeworkId: string) => void;
 }
 
 /**
@@ -33,6 +43,9 @@ export const StudentHome: React.FC<StudentHomeProps> = ({
   onOpenMenu,
   onOpenNotifications,
   unreadNotifications = 0,
+  onOpenLesson,
+  onToggleHomework,
+  onUploadPractice,
 }) => {
   const { language } = useLanguage();
   const lang = (language as 'ko' | 'en' | 'ja') ?? 'ko';
@@ -106,6 +119,16 @@ export const StudentHome: React.FC<StudentHomeProps> = ({
     </div>
   );
 
+  const homeBanner = (
+    <StudentHomeCards
+      lessons={sortedLessons}
+      homework={homeworkList}
+      onOpenLesson={onOpenLesson}
+      onToggleHomework={onToggleHomework}
+      onUploadPractice={onUploadPractice}
+    />
+  );
+
   return (
     <StudentAIChat
       clientProfile={clientProfile}
@@ -119,6 +142,7 @@ export const StudentHome: React.FC<StudentHomeProps> = ({
       hideModeSelector
       hideBackButton
       headerLeftSlot={menuButton}
+      topBannerSlot={homeBanner}
     />
   );
 };

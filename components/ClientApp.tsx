@@ -508,6 +508,33 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
             quickLogs={quickLogs}
             coachProfile={designatedCoachProfile ?? undefined}
             onOpenMenu={() => setHamburgerOpen(true)}
+            onOpenLesson={(lessonId) => {
+              const target = myLessonsRaw.find((l) => l.id === lessonId);
+              if (!target) return;
+              setSelectedLesson(target);
+              setSubView('DETAIL');
+            }}
+            onToggleHomework={(id, next) => {
+              // Optimistic — same pattern used elsewhere in this file.
+              setHomeworkList((prev) =>
+                prev.map((h) => (h.id === id ? { ...h, isCompleted: next } : h))
+              );
+              storageService.updateHomeworkStatus(id, next);
+              if (apiService.isAvailable()) {
+                void firebaseService.updateHomeworkStatus?.(id, next).catch(() => {
+                  /* best-effort — offline queue picks it up later */
+                });
+              }
+            }}
+            onUploadPractice={(_homeworkId) => {
+              // The redesign wires this to the practice-clip upload flow.
+              // For now, drop into the existing new-record path so the
+              // student can attach a video; a dedicated homework-scoped
+              // upload can replace this once the 5d screen is designed.
+              setIsEditingLesson(false);
+              setSelectedLesson(null);
+              setSubView('NEW');
+            }}
           />
         </div>
       )}
