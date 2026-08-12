@@ -2067,6 +2067,19 @@ const AppContent: React.FC = () => {
           <LessonReviewScreen
             lesson={selectedLesson}
             headerSubtitle={selectedLesson.clientName || ''}
+            pastLessons={allCoachLessons.filter(
+              (l) =>
+                l.id !== selectedLesson.id &&
+                (l.clientId === selectedLesson.clientId ||
+                  l.clientPhone === selectedLesson.clientPhone)
+            )}
+            clientProfile={clients.find(
+              (c) =>
+                c.name === selectedLesson.clientName &&
+                c.phone === selectedLesson.clientPhone
+            )}
+            coachId={currentUser && 'id' in currentUser ? currentUser.id : undefined}
+            isFirebaseMode={apiService.isAvailable()}
             onBack={() => setCoachView('DETAIL')}
             onSaveDraft={async (patch) => {
               const merged: Lesson = { ...selectedLesson, ...patch };

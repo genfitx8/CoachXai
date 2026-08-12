@@ -4,6 +4,7 @@ import {
   GolfData,
   ClientProfile,
   Lesson,
+  LessonReviewSections,
   Homework,
   ShotMetrics,
   TrainingProgramConfig,
@@ -34,6 +35,7 @@ import {
   extractGolfDataSchema,
   generateSystemPromptFromDocumentSchema,
   interviewQuestionSchema,
+  lessonReviewDraftSchema,
   motionCaptureSchema,
   trackmanScreenSchema,
   weeklyInsightSchema,
@@ -1786,6 +1788,154 @@ ${logSummaries}${lessonContext}
     };
   } catch (error) {
     log.error('Generate Weekly Insight Error:', error);
+    return fallback();
+  }
+};
+
+/**
+ * Draft the coach's 8b review record from what we know about the lesson.
+ *
+ * Fires when the coach opens LessonReviewScreen on a lesson that doesn't
+ * yet carry `reviewSections` — the redesign asks the agent to seed the
+ * three required sections (today covered, feedback, next actions) plus
+ * an evidence envelope so "왜 이 제안?" can open the 6a modal on the
+ * feedback card. The coach edits any of it in place and hits 승인.
+ *
+ * Inputs are what the app already has after the lesson is saved: the
+ * coach's raw notes, any AI-generated analysis text, currently-assigned
+ * homework (used as a seed for nextActions), and up to five prior
+ * lessons for the same student so the draft references history when it
+ * can. Nothing here relies on audio transcript or new capture pipelines.
+ */
+export const generateLessonReviewDraft = async (
+  lesson: Lesson,
+  pastLessons: Lesson[] = [],
+  clientProfile?: ClientProfile,
+  coachId?: string
+): Promise<LessonReviewSections> => {
+  const fallback = (): LessonReviewSections => ({
+    todayCovered: lesson.title
+      ? `${lesson.title} 위주로 진행됨.`
+      : '이번 레슨에서 다룬 주제를 요약해 주세요.',
+    feedback: (lesson.coachNotes ?? '').trim()
+      || (typeof lesson.aiAnalysis === 'string' ? lesson.aiAnalysis.trim() : '')
+      || '주요 관찰 사항을 여기에 정리해 주세요.',
+    nextActions: (lesson.assignedHomework ?? []).length > 0
+      ? [...(lesson.assignedHomework ?? [])]
+      : ['다음 레슨 전 반복 연습 항목을 여기에 적어주세요.'],
+    editedSections: [],
+    updatedAt: Date.now(),
+  });
+
+  try {
+    const previousLessons = pastLessons
+      .filter((l) => l.id !== lesson.id)
+      .slice(0, 5);
+
+    const historyBlock = previousLessons.length === 0
+      ? '없음 (첫 레슨).'
+      : previousLessons.map((l, i) => {
+          const parts = [`레슨 ${i + 1} (${l.date}): ${l.title ?? ''}`];
+          if (l.coachNotes) parts.push(`코치노트: ${l.coachNotes}`);
+          if (l.assignedHomework?.length) parts.push(`숙제: ${l.assignedHomework.join(', ')}`);
+          return parts.join(' | ');
+        }).join('\n');
+
+    const analysisText =
+      typeof lesson.aiAnalysis === 'string'
+        ? lesson.aiAnalysis
+        : lesson.aiAnalysis
+          ? JSON.stringify(lesson.aiAnalysis)
+          : '';
+
+    const profileBlock = clientProfile
+      ? `회원: ${clientProfile.name}${clientProfile.handicap ? `, 핸디캡 ${clientProfile.handicap}` : ''}`
+      : '';
+
+    const prompt = `당신은 코치의 레슨 기록 초안을 작성하는 AI입니다. 코치는 승인 전 모든 문장을 수정할 수 있으니, 사실에 근거한 초안을 짧고 담백하게 씁니다.
+${profileBlock}
+
+**이번 레슨:**
+- 제목: ${lesson.title ?? '제목 없음'}
+- 날짜: ${lesson.date ?? '미상'}
+- 코치 노트 원문: ${lesson.coachNotes || '없음'}
+- AI 분석 원문: ${analysisText || '없음'}
+- 이미 배정된 숙제: ${(lesson.assignedHomework ?? []).join(', ') || '없음'}
+
+**최근 5회 이력:**
+${historyBlock}
+
+**작성 지침:**
+- todayCovered: 오늘 레슨에서 다룬 주제 한 문단 (2~3문장).
+- feedback: 스윙/자세/심리 관점의 코치 소견. 코치 노트가 있으면 그 톤을 따르고, 없으면 AI 분석을 근거로 요약.
+- nextActions: 다음 레슨 전 학생이 할 것 2~4개, 우선순위 순 문자열 배열. 이미 배정된 숙제가 있으면 그것을 반드시 포함.
+- swingEvidence: 근거로 인용할 수치나 관찰 (예: "임팩트 얼리익스텐션 62mm"). 근거 없으면 [].
+- historyEvidence: 과거 이력에서 반복되는 패턴이나 개선 지점. 없으면 [].
+- confidence: 근거가 충분하면 "strong", 스윙 지표만으로 부족하면 "plausible", 노트가 거의 없으면 "speculative".
+- caveats: 신뢰도가 낮은 지점이나 데이터 공백. 없으면 [].
+- 없는 정보를 지어내지 마세요. "확인 필요"로 남기거나 caveats에 명시.
+
+반드시 아래 JSON 형식으로만 응답하세요:
+{
+  "todayCovered": "...",
+  "feedback": "...",
+  "nextActions": ["...", "..."],
+  "swingEvidence": ["..."],
+  "historyEvidence": ["..."],
+  "confidence": "strong" | "plausible" | "speculative",
+  "caveats": ["..."]
+}`;
+
+    const result = await invokeBackendAI<unknown>('lesson_review_draft', {
+      prompt,
+      coachId,
+      responseMimeType: 'application/json',
+      responseSchema: lessonReviewDraftSchema,
+    });
+    const text = getResponseText(result);
+    const parsed = (text ? parseJsonObjectFromText(text) : result) as
+      | Record<string, unknown>
+      | null;
+    if (
+      !parsed ||
+      typeof parsed.todayCovered !== 'string' ||
+      typeof parsed.feedback !== 'string' ||
+      !Array.isArray(parsed.nextActions)
+    ) {
+      throw new Error('Invalid lesson review draft response');
+    }
+    const actions = (parsed.nextActions as unknown[])
+      .filter((s): s is string => typeof s === 'string')
+      .map((s) => s.trim())
+      .filter(Boolean);
+    return {
+      todayCovered: parsed.todayCovered as string,
+      feedback: parsed.feedback as string,
+      nextActions: actions,
+      swingEvidence: Array.isArray(parsed.swingEvidence)
+        ? (parsed.swingEvidence as string[])
+        : undefined,
+      historyEvidence: Array.isArray(parsed.historyEvidence)
+        ? (parsed.historyEvidence as string[])
+        : undefined,
+      confidence:
+        typeof parsed.confidence === 'string' &&
+        ['strong', 'plausible', 'speculative'].includes(parsed.confidence)
+          ? (parsed.confidence as 'strong' | 'plausible' | 'speculative')
+          : undefined,
+      caveats: Array.isArray(parsed.caveats)
+        ? (parsed.caveats as string[])
+        : undefined,
+      editedSections: [],
+      updatedAt: Date.now(),
+    };
+  } catch (error) {
+    log.error('Generate Lesson Review Draft Error:', error);
+    recordAiFallback('lesson_review_draft', {
+      coachId,
+      errorMessage: error instanceof Error ? error.message : String(error),
+      hasSchema: true,
+    });
     return fallback();
   }
 };

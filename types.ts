@@ -89,6 +89,11 @@ export type LessonSwingType = '지렛대형' | '아크형' | '넓이형';
  * to the student. Every field is a plain string so the coach can freely
  * rewrite without a rigid rich-text schema; `attachments` and
  * `nextActions` are the two arrays that carry structure the UI leans on.
+ *
+ * The last four fields (swingEvidence / historyEvidence / confidence /
+ * caveats) mirror the shared `AIEvidenceEnvelope` — the draft ships the
+ * evidence that justifies the feedback so the review screen can open the
+ * 6a "근거" modal without a second AI call.
  */
 export interface LessonReviewSections {
   /** "오늘 다룬 것" — one paragraph the agent distils from the transcript. */
@@ -117,6 +122,14 @@ export interface LessonReviewSections {
   updatedAt?: number;
   /** Section keys the coach touched this session (used for the 수정됨 label). */
   editedSections?: Array<'todayCovered' | 'feedback' | 'nextActions' | 'freeMemo'>;
+  /** Frame/metric citations the AI cited when drafting `feedback`. */
+  swingEvidence?: string[];
+  /** Past-lesson references the AI cited when drafting `feedback`. */
+  historyEvidence?: string[];
+  /** AI's self-reported confidence in the drafted feedback. */
+  confidence?: 'strong' | 'plausible' | 'speculative';
+  /** Caveats the AI wanted the coach to see before approving. */
+  caveats?: string[];
 }
 
 export interface LessonStructuralMetricInput {
