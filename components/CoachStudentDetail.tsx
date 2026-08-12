@@ -116,8 +116,9 @@ export const CoachStudentDetail: React.FC<CoachStudentDetailProps> = ({
   const [tab, setTab] = useState<Tab>('summary');
 
   // 7a · Load handover briefing when the current coach was the recipient
-  // of a recent handover for this student. Dismissible per session; the
-  // banner does not re-appear once the coach closes it in this render.
+  // of a recent handover for this student. A summary that already carries
+  // `readAt` was dismissed in an earlier session and is no longer surfaced;
+  // dismissing here stamps `readAt` so it stays dismissed across reloads.
   const [handover, setHandover] = useState<HandoverSummary | null>(null);
   const [handoverDismissed, setHandoverDismissed] = useState(false);
   useEffect(() => {
@@ -128,10 +129,15 @@ export const CoachStudentDetail: React.FC<CoachStudentDetailProps> = ({
     const compositeId = `${student.name}_${student.phone ?? ''}`;
     const match = storageService
       .getHandoverSummariesForCoach(viewerCoachId)
-      .find((s) => s.clientId === compositeId);
+      .find((s) => s.clientId === compositeId && !s.readAt);
     setHandover(match ?? null);
     setHandoverDismissed(false);
   }, [viewerCoachId, student.name, student.phone]);
+
+  const dismissHandover = () => {
+    if (handover) storageService.markHandoverSummaryRead(handover.id);
+    setHandoverDismissed(true);
+  };
 
   const sortedLessons = useMemo(
     () => [...lessons].sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0)),
@@ -194,10 +200,7 @@ export const CoachStudentDetail: React.FC<CoachStudentDetailProps> = ({
 
       <main className="max-w-2xl mx-auto px-5 py-5 space-y-4">
         {handover && !handoverDismissed && (
-          <HandoverBanner
-            summary={handover}
-            onDismiss={() => setHandoverDismissed(true)}
-          />
+          <HandoverBanner summary={handover} onDismiss={dismissHandover} />
         )}
         {tab === 'summary' && (
           <SummaryTab

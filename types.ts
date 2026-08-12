@@ -1072,6 +1072,12 @@ export interface HandoverSummary extends AIEvidenceEnvelope {
     currentCurriculum: boolean;
   };
   generatedAt: number;
+  /**
+   * Timestamp the incoming coach marked the banner as read. When set,
+   * downstream UI stops surfacing the briefing (the summary itself is
+   * still queryable for reference, just not attention-grabbing).
+   */
+  readAt?: number;
 }
 
 // ── Golf Lesson Upload / Impact Selection Types (MVP scaffolding) ─────────────

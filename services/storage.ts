@@ -739,6 +739,26 @@ export const storageService = {
       .sort((a, b) => b.generatedAt - a.generatedAt);
   },
 
+  markHandoverSummaryRead: (id: string): void => {
+    try {
+      const all = storageService.getHandoverSummaries();
+      const idx = all.findIndex((s) => s.id === id);
+      if (idx < 0) return;
+      if (all[idx].readAt) return; // idempotent
+      const updated: HandoverSummary[] = [
+        ...all.slice(0, idx),
+        { ...all[idx], readAt: Date.now() },
+        ...all.slice(idx + 1),
+      ];
+      localStorage.setItem(
+        STORAGE_KEYS.HANDOVER_SUMMARIES,
+        JSON.stringify(updated)
+      );
+    } catch (e) {
+      log.error('Failed to mark handover summary read', e);
+    }
+  },
+
   // ── Prompt Template Methods ─────────────────────────────────────────────────
 
   getPromptTemplates: (): PromptTemplate[] => {
