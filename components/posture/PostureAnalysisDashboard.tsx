@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { PostureCapture, PostureAnalysisResult, PostureSession } from '../../types/postureAnalysis';
+import type { ClientProfile, Lesson } from '../../types';
 import { DualCameraCapture } from './DualCameraCapture';
 import { PostureAnalysisResults } from './PostureAnalysisResults';
 import { SwingVideoAnalysis } from './SwingVideoAnalysis';
@@ -14,6 +15,12 @@ interface PostureAnalysisDashboardProps {
   memberName: string;
   onBack: () => void;
   onComplete?: (result: PostureAnalysisResult) => void;
+  /** Coach's client roster — enables the "회원 레슨에 저장" flow in SwingVideoAnalysis. */
+  clients?: ClientProfile[];
+  /** Coach id — passed through to SwingVideoAnalysis for AI report + save. */
+  coachId?: string;
+  /** Fires when the coach saves a swing analysis as a lesson on the roster. */
+  onSavedToLesson?: (lesson: Lesson) => void;
 }
 
 type ViewMode = 'intro' | 'capture' | 'preview' | 'analyzing' | 'results' | 'swing_video';
@@ -22,6 +29,9 @@ export const PostureAnalysisDashboard: React.FC<PostureAnalysisDashboardProps> =
   memberName,
   onBack,
   onComplete,
+  clients,
+  coachId,
+  onSavedToLesson,
 }) => {
   const [viewMode, setViewMode] = useState<ViewMode>('intro');
   const [pendingCaptures, setPendingCaptures] = useState<{ front: PostureCapture; side: PostureCapture } | null>(null);
@@ -201,7 +211,11 @@ export const PostureAnalysisDashboard: React.FC<PostureAnalysisDashboardProps> =
           <span className="text-xs text-slate-500">{memberName}</span>
         </div>
         <div className="max-w-3xl mx-auto px-4 py-6">
-          <SwingVideoAnalysis />
+          <SwingVideoAnalysis
+            clients={clients}
+            coachId={coachId}
+            onSavedToLesson={onSavedToLesson}
+          />
         </div>
       </div>
     );
