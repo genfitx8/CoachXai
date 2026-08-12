@@ -141,7 +141,7 @@ export const CoachAIHome: React.FC<CoachAIHomeProps> = ({
       {/* Ambient background */}
       <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(56,189,248,0.05),transparent_50%)]" />
-        <div className="absolute right-0 bottom-0 h-96 w-96 rounded-full bg-violet-500/8 blur-3xl" />
+        <div className="absolute right-0 bottom-0 h-96 w-96 rounded-full bg-emerald-500/8 blur-3xl" />
         <div className="absolute -top-20 left-0 h-80 w-80 rounded-full bg-cyan-500/6 blur-3xl" />
       </div>
 

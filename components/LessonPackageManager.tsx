@@ -162,9 +162,9 @@ export const LessonPackageManager: React.FC<LessonPackageManagerProps> = ({
                 className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden"
               >
                 {/* Package header */}
-                <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 bg-indigo-50">
+                <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 bg-emerald-50">
                   <div className="flex items-center gap-3">
-                    <BookOpen className="w-5 h-5 text-indigo-600" />
+                    <BookOpen className="w-5 h-5 text-emerald-600" />
                     <div>
                       <span className="font-bold text-gray-900">
                         {pkg.totalSessions}회 레슨 패키지
@@ -177,7 +177,7 @@ export const LessonPackageManager: React.FC<LessonPackageManagerProps> = ({
                   <div className="flex items-center gap-4">
                     {/* Progress summary */}
                     <div className="text-right text-sm">
-                      <span className="font-bold text-indigo-700">{completedSessions}</span>
+                      <span className="font-bold text-emerald-700">{completedSessions}</span>
                       <span className="text-gray-400">/{pkg.totalSessions}회 완료</span>
                       {remaining > 0 && (
                         <p className="text-xs text-gray-400">{remaining}회 남음</p>
@@ -197,7 +197,7 @@ export const LessonPackageManager: React.FC<LessonPackageManagerProps> = ({
                 <div className="px-5 pt-3 pb-1">
                   <div className="w-full bg-gray-100 rounded-full h-2">
                     <div
-                      className="bg-indigo-500 h-2 rounded-full transition-all duration-300"
+                      className="bg-emerald-500 h-2 rounded-full transition-all duration-300"
                       style={{
                         width: `${pkg.totalSessions > 0 ? (completedSessions / pkg.totalSessions) * 100 : 0}%`,
                       }}
@@ -227,19 +227,19 @@ export const LessonPackageManager: React.FC<LessonPackageManagerProps> = ({
                               flex flex-col items-center justify-center gap-1 p-3 rounded-xl border-2 transition-all
                               ${
                                 isCompleted
-                                  ? 'border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100'
-                                  : 'border-dashed border-gray-200 bg-gray-50 text-gray-400 hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-600'
+                                  ? 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+                                  : 'border-dashed border-gray-200 bg-gray-50 text-gray-400 hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-600'
                               }
                             `}
                           >
                             {isCompleted ? (
-                              <CheckCircle className="w-5 h-5 text-indigo-500" />
+                              <CheckCircle className="w-5 h-5 text-emerald-500" />
                             ) : (
                               <Circle className="w-5 h-5" />
                             )}
                             <span className="text-xs font-bold">{sessionNumber}회차</span>
                             {isCompleted && existingLesson && (
-                              <span className="text-[10px] text-indigo-500 leading-tight text-center line-clamp-1">
+                              <span className="text-[10px] text-emerald-500 leading-tight text-center line-clamp-1">
                                 {existingLesson.date}
                               </span>
                             )}
@@ -286,7 +286,7 @@ export const LessonPackageManager: React.FC<LessonPackageManagerProps> = ({
                     setTotalSessionsInput(e.target.value);
                     setFormError('');
                   }}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-center text-2xl font-bold"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none text-center text-2xl font-bold"
                   placeholder="예: 10"
                   autoFocus
                   required

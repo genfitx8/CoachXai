@@ -123,8 +123,8 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ role, user
                       <li>기본 피드백</li>
                     </ul>
                   </div>
-                  <div className="bg-indigo-50 p-3">
-                    <p className="text-xs font-black text-indigo-700 mb-1">🔵 PRO (월 29,000원)</p>
+                  <div className="bg-emerald-50 p-3">
+                    <p className="text-xs font-black text-emerald-700 mb-1">🔵 PRO (월 29,000원)</p>
                     <ul className="text-[11px] text-gray-700 space-y-1">
                       <li>기록 무제한</li>
                       <li>AI 무제한</li>

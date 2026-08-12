@@ -57,8 +57,8 @@ describe('ClientApp AI-home shell', () => {
     const { container } = renderClientApp();
 
     const root = container.firstElementChild as HTMLDivElement;
-    expect(root.className).toContain('from-[#05070A]');
-    expect(root.className).toContain('text-slate-100');
+    expect(root.className).toContain('bg-base');
+    expect(root.className).toContain('text-ink-high');
   });
 
   it('opens on the AI Home tab and shows the hamburger + bottom-nav shell', () => {

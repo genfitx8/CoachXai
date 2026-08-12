@@ -96,12 +96,12 @@ export const CoachProfileModal: React.FC<CoachProfileModalProps> = ({
                 <button onClick={onClose} className="absolute top-4 right-4 text-white/80 hover:text-white">
                     <X className="w-5 h-5" />
                 </button>
-                <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-3 shadow-lg text-indigo-600 relative group">
+                <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-3 shadow-lg text-emerald-600 relative group">
                     <User className="w-10 h-10" />
                     {!isEditing && (
                         <button 
                             onClick={() => setIsEditing(true)}
-                            className="absolute bottom-0 right-0 p-1.5 bg-indigo-600 rounded-full text-white hover:bg-indigo-500 transition-colors shadow-sm"
+                            className="absolute bottom-0 right-0 p-1.5 bg-emerald-600 rounded-full text-white hover:bg-emerald-500 transition-colors shadow-sm"
                             title="정보 수정"
                         >
                             <Edit2 className="w-3 h-3" />
@@ -113,12 +113,12 @@ export const CoachProfileModal: React.FC<CoachProfileModalProps> = ({
                         type="text" 
                         value={editName}
                         onChange={(e) => setEditName(e.target.value)}
-                        className="bg-slate-700/80 border border-slate-500 text-white text-center font-bold text-xl rounded-xl px-2 py-1.5 w-full outline-none focus:ring-2 focus:ring-indigo-400"
+                        className="bg-slate-700/80 border border-slate-500 text-white text-center font-bold text-xl rounded-xl px-2 py-1.5 w-full outline-none focus:ring-2 focus:ring-emerald-400"
                     />
                 ) : (
                     <h2 className="text-xl font-bold">{coachProfile.name} 프로</h2>
                 )}
-                <p className="text-indigo-200 text-sm">CoachX Certified Coach</p>
+                <p className="text-emerald-200 text-sm">CoachX Certified Coach</p>
             </div>
             
             <div className="p-6 space-y-4">
@@ -140,7 +140,7 @@ export const CoachProfileModal: React.FC<CoachProfileModalProps> = ({
                                 type="tel" 
                                 value={editPhone}
                                 onChange={(e) => setEditPhone(e.target.value)}
-                                className="w-full bg-slate-900 border border-slate-600 rounded-xl px-2.5 py-1.5 text-sm text-slate-100 outline-none focus:ring-2 focus:ring-indigo-500"
+                                className="w-full bg-slate-900 border border-slate-600 rounded-xl px-2.5 py-1.5 text-sm text-slate-100 outline-none focus:ring-2 focus:ring-emerald-500"
                                 placeholder="010-0000-0000"
                             />
                         ) : (
@@ -154,11 +154,11 @@ export const CoachProfileModal: React.FC<CoachProfileModalProps> = ({
                     <div className="flex-1">
                         <p className="text-xs text-slate-500">구독 상태</p>
                         <div className="flex justify-between items-center">
-                            <p className={`text-sm font-bold ${coachProfile.isSubscribed ? 'text-indigo-300' : 'text-slate-400'}`}>
+                            <p className={`text-sm font-bold ${coachProfile.isSubscribed ? 'text-emerald-300' : 'text-slate-400'}`}>
                                 {coachProfile.isSubscribed ? 'Premium Plan' : 'Free Plan'}
                             </p>
                             {coachProfile.isSubscribed && coachProfile.subscriptionEndDate && (
-                                <span className="text-[10px] bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full flex items-center gap-1">
+                                <span className="text-[10px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full flex items-center gap-1">
                                     <Calendar className="w-3 h-3" />
                                     {new Date(coachProfile.subscriptionEndDate).toLocaleDateString()} 까지
                                 </span>
@@ -172,7 +172,7 @@ export const CoachProfileModal: React.FC<CoachProfileModalProps> = ({
                     {isEditing ? (
                         <div className="flex gap-2">
                              <Button onClick={handleCancel} variant="secondary" className="flex-1">취소</Button>
-                             <Button onClick={handleSave} isLoading={isSaving} className="flex-1 bg-indigo-600 hover:bg-indigo-500">
+                             <Button onClick={handleSave} isLoading={isSaving} className="flex-1 bg-emerald-600 hover:bg-emerald-500">
                                 <Save className="w-4 h-4 mr-1" /> 저장
                              </Button>
                         </div>
@@ -203,7 +203,7 @@ export const CoachProfileModal: React.FC<CoachProfileModalProps> = ({
 
                             <Button
                                 onClick={() => setSubview('broadcast')}
-                                className="w-full bg-indigo-500/10 text-indigo-300 border border-indigo-500/30 hover:bg-indigo-500/20 shadow-sm"
+                                className="w-full bg-emerald-500/10 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/20 shadow-sm"
                             >
                                 <Megaphone className="w-4 h-4 mr-2" /> 학생 전체 공지
                             </Button>

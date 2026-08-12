@@ -49,7 +49,7 @@ export const BackButton: React.FC<BackButtonProps> = ({
       data-testid={testId}
       className={
         'inline-flex items-center gap-1.5 rounded-xl px-3 min-h-[44px] min-w-[44px] justify-center ' +
-        'text-sm font-semibold transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-400/40 ' +
+        'text-sm font-semibold transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-emerald-400/40 ' +
         `${TONE_CLASSES[tone]} ${className}`
       }
     >

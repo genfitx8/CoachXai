@@ -175,7 +175,7 @@ export const AdminCourseManager: React.FC<AdminCourseManagerProps> = ({ isFireba
               placeholder="골프장 이름 검색..." 
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none"
             />
           </div>
 

@@ -1606,8 +1606,8 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
 
         {/* Selected client info */}
         <div className="px-5 py-3 bg-slate-800/60 border-b border-slate-700 flex items-center gap-3 flex-shrink-0">
-          <div className="bg-indigo-900/60 p-2 rounded-full">
-            <UserCheck className="w-4 h-4 text-indigo-400" />
+          <div className="bg-emerald-900/60 p-2 rounded-full">
+            <UserCheck className="w-4 h-4 text-emerald-400" />
           </div>
           <div>
             <p className="font-bold text-slate-100 text-sm">{clientName}</p>
@@ -1640,7 +1640,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
                     </span>
                   </div>
                   <div className="text-right text-xs">
-                    <span className="font-bold text-indigo-400">{completedCount}</span>
+                    <span className="font-bold text-emerald-400">{completedCount}</span>
                     <span className="text-slate-400">/{pkg.totalSessions}회 완료</span>
                     {remaining > 0 && (
                       <span className="text-slate-400 ml-1">({remaining}회 남음)</span>
@@ -1671,15 +1671,15 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
                                 isRecorded
                                   ? 'border-slate-700 bg-slate-700/40 text-slate-500 cursor-not-allowed'
                                   : isSelected
-                                  ? 'border-indigo-500 bg-indigo-900/40 text-indigo-300 font-bold shadow-sm'
-                                  : 'border-dashed border-slate-600 bg-slate-800 text-slate-400 hover:border-indigo-500 hover:bg-indigo-900/30 hover:text-indigo-300'
+                                  ? 'border-emerald-500 bg-emerald-900/40 text-emerald-300 font-bold shadow-sm'
+                                  : 'border-dashed border-slate-600 bg-slate-800 text-slate-400 hover:border-emerald-500 hover:bg-emerald-900/30 hover:text-emerald-300'
                               }
                             `}
                           >
                             {isRecorded ? (
                               <CheckCircle className="w-3.5 h-3.5 text-slate-500" />
                             ) : isSelected ? (
-                              <CheckCircle className="w-3.5 h-3.5 text-indigo-400" />
+                              <CheckCircle className="w-3.5 h-3.5 text-emerald-400" />
                             ) : (
                               <Circle className="w-3.5 h-3.5" />
                             )}
@@ -1808,7 +1808,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
             {/* Existing Client Badge */}
             {isExistingClientSelected && (
               <div className="bg-slate-800 border border-slate-700 p-3 rounded-xl flex items-center gap-3 animate-fade-in shadow-sm">
-                <div className="bg-indigo-900/60 p-2 rounded-full text-indigo-400">
+                <div className="bg-emerald-900/60 p-2 rounded-full text-emerald-400">
                   <UserCheck className="w-5 h-5" />
                 </div>
                 <div>
@@ -2972,16 +2972,16 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
         </div>
 
         {/* Homework Input Section (Inside Lesson Form) */}
-        <div className="bg-indigo-50 p-4 rounded-xl border border-indigo-100 space-y-4">
+        <div className="bg-emerald-50 p-4 rounded-xl border border-emerald-100 space-y-4">
           <div className="flex items-center justify-between">
-            <label className="text-sm font-bold text-indigo-800 flex items-center gap-2">
+            <label className="text-sm font-bold text-emerald-800 flex items-center gap-2">
               <ListChecks className="w-4 h-4" />{' '}
               {userRole === 'COACH' ? '숙제/미션 부여' : '다음 연습 계획'}
             </label>
             <button
               type="button"
               onClick={() => setShowHwOptions(!showHwOptions)}
-              className="text-xs text-indigo-600 hover:underline flex items-center gap-1"
+              className="text-xs text-emerald-600 hover:underline flex items-center gap-1"
             >
               {showHwOptions ? '간편 입력' : '상세 설정(기간/빈도)'}
             </button>
@@ -3014,7 +3014,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
 
           {/* Advanced Options (Frequency, Duration) */}
           {showHwOptions && (
-            <div className="bg-white p-3 rounded-lg border border-indigo-100 animate-fade-in space-y-3">
+            <div className="bg-white p-3 rounded-lg border border-emerald-100 animate-fade-in space-y-3">
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-bold text-gray-500 mb-1">
@@ -3024,7 +3024,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
                     type="date"
                     value={hwStartDate}
                     onChange={(e) => setHwStartDate(e.target.value)}
-                    className="w-full text-xs p-2 border border-gray-200 rounded bg-white text-gray-800 focus:border-indigo-500 outline-none"
+                    className="w-full text-xs p-2 border border-gray-200 rounded bg-white text-gray-800 focus:border-emerald-500 outline-none"
                   />
                 </div>
                 <div>
@@ -3034,7 +3034,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
                   <select
                     value={hwDuration}
                     onChange={(e) => setHwDuration(Number(e.target.value))}
-                    className="w-full text-xs p-2 border border-gray-200 rounded bg-white text-gray-800 focus:border-indigo-500 outline-none"
+                    className="w-full text-xs p-2 border border-gray-200 rounded bg-white text-gray-800 focus:border-emerald-500 outline-none"
                   >
                     {DURATION_OPTIONS.map((opt) => (
                       <option key={opt.value} value={opt.value}>
@@ -3074,11 +3074,11 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
               {homeworkSummaries.map((item, idx) => (
                 <li
                   key={idx}
-                  className="bg-white px-3 py-2 rounded-lg border border-indigo-100 shadow-sm"
+                  className="bg-white px-3 py-2 rounded-lg border border-emerald-100 shadow-sm"
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <CheckSquare className="w-4 h-4 text-indigo-500" />
+                      <CheckSquare className="w-4 h-4 text-emerald-500" />
                       <span className="text-sm font-bold text-gray-800">
                         {item.title}
                       </span>
@@ -3093,7 +3093,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
                   </div>
                   <div className="flex items-center gap-2 mt-1 ml-6 text-xs text-gray-500">
                     <Repeat className="w-3 h-3" /> {item.summary}
-                    <span className="bg-indigo-50 text-indigo-600 px-1.5 rounded-full font-bold">
+                    <span className="bg-emerald-50 text-emerald-600 px-1.5 rounded-full font-bold">
                       Total {item.count}
                     </span>
                   </div>

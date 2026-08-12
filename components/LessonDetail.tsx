@@ -1201,7 +1201,7 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
         <div className="max-w-4xl mx-auto p-4 space-y-6">
           <div className="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-sm">
             <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-slate-600">
-              <span className="inline-flex items-center gap-1 bg-indigo-50 text-indigo-700 px-2.5 py-1 rounded-full">
+              <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-700 px-2.5 py-1 rounded-full">
                 <FileText className="w-3.5 h-3.5" aria-hidden="true" /> {recordTypeLabel}
               </span>
               <span className="inline-flex items-center gap-1 bg-slate-100 text-slate-700 px-2.5 py-1 rounded-full">
@@ -1518,14 +1518,14 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
           {/* ... (Rest of content: Assigned Homework, Scorecard, AI Analysis, etc.) ... */}
           {/* Assigned Homework Section */}
           {lesson.assignedHomework && lesson.assignedHomework.length > 0 && (
-              <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-4 shadow-sm">
-                  <h3 className="text-sm font-bold text-indigo-900 mb-3 flex items-center gap-2">
-                      <ListChecks className="w-4 h-4 text-indigo-600" /> 이번 레슨의 과제 (Homework)
+              <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-4 shadow-sm">
+                  <h3 className="text-sm font-bold text-emerald-900 mb-3 flex items-center gap-2">
+                      <ListChecks className="w-4 h-4 text-emerald-600" /> 이번 레슨의 과제 (Homework)
                   </h3>
                   <ul className="space-y-2">
                       {lesson.assignedHomework.map((hw, idx) => (
-                          <li key={idx} className="bg-white p-3 rounded-lg border border-indigo-50 text-sm flex items-start gap-2 text-gray-700 shadow-sm">
-                              <CheckCircle className="w-4 h-4 text-indigo-400 mt-0.5 flex-shrink-0" />
+                          <li key={idx} className="bg-white p-3 rounded-lg border border-emerald-50 text-sm flex items-start gap-2 text-gray-700 shadow-sm">
+                              <CheckCircle className="w-4 h-4 text-emerald-400 mt-0.5 flex-shrink-0" />
                               {hw}
                           </li>
                       ))}
@@ -1813,7 +1813,7 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
                                                     <div className="text-gray-600">티샷: <span className="font-bold text-blue-600">{h.shotMetrics.teeDistance}m</span></div>
                                                 )}
                                                 {h.shotMetrics.secondShotDistance && (
-                                                    <div className="text-gray-600">세컨: <span className="font-bold text-indigo-600">{h.shotMetrics.secondShotDistance}m</span></div>
+                                                    <div className="text-gray-600">세컨: <span className="font-bold text-emerald-600">{h.shotMetrics.secondShotDistance}m</span></div>
                                                 )}
                                                 {h.shotMetrics.firstPuttDistance && (
                                                     <div className="text-gray-600">퍼팅: <span className="font-bold text-emerald-600">{h.shotMetrics.firstPuttDistance}m</span></div>

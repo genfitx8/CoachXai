@@ -1787,7 +1787,7 @@ const AppContent: React.FC = () => {
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#05070A]">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-400"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-400"></div>
       </div>
     );
   }
@@ -1857,7 +1857,7 @@ const AppContent: React.FC = () => {
   // --- COACH VIEW ---
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#05070A] via-[#070b12] to-[#0B1220] text-slate-100 flex flex-col font-sans">
+    <div className="min-h-screen bg-base text-ink-high flex flex-col font-sans">
       {/* Header — hamburger opens the drawer, brand shows coach name */}
       <header className="bg-[#0A0F1A]/95 border-b border-slate-800 shadow-lg shadow-black/30 sticky top-0 z-40 backdrop-blur-xl">
         <div className="max-w-7xl mx-auto px-3 h-14 flex items-center gap-2">
@@ -1875,7 +1875,7 @@ const AppContent: React.FC = () => {
               onClick={() => setShowProfileModal(true)}
               className="flex items-center gap-2 text-sm text-slate-200 hover:bg-slate-800 px-3 py-1.5 rounded-full transition-colors min-w-0"
             >
-              <div className="bg-indigo-500/20 p-1 rounded-full text-indigo-300 flex-shrink-0">
+              <div className="bg-emerald-500/20 p-1 rounded-full text-emerald-300 flex-shrink-0">
                 <User className="w-4 h-4" />
               </div>
               <span className="font-bold truncate">
@@ -1893,7 +1893,7 @@ const AppContent: React.FC = () => {
             {/* Title — bottom tab already indicates which section we're in */}
             <div className="flex items-center gap-2 min-w-0">
               <h2 className="text-lg sm:text-xl font-bold text-slate-100 flex items-center gap-2 tracking-tight min-w-0">
-                <BookOpen className="w-5 h-5 text-indigo-300 flex-shrink-0" />
+                <BookOpen className="w-5 h-5 text-emerald-300 flex-shrink-0" />
                 <span className="truncate">레슨 기록</span>
               </h2>
             </div>
@@ -1902,12 +1902,12 @@ const AppContent: React.FC = () => {
             {userRole === 'COACH' && clients.length > 0 && (
               <div className="bg-slate-900/70 rounded-2xl shadow-sm border border-slate-800/80 p-4">
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-                  <User className="w-5 h-5 text-indigo-300 flex-shrink-0" />
+                  <User className="w-5 h-5 text-emerald-300 flex-shrink-0" />
                   <div className="flex-1 min-w-[10rem]">
                     <select
                       value={selectedClientFilter}
                       onChange={(e) => setSelectedClientFilter(e.target.value)}
-                      className="w-full px-4 py-2.5 border border-slate-700 bg-slate-900 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-medium text-slate-200"
+                      className="w-full px-4 py-2.5 border border-slate-700 bg-slate-900 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none font-medium text-slate-200"
                     >
                       <option value="">전체 회원 보기</option>
                       {clients
@@ -1925,7 +1925,7 @@ const AppContent: React.FC = () => {
                   {selectedClientFilter && (
                     <button
                       onClick={() => setCoachView('CLIENT_STATS')}
-                        className="px-3 sm:px-4 py-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-500 transition-colors flex items-center gap-2 font-medium shadow-md shadow-indigo-900/40 whitespace-nowrap flex-shrink-0"
+                        className="px-3 sm:px-4 py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-500 transition-colors flex items-center gap-2 font-medium shadow-md shadow-emerald-900/40 whitespace-nowrap flex-shrink-0"
                     >
                       <BarChart3 className="w-4 h-4" />
                       통계 보기
@@ -1944,7 +1944,7 @@ const AppContent: React.FC = () => {
                 </div>
                 {selectedClientFilter && (
                   <div className="mt-2 text-sm text-slate-300">
-                    <span className="font-bold text-indigo-300">{selectedClientFilter}</span>님의 레슨 {filteredLessons.length}개
+                    <span className="font-bold text-emerald-300">{selectedClientFilter}</span>님의 레슨 {filteredLessons.length}개
                   </div>
                 )}
               </div>
@@ -1954,14 +1954,14 @@ const AppContent: React.FC = () => {
             <div className="bg-slate-900/70 rounded-2xl shadow-sm border border-slate-800/80 p-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <Filter className="w-5 h-5 text-indigo-300" />
+                  <Filter className="w-5 h-5 text-emerald-300" />
                   <span className="font-medium text-slate-200 text-sm">레슨 미디어 표시</span>
                 </div>
                 <button
                   onClick={toggleShowMedia}
                     className={`p-2.5 rounded-xl transition-colors ${
                       showMedia
-                        ? 'bg-indigo-500/20 text-indigo-200'
+                        ? 'bg-emerald-500/20 text-emerald-200'
                         : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
                     }`}
                     title={showMedia ? '미디어 숨기기' : '미디어 표시'}

@@ -85,13 +85,13 @@ const VideoScrubber: React.FC<VideoScrubberProps> = ({
           step={0.033}
           value={impactTimeSec}
           onChange={handleSliderChange}
-          className="w-full accent-indigo-500"
+          className="w-full accent-emerald-500"
           aria-label={`${label} impact timestamp`}
           data-testid={`slider-${label.toLowerCase()}`}
         />
         <div className="flex items-center justify-between text-xs text-slate-400">
           <span>0:00.00</span>
-          <span className="flex items-center gap-1 text-indigo-300 font-semibold">
+          <span className="flex items-center gap-1 text-emerald-300 font-semibold">
             <Clock className="w-3 h-3" />
             Impact: {formatTime(impactTimeSec)}
           </span>
@@ -163,7 +163,7 @@ export const ImpactSelectionPage: React.FC<ImpactSelectionPageProps> = ({
           <ArrowLeft className="w-5 h-5" />
         </button>
         <div>
-          <p className="text-[11px] uppercase tracking-[0.16em] text-indigo-300/80 font-semibold">
+          <p className="text-[11px] uppercase tracking-[0.16em] text-emerald-300/80 font-semibold">
             Step 2 of 2
           </p>
           <h2 className="text-xl font-bold text-slate-50">Set Impact Point</h2>
@@ -196,7 +196,7 @@ export const ImpactSelectionPage: React.FC<ImpactSelectionPageProps> = ({
       {/* Confirm button */}
       <Button
         onClick={handleConfirm}
-        className="w-full py-4 text-base rounded-2xl border border-indigo-500/40 shadow-lg shadow-indigo-900/30 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 justify-center"
+        className="w-full py-4 text-base rounded-2xl border border-emerald-500/40 shadow-lg shadow-emerald-900/30 bg-gradient-to-r from-emerald-600 to-emerald-600 hover:from-emerald-500 hover:to-emerald-500 justify-center"
         icon={<ArrowRight className="w-5 h-5" />}
         data-testid="impact-confirm-btn"
       >

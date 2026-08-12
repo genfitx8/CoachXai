@@ -120,8 +120,8 @@ export const AIToneSettings: React.FC<AIToneSettingsProps> = ({
       />
       <div className="relative w-full sm:max-w-md bg-[#0A0F1A] border border-slate-800 rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden">
         <header className="px-5 py-4 border-b border-slate-800 flex items-center gap-3">
-          <div className="w-9 h-9 rounded-full bg-indigo-500/20 border border-indigo-300/30 flex items-center justify-center">
-            <Sparkles className="w-4 h-4 text-indigo-300" />
+          <div className="w-9 h-9 rounded-full bg-emerald-500/20 border border-emerald-300/30 flex items-center justify-center">
+            <Sparkles className="w-4 h-4 text-emerald-300" />
           </div>
           <div className="flex-1 min-w-0">
             <h2 className="font-bold text-slate-100">{heading}</h2>
@@ -148,22 +148,22 @@ export const AIToneSettings: React.FC<AIToneSettingsProps> = ({
                 onClick={() => setSelected(opt.key)}
                 className={`w-full text-left rounded-2xl p-4 border transition-colors ${
                   isSelected
-                    ? 'bg-indigo-600/20 border-indigo-400/60'
+                    ? 'bg-emerald-600/20 border-emerald-400/60'
                     : 'bg-slate-900/70 border-slate-800 hover:bg-slate-800/70'
                 }`}
               >
                 <div className="flex items-center gap-3">
                   <div className={`w-9 h-9 rounded-lg flex items-center justify-center border ${
-                    isSelected ? 'bg-indigo-500/30 border-indigo-400/50' : 'bg-slate-800 border-slate-700'
+                    isSelected ? 'bg-emerald-500/30 border-emerald-400/50' : 'bg-slate-800 border-slate-700'
                   }`}>
-                    <Icon className={`w-4 h-4 ${isSelected ? 'text-indigo-100' : 'text-slate-300'}`} />
+                    <Icon className={`w-4 h-4 ${isSelected ? 'text-emerald-100' : 'text-slate-300'}`} />
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-bold text-slate-100">{t.label}</p>
                     <p className="text-xs text-slate-400">{t.desc}</p>
                   </div>
                   {isSelected && (
-                    <Check className="w-4 h-4 text-indigo-200 flex-shrink-0" />
+                    <Check className="w-4 h-4 text-emerald-200 flex-shrink-0" />
                   )}
                 </div>
                 <p className="mt-3 text-xs text-slate-300 italic leading-relaxed">{t.sample}</p>
@@ -181,7 +181,7 @@ export const AIToneSettings: React.FC<AIToneSettingsProps> = ({
           </button>
           <button
             onClick={handleSave}
-            className="flex-1 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-bold transition-colors"
+            className="flex-1 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold transition-colors"
           >
             {saveLabel}
           </button>

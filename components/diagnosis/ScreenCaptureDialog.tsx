@@ -119,7 +119,7 @@ export const ScreenCaptureDialog: React.FC<ScreenCaptureDialogProps> = ({ onCapt
       <div className="w-full max-w-4xl rounded-xl border border-slate-700 bg-slate-900 p-6 space-y-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Monitor className="w-5 h-5 text-violet-400" />
+            <Monitor className="w-5 h-5 text-emerald-400" />
             <h3 className="text-lg font-semibold text-slate-100">
               {t('screen_capture_title') || '화면 캡처'}
             </h3>

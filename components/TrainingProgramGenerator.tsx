@@ -273,9 +273,9 @@ export const TrainingProgramGenerator: React.FC<TrainingProgramGeneratorProps> =
       <div className="px-4 pt-4 space-y-4 max-w-lg mx-auto">
 
         {/* Lesson + quick log context info */}
-        <div className="bg-indigo-50 rounded-xl p-3 flex items-start gap-3 text-sm">
-          <BarChart2 className="w-5 h-5 text-indigo-500 flex-shrink-0 mt-0.5" />
-          <span className="text-indigo-700 leading-relaxed">
+        <div className="bg-emerald-50 rounded-xl p-3 flex items-start gap-3 text-sm">
+          <BarChart2 className="w-5 h-5 text-emerald-500 flex-shrink-0 mt-0.5" />
+          <span className="text-emerald-700 leading-relaxed">
             {clientLessons.length === 0 && clientQuickLogs.length === 0
               ? '레슨/빠른기록이 없습니다. 기본 플랜으로 생성됩니다.'
               : `레슨 ${clientLessons.length}건 · 빠른기록 ${clientQuickLogs.length}건 기반으로 진단·스케줄을 생성합니다.`}
@@ -285,7 +285,7 @@ export const TrainingProgramGenerator: React.FC<TrainingProgramGeneratorProps> =
         {/* Config form */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 space-y-4">
           <h2 className="font-bold text-gray-800 text-sm flex items-center gap-2">
-            <Target className="w-4 h-4 text-indigo-500" />
+            <Target className="w-4 h-4 text-emerald-500" />
             프로그램 설정
           </h2>
 
@@ -303,7 +303,7 @@ export const TrainingProgramGenerator: React.FC<TrainingProgramGeneratorProps> =
                   setStartDate(e.target.value);
                   setFormError('');
                 }}
-                className="w-full px-3 py-2 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                className="w-full px-3 py-2 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
               />
             </div>
             <div>
@@ -318,7 +318,7 @@ export const TrainingProgramGenerator: React.FC<TrainingProgramGeneratorProps> =
                   setEndDate(e.target.value);
                   setFormError('');
                 }}
-                className="w-full px-3 py-2 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                className="w-full px-3 py-2 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
               />
             </div>
           </div>
@@ -340,7 +340,7 @@ export const TrainingProgramGenerator: React.FC<TrainingProgramGeneratorProps> =
                 }}
                 className="flex-1"
               />
-              <span className="text-sm font-bold text-indigo-600 w-12 text-center">
+              <span className="text-sm font-bold text-emerald-600 w-12 text-center">
                 주 {frequencyPerWeek}회
               </span>
             </div>
@@ -366,7 +366,7 @@ export const TrainingProgramGenerator: React.FC<TrainingProgramGeneratorProps> =
                   className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors ${
                     sessionDurationMinutes === mins
                       ? 'bg-slate-700 text-white border-slate-700'
-                      : 'bg-white text-gray-600 border-gray-300 hover:border-indigo-400'
+                      : 'bg-white text-gray-600 border-gray-300 hover:border-emerald-400'
                   }`}
                 >
                   {mins}분
@@ -381,7 +381,7 @@ export const TrainingProgramGenerator: React.FC<TrainingProgramGeneratorProps> =
                   setSessionDurationMinutes(Number(e.target.value));
                   setFormError('');
                 }}
-                className="w-20 px-2 py-1 border border-gray-300 rounded-lg text-sm text-center focus:ring-2 focus:ring-indigo-500 outline-none"
+                className="w-20 px-2 py-1 border border-gray-300 rounded-lg text-sm text-center focus:ring-2 focus:ring-emerald-500 outline-none"
                 placeholder="직접입력"
                 aria-label="훈련 시간 직접 입력 (분)"
               />
@@ -411,7 +411,7 @@ export const TrainingProgramGenerator: React.FC<TrainingProgramGeneratorProps> =
                   className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
                     performanceGoal === goal
                       ? 'bg-slate-700 text-white border-slate-700'
-                      : 'bg-white text-gray-600 border-gray-300 hover:border-indigo-400'
+                      : 'bg-white text-gray-600 border-gray-300 hover:border-emerald-400'
                   }`}
                 >
                   {goal}
@@ -426,7 +426,7 @@ export const TrainingProgramGenerator: React.FC<TrainingProgramGeneratorProps> =
                   setCustomGoal(e.target.value);
                   setFormError('');
                 }}
-                className="w-full px-3 py-2 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                className="w-full px-3 py-2 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
                 placeholder="목표를 직접 입력해주세요"
               />
             )}

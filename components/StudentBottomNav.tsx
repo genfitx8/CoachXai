@@ -68,7 +68,7 @@ export const StudentBottomNav: React.FC<StudentBottomNavProps> = ({
         aria-current={isActive ? 'page' : undefined}
         className={`relative flex flex-col items-center justify-center gap-1 py-3 transition-colors ${
           isActive
-            ? 'text-indigo-300'
+            ? 'text-emerald-300'
             : 'text-slate-400 hover:text-slate-200'
         }`}
       >
@@ -83,7 +83,7 @@ export const StudentBottomNav: React.FC<StudentBottomNavProps> = ({
         <span className="text-[11px] font-semibold">{labelFor(key, lang)}</span>
         {isActive && (
           <span
-            className="absolute top-0 inset-x-8 h-0.5 bg-gradient-to-r from-indigo-500 to-violet-500 rounded-full"
+            className="absolute top-0 inset-x-8 h-0.5 bg-gradient-to-r from-emerald-500 to-emerald-500 rounded-full"
             aria-hidden
           />
         )}
@@ -111,10 +111,10 @@ export const StudentBottomNav: React.FC<StudentBottomNavProps> = ({
               aria-label={recordLabelFor(lang)}
               className="group -mt-6 flex flex-col items-center gap-1 focus:outline-none"
             >
-              <span className="w-14 h-14 rounded-full bg-gradient-to-br from-indigo-600 to-violet-500 shadow-lg shadow-indigo-950/50 border-4 border-[#0A0F1A] flex items-center justify-center transition-transform group-hover:scale-105 group-active:scale-95">
+              <span className="w-14 h-14 rounded-full bg-gradient-to-br from-emerald-600 to-emerald-500 shadow-lg shadow-emerald-950/50 border-4 border-[#0A0F1A] flex items-center justify-center transition-transform group-hover:scale-105 group-active:scale-95">
                 <Plus className="w-6 h-6 text-white group-hover:rotate-90 transition-transform duration-300" />
               </span>
-              <span className="text-[11px] font-semibold text-indigo-200">
+              <span className="text-[11px] font-semibold text-emerald-200">
                 {recordLabelFor(lang)}
               </span>
             </button>

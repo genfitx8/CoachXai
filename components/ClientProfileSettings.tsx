@@ -452,12 +452,12 @@ export const ClientProfileSettings: React.FC<ClientProfileSettingsProps> = ({ pr
 
             {/* Auto Calculation Badge */}
             {stats && (
-                <div className="mb-4 bg-indigo-50 border border-indigo-100 p-3 rounded-lg flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+                <div className="mb-4 bg-emerald-50 border border-emerald-100 p-3 rounded-lg flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
                     <div>
-                        <div className="text-xs font-bold text-indigo-800 mb-0.5 flex items-center gap-1">
+                        <div className="text-xs font-bold text-emerald-800 mb-0.5 flex items-center gap-1">
                             <Activity className="w-3 h-3" /> {t('stats_based_analysis').replace('{n}', String(stats.count))}
                         </div>
-                        <div className="text-xs text-indigo-600">
+                        <div className="text-xs text-emerald-600">
                             평균 스코어: <strong>{stats.average}</strong> / 추정 핸디캡: <strong>{stats.handicap}</strong>
                         </div>
                     </div>
@@ -518,7 +518,7 @@ export const ClientProfileSettings: React.FC<ClientProfileSettingsProps> = ({ pr
                     <label className="block text-xs font-bold text-gray-500 mb-1 flex items-center justify-between">
                         <span>{t('best_score_label')}</span>
                         {stats && stats.best < (formData.bestScore || 999) && (
-                            <span className="text-[10px] text-indigo-600 font-normal">
+                            <span className="text-[10px] text-emerald-600 font-normal">
                                 *기록 기준 최저타: {stats.best} (자동 반영됨)
                             </span>
                         )}

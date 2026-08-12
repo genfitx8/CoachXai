@@ -133,7 +133,7 @@ export const AdminCurriculumTemplateManager: React.FC = () => {
     return (
       <div className="max-w-md space-y-4">
         <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-          <KeyRound className="w-5 h-5 text-indigo-500" />
+          <KeyRound className="w-5 h-5 text-emerald-500" />
           커리큘럼 콘텐츠 관리
         </h2>
         <p className="text-sm text-gray-500">
@@ -146,7 +146,7 @@ export const AdminCurriculumTemplateManager: React.FC = () => {
             onChange={(e) => setTokenInput(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter') handleUnlock(); }}
             placeholder="관리자 토큰"
-            className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
+            className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none text-sm"
           />
           <Button onClick={handleUnlock}>확인</Button>
         </div>
@@ -159,7 +159,7 @@ export const AdminCurriculumTemplateManager: React.FC = () => {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-          <ListChecks className="w-5 h-5 text-indigo-500" />
+          <ListChecks className="w-5 h-5 text-emerald-500" />
           커리큘럼 콘텐츠 관리
         </h2>
         <button
@@ -171,8 +171,8 @@ export const AdminCurriculumTemplateManager: React.FC = () => {
         </button>
       </div>
 
-      <div className="flex items-start gap-3 bg-indigo-50 border border-indigo-200 rounded-xl p-4">
-        <p className="text-sm text-indigo-700">
+      <div className="flex items-start gap-3 bg-emerald-50 border border-emerald-200 rounded-xl p-4">
+        <p className="text-sm text-emerald-700">
           여기서 수정한 내용은 <strong>앞으로 새로 생성되는 커리큘럼</strong>의 기본 콘텐츠에 적용됩니다.
           이미 생성된 커리큘럼에는 영향을 주지 않습니다.
         </p>
@@ -193,14 +193,14 @@ export const AdminCurriculumTemplateManager: React.FC = () => {
               <div key={t.partKey} className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 space-y-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <span className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-xs font-bold">
+                    <span className="w-6 h-6 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center text-xs font-bold">
                       {t.order}
                     </span>
                     <input
                       type="text"
                       value={edit.title}
                       onChange={(e) => updateEdit(t.partKey, { title: e.target.value })}
-                      className="font-bold text-gray-800 text-base px-2 py-1 border border-transparent hover:border-gray-300 focus:border-indigo-400 rounded-lg outline-none"
+                      className="font-bold text-gray-800 text-base px-2 py-1 border border-transparent hover:border-gray-300 focus:border-emerald-400 rounded-lg outline-none"
                     />
                   </div>
                   {savedKey === t.partKey && (
@@ -214,7 +214,7 @@ export const AdminCurriculumTemplateManager: React.FC = () => {
                     value={edit.content}
                     onChange={(e) => updateEdit(t.partKey, { content: e.target.value })}
                     rows={8}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm font-mono"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none text-sm font-mono"
                   />
                 </div>
 
@@ -223,7 +223,7 @@ export const AdminCurriculumTemplateManager: React.FC = () => {
                     <label className="block text-xs font-bold text-gray-500">핵심 포인트</label>
                     <button
                       onClick={() => addKeyPoint(t.partKey)}
-                      className="flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-700 font-semibold"
+                      className="flex items-center gap-1 text-xs text-emerald-600 hover:text-emerald-700 font-semibold"
                     >
                       <Plus className="w-3.5 h-3.5" />
                       추가
@@ -236,7 +236,7 @@ export const AdminCurriculumTemplateManager: React.FC = () => {
                           type="text"
                           value={point}
                           onChange={(e) => updateKeyPoint(t.partKey, i, e.target.value)}
-                          className="flex-1 px-3 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
+                          className="flex-1 px-3 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none text-sm"
                         />
                         <button
                           onClick={() => removeKeyPoint(t.partKey, i)}

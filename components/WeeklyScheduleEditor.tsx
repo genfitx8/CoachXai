@@ -32,8 +32,8 @@ const CATEGORY_META: Record<
   SHORT_GAME:   { label: '숏게임',      short: '숏게임',      bg: 'bg-emerald-100',  text: 'text-emerald-800',  border: 'border-emerald-300',  group: 'SHORT' },
   PUTTING:      { label: '퍼팅',        short: '퍼팅',        bg: 'bg-teal-100',     text: 'text-teal-800',     border: 'border-teal-300',     group: 'SHORT' },
   CONTROL_SHOT: { label: '컨트롤 샷',   short: '컨트롤',      bg: 'bg-cyan-100',     text: 'text-cyan-800',     border: 'border-cyan-300',     group: 'SHORT' },
-  SWING:        { label: '스윙',        short: '스윙',        bg: 'bg-indigo-100',   text: 'text-indigo-800',   border: 'border-indigo-300',   group: 'LONG' },
-  TARGETING:    { label: '타겟팅',      short: '타겟팅',      bg: 'bg-violet-100',   text: 'text-violet-800',   border: 'border-violet-300',   group: 'LONG' },
+  SWING:        { label: '스윙',        short: '스윙',        bg: 'bg-emerald-100',   text: 'text-emerald-800',   border: 'border-emerald-300',   group: 'LONG' },
+  TARGETING:    { label: '타겟팅',      short: '타겟팅',      bg: 'bg-emerald-100',   text: 'text-emerald-800',   border: 'border-emerald-300',   group: 'LONG' },
   BALL_FLIGHT:  { label: '구질 구현',   short: '구질',        bg: 'bg-fuchsia-100',  text: 'text-fuchsia-800',  border: 'border-fuchsia-300',  group: 'LONG' },
   REST:         { label: '휴식',        short: '휴식',        bg: 'bg-gray-100',     text: 'text-gray-500',     border: 'border-gray-200',     group: 'REST' },
 };
@@ -192,7 +192,7 @@ export const WeeklyScheduleEditor: React.FC<WeeklyScheduleEditorProps> = ({
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
         <div className="flex items-center justify-between mb-3">
           <h3 className="font-bold text-sm text-gray-800 flex items-center gap-2">
-            <Target className="w-4 h-4 text-indigo-500" />
+            <Target className="w-4 h-4 text-emerald-500" />
             훈련 비율
           </h3>
           <span className="text-xs text-gray-500">
@@ -208,7 +208,7 @@ export const WeeklyScheduleEditor: React.FC<WeeklyScheduleEditorProps> = ({
             {shortLongSummary.shortPct >= 15 ? `숏 ${shortLongSummary.shortPct}%` : ''}
           </div>
           <div
-            className="bg-indigo-500 flex items-center justify-center text-[10px] font-bold text-white"
+            className="bg-emerald-500 flex items-center justify-center text-[10px] font-bold text-white"
             style={{ width: `${shortLongSummary.longPct}%` }}
             title={`롱게임 ${shortLongSummary.longPct}%`}
           >
@@ -423,7 +423,7 @@ const SessionEditModal: React.FC<SessionEditModalProps> = ({
                 value={startTime}
                 onChange={(e) => setStartTime(e.target.value)}
                 step={1800}
-                className="w-full px-3 py-2 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                className="w-full px-3 py-2 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
               />
             </div>
             <div>
@@ -479,7 +479,7 @@ const SessionEditModal: React.FC<SessionEditModalProps> = ({
               value={label}
               onChange={(e) => setLabel(e.target.value)}
               maxLength={20}
-              className="w-full px-3 py-2 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+              className="w-full px-3 py-2 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
               placeholder="예: 숏게임 컨트롤"
             />
           </div>
@@ -491,7 +491,7 @@ const SessionEditModal: React.FC<SessionEditModalProps> = ({
               onChange={(e) => setNote(e.target.value)}
               rows={3}
               maxLength={300}
-              className="w-full px-3 py-2 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none resize-none"
+              className="w-full px-3 py-2 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 outline-none resize-none"
               placeholder="구체적 드릴/포커스를 적어주세요"
             />
           </div>

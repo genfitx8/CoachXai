@@ -17,11 +17,11 @@ export const DiagnosisRadarChart: React.FC<DiagnosisRadarChartProps> = ({ factor
           <div key={point.label}>
             <div className="mb-1 flex items-center justify-between text-sm">
               <span className="text-slate-300">{point.label}</span>
-              <span className="text-violet-300">{point.score}</span>
+              <span className="text-emerald-300">{point.score}</span>
             </div>
             <div className="h-2 rounded-full bg-slate-700">
               <div
-                className="h-2 rounded-full bg-gradient-to-r from-violet-500 to-indigo-400"
+                className="h-2 rounded-full bg-gradient-to-r from-emerald-500 to-emerald-400"
                 style={{ width: `${Math.max(0, Math.min(100, point.score))}%` }}
               />
             </div>

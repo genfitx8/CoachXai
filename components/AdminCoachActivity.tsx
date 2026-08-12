@@ -143,7 +143,7 @@ const CoachActivityRow: React.FC<{ data: CoachActivityData }> = ({ data }) => {
         aria-expanded={expanded}
       >
         {/* Avatar */}
-        <div className="w-10 h-10 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-sm flex-shrink-0">
+        <div className="w-10 h-10 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center font-bold text-sm flex-shrink-0">
           {data.coach.name.charAt(0)}
         </div>
 
@@ -284,7 +284,7 @@ export const AdminCoachActivity: React.FC<AdminCoachActivityProps> = ({
       {/* Header */}
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-          <Activity className="w-5 h-5 text-indigo-600" />
+          <Activity className="w-5 h-5 text-emerald-600" />
           {t('admin_coach_activity_title')}
         </h2>
         <p className="text-xs text-gray-400">{t('admin_coach_activity_heuristic_note')}</p>
@@ -293,7 +293,7 @@ export const AdminCoachActivity: React.FC<AdminCoachActivityProps> = ({
       {/* Summary cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex items-center gap-3">
-          <div className="w-10 h-10 bg-indigo-50 rounded-full flex items-center justify-center text-indigo-600">
+          <div className="w-10 h-10 bg-emerald-50 rounded-full flex items-center justify-center text-emerald-600">
             <User className="w-5 h-5" />
           </div>
           <div>

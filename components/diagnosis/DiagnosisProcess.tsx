@@ -12,7 +12,7 @@ export const DiagnosisProcess: React.FC<DiagnosisProcessProps> = ({ steps }) => 
       <ol className="mt-4 space-y-3">
         {steps.map((step, index) => (
           <li key={step.id} className="rounded-xl border border-slate-700 bg-slate-900 p-4">
-            <p className="text-sm font-semibold text-violet-300">STEP {index + 1}</p>
+            <p className="text-sm font-semibold text-emerald-300">STEP {index + 1}</p>
             <p className="mt-1 font-medium text-slate-100">{step.title}</p>
             <p className="mt-1 text-sm text-slate-300">{step.description}</p>
           </li>

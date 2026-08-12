@@ -343,7 +343,7 @@ export const AdminPromptManager: React.FC<AdminPromptManagerProps> = ({
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-          <Sparkles className="w-5 h-5 text-indigo-500" /> {t('admin_prompt_title')}
+          <Sparkles className="w-5 h-5 text-emerald-500" /> {t('admin_prompt_title')}
         </h2>
         <Button
           onClick={() => {
@@ -357,12 +357,12 @@ export const AdminPromptManager: React.FC<AdminPromptManagerProps> = ({
       </div>
 
       {/* Info banner */}
-      <div className="flex items-start gap-3 bg-indigo-50 border border-indigo-200 rounded-xl p-4">
-        <AlertTriangle className="w-5 h-5 text-indigo-500 flex-shrink-0 mt-0.5" />
-        <p className="text-sm text-indigo-700">
+      <div className="flex items-start gap-3 bg-emerald-50 border border-emerald-200 rounded-xl p-4">
+        <AlertTriangle className="w-5 h-5 text-emerald-500 flex-shrink-0 mt-0.5" />
+        <p className="text-sm text-emerald-700">
           {t('admin_prompt_info')}
           {!isFirebaseMode && (
-            <span className="block mt-1 text-indigo-500 text-xs">
+            <span className="block mt-1 text-emerald-500 text-xs">
               {t('admin_prompt_local_mode_note')}
             </span>
           )}
@@ -371,7 +371,7 @@ export const AdminPromptManager: React.FC<AdminPromptManagerProps> = ({
 
       {/* Edit / Create form */}
       {isEditing && (
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-indigo-200 animate-fade-in space-y-5">
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-emerald-200 animate-fade-in space-y-5">
           <h3 className="font-bold text-gray-800 text-base">
             {editingId ? t('admin_prompt_edit_title') : t('admin_prompt_create_title')}
           </h3>
@@ -384,7 +384,7 @@ export const AdminPromptManager: React.FC<AdminPromptManagerProps> = ({
                 value={form.name}
                 onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
                 placeholder="예: Coachx Chat — 한국어 v1"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none text-sm"
               />
             </div>
             <div>
@@ -394,7 +394,7 @@ export const AdminPromptManager: React.FC<AdminPromptManagerProps> = ({
                 onChange={(e) =>
                   setForm((f) => ({ ...f, target: e.target.value as PromptTarget }))
                 }
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none text-sm"
               >
                 {ALL_TARGETS.map((tgt) => (
                   <option key={tgt} value={tgt}>
@@ -416,7 +416,7 @@ export const AdminPromptManager: React.FC<AdminPromptManagerProps> = ({
                     language: e.target.value as PromptTemplate['language'],
                   }))
                 }
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none text-sm"
               >
                 <option value="all">{t('admin_prompt_lang_all')}</option>
                 <option value="ko">한국어 (ko)</option>
@@ -431,7 +431,7 @@ export const AdminPromptManager: React.FC<AdminPromptManagerProps> = ({
                   type="checkbox"
                   checked={form.isActive}
                   onChange={(e) => setForm((f) => ({ ...f, isActive: e.target.checked }))}
-                  className="w-4 h-4 accent-indigo-600"
+                  className="w-4 h-4 accent-emerald-600"
                 />
                 <span className="text-sm font-bold text-gray-700">{t('admin_prompt_activate_on_save')}</span>
               </label>
@@ -441,7 +441,7 @@ export const AdminPromptManager: React.FC<AdminPromptManagerProps> = ({
           {/* Scope selector — only shown when at least one coach is on PRO.
               Single-coach / all-FREE deployments stay implicitly global. */}
           {isCoachScopingAvailable && (
-            <div className="border border-indigo-100 bg-indigo-50/40 rounded-lg p-4">
+            <div className="border border-emerald-100 bg-emerald-50/40 rounded-lg p-4">
               <label className="block text-xs font-bold text-gray-500 mb-2">
                 적용 범위 (Scope){' '}
                 <span className="font-normal text-gray-400">
@@ -454,8 +454,8 @@ export const AdminPromptManager: React.FC<AdminPromptManagerProps> = ({
                   onClick={() => setForm((f) => ({ ...f, coachId: undefined }))}
                   className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition-colors ${
                     !form.coachId
-                      ? 'bg-indigo-600 text-white border-indigo-600'
-                      : 'bg-white text-gray-600 border-gray-300 hover:border-indigo-300'
+                      ? 'bg-emerald-600 text-white border-emerald-600'
+                      : 'bg-white text-gray-600 border-gray-300 hover:border-emerald-300'
                   }`}
                 >
                   <Globe2 className="w-3.5 h-3.5" /> 전역 (모든 코치)
@@ -470,8 +470,8 @@ export const AdminPromptManager: React.FC<AdminPromptManagerProps> = ({
                   }}
                   className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition-colors ${
                     form.coachId
-                      ? 'bg-indigo-600 text-white border-indigo-600'
-                      : 'bg-white text-gray-600 border-gray-300 hover:border-indigo-300'
+                      ? 'bg-emerald-600 text-white border-emerald-600'
+                      : 'bg-white text-gray-600 border-gray-300 hover:border-emerald-300'
                   }`}
                 >
                   <UserCircle2 className="w-3.5 h-3.5" /> 특정 코치
@@ -481,7 +481,7 @@ export const AdminPromptManager: React.FC<AdminPromptManagerProps> = ({
                 <select
                   value={form.coachId}
                   onChange={(e) => setForm((f) => ({ ...f, coachId: e.target.value }))}
-                  className="w-full md:w-1/2 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm bg-white"
+                  className="w-full md:w-1/2 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none text-sm bg-white"
                 >
                   {coaches.map((c) => {
                     const disabled = !isProCoach(c);
@@ -536,7 +536,7 @@ export const AdminPromptManager: React.FC<AdminPromptManagerProps> = ({
                     type="button"
                     onClick={() => setIsInterviewOpen(true)}
                     disabled={isGeneratingPrompt}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-white text-indigo-600 border border-indigo-300 hover:bg-indigo-50 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-white text-emerald-600 border border-emerald-300 hover:bg-emerald-50 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
                     title="AI가 코치님에게 질문을 던져 방법론을 대화로 이끌어냅니다. 문서가 없어도 스타일 프롬프트를 만들 수 있어요."
                   >
                     <MessageCircle className="w-3.5 h-3.5" />
@@ -546,7 +546,7 @@ export const AdminPromptManager: React.FC<AdminPromptManagerProps> = ({
                     type="button"
                     onClick={() => generateFromDocRef.current?.click()}
                     disabled={isGeneratingPrompt}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-gradient-to-r from-purple-500 to-indigo-500 text-white hover:from-purple-600 hover:to-indigo-600 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-gradient-to-r from-purple-500 to-emerald-500 text-white hover:from-purple-600 hover:to-emerald-600 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
                     title="PDF·텍스트 문서를 1개 이상 업로드하면 Gemini가 이 target에 맞는 systemPrompt 초안을 생성합니다. 여러 문서를 한 번에 선택하면 한 개의 시스템 프롬프트로 통합됩니다."
                   >
                     <Wand2 className="w-3.5 h-3.5" />
@@ -560,7 +560,7 @@ export const AdminPromptManager: React.FC<AdminPromptManagerProps> = ({
               onChange={(e) => setForm((f) => ({ ...f, systemPrompt: e.target.value }))}
               placeholder="You are Coachx, an AI coaching assistant..."
               rows={8}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none resize-y text-sm font-mono"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none resize-y text-sm font-mono"
             />
             <p className="text-xs text-gray-400 mt-1">
               {form.systemPrompt.length}자
@@ -595,7 +595,7 @@ export const AdminPromptManager: React.FC<AdminPromptManagerProps> = ({
               onChange={(e) => setForm((f) => ({ ...f, developerNote: e.target.value }))}
               placeholder="변경 이력, 테스트 결과, 주의사항 등..."
               rows={3}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none resize-y text-sm"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none resize-y text-sm"
             />
           </div>
 
@@ -639,7 +639,7 @@ export const AdminPromptManager: React.FC<AdminPromptManagerProps> = ({
                 <div className="space-y-1 mb-2">
                   {form.attachments.map((att) => (
                     <div key={att.id} className="flex items-center gap-2 p-1.5 bg-white rounded border border-gray-200 text-xs">
-                      <FileText className="w-3.5 h-3.5 text-indigo-400 flex-shrink-0" />
+                      <FileText className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" />
                       <span className="flex-1 truncate text-gray-700">{att.fileName}</span>
                       <span className="text-gray-400">{formatFileSize(att.fileSize)}</span>
                     </div>
@@ -649,7 +649,7 @@ export const AdminPromptManager: React.FC<AdminPromptManagerProps> = ({
               <button
                 type="button"
                 onClick={() => formFileRef.current?.click()}
-                className="text-xs font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1"
+                className="text-xs font-bold text-emerald-600 hover:text-emerald-800 flex items-center gap-1"
               >
                 <Paperclip className="w-3 h-3" /> {t('admin_prompt_attach_file_btn')}
               </button>
@@ -690,8 +690,8 @@ export const AdminPromptManager: React.FC<AdminPromptManagerProps> = ({
             onClick={() => setScopeFilter(SCOPE_GLOBAL)}
             className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold border transition-colors ${
               scopeFilter === SCOPE_GLOBAL
-                ? 'bg-indigo-600 text-white border-indigo-600'
-                : 'bg-white text-gray-600 border-gray-300 hover:border-indigo-300'
+                ? 'bg-emerald-600 text-white border-emerald-600'
+                : 'bg-white text-gray-600 border-gray-300 hover:border-emerald-300'
             }`}
           >
             <Globe2 className="w-3 h-3" /> 전역만
@@ -703,8 +703,8 @@ export const AdminPromptManager: React.FC<AdminPromptManagerProps> = ({
               onClick={() => setScopeFilter(c.id)}
               className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold border transition-colors ${
                 scopeFilter === c.id
-                  ? 'bg-indigo-600 text-white border-indigo-600'
-                  : 'bg-white text-gray-600 border-gray-300 hover:border-indigo-300'
+                  ? 'bg-emerald-600 text-white border-emerald-600'
+                  : 'bg-white text-gray-600 border-gray-300 hover:border-emerald-300'
               }`}
             >
               <UserCircle2 className="w-3 h-3" /> {c.name}
@@ -739,7 +739,7 @@ export const AdminPromptManager: React.FC<AdminPromptManagerProps> = ({
             return (
               <div key={target}>
                 <div className="flex items-center gap-2 mb-2 mt-4">
-                  <span className="text-xs font-bold text-indigo-600 uppercase tracking-wide">
+                  <span className="text-xs font-bold text-emerald-600 uppercase tracking-wide">
                     {TARGET_LABELS[target]}
                   </span>
                   <span className="text-xs text-gray-400">— {TARGET_DESCRIPTIONS[target]}</span>
@@ -833,7 +833,7 @@ const PromptCard: React.FC<PromptCardProps> = ({
   return (
     <div
       className={`bg-white rounded-xl border shadow-sm transition-all ${
-        template.isActive ? 'border-indigo-300 ring-1 ring-indigo-200' : 'border-gray-200'
+        template.isActive ? 'border-emerald-300 ring-1 ring-emerald-200' : 'border-gray-200'
       }`}
     >
       {/* Card header */}
@@ -845,9 +845,9 @@ const PromptCard: React.FC<PromptCardProps> = ({
           className="flex-shrink-0"
         >
           {template.isActive ? (
-            <CheckCircle className="w-5 h-5 text-indigo-500" />
+            <CheckCircle className="w-5 h-5 text-emerald-500" />
           ) : (
-            <Circle className="w-5 h-5 text-gray-300 hover:text-indigo-400 transition-colors" />
+            <Circle className="w-5 h-5 text-gray-300 hover:text-emerald-400 transition-colors" />
           )}
         </button>
 
@@ -855,7 +855,7 @@ const PromptCard: React.FC<PromptCardProps> = ({
           <div className="flex items-center gap-2 flex-wrap">
             <span className="font-bold text-gray-900 text-sm truncate">{template.name}</span>
             {template.isActive && (
-              <span className="text-[10px] font-bold px-1.5 py-0.5 bg-indigo-100 text-indigo-700 rounded-full">
+              <span className="text-[10px] font-bold px-1.5 py-0.5 bg-emerald-100 text-emerald-700 rounded-full">
                 ACTIVE
               </span>
             )}
@@ -895,7 +895,7 @@ const PromptCard: React.FC<PromptCardProps> = ({
         <div className="flex items-center gap-1">
           <button
             onClick={onEdit}
-            className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+            className="p-1.5 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
             title={t('edit')}
           >
             <Edit2 className="w-4 h-4" />
@@ -957,7 +957,7 @@ const PromptCard: React.FC<PromptCardProps> = ({
                 <button
                   onClick={() => localFileRef.current?.click()}
                   disabled={isUploadingAttachment}
-                  className="text-xs font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1 disabled:opacity-50"
+                  className="text-xs font-bold text-emerald-600 hover:text-emerald-800 flex items-center gap-1 disabled:opacity-50"
                 >
                   {isUploadingAttachment ? (
                     t('admin_prompt_uploading')
@@ -993,7 +993,7 @@ const PromptCard: React.FC<PromptCardProps> = ({
                         href={att.downloadUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="p-1 text-gray-400 hover:text-indigo-600 transition-colors"
+                        className="p-1 text-gray-400 hover:text-emerald-600 transition-colors"
                         title={t('admin_prompt_download')}
                       >
                         <Download className="w-3.5 h-3.5" />

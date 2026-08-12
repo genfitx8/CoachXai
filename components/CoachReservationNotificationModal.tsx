@@ -41,7 +41,7 @@ export const CoachReservationNotificationModal: React.FC<
             </div>
             <div>
               <h2 className="text-lg font-bold">새 레슨 예약 요청</h2>
-              <p className="text-indigo-200 text-sm">
+              <p className="text-emerald-200 text-sm">
                 {notifications.length}건의 미확인 요청이 있습니다.
               </p>
             </div>
@@ -55,7 +55,7 @@ export const CoachReservationNotificationModal: React.FC<
               key={n.id}
               className="flex items-start gap-3 bg-slate-50 rounded-xl p-3"
             >
-              <Calendar className="w-4 h-4 text-indigo-500 mt-0.5 flex-shrink-0" />
+              <Calendar className="w-4 h-4 text-emerald-500 mt-0.5 flex-shrink-0" />
               <p className="text-sm text-gray-700 leading-snug">{n.body}</p>
             </div>
           ))}

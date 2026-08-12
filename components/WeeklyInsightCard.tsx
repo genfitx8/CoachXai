@@ -117,7 +117,7 @@ export const WeeklyInsightCard: React.FC<WeeklyInsightCardProps> = ({
         </button>
         <div className="w-1 h-6 bg-gradient-to-b from-slate-600 to-slate-700 rounded-full" />
         <h2 className="text-xl font-black text-gray-900 flex items-center gap-2">
-          <Sparkles className="w-5 h-5 text-indigo-500" />
+          <Sparkles className="w-5 h-5 text-emerald-500" />
           주간 AI 인사이트
         </h2>
       </div>
@@ -151,7 +151,7 @@ export const WeeklyInsightCard: React.FC<WeeklyInsightCardProps> = ({
       {latestInsight && (
         <div className="bg-slate-50 rounded-2xl p-5 border border-slate-100 shadow-sm space-y-4">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-indigo-600 bg-indigo-100 px-2 py-0.5 rounded-full">
+            <span className="text-xs font-bold text-emerald-600 bg-emerald-100 px-2 py-0.5 rounded-full">
               {formatWeekRange(latestInsight.weekStart, latestInsight.weekEnd)}
             </span>
             <span className="text-[10px] text-gray-400">
@@ -162,8 +162,8 @@ export const WeeklyInsightCard: React.FC<WeeklyInsightCardProps> = ({
           {/* Summary */}
           <div>
             <div className="flex items-center gap-1.5 mb-1.5">
-              <TrendingUp className="w-4 h-4 text-indigo-500" />
-              <span className="text-xs font-bold text-indigo-700">이번 주 요약</span>
+              <TrendingUp className="w-4 h-4 text-emerald-500" />
+              <span className="text-xs font-bold text-emerald-700">이번 주 요약</span>
             </div>
             <p className="text-sm text-gray-700 leading-relaxed">{latestInsight.summary}</p>
           </div>
@@ -187,7 +187,7 @@ export const WeeklyInsightCard: React.FC<WeeklyInsightCardProps> = ({
           )}
 
           {/* Recommended Focus */}
-          <div className="bg-white/70 rounded-xl p-3 border border-indigo-100">
+          <div className="bg-white/70 rounded-xl p-3 border border-emerald-100">
             <div className="flex items-center gap-1.5 mb-1">
               <Target className="w-4 h-4 text-emerald-600" />
               <span className="text-xs font-bold text-emerald-700">다음 주 추천 포커스</span>
@@ -202,7 +202,7 @@ export const WeeklyInsightCard: React.FC<WeeklyInsightCardProps> = ({
         <div>
           <button
             onClick={() => setShowHistory(!showHistory)}
-            className="text-xs text-indigo-600 font-bold hover:underline"
+            className="text-xs text-emerald-600 font-bold hover:underline"
           >
             {showHistory ? '이전 인사이트 숨기기 ▲' : `이전 인사이트 보기 (${insights.length - 1}건) ▼`}
           </button>
@@ -223,7 +223,7 @@ export const WeeklyInsightCard: React.FC<WeeklyInsightCardProps> = ({
                   </div>
                   <p className="text-xs text-gray-600 leading-relaxed">{insight.summary}</p>
                   {insight.recommendedFocus && (
-                    <p className="text-xs text-indigo-600 mt-2 font-medium">
+                    <p className="text-xs text-emerald-600 mt-2 font-medium">
                       → {insight.recommendedFocus}
                     </p>
                   )}

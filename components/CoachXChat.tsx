@@ -182,7 +182,7 @@ export const CoachXChat: React.FC<CoachXChatProps> = ({
 
         <div className="flex-1">
           <p className="font-bold text-sm text-white">Coachx</p>
-          <p className="text-xs text-violet-300">{t('coachx_subtitle')}</p>
+          <p className="text-xs text-emerald-300">{t('coachx_subtitle')}</p>
         </div>
 
         {/* Chat / Voice toggle */}
@@ -191,7 +191,7 @@ export const CoachXChat: React.FC<CoachXChatProps> = ({
             type="button"
             onClick={() => handleToggleVoiceMode(false)}
             className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-              !voiceMode ? 'bg-violet-600 text-white' : 'text-gray-400 hover:text-white'
+              !voiceMode ? 'bg-emerald-600 text-white' : 'text-gray-400 hover:text-white'
             }`}
           >
             {language === 'en' ? 'Chat' : language === 'ja' ? 'チャット' : '채팅'}
@@ -200,7 +200,7 @@ export const CoachXChat: React.FC<CoachXChatProps> = ({
             type="button"
             onClick={() => handleToggleVoiceMode(true)}
             className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-              voiceMode ? 'bg-violet-600 text-white' : 'text-gray-400 hover:text-white'
+              voiceMode ? 'bg-emerald-600 text-white' : 'text-gray-400 hover:text-white'
             }`}
           >
             {language === 'en' ? 'Voice' : language === 'ja' ? '音声' : '음성'}
@@ -236,7 +236,7 @@ export const CoachXChat: React.FC<CoachXChatProps> = ({
               >
                 {renderMarkdown(displayContent)}
                 {isRevealing && (
-                  <span className="coachx-cursor inline-block w-0.5 h-3.5 bg-violet-400 ml-0.5 align-text-bottom" />
+                  <span className="coachx-cursor inline-block w-0.5 h-3.5 bg-emerald-400 ml-0.5 align-text-bottom" />
                 )}
               </div>
             </div>
@@ -253,7 +253,7 @@ export const CoachXChat: React.FC<CoachXChatProps> = ({
                 {[0, 1, 2].map(i => (
                   <div
                     key={i}
-                    className="w-2 h-2 rounded-full bg-violet-400"
+                    className="w-2 h-2 rounded-full bg-emerald-400"
                     style={{ animation: `coachx-bounce 1.2s ease-in-out ${i * 0.2}s infinite` }}
                   />
                 ))}
@@ -288,7 +288,7 @@ export const CoachXChat: React.FC<CoachXChatProps> = ({
         /* Voice mode — mic button */
         <div className="px-4 pb-safe pb-8 pt-4 flex flex-col items-center gap-3 border-t border-white/10 bg-gray-900/90 backdrop-blur-sm">
           {isSpeaking && (
-            <div className="flex items-center gap-2 text-xs text-violet-300">
+            <div className="flex items-center gap-2 text-xs text-emerald-300">
               <Volume2 className="w-3.5 h-3.5" />
               {language === 'en' ? 'Speaking…' : language === 'ja' ? '読み上げ中…' : '응답 중…'}
             </div>
@@ -300,7 +300,7 @@ export const CoachXChat: React.FC<CoachXChatProps> = ({
             className={`relative w-20 h-20 rounded-full flex items-center justify-center transition-all disabled:opacity-40 ${
               isListening
                 ? 'bg-red-500/80 shadow-lg shadow-red-500/30'
-                : 'bg-violet-600/80 hover:bg-violet-500/80 shadow-lg shadow-violet-500/20'
+                : 'bg-emerald-600/80 hover:bg-emerald-500/80 shadow-lg shadow-emerald-500/20'
             }`}
             aria-label={isListening ? 'Stop' : 'Speak'}
           >
@@ -328,7 +328,7 @@ export const CoachXChat: React.FC<CoachXChatProps> = ({
               onChange={e => setInput(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void handleSend(); } }}
               placeholder={t('coachx_chat_placeholder')}
-              className="flex-1 bg-gray-800 border border-white/10 rounded-2xl px-4 py-3 text-sm text-white placeholder-gray-400 outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 transition-colors resize-none"
+              className="flex-1 bg-gray-800 border border-white/10 rounded-2xl px-4 py-3 text-sm text-white placeholder-gray-400 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-colors resize-none"
             />
             <button
               onClick={() => void handleSend()}

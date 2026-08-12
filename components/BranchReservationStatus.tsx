@@ -230,7 +230,7 @@ export const BranchReservationStatus: React.FC<BranchReservationStatusProps> = (
       </div>
 
       {/* Lesson reservations waiting for admin bay assignment */}
-      <div className="bg-white rounded-2xl border border-indigo-100 shadow-sm p-4 space-y-3">
+      <div className="bg-white rounded-2xl border border-emerald-100 shadow-sm p-4 space-y-3">
         <h4 className="font-semibold text-gray-900">레슨 예약 관리자 확정 대기</h4>
         {pendingLessons.length === 0 ? (
           <p className="text-sm text-gray-400">확정 대기 중인 레슨 예약이 없습니다.</p>
@@ -250,7 +250,7 @@ export const BranchReservationStatus: React.FC<BranchReservationStatusProps> = (
                     onChange={(e) =>
                       setPendingLessonBaySelection((prev) => ({ ...prev, [lesson.id]: e.target.value }))
                     }
-                    className="border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                    className="border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300"
                   >
                     <option value="">타석 선택</option>
                     {bays
@@ -264,7 +264,7 @@ export const BranchReservationStatus: React.FC<BranchReservationStatusProps> = (
                   <Button
                     onClick={() => handleFinalizeLessonReservation(lesson)}
                     disabled={actioningId === lesson.id}
-                    className="text-sm bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5"
+                    className="text-sm bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5"
                   >
                     확정 + 타석 블럭
                   </Button>

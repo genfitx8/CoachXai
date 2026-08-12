@@ -52,7 +52,7 @@ interface CoachClientManagerProps {
 
 const clientManagerPanelClass = 'bg-slate-900/70 border border-slate-800/80 rounded-2xl shadow-lg shadow-black/20';
 const clientFormInputClass =
-  'w-full px-4 py-2.5 border border-slate-700 rounded-xl bg-slate-900 text-slate-100 placeholder:text-slate-500 focus:ring-2 focus:ring-indigo-500 outline-none';
+  'w-full px-4 py-2.5 border border-slate-700 rounded-xl bg-slate-900 text-slate-100 placeholder:text-slate-500 focus:ring-2 focus:ring-emerald-500 outline-none';
 const clientCardActionButtonClass =
   'w-full flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl transition-colors text-sm font-semibold';
 
@@ -292,7 +292,7 @@ export const CoachClientManager: React.FC<CoachClientManagerProps> = ({
           <Button
             onClick={openAddModal}
             data-testid="coach-client-add-btn"
-            className="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-500 rounded-xl"
+            className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-500 rounded-xl"
           >
             <UserPlus className="w-5 h-5 mr-2" /> {t('coach_client_add_btn')}
           </Button>
@@ -354,11 +354,11 @@ export const CoachClientManager: React.FC<CoachClientManagerProps> = ({
             return (
             <div
               key={reportKey}
-               className="bg-slate-900/70 p-5 rounded-2xl border border-slate-800/80 shadow-lg shadow-black/20 hover:border-indigo-500/40 transition-all duration-200 group relative"
+               className="bg-slate-900/70 p-5 rounded-2xl border border-slate-800/80 shadow-lg shadow-black/20 hover:border-emerald-500/40 transition-all duration-200 group relative"
             >
               <div className="flex items-start justify-between mb-3">
                 <div className="flex items-center gap-3">
-                   <div className="w-12 h-12 bg-gradient-to-br from-indigo-500/20 to-violet-500/20 text-indigo-200 rounded-full flex items-center justify-center font-bold text-lg shadow-sm border border-indigo-400/20">
+                   <div className="w-12 h-12 bg-gradient-to-br from-emerald-500/20 to-emerald-500/20 text-emerald-200 rounded-full flex items-center justify-center font-bold text-lg shadow-sm border border-emerald-400/20">
                     {client.name.charAt(0)}
                   </div>
                   <div>
@@ -378,7 +378,7 @@ export const CoachClientManager: React.FC<CoachClientManagerProps> = ({
                       <span
                         className={`inline-flex items-center text-[10px] font-semibold px-1.5 py-0.5 rounded-full border ${
                           isMyClient
-                            ? 'bg-indigo-50 text-indigo-700 border-indigo-200'
+                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                             : client.coachId
                               ? 'bg-amber-50 text-amber-700 border-amber-200'
                               : 'bg-gray-100 text-gray-600 border-gray-200'
@@ -401,7 +401,7 @@ export const CoachClientManager: React.FC<CoachClientManagerProps> = ({
                   <div className="flex gap-1">
                     <button
                       onClick={() => openEditModal(client)}
-                      className="p-2 text-slate-500 hover:text-indigo-300 hover:bg-indigo-500/10 rounded-lg transition-colors"
+                      className="p-2 text-slate-500 hover:text-emerald-300 hover:bg-emerald-500/10 rounded-lg transition-colors"
                     >
                       <Edit className="w-4 h-4" />
                     </button>
@@ -459,7 +459,7 @@ export const CoachClientManager: React.FC<CoachClientManagerProps> = ({
               {onManagePackages && isMyClient && (
                 <button
                   onClick={() => onManagePackages(client)}
-                  className={`mt-2 ${clientCardActionButtonClass} bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 hover:bg-indigo-500/20`}
+                  className={`mt-2 ${clientCardActionButtonClass} bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 hover:bg-emerald-500/20`}
                 >
                   <ClipboardList className="w-4 h-4" />
                   {t('coach_client_package_manage')}
@@ -551,7 +551,7 @@ export const CoachClientManager: React.FC<CoachClientManagerProps> = ({
               <div className="pt-2">
                 <Button
                   type="submit"
-                  className="w-full bg-indigo-600 hover:bg-indigo-500"
+                  className="w-full bg-emerald-600 hover:bg-emerald-500"
                 >
                   <Save className="w-4 h-4 mr-2" /> {t('coach_client_save_btn')}
                 </Button>

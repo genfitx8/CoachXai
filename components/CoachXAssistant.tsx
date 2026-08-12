@@ -513,15 +513,15 @@ export const CoachXAssistant: React.FC<CoachXAssistantProps> = ({
     if (!booking.step || booking.step === 'done') return null;
 
     return (
-      <div className="mx-4 mb-3 bg-gray-800/90 border border-violet-500/30 rounded-2xl overflow-hidden">
+      <div className="mx-4 mb-3 bg-gray-800/90 border border-emerald-500/30 rounded-2xl overflow-hidden">
         {/* Card header */}
-        <div className="flex items-center justify-between px-4 py-2.5 bg-violet-900/30 border-b border-violet-500/20">
+        <div className="flex items-center justify-between px-4 py-2.5 bg-emerald-900/30 border-b border-emerald-500/20">
           <div className="flex items-center gap-2">
-            {booking.step === 'date' && <Calendar className="w-4 h-4 text-violet-400" />}
-            {booking.step === 'time' && <Clock className="w-4 h-4 text-violet-400" />}
-            {booking.step === 'client' && <User className="w-4 h-4 text-violet-400" />}
-            {booking.step === 'confirm' && <CheckCircle className="w-4 h-4 text-violet-400" />}
-            <span className="text-xs font-semibold text-violet-300">
+            {booking.step === 'date' && <Calendar className="w-4 h-4 text-emerald-400" />}
+            {booking.step === 'time' && <Clock className="w-4 h-4 text-emerald-400" />}
+            {booking.step === 'client' && <User className="w-4 h-4 text-emerald-400" />}
+            {booking.step === 'confirm' && <CheckCircle className="w-4 h-4 text-emerald-400" />}
+            <span className="text-xs font-semibold text-emerald-300">
               {booking.step === 'date' && '날짜 선택'}
               {booking.step === 'time' && '시간 선택'}
               {booking.step === 'client' && '회원 선택'}
@@ -545,7 +545,7 @@ export const CoachXAssistant: React.FC<CoachXAssistantProps> = ({
                 <button
                   key={date}
                   onClick={() => handleDateSelect(date)}
-                  className="py-2.5 px-3 text-sm rounded-xl bg-gray-700/80 hover:bg-violet-700/60 border border-white/10 hover:border-violet-500/50 text-gray-200 hover:text-white transition-colors text-left"
+                  className="py-2.5 px-3 text-sm rounded-xl bg-gray-700/80 hover:bg-emerald-700/60 border border-white/10 hover:border-emerald-500/50 text-gray-200 hover:text-white transition-colors text-left"
                 >
                   {formatDateKo(date)}
                 </button>
@@ -562,7 +562,7 @@ export const CoachXAssistant: React.FC<CoachXAssistantProps> = ({
                 <button
                   key={h}
                   onClick={() => handleTimeSelect(h)}
-                  className="py-2.5 text-sm rounded-xl bg-gray-700/80 hover:bg-violet-700/60 border border-white/10 hover:border-violet-500/50 text-gray-200 hover:text-white transition-colors"
+                  className="py-2.5 text-sm rounded-xl bg-gray-700/80 hover:bg-emerald-700/60 border border-white/10 hover:border-emerald-500/50 text-gray-200 hover:text-white transition-colors"
                 >
                   {pad(h)}:00
                 </button>
@@ -591,7 +591,7 @@ export const CoachXAssistant: React.FC<CoachXAssistantProps> = ({
                 onChange={(e) => setClientSearch(e.target.value)}
                 placeholder="회원 이름 또는 전화번호 검색"
                 aria-label="회원 검색"
-                className="w-full pl-9 pr-8 py-2 text-sm rounded-xl bg-gray-900/60 border border-white/10 text-gray-100 placeholder-gray-500 focus:outline-none focus:border-violet-500/60"
+                className="w-full pl-9 pr-8 py-2 text-sm rounded-xl bg-gray-900/60 border border-white/10 text-gray-100 placeholder-gray-500 focus:outline-none focus:border-emerald-500/60"
               />
             </div>
             <div className="space-y-1.5 max-h-52 overflow-y-auto">
@@ -612,7 +612,7 @@ export const CoachXAssistant: React.FC<CoachXAssistantProps> = ({
                   <button
                     key={c.phone}
                     onClick={() => handleClientSelect(c.phone, c.name)}
-                    className="w-full py-2.5 px-3 text-sm rounded-xl bg-gray-700/80 hover:bg-violet-700/60 border border-white/10 hover:border-violet-500/50 text-gray-200 hover:text-white transition-colors text-left"
+                    className="w-full py-2.5 px-3 text-sm rounded-xl bg-gray-700/80 hover:bg-emerald-700/60 border border-white/10 hover:border-emerald-500/50 text-gray-200 hover:text-white transition-colors text-left"
                   >
                     <div className="flex items-center justify-between gap-2">
                       <span className="font-medium">{c.name}</span>
@@ -632,16 +632,16 @@ export const CoachXAssistant: React.FC<CoachXAssistantProps> = ({
           <div className="p-4">
             <div className="space-y-2 mb-4">
               <div className="flex items-center gap-2 text-sm text-gray-300">
-                <Calendar className="w-4 h-4 text-violet-400 flex-shrink-0" />
+                <Calendar className="w-4 h-4 text-emerald-400 flex-shrink-0" />
                 <span>{formatDateKo(booking.date)}</span>
               </div>
               <div className="flex items-center gap-2 text-sm text-gray-300">
-                <Clock className="w-4 h-4 text-violet-400 flex-shrink-0" />
+                <Clock className="w-4 h-4 text-emerald-400 flex-shrink-0" />
                 <span>{pad(booking.hour)}:00 ~ {pad(booking.hour + 1)}:00</span>
               </div>
               {booking.clientName && (
                 <div className="flex items-center gap-2 text-sm text-gray-300">
-                  <User className="w-4 h-4 text-violet-400 flex-shrink-0" />
+                  <User className="w-4 h-4 text-emerald-400 flex-shrink-0" />
                   <span>{booking.clientName}</span>
                 </div>
               )}
@@ -656,7 +656,7 @@ export const CoachXAssistant: React.FC<CoachXAssistantProps> = ({
               <button
                 onClick={handleConfirm}
                 disabled={isBookingLoading}
-                className="flex-1 py-2.5 text-sm rounded-xl bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white font-semibold transition-colors flex items-center justify-center gap-1.5"
+                className="flex-1 py-2.5 text-sm rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-semibold transition-colors flex items-center justify-center gap-1.5"
               >
                 {isBookingLoading ? (
                   <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -695,13 +695,13 @@ export const CoachXAssistant: React.FC<CoachXAssistantProps> = ({
         </button>
 
         <div className="relative w-8 h-8 flex items-center justify-center flex-shrink-0">
-          <div className="absolute inset-0 rounded-full bg-gradient-to-br from-violet-600 to-slate-700 coachx-assistant-pulse" />
+          <div className="absolute inset-0 rounded-full bg-gradient-to-br from-emerald-600 to-slate-700 coachx-assistant-pulse" />
           <Sparkles className="relative z-10 w-4 h-4 text-white" />
         </div>
 
         <div className="flex-1 min-w-0">
           <p className="font-bold text-sm text-white leading-none">CoachX AI</p>
-          <p className="text-xs text-violet-300 mt-0.5 truncate">레슨·타석 예약 & 코칭 어시스턴트</p>
+          <p className="text-xs text-emerald-300 mt-0.5 truncate">레슨·타석 예약 & 코칭 어시스턴트</p>
         </div>
 
         {/* Mode toggle */}
@@ -709,7 +709,7 @@ export const CoachXAssistant: React.FC<CoachXAssistantProps> = ({
           <button
             onClick={() => { setMode('chat'); stopSpeaking(); stopListening(); }}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-              mode === 'chat' ? 'bg-violet-600 text-white' : 'text-gray-400 hover:text-gray-200'
+              mode === 'chat' ? 'bg-emerald-600 text-white' : 'text-gray-400 hover:text-gray-200'
             }`}
           >
             <MessageSquare className="w-3.5 h-3.5" />
@@ -718,7 +718,7 @@ export const CoachXAssistant: React.FC<CoachXAssistantProps> = ({
           <button
             onClick={() => setMode('voice')}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-              mode === 'voice' ? 'bg-violet-600 text-white' : 'text-gray-400 hover:text-gray-200'
+              mode === 'voice' ? 'bg-emerald-600 text-white' : 'text-gray-400 hover:text-gray-200'
             }`}
           >
             <Mic className="w-3.5 h-3.5" />
@@ -737,7 +737,7 @@ export const CoachXAssistant: React.FC<CoachXAssistantProps> = ({
           return (
             <div key={msg.id} className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
               {msg.role === 'assistant' && (
-                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-violet-600 to-slate-700 flex items-center justify-center flex-shrink-0 mt-0.5">
+                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-600 to-slate-700 flex items-center justify-center flex-shrink-0 mt-0.5">
                   <Bot className="w-4 h-4 text-white" />
                 </div>
               )}
@@ -748,7 +748,7 @@ export const CoachXAssistant: React.FC<CoachXAssistantProps> = ({
               }`}>
                 {renderMarkdown(displayContent)}
                 {isRevealing && (
-                  <span className="coachx-assistant-cursor inline-block w-0.5 h-3.5 bg-violet-400 ml-0.5 align-text-bottom" />
+                  <span className="coachx-assistant-cursor inline-block w-0.5 h-3.5 bg-emerald-400 ml-0.5 align-text-bottom" />
                 )}
               </div>
             </div>
@@ -757,7 +757,7 @@ export const CoachXAssistant: React.FC<CoachXAssistantProps> = ({
 
         {isTyping && (
           <div className="flex gap-3 justify-start">
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-violet-600 to-slate-700 flex items-center justify-center flex-shrink-0">
+            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-600 to-slate-700 flex items-center justify-center flex-shrink-0">
               <Bot className="w-4 h-4 text-white" />
             </div>
             <div className="bg-gray-800 rounded-2xl rounded-bl-sm px-4 py-3">
@@ -765,7 +765,7 @@ export const CoachXAssistant: React.FC<CoachXAssistantProps> = ({
                 {[0, 1, 2].map(i => (
                   <div
                     key={i}
-                    className="w-2 h-2 rounded-full bg-violet-400"
+                    className="w-2 h-2 rounded-full bg-emerald-400"
                     style={{ animation: `coachx-assistant-bounce 1.2s ease-in-out ${i * 0.2}s infinite` }}
                   />
                 ))}
@@ -780,7 +780,7 @@ export const CoachXAssistant: React.FC<CoachXAssistantProps> = ({
             <p className="text-xs text-gray-500 px-1">빠른 실행</p>
             <div className="grid grid-cols-2 gap-2">
               {[
-                { key: 'lesson', icon: <CalendarCheck className="w-4 h-4" />, label: '레슨 예약', color: 'border-violet-500/40 text-violet-300' },
+                { key: 'lesson', icon: <CalendarCheck className="w-4 h-4" />, label: '레슨 예약', color: 'border-emerald-500/40 text-emerald-300' },
                 { key: 'bay', icon: <Layers className="w-4 h-4" />, label: '타석 예약', color: 'border-emerald-500/40 text-emerald-300' },
                 { key: 'insight', icon: <Sparkles className="w-4 h-4" />, label: '코칭 인사이트', color: 'border-amber-500/40 text-amber-300' },
                 { key: 'status', icon: <Calendar className="w-4 h-4" />, label: '예약 현황', color: 'border-blue-500/40 text-blue-300' },
@@ -824,13 +824,13 @@ export const CoachXAssistant: React.FC<CoachXAssistantProps> = ({
               onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void handleSend(); } }}
               placeholder="메시지를 입력하세요..."
               disabled={isTyping}
-              className="flex-1 bg-gray-800 border border-white/10 rounded-2xl px-4 py-3 text-sm text-white placeholder-gray-400 outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 transition-colors disabled:opacity-50"
+              className="flex-1 bg-gray-800 border border-white/10 rounded-2xl px-4 py-3 text-sm text-white placeholder-gray-400 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-colors disabled:opacity-50"
             />
             <button
               onClick={() => void handleSend()}
               disabled={!input.trim() || isTyping || revealedChars !== null}
               aria-label="전송"
-              className="w-11 h-11 rounded-full bg-violet-600 hover:bg-violet-500 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center transition-colors flex-shrink-0"
+              className="w-11 h-11 rounded-full bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center transition-colors flex-shrink-0"
             >
               <Send className="w-4 h-4 text-white" />
             </button>
@@ -842,7 +842,7 @@ export const CoachXAssistant: React.FC<CoachXAssistantProps> = ({
               className={`w-16 h-16 rounded-full flex items-center justify-center transition-all ${
                 isListening
                   ? 'bg-red-500 hover:bg-red-400 shadow-lg shadow-red-500/40 scale-110'
-                  : 'bg-violet-600 hover:bg-violet-500 shadow-lg shadow-violet-500/30'
+                  : 'bg-emerald-600 hover:bg-emerald-500 shadow-lg shadow-emerald-500/30'
               }`}
               aria-label={isListening ? '음성 인식 중지' : '음성 인식 시작'}
             >
@@ -856,7 +856,7 @@ export const CoachXAssistant: React.FC<CoachXAssistantProps> = ({
                 {[0, 1, 2, 3, 4].map(i => (
                   <div
                     key={i}
-                    className="w-1 rounded-full bg-violet-400"
+                    className="w-1 rounded-full bg-emerald-400"
                     style={{
                       height: `${12 + Math.random() * 16}px`,
                       animation: `coachx-assistant-wave 0.8s ease-in-out ${i * 0.1}s infinite alternate`,
