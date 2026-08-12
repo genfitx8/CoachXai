@@ -12,6 +12,7 @@ import { ClientBayReservation } from './ClientBayReservation';
 import { MyBayReservations } from './MyBayReservations';
 import { StudentReservationSummary } from './StudentReservationSummary';
 import { PracticeUploadFlow } from './PracticeUploadFlow';
+import { GolfPassportScreen } from './GolfPassportScreen';
 import { PointPurchase } from './PointPurchase';
 import { PaymentSuccess } from './PaymentSuccess';
 import { PaymentFail } from './PaymentFail';
@@ -82,7 +83,8 @@ type SubView =
   | 'PAYMENT_SUCCESS'
   | 'MEMBERSHIP_PAYMENT_SUCCESS'
   | 'PAYMENT_FAIL'
-  | 'SWING_ANALYSIS';
+  | 'SWING_ANALYSIS'
+  | 'GOLF_PASSPORT';
 
 export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons, onLogout, onUpdateLesson, onSaveNewRecord, onDeleteLesson, onUpdateProfile, onRefreshLessons }) => {
   const { t, language, setLanguage } = useLanguage();
@@ -431,6 +433,9 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
       case 'PROFILE':
         openProfileSection('OVERVIEW');
         break;
+      case 'GOLF_PASSPORT':
+        setSubView('GOLF_PASSPORT');
+        break;
       case 'MY_BAY_RESERVATIONS':
         setSubView('MY_BAY_RESERVATIONS');
         break;
@@ -637,6 +642,17 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
             />
           </main>
         </div>
+      )}
+
+      {effectiveSubView === 'GOLF_PASSPORT' && (
+        <GolfPassportScreen
+          clientProfile={clientProfile}
+          lessons={allMyLessons}
+          onBack={handleBackToTab}
+          // onStartHandover / onExportData intentionally omitted — the
+          // component renders them as "곧 제공" placeholders until 7a
+          // and the export flow land in follow-up PRs.
+        />
       )}
 
       {effectiveSubView === 'PROFILE' && (

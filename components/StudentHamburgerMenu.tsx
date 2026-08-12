@@ -1,13 +1,14 @@
 import React, { useEffect } from 'react';
 import {
   X, User, ClipboardList, Target, Crown, Briefcase,
-  Globe, Sparkles, Video, LogOut, ChevronRight, ScanLine,
+  Globe, Sparkles, Video, LogOut, ChevronRight, ScanLine, ShieldCheck,
 } from 'lucide-react';
 import { ClientProfile } from '../types';
 import { useLanguage } from './LanguageContext';
 
 export type HamburgerAction =
   | 'PROFILE'
+  | 'GOLF_PASSPORT'
   | 'MY_BAY_RESERVATIONS'
   | 'POINT_PURCHASE'
   | 'MEMBERSHIP_PURCHASE'
@@ -28,6 +29,7 @@ interface StudentHamburgerMenuProps {
 const labels = {
   ko: {
     profile: '내 정보',
+    passport: '골프 여권',
     myBay: '내 예약 내역',
     point: '포인트',
     membership: '멤버십',
@@ -41,6 +43,7 @@ const labels = {
   },
   en: {
     profile: 'My profile',
+    passport: 'Golf passport',
     myBay: 'My reservations',
     point: 'Points',
     membership: 'Membership',
@@ -54,6 +57,7 @@ const labels = {
   },
   ja: {
     profile: 'マイページ',
+    passport: 'ゴルフパスポート',
     myBay: '予約履歴',
     point: 'ポイント',
     membership: 'メンバーシップ',
@@ -130,6 +134,12 @@ export const StudentHamburgerMenu: React.FC<StudentHamburgerMenuProps> = ({
         <nav className="flex-1 overflow-y-auto py-4">
           <Section title={L.account}>
             <Row icon={User} label={L.profile} onClick={() => handle('PROFILE')} />
+            <Row
+              icon={ShieldCheck}
+              label={L.passport}
+              onClick={() => handle('GOLF_PASSPORT')}
+              accent="emerald"
+            />
             {!hideReservation && (
               <Row icon={ClipboardList} label={L.myBay} onClick={() => handle('MY_BAY_RESERVATIONS')} />
             )}
