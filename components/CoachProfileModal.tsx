@@ -58,18 +58,18 @@ export const CoachProfileModal: React.FC<CoachProfileModalProps> = ({
   if (subview === 'notifications' || subview === 'broadcast') {
     return (
       <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-fade-in">
-        <div className="bg-slate-900 text-slate-100 rounded-2xl w-full max-w-md overflow-hidden shadow-2xl border border-slate-700/80 max-h-[90vh] flex flex-col">
-          <div className="flex items-center justify-between px-4 py-3 border-b border-slate-700/80">
+        <div className="bg-base text-ink-high rounded-2xl w-full max-w-md overflow-hidden shadow-2xl border border-line-subtle max-h-[90vh] flex flex-col">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-line-subtle">
             <button
               onClick={() => setSubview('main')}
-              className="text-sm text-slate-300 hover:text-white"
+              className="text-sm text-ink-medium hover:text-white"
             >
               ← 뒤로
             </button>
             <div className="text-sm font-medium">
               {subview === 'notifications' ? '알림 설정' : '학생 전체 공지'}
             </div>
-            <button onClick={onClose} className="text-slate-400 hover:text-white">
+            <button onClick={onClose} className="text-ink-muted hover:text-white">
               <X className="w-5 h-5" />
             </button>
           </div>
@@ -91,12 +91,12 @@ export const CoachProfileModal: React.FC<CoachProfileModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-fade-in">
-        <div className="bg-slate-900 text-slate-100 rounded-2xl w-full max-w-sm overflow-hidden shadow-2xl border border-slate-700/80">
-            <div className="bg-gradient-to-br from-slate-800 via-slate-800 to-slate-900 p-6 text-white text-center relative border-b border-slate-700/80">
+        <div className="bg-base text-ink-high rounded-2xl w-full max-w-sm overflow-hidden shadow-2xl border border-line-subtle">
+            <div className="bg-gradient-to-br from-emerald-500/10 via-emerald-500/5 to-transparent p-6 text-ink-high text-center relative border-b border-line-subtle">
                 <button onClick={onClose} className="absolute top-4 right-4 text-white/80 hover:text-white">
                     <X className="w-5 h-5" />
                 </button>
-                <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-3 shadow-lg text-emerald-600 relative group">
+                <div className="w-20 h-20 bg-white/10 rounded-full flex items-center justify-center mx-auto mb-3 shadow-lg text-emerald-600 relative group">
                     <User className="w-10 h-10" />
                     {!isEditing && (
                         <button 
@@ -113,7 +113,7 @@ export const CoachProfileModal: React.FC<CoachProfileModalProps> = ({
                         type="text" 
                         value={editName}
                         onChange={(e) => setEditName(e.target.value)}
-                        className="bg-slate-700/80 border border-slate-500 text-white text-center font-bold text-xl rounded-xl px-2 py-1.5 w-full outline-none focus:ring-2 focus:ring-emerald-400"
+                        className="bg-white/[0.06] border border-line-subtle text-white text-center font-bold text-xl rounded-xl px-2 py-1.5 w-full outline-none focus:ring-2 focus:ring-emerald-400"
                     />
                 ) : (
                     <h2 className="text-xl font-bold">{coachProfile.name} 프로</h2>
@@ -123,38 +123,38 @@ export const CoachProfileModal: React.FC<CoachProfileModalProps> = ({
             
             <div className="p-6 space-y-4">
                 {/* Info Fields */}
-                <div className="flex items-center gap-3 p-3 bg-slate-800/80 rounded-xl border border-slate-700/70">
-                    <Mail className="w-5 h-5 text-slate-400" />
+                <div className="flex items-center gap-3 p-3 bg-white/[0.04] rounded-xl border border-line-subtle">
+                    <Mail className="w-5 h-5 text-ink-muted" />
                     <div className="flex-1">
-                        <p className="text-xs text-slate-500">이메일 (ID)</p>
-                        <p className="text-sm font-medium text-slate-100">{coachProfile.email}</p>
+                        <p className="text-xs text-ink-muted">이메일 (ID)</p>
+                        <p className="text-sm font-medium text-ink-high">{coachProfile.email}</p>
                     </div>
                 </div>
 
-                <div className="flex items-center gap-3 p-3 bg-slate-800/80 rounded-xl border border-slate-700/70">
-                    <Phone className="w-5 h-5 text-slate-400" />
+                <div className="flex items-center gap-3 p-3 bg-white/[0.04] rounded-xl border border-line-subtle">
+                    <Phone className="w-5 h-5 text-ink-muted" />
                     <div className="flex-1">
-                        <p className="text-xs text-slate-500">전화번호</p>
+                        <p className="text-xs text-ink-muted">전화번호</p>
                         {isEditing ? (
                             <input 
                                 type="tel" 
                                 value={editPhone}
                                 onChange={(e) => setEditPhone(e.target.value)}
-                                className="w-full bg-slate-900 border border-slate-600 rounded-xl px-2.5 py-1.5 text-sm text-slate-100 outline-none focus:ring-2 focus:ring-emerald-500"
+                                className="w-full bg-base border border-line-subtle rounded-xl px-2.5 py-1.5 text-sm text-ink-high outline-none focus:ring-2 focus:ring-emerald-500"
                                 placeholder="010-0000-0000"
                             />
                         ) : (
-                            <p className="text-sm font-medium text-slate-100">{coachProfile.phone || '-'}</p>
+                            <p className="text-sm font-medium text-ink-high">{coachProfile.phone || '-'}</p>
                         )}
                     </div>
                 </div>
 
-                <div className="flex items-center gap-3 p-3 bg-slate-800/80 rounded-xl border border-slate-700/70">
-                    <CreditCard className="w-5 h-5 text-slate-400" />
+                <div className="flex items-center gap-3 p-3 bg-white/[0.04] rounded-xl border border-line-subtle">
+                    <CreditCard className="w-5 h-5 text-ink-muted" />
                     <div className="flex-1">
-                        <p className="text-xs text-slate-500">구독 상태</p>
+                        <p className="text-xs text-ink-muted">구독 상태</p>
                         <div className="flex justify-between items-center">
-                            <p className={`text-sm font-bold ${coachProfile.isSubscribed ? 'text-emerald-300' : 'text-slate-400'}`}>
+                            <p className={`text-sm font-bold ${coachProfile.isSubscribed ? 'text-emerald-300' : 'text-ink-muted'}`}>
                                 {coachProfile.isSubscribed ? 'Premium Plan' : 'Free Plan'}
                             </p>
                             {coachProfile.isSubscribed && coachProfile.subscriptionEndDate && (
@@ -180,7 +180,7 @@ export const CoachProfileModal: React.FC<CoachProfileModalProps> = ({
                         <>
                             <Button
                                 onClick={onManageMembers}
-                                className="w-full bg-slate-800 text-slate-100 border border-slate-700 hover:bg-slate-700 shadow-sm"
+                                className="w-full bg-white/[0.05] text-ink-high border border-line-subtle hover:bg-white/[0.08] shadow-sm"
                             >
                                 <Users className="w-4 h-4 mr-2" /> 회원 목록 관리
                             </Button>
@@ -196,7 +196,7 @@ export const CoachProfileModal: React.FC<CoachProfileModalProps> = ({
 
                             <Button
                                 onClick={() => setSubview('notifications')}
-                                className="w-full bg-slate-800 text-slate-100 border border-slate-700 hover:bg-slate-700 shadow-sm"
+                                className="w-full bg-white/[0.05] text-ink-high border border-line-subtle hover:bg-white/[0.08] shadow-sm"
                             >
                                 <Bell className="w-4 h-4 mr-2" /> 알림 설정
                             </Button>
