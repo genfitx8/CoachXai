@@ -16,6 +16,7 @@ import {
 import { LessonCard } from './components/LessonCard';
 import { LessonDetail } from './components/LessonDetail';
 import { NewLessonForm } from './components/NewLessonForm';
+import { LiveLessonCompanion } from './components/LiveLessonCompanion';
 import { ClientApp } from './components/ClientApp';
 import { LessonUploadPage } from './components/LessonUploadPage';
 import { ImpactSelectionPage } from './components/ImpactSelectionPage';
@@ -99,6 +100,7 @@ import {
   Dumbbell,
   Home,
   Menu,
+  Mic,
 } from 'lucide-react';
 import { CoachBottomNav, CoachTab } from './components/CoachBottomNav';
 import { CoachHamburgerMenu, CoachHamburgerAction } from './components/CoachHamburgerMenu';
@@ -175,7 +177,7 @@ const AppContent: React.FC = () => {
   const [coachProfile, setCoachProfile] = useState<CoachProfile | null>(null);
 
   // View State (Coach)
-  const [coachView, setCoachView] = useState<ViewState | 'RESERVATIONS' | 'BAY_RESERVATION' | 'MY_BAY_RESERVATIONS' | 'COACHX_DASHBOARD' | 'LESSON_REVIEW' | 'STUDENT_DETAIL'>('LESSON_LIST');
+  const [coachView, setCoachView] = useState<ViewState | 'RESERVATIONS' | 'BAY_RESERVATION' | 'MY_BAY_RESERVATIONS' | 'COACHX_DASHBOARD' | 'LESSON_REVIEW' | 'STUDENT_DETAIL' | 'LIVE_LESSON'>('LESSON_LIST');
   const [selectedStudentForDetail, setSelectedStudentForDetail] = useState<ClientProfile | null>(null);
   const [hamburgerOpen, setHamburgerOpen] = useState(false);
   const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(null);
@@ -2038,6 +2040,17 @@ const AppContent: React.FC = () => {
 
                   {selectedClientFilter && (
                     <button
+                      onClick={() => setCoachView('LIVE_LESSON')}
+                      className="px-3 sm:px-4 py-2.5 bg-emerald-500/15 text-emerald-200 border border-emerald-400/40 rounded-xl hover:bg-emerald-500/25 transition-colors flex items-center gap-2 font-medium whitespace-nowrap flex-shrink-0"
+                      title="레슨 중 동반 모드"
+                    >
+                      <Mic className="w-4 h-4" />
+                      레슨 중 동반
+                    </button>
+                  )}
+
+                  {selectedClientFilter && (
+                    <button
                       onClick={() => setSelectedClientFilter('')}
                       className="text-sm text-slate-400 hover:text-red-400 flex items-center gap-1 px-3 py-1.5 rounded-xl hover:bg-red-500/10 transition-colors whitespace-nowrap flex-shrink-0"
                     >
@@ -2170,6 +2183,38 @@ const AppContent: React.FC = () => {
               };
               setSelectedLesson(rolled);
               await handleUpdateLesson(rolled);
+            }}
+          />
+        )}
+
+        {coachView === 'LIVE_LESSON' && selectedClientFilter && (
+          <LiveLessonCompanion
+            studentName={selectedClientFilter}
+            lessonDate={new Date().toISOString().slice(0, 10)}
+            onCancel={() => setCoachView('LESSON_LIST')}
+            onFinish={(clips) => {
+              // 3c 라우팅 배선 (MVP): 캡처된 clip 수를 코치에게 알리고
+              // 해당 학생을 prefill한 새 레슨 기록 화면으로 이동한다.
+              // 실제 clip → NewLessonForm attachment prop-drilling은
+              // 후속 세션에서 진행 (NewLessonForm 첨부 파이프라인 확장 필요).
+              const matchedClient =
+                clients.find((c) => c.name === selectedClientFilter) ?? {
+                  name: selectedClientFilter,
+                  phone: '',
+                  coachId:
+                    currentUser && 'id' in currentUser
+                      ? currentUser.id
+                      : undefined,
+                };
+              if (clips.length > 0) {
+                alert(
+                  `${clips.length}건 캡처됨.\n새 레슨 기록에서 첨부해 주세요.`
+                );
+              }
+              setIsEditingLesson(false);
+              setSelectedLesson(null);
+              setPrefilledSuggestionClient(matchedClient);
+              setCoachView('NEW');
             }}
           />
         )}
