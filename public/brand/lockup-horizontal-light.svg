@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 40" role="img" aria-label="CoachX">
+  <g>
+    <line x1="8" y1="8" x2="32" y2="32" stroke="#14171A" stroke-width="3.4" stroke-linecap="round"/>
+    <line x1="32" y1="8" x2="8" y2="32" stroke="#10B981" stroke-width="3.4" stroke-linecap="round"/>
+  </g>
+  <text x="52" y="28"
+        font-family="'Space Grotesk', system-ui, sans-serif"
+        font-size="30" font-weight="500" letter-spacing="-0.75"
+        fill="#14171A">Coach<tspan font-weight="700">X</tspan></text>
+</svg>

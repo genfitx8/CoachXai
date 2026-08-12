@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" role="img" aria-label="CoachX Coach">
+  <rect width="192" height="192" rx="42" fill="#080C0A"/>
+  <g transform="translate(48,48) scale(2.4)">
+    <line x1="8" y1="8" x2="32" y2="32" stroke="#F3F5F4" stroke-width="3.8" stroke-linecap="round"/>
+    <line x1="32" y1="8" x2="8" y2="32" stroke="#10B981" stroke-width="3.8" stroke-linecap="round"/>
+  </g>
+</svg>

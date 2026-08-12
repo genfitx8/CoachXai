@@ -8,6 +8,7 @@ import { useTypingReveal } from '../hooks/useTypingReveal';
 import { useTextToSpeech } from '../hooks/useTextToSpeech';
 import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
 import { renderMarkdown } from '../utils/renderMarkdown';
+import { CoachXMark, CoachXMarkLive } from './ui';
 
 export interface TodayLessonSummary {
   id: string;
@@ -148,11 +149,7 @@ export const CoachAIHome: React.FC<CoachAIHomeProps> = ({
       {/* Header */}
       <div className="relative z-10 flex items-center justify-between border-b border-white/8 bg-[#030407]/80 px-4 py-3 backdrop-blur-md">
         <div className="flex items-center gap-2.5">
-          <div className="flex h-8 w-8 items-center justify-center rounded-full border border-cyan-300/30 bg-cyan-500/10">
-            <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4 text-cyan-300" stroke="currentColor" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
-            </svg>
-          </div>
+          <CoachXMarkLive size={22} tone="dark" active={isTyping} />
           <div>
             <p className="text-sm font-semibold text-white">CoachX AI</p>
             <p className="text-[10px] text-white/40">
@@ -244,10 +241,8 @@ export const CoachAIHome: React.FC<CoachAIHomeProps> = ({
                 className={`flex animate-fade-in-up ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
               >
                 {msg.role === 'assistant' && (
-                  <div className="mr-2 mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-cyan-300/25 bg-cyan-500/10">
-                    <svg viewBox="0 0 24 24" fill="none" className="h-3.5 w-3.5 text-cyan-300" stroke="currentColor" strokeWidth={1.5}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
-                    </svg>
+                  <div className="mr-2 mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center">
+                    <CoachXMark size={18} tone="dark" />
                   </div>
                 )}
                 <div
@@ -269,10 +264,8 @@ export const CoachAIHome: React.FC<CoachAIHomeProps> = ({
           {/* Typing indicator */}
           {isTyping && (
             <div className="flex animate-fade-in justify-start">
-              <div className="mr-2 mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-cyan-300/25 bg-cyan-500/10">
-                <svg viewBox="0 0 24 24" fill="none" className="h-3.5 w-3.5 text-cyan-300" stroke="currentColor" strokeWidth={1.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
-                </svg>
+              <div className="mr-2 mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center">
+                <CoachXMarkLive size={18} tone="dark" active />
               </div>
               <div className="rounded-2xl rounded-tl-sm border border-white/8 bg-white/6 px-4 py-3">
                 <div className="flex gap-1 items-center">

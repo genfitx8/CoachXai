@@ -3,6 +3,9 @@ export default {
   content: ['./index.html', './**/*.{js,ts,jsx,tsx}'],
   theme: {
     extend: {
+      fontFamily: {
+        brand: ['Space Grotesk', 'system-ui', 'sans-serif'],
+      },
       colors: {
         // ─── Brand: deep emerald, tuned for AA contrast on dark surfaces ────
         primary: {
