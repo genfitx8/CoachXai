@@ -89,6 +89,17 @@ interface TrajectoryOverlay {
   color: string;
 }
 
+interface HandPathOverlay {
+  /** Full grip trajectory across the analyzed swing (address → finish). */
+  points: Array<{ x: number; y: number; t: number }>;
+  /**
+   * If provided, only draw points at or before this timestamp — so the
+   * arc "grows" as the video scrubs forward. Undefined = draw the whole
+   * path (used on event snapshots).
+   */
+  upToT?: number;
+}
+
 function drawKeypoints(
   canvas: HTMLCanvasElement,
   bg: HTMLVideoElement | HTMLImageElement | null,
@@ -98,6 +109,7 @@ function drawKeypoints(
   trajectory?: TrajectoryOverlay,
   centerlineX?: number,
   wristArc?: Array<{ x: number; y: number }>,
+  handPath?: HandPathOverlay,
 ) {
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
@@ -298,6 +310,48 @@ function drawKeypoints(
     }
     ctx.restore();
   }
+  // Full-swing grip trajectory — the "club head arc" proxy. Progressive
+  // rendering: on playback we truncate to the frames before the current
+  // video time so the trail grows in sync with the swing; on snapshots we
+  // draw the whole thing (upToT === undefined).
+  if (handPath && handPath.points.length >= 2) {
+    const cutoff = handPath.upToT;
+    const pts = cutoff == null
+      ? handPath.points
+      : handPath.points.filter((p) => p.t <= cutoff);
+    if (pts.length >= 2) {
+      ctx.save();
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      // Black underlay so the arc reads over grass, mats, or bright kits.
+      ctx.strokeStyle = 'rgba(0, 0, 0, 0.7)';
+      ctx.lineWidth = 6;
+      ctx.beginPath();
+      ctx.moveTo(pts[0].x * canvas.width, pts[0].y * canvas.height);
+      for (let i = 1; i < pts.length; i++) {
+        ctx.lineTo(pts[i].x * canvas.width, pts[i].y * canvas.height);
+      }
+      ctx.stroke();
+      // Yellow fill — reads as "club head trail" and pops against skin /
+      // clothing more consistently than red or cyan.
+      ctx.strokeStyle = '#fde047'; // yellow-300
+      ctx.lineWidth = 3;
+      ctx.stroke();
+      // Head dot at the leading edge so the eye locks onto "where the club
+      // is right now" while playing.
+      const head = pts[pts.length - 1];
+      const hx = head.x * canvas.width;
+      const hy = head.y * canvas.height;
+      ctx.fillStyle = '#facc15';
+      ctx.beginPath();
+      ctx.arc(hx, hy, 5, 0, 2 * Math.PI);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(0, 0, 0, 0.7)';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
   if (clubHead) {
     const cx = clubHead.x * canvas.width;
     const cy = clubHead.y * canvas.height;
@@ -335,6 +389,8 @@ interface EventSnapshotProps {
   cameraView?: CameraView;
   centerlineX?: number;
   wristArc?: Array<{ x: number; y: number }>;
+  /** Full-swing hand path, drawn up to this event's timestamp. */
+  handPath?: Array<{ x: number; y: number; t: number }>;
 }
 
 const EventSnapshot: React.FC<EventSnapshotProps> = ({
@@ -347,6 +403,7 @@ const EventSnapshot: React.FC<EventSnapshotProps> = ({
   cameraView,
   centerlineX,
   wristArc,
+  handPath,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -359,7 +416,20 @@ const EventSnapshot: React.FC<EventSnapshotProps> = ({
     video.playsInline = true;
     video.crossOrigin = 'anonymous';
     const onSeeked = () => {
-      drawKeypoints(canvas, video, frame.keypoints, overlay, clubHead, trajectory, centerlineX, wristArc);
+      const handPathOverlay = handPath
+        ? { points: handPath, upToT: event.t }
+        : undefined;
+      drawKeypoints(
+        canvas,
+        video,
+        frame.keypoints,
+        overlay,
+        clubHead,
+        trajectory,
+        centerlineX,
+        wristArc,
+        handPathOverlay,
+      );
       video.removeEventListener('seeked', onSeeked);
       video.src = '';
     };
@@ -371,7 +441,7 @@ const EventSnapshot: React.FC<EventSnapshotProps> = ({
       video.removeEventListener('seeked', onSeeked);
       video.src = '';
     };
-  }, [event, frame, videoUrl, overlay, clubHead, trajectory, centerlineX, wristArc]);
+  }, [event, frame, videoUrl, overlay, clubHead, trajectory, centerlineX, wristArc, handPath]);
 
   if (!event || !frame) {
     return (
@@ -802,6 +872,12 @@ const PlaybackSection: React.FC<{ analysis: SwingAnalysis }> = ({ analysis }) =>
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [currentT, setCurrentT] = useState(0);
+  // Default the club/hand trail on when the path exists — it's the whole
+  // point of the section for most coaches — but let them hide it if it
+  // clutters a busy background.
+  const [showHandPath, setShowHandPath] = useState<boolean>(
+    !!analysis.summary.handPath2D,
+  );
 
   useEffect(() => {
     const video = videoRef.current;
@@ -830,6 +906,10 @@ const PlaybackSection: React.FC<{ analysis: SwingAnalysis }> = ({ analysis }) =>
         canvas.width = video.videoWidth || 640;
         canvas.height = video.videoHeight || 360;
       }
+      const handPathOverlay =
+        showHandPath && analysis.summary.handPath2D
+          ? { points: analysis.summary.handPath2D, upToT: t }
+          : undefined;
       drawKeypoints(
         canvas,
         null,
@@ -838,6 +918,8 @@ const PlaybackSection: React.FC<{ analysis: SwingAnalysis }> = ({ analysis }) =>
         undefined,
         undefined,
         analysis.summary.bodyCenterlineX,
+        undefined,
+        handPathOverlay,
       );
       raf = requestAnimationFrame(render);
     };
@@ -851,7 +933,9 @@ const PlaybackSection: React.FC<{ analysis: SwingAnalysis }> = ({ analysis }) =>
       video.removeEventListener('timeupdate', onTime);
       video.removeEventListener('seeked', onTime);
     };
-  }, [analysis]);
+    // showHandPath is captured by the render closure; re-init the loop when
+    // it toggles so the arc appears / disappears immediately.
+  }, [analysis, showHandPath]);
 
   const seekTo = (t: number) => {
     const video = videoRef.current;
@@ -931,6 +1015,23 @@ const PlaybackSection: React.FC<{ analysis: SwingAnalysis }> = ({ analysis }) =>
           >
             1프레임 ▶
           </button>
+          {analysis.summary.handPath2D && (
+            <>
+              <span className="text-slate-700 mx-1">|</span>
+              <button
+                type="button"
+                onClick={() => setShowHandPath((v) => !v)}
+                className={`text-[11px] px-2 py-1 rounded border font-semibold transition-colors ${
+                  showHandPath
+                    ? 'border-yellow-500 bg-yellow-900/40 text-yellow-100'
+                    : 'border-slate-700 bg-slate-800 text-slate-300 hover:bg-slate-700'
+                }`}
+                title="양손 중점 기반 스윙 궤도 (클럽 헤드 궤도 근사)"
+              >
+                {showHandPath ? '● 클럽 궤도' : '○ 클럽 궤도'}
+              </button>
+            </>
+          )}
           <span className="ml-auto text-[11px] text-slate-400 font-mono">
             t = {currentT.toFixed(2)}s
           </span>
@@ -2405,6 +2506,7 @@ export const SwingVideoAnalysis: React.FC<SwingVideoAnalysisProps> = ({
                     cameraView={analysis.summary.cameraView}
                     centerlineX={analysis.summary.bodyCenterlineX}
                     wristArc={name === 'impact' ? analysis.summary.downswingWristArc2D : undefined}
+                    handPath={analysis.summary.handPath2D}
                   />
                 );
               })}

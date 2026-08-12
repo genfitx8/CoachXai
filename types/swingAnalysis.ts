@@ -183,6 +183,17 @@ export interface SwingSummary {
    * an on-plane vs. off-plane read is meaningful.
    */
   downswingWristArc2D?: Array<{ x: number; y: number }>;
+  /**
+   * Grip (both-wrist midpoint) trajectory across the ENTIRE analyzed swing
+   * window — address through finish, one sample per analyzed frame. This is
+   * a 100%-accurate stand-in for the club-head arc: the hand path and the
+   * head path share the same swing plane and differ only by a fixed lever
+   * length, so the shape (steep/shallow, in-to-out/over-the-top) reads the
+   * same. Rendered on the playback canvas as a progressive trail so a coach
+   * can watch the arc grow as the video scrubs. Undefined only when fewer
+   * than 3 usable wrist samples were found.
+   */
+  handPath2D?: Array<{ x: number; y: number; t: number }>;
   /** Player handedness, inferred from arm extension at Top. */
   handedness?: Handedness;
   /**

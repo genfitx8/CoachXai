@@ -1555,7 +1555,61 @@ function buildSummary(
     );
     if (kinetic) summary.kineticSequence = kinetic;
   }
+  // Full-swing grip path — accurate stand-in for the club-head arc (same
+  // plane, differs only by shaft length). Sample the midpoint of both
+  // wrists across every frame between the address and the finish (or the
+  // full array if either event is missing). Skip frames where either wrist
+  // confidence dips below 0.3 so the polyline doesn't ping-pong through a
+  // dropout.
+  const pathStart = events.address?.frameIndex ?? 0;
+  const pathEnd = events.finish?.frameIndex ?? frames.length - 1;
+  if (pathEnd - pathStart >= 2) {
+    const { leadWrist: leadIdx, trailWrist: trailIdx } = leadTrailWristIndices(
+      handedness,
+    );
+    const path: Array<{ x: number; y: number; t: number }> = [];
+    for (let i = pathStart; i <= pathEnd; i++) {
+      const kps = frames[i]?.keypoints;
+      if (!kps) continue;
+      const lw = kps[leadIdx];
+      const tw = kps[trailIdx];
+      // Prefer the midpoint when both are visible; fall back to either alone
+      // (a coach filming with a phone on a tripod often loses one hand behind
+      // the body at the top, and skipping the frame breaks the trail there).
+      let x: number | undefined;
+      let y: number | undefined;
+      if (lw && tw && lw.confidence >= 0.3 && tw.confidence >= 0.3) {
+        x = (lw.x + tw.x) / 2;
+        y = (lw.y + tw.y) / 2;
+      } else if (lw && lw.confidence >= 0.3) {
+        x = lw.x;
+        y = lw.y;
+      } else if (tw && tw.confidence >= 0.3) {
+        x = tw.x;
+        y = tw.y;
+      }
+      if (x == null || y == null) continue;
+      path.push({ x: +x.toFixed(4), y: +y.toFixed(4), t: frames[i].t });
+    }
+    if (path.length >= 3) summary.handPath2D = path;
+  }
   return summary;
+}
+
+/**
+ * Lead/trail wrist landmark indices for the given handedness. Right-handed
+ * setup: left wrist (15) leads, right wrist (16) trails. Mirrored for
+ * left-handed and unknown handedness (we default to right).
+ */
+function leadTrailWristIndices(handedness: Handedness): {
+  leadWrist: number;
+  trailWrist: number;
+} {
+  const isLeft = handedness === 'left';
+  return {
+    leadWrist: isLeft ? 16 : 15,
+    trailWrist: isLeft ? 15 : 16,
+  };
 }
 
 export interface AnalyzeSwingOptions {
