@@ -82,6 +82,43 @@ export type LessonBodyType =
 
 export type LessonSwingType = '지렛대형' | '아크형' | '넓이형';
 
+/**
+ * Structured lesson record shown on the coach's 승인 (review) screen
+ * (redesign screen `8b`). The agent drafts these fields from lesson audio
+ * and video; the coach edits any of them in place and hits 승인 to release
+ * to the student. Every field is a plain string so the coach can freely
+ * rewrite without a rigid rich-text schema; `attachments` and
+ * `nextActions` are the two arrays that carry structure the UI leans on.
+ */
+export interface LessonReviewSections {
+  /** "오늘 다룬 것" — one paragraph the agent distils from the transcript. */
+  todayCovered?: string;
+  /** "피드백" — the coach's diagnosis, agent-drafted. */
+  feedback?: string;
+  /**
+   * "다음 액션" — the concrete drills / homework the coach wants the
+   * student to do before the next lesson. Rendered as an emerald card
+   * in the review UI (redesign spec). Kept as an ordered list so the
+   * student sees them in priority order.
+   */
+  nextActions?: string[];
+  /**
+   * "첨부" — clips / screenshots the agent lifted from the swing video.
+   * Shown only when non-empty. Points to lesson.additionalMedia entries
+   * by MediaItem.id so the review screen doesn't duplicate the payload.
+   */
+  attachmentIds?: string[];
+  /**
+   * "자유 메모" — coach adds anything the structured sections don't
+   * cover. Optional; the redesign notes coaches often leave this blank.
+   */
+  freeMemo?: string;
+  /** ISO timestamp of the last edit to any section (autosave marker). */
+  updatedAt?: number;
+  /** Section keys the coach touched this session (used for the 수정됨 label). */
+  editedSections?: Array<'todayCovered' | 'feedback' | 'nextActions' | 'freeMemo'>;
+}
+
 export interface LessonStructuralMetricInput {
   frontAxisTiltDeg?: number;
   headTiltDeg?: number;
@@ -162,6 +199,30 @@ export interface Lesson {
   /** 1-based session number within the lesson package. Always set together with `lessonPackageId`. */
   sessionNumber?: number;
   motionCaptureData?: MotionCaptureData;
+  /**
+   * Structured record sections the coach reviews before releasing to the
+   * student (redesign screen `8b`). Populated by the agent when it drafts
+   * a record from lesson audio + video; rendered as in-place-editable
+   * blocks so the coach can adjust each independently. Optional so
+   * legacy lessons that predate the review flow render as before.
+   */
+  reviewSections?: LessonReviewSections;
+  /**
+   * Review workflow state:
+   * - 'draft':    agent-authored, not visible to student yet
+   * - 'approved': coach explicitly approved; visible to student
+   * When absent, the lesson is treated as legacy (visible to student
+   * without an approval step, matching pre-8b behaviour).
+   */
+  approvalStatus?: 'draft' | 'approved';
+  /** Wall-clock ms when the coach hit 승인 — anchors the 5-min undo window. */
+  approvedAt?: number;
+  /**
+   * Whether the coach chose to also share the approved record with the
+   * student in their app. Defaults true (matches the review UI toggle);
+   * a coach can approve without sharing (private archive).
+   */
+  sharedToStudent?: boolean;
   /**
    * Data ownership tier (#309): 'student' | 'shared' | 'coach'. Lessons
    * default to 'shared' — the student keeps read access on handover, the

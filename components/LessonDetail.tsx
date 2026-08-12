@@ -31,6 +31,13 @@ interface LessonDetailProps {
   onDelete?: () => void;
   onEdit?: (lesson: Lesson) => void; // Added for full editing
   onRecordAnotherLesson?: () => void; // Start a new lesson record for the same member
+  /**
+   * Open the coach-only structured review (redesign screen 8b). Shown as
+   * a top-right "검토" button when set and the current viewer is a coach.
+   * The button label switches to "학생 발송됨" once approvalStatus flips
+   * to 'approved' so it's clear the lesson is already released.
+   */
+  onOpenReview?: () => void;
 }
 
 const SEQUENCE_LABELS = [
@@ -62,7 +69,7 @@ export async function persistAdditionalMediaSourceForOffline(params: {
   }
 }
 
-export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons = [], role = 'COACH', onBack, onUpdate, onDelete, onEdit, onRecordAnotherLesson }) => {
+export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons = [], role = 'COACH', onBack, onUpdate, onDelete, onEdit, onRecordAnotherLesson, onOpenReview }) => {
   const { t } = useLanguage();
   // resolvedMainUrl is always null on mount; the IDB effect below resolves it.
   // Using null here avoids a double-blob-URL problem: if resolveSync() were
@@ -1184,7 +1191,20 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
           <ArrowLeft className="w-5 h-5" />
         </button>
         <h2 className="text-base sm:text-lg font-bold truncate flex-1 min-w-0 text-center px-2">{lesson.title}</h2>
-        <div className="w-11 flex justify-end">
+        <div className="flex justify-end items-center gap-1">
+            {canEdit && onOpenReview && (
+                <button
+                    onClick={onOpenReview}
+                    className={`px-3 py-2 rounded-full text-xs font-bold transition-all duration-200 hover:scale-105 transform min-h-[36px] flex items-center gap-1 border ${
+                      lesson.approvalStatus === 'approved'
+                        ? 'bg-emerald-500/20 border-emerald-400/50 text-emerald-100'
+                        : 'bg-emerald-500 border-emerald-400 text-[#04150e]'
+                    }`}
+                    title={lesson.approvalStatus === 'approved' ? '학생에게 전달됨 (다시 열기)' : '기록 검토 · 승인'}
+                >
+                    {lesson.approvalStatus === 'approved' ? '학생 발송됨' : '검토'}
+                </button>
+            )}
             {canEdit && onEdit && (
                 <button
                     onClick={() => onEdit(lesson)}

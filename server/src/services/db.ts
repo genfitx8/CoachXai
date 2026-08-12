@@ -170,6 +170,15 @@ export async function initDb(): Promise<void> {
     // survives when coach_id is reassigned (or set NULL after a coach
     // account is closed but the student keeps their lesson history).
     "ALTER TABLE lessons ADD COLUMN IF NOT EXISTS original_coach_id UUID",
+    // ─── Review workflow (redesign screen 8b) ─────────────────────────────
+    // approval_status governs student visibility: 'draft' lessons are
+    // coach-only; only 'approved' rows show up in student queries. NULL
+    // keeps legacy pre-8b lessons visible as before, so this migration
+    // never hides existing data.
+    "ALTER TABLE lessons ADD COLUMN IF NOT EXISTS approval_status VARCHAR(20)",
+    "ALTER TABLE lessons ADD COLUMN IF NOT EXISTS approved_at BIGINT",
+    "ALTER TABLE lessons ADD COLUMN IF NOT EXISTS shared_to_student BOOLEAN",
+    "ALTER TABLE lessons ADD COLUMN IF NOT EXISTS review_sections JSONB",
   ];
   for (const sql of lessonAlters) {
     await pool.query(sql);
