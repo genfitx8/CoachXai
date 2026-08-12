@@ -11,3 +11,6 @@ export type { BadgeTone, BadgeSize } from './Badge';
 
 export { BackButton } from './BackButton';
 export type { BackButtonTone } from './BackButton';
+
+export { CoachXMark, CoachXLogo, CoachXMarkLive } from './CoachXLogo';
+export type { LogoTone } from './CoachXLogo';
