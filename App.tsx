@@ -64,6 +64,7 @@ import { CoachXChat } from './components/CoachXChat';
 import { CoachAIHome, type TodayLessonSummary } from './components/CoachAIHome';
 import { LessonReviewScreen } from './components/LessonReviewScreen';
 import { CoachXAssistant } from './components/CoachXAssistant';
+import { CoachXMark } from './components/ui';
 import { buildMemberGrowthReports } from './services/coachXService';
 import { DIAGNOSIS_FACTORS, DIAGNOSIS_PROCESS } from './constants/diagnosis';
 import { diagnosisService } from './services/diagnosisService';
@@ -1821,7 +1822,9 @@ const AppContent: React.FC = () => {
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#05070A]">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-400"></div>
+        <div className="animate-pulse-soft" style={{ filter: 'drop-shadow(0 0 12px rgba(16,185,129,0.55))' }}>
+          <CoachXMark size={64} tone="dark" />
+        </div>
       </div>
     );
   }
