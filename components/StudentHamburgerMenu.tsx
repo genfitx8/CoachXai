@@ -109,21 +109,21 @@ export const StudentHamburgerMenu: React.FC<StudentHamburgerMenuProps> = ({
       />
 
       {/* Drawer */}
-      <aside className="absolute left-0 top-0 h-full w-[86%] max-w-sm bg-[#0A0F1A] border-r border-slate-800 shadow-2xl flex flex-col animate-slide-in-left">
+      <aside className="absolute left-0 top-0 h-full w-[86%] max-w-sm bg-base border-r border-line-subtle shadow-2xl flex flex-col animate-slide-in-left">
         {/* Header */}
-        <div className="px-5 py-5 border-b border-slate-800 flex items-center gap-3">
+        <div className="px-5 py-5 border-b border-line-subtle flex items-center gap-3">
           <div className="bg-gradient-to-br from-emerald-500/30 to-emerald-500/20 p-2.5 rounded-full text-emerald-100 border border-emerald-300/20">
             <User className="w-5 h-5" />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="font-bold text-slate-100 truncate">{clientProfile.name}</p>
-            <p className="text-xs text-slate-400 truncate">
+            <p className="font-bold text-ink-high truncate">{clientProfile.name}</p>
+            <p className="text-xs text-ink-muted truncate">
               {clientProfile.designatedCoach ? `Coach · ${clientProfile.designatedCoach}` : clientProfile.phone}
             </p>
           </div>
           <button
             onClick={onClose}
-            className="p-2 text-slate-400 hover:text-slate-100 rounded-lg hover:bg-slate-800 transition-colors"
+            className="p-2 text-ink-muted hover:text-ink-high rounded-lg hover:bg-white/[0.08] transition-colors"
             aria-label="Close menu"
           >
             <X className="w-5 h-5" />
@@ -160,10 +160,10 @@ export const StudentHamburgerMenu: React.FC<StudentHamburgerMenuProps> = ({
         </nav>
 
         {/* Footer */}
-        <div className="border-t border-slate-800 px-3 py-3">
+        <div className="border-t border-line-subtle px-3 py-3">
           <button
             onClick={() => handle('LOGOUT')}
-            className="w-full flex items-center gap-3 px-3 py-3 rounded-xl text-slate-300 hover:text-red-300 hover:bg-red-500/10 transition-colors"
+            className="w-full flex items-center gap-3 px-3 py-3 rounded-xl text-ink-medium hover:text-red-300 hover:bg-red-500/10 transition-colors"
           >
             <LogOut className="w-4 h-4" />
             <span className="text-sm font-semibold">{L.logout}</span>
@@ -188,7 +188,7 @@ export const StudentHamburgerMenu: React.FC<StudentHamburgerMenuProps> = ({
 
 const Section: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
   <div className="mb-2 px-2">
-    <p className="px-3 text-[10px] font-bold uppercase tracking-wider text-slate-500 mt-3 mb-1.5">
+    <p className="px-3 text-[10px] font-bold uppercase tracking-wider text-ink-muted mt-3 mb-1.5">
       {title}
     </p>
     <div className="space-y-0.5">{children}</div>
@@ -210,18 +210,18 @@ const Row: React.FC<{
   onClick: () => void;
   accent?: Accent;
 }> = ({ icon: Icon, label, onClick, accent }) => {
-  const tones = accent ? accentToClasses[accent] : { icon: 'text-slate-300', bg: 'bg-slate-800 border-slate-700' };
+  const tones = accent ? accentToClasses[accent] : { icon: 'text-ink-medium', bg: 'bg-white/5 border-line-subtle' };
   return (
     <button
       type="button"
       onClick={onClick}
-      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-slate-800/70 transition-colors group"
+      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-white/[0.06] transition-colors group"
     >
       <div className={`w-8 h-8 rounded-lg border flex items-center justify-center ${tones.bg}`}>
         <Icon className={`w-4 h-4 ${tones.icon}`} />
       </div>
-      <span className="flex-1 text-left text-sm font-semibold text-slate-100">{label}</span>
-      <ChevronRight className="w-4 h-4 text-slate-500 group-hover:text-slate-300 transition-colors" />
+      <span className="flex-1 text-left text-sm font-semibold text-ink-high">{label}</span>
+      <ChevronRight className="w-4 h-4 text-ink-muted group-hover:text-ink-medium transition-colors" />
     </button>
   );
 };
