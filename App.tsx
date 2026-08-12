@@ -2360,6 +2360,16 @@ const AppContent: React.FC = () => {
             clients={clients}
             todayLessons={buildTodayLessonSummaries(allCoachLessons)}
             onNavigateToDashboard={() => setCoachView('COACHX_DASHBOARD')}
+            onInviteStudents={() => {
+              setAutoOpenAddMemberFromLessonStart(true);
+              setCoachView('CLIENTS');
+            }}
+            onRecordFirstLesson={() => {
+              setIsEditingLesson(false);
+              setSelectedLesson(null);
+              setCoachView('NEW');
+            }}
+            onOpenProfile={() => setShowProfileModal(true)}
           />
         )}
 
