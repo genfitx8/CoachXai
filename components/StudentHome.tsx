@@ -97,7 +97,7 @@ export const StudentHome: React.FC<StudentHomeProps> = ({
         type="button"
         onClick={onOpenMenu}
         aria-label="Open menu"
-        className="p-2 rounded-lg text-slate-200 hover:bg-white/10 transition-colors"
+        className="p-2 rounded-lg text-ink-high hover:bg-white/10 transition-colors"
       >
         <Menu className="w-5 h-5" />
       </button>
@@ -106,7 +106,7 @@ export const StudentHome: React.FC<StudentHomeProps> = ({
           type="button"
           onClick={onOpenNotifications}
           aria-label="Notifications"
-          className="relative p-2 rounded-lg text-slate-200 hover:bg-white/10 transition-colors"
+          className="relative p-2 rounded-lg text-ink-high hover:bg-white/10 transition-colors"
         >
           <Bell className="w-5 h-5" />
           {unreadNotifications > 0 && (

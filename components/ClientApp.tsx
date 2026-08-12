@@ -480,17 +480,17 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
   // Small shell used by non-HOME tabs to provide a top bar with the hamburger
   // button. HOME tab reuses StudentAIChat's own header via headerLeftSlot.
   const TabHeader: React.FC<{ title: string; right?: React.ReactNode }> = ({ title, right }) => (
-    <header className="bg-[#0A0F1A]/95 border-b border-slate-800 sticky top-0 z-30 backdrop-blur-xl">
+    <header className="bg-base/95 border-b border-line-subtle sticky top-0 z-30 backdrop-blur-xl">
       <div className="max-w-md mx-auto px-3 h-14 flex items-center gap-2">
         <button
           type="button"
           onClick={() => setHamburgerOpen(true)}
           aria-label="Open menu"
-          className="p-2 rounded-lg text-slate-200 hover:bg-white/10 transition-colors"
+          className="p-2 rounded-lg text-ink-high hover:bg-white/10 transition-colors"
         >
           <Menu className="w-5 h-5" />
         </button>
-        <h1 className="text-base font-bold text-slate-100 truncate">{title}</h1>
+        <h1 className="text-base font-bold text-ink-high truncate">{title}</h1>
         {right && <div className="ml-auto">{right}</div>}
       </div>
     </header>
@@ -554,7 +554,7 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
         HIDE_RESERVATION_FEATURES ? (
           <div>
             <TabHeader title={reservationTabTitle} />
-            <main className="max-w-md mx-auto px-4 py-10 text-center text-slate-400 text-sm">
+            <main className="max-w-md mx-auto px-4 py-10 text-center text-ink-muted text-sm">
               {language === 'en' ? 'Reservations are disabled for this build.'
                 : language === 'ja' ? 'この環境では予約機能が無効です。'
                 : '이 환경에서는 예약 기능이 비활성화되어 있어요.'}
@@ -679,21 +679,21 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
               <div className="flex items-center gap-3 pb-2">
                 <BackButton onClick={handleBackToTab} tone="dark" />
                 <div className="w-1 h-6 bg-gradient-to-b from-emerald-500 to-emerald-500 rounded-full" />
-                <h2 className="text-xl font-black text-slate-100">{t('recent_records')}</h2>
+                <h2 className="text-xl font-black text-ink-high">{t('recent_records')}</h2>
                 <span className="bg-emerald-500/15 border border-emerald-300/30 text-emerald-200 px-2 py-0.5 rounded-full text-xs font-bold">
                   {allMyLessons.length}
                 </span>
                 <div className="ml-auto flex items-center gap-2">
                   <button
                     onClick={toggleShowMedia}
-                    className={`p-2 rounded-lg transition-colors ${showMedia ? 'bg-emerald-500/20 text-emerald-200 border border-emerald-300/30' : 'bg-slate-900 border border-slate-700 text-slate-400 hover:bg-slate-800'}`}
+                    className={`p-2 rounded-lg transition-colors ${showMedia ? 'bg-emerald-500/20 text-emerald-200 border border-emerald-300/30' : 'bg-base border border-line-subtle text-ink-muted hover:bg-white/[0.06]'}`}
                     title={showMedia ? '미디어 숨기기' : '미디어 표시'}
                   >
                     {showMedia ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
                   </button>
                   <button
                     onClick={() => setShowDateFilter(!showDateFilter)}
-                    className={`p-2 rounded-lg transition-colors ${showDateFilter || (searchStartDate || searchEndDate) ? 'bg-emerald-500/20 text-emerald-200 border border-emerald-300/30' : 'bg-slate-900 border border-slate-700 text-slate-400 hover:bg-slate-800'}`}
+                    className={`p-2 rounded-lg transition-colors ${showDateFilter || (searchStartDate || searchEndDate) ? 'bg-emerald-500/20 text-emerald-200 border border-emerald-300/30' : 'bg-base border border-line-subtle text-ink-muted hover:bg-white/[0.06]'}`}
                   >
                     <Filter className="w-4 h-4" />
                   </button>
@@ -701,30 +701,30 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
               </div>
 
               {(showDateFilter || searchStartDate || searchEndDate) && (
-                <div className="bg-slate-900/90 p-4 rounded-xl border border-slate-700">
+                <div className="bg-white/[0.03] p-4 rounded-xl border border-line-subtle">
                   <div className="flex gap-2 items-center mb-2">
                     <div className="flex-1">
-                      <label className="block text-[10px] text-slate-400 font-semibold mb-1">시작일</label>
+                      <label className="block text-[10px] text-ink-muted font-semibold mb-1">시작일</label>
                       <input
                         type="date"
                         value={searchStartDate}
                         onChange={(e) => setSearchStartDate(e.target.value)}
-                        className="w-full text-xs p-2 border border-slate-700 bg-slate-900 text-slate-200 rounded-lg outline-none"
+                        className="w-full text-xs p-2 border border-line-subtle bg-base text-ink-high rounded-lg outline-none"
                       />
                     </div>
-                    <span className="text-slate-500 mt-4 font-bold">~</span>
+                    <span className="text-ink-muted mt-4 font-bold">~</span>
                     <div className="flex-1">
-                      <label className="block text-[10px] text-slate-400 font-semibold mb-1">종료일</label>
+                      <label className="block text-[10px] text-ink-muted font-semibold mb-1">종료일</label>
                       <input
                         type="date"
                         value={searchEndDate}
                         onChange={(e) => setSearchEndDate(e.target.value)}
-                        className="w-full text-xs p-2 border border-slate-700 bg-slate-900 text-slate-200 rounded-lg outline-none"
+                        className="w-full text-xs p-2 border border-line-subtle bg-base text-ink-high rounded-lg outline-none"
                       />
                     </div>
                   </div>
                   <div className="flex justify-end">
-                    <button onClick={clearDateFilter} className="text-xs text-slate-400 font-semibold underline hover:text-red-400 transition-colors">
+                    <button onClick={clearDateFilter} className="text-xs text-ink-muted font-semibold underline hover:text-red-400 transition-colors">
                       필터 초기화
                     </button>
                   </div>
@@ -732,12 +732,12 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
               )}
 
               {allMyLessons.length === 0 ? (
-                <div className="text-center py-16 bg-slate-900/90 rounded-2xl border border-slate-700">
-                  <div className="bg-slate-950 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 border border-slate-700">
-                    <PlayCircle className="w-10 h-10 text-slate-500" />
+                <div className="text-center py-16 bg-white/[0.03] rounded-2xl border border-line-subtle">
+                  <div className="bg-base w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 border border-line-subtle">
+                    <PlayCircle className="w-10 h-10 text-ink-muted" />
                   </div>
-                  <h3 className="text-slate-100 font-bold text-lg mb-2">{t('no_records')}</h3>
-                  <p className="text-slate-400 text-sm px-4">
+                  <h3 className="text-ink-high font-bold text-lg mb-2">{t('no_records')}</h3>
+                  <p className="text-ink-muted text-sm px-4">
                     {(searchStartDate || searchEndDate) ? '검색 기간에 해당하는 기록이 없습니다.' : t('no_records_desc')}
                   </p>
                 </div>
@@ -769,9 +769,9 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
       )}
 
       {effectiveSubView === 'SWING_ANALYSIS' && (
-        <div className="fixed inset-0 z-50 bg-slate-950 overflow-y-auto">
-          <div className="max-w-3xl mx-auto p-4 sm:p-6 space-y-5 text-slate-100">
-            <header className="pb-4 border-b border-slate-800 flex items-center gap-3">
+        <div className="fixed inset-0 z-50 bg-base overflow-y-auto">
+          <div className="max-w-3xl mx-auto p-4 sm:p-6 space-y-5 text-ink-high">
+            <header className="pb-4 border-b border-line-subtle flex items-center gap-3">
               <BackButton
                 onClick={handleBackToTab}
                 tone="dark"
@@ -780,16 +780,16 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
                 testId="swing-analysis-back-btn"
               />
               <div className="min-w-0">
-                <h1 className="text-xl sm:text-2xl font-bold text-slate-100 flex items-center gap-2">
+                <h1 className="text-xl sm:text-2xl font-bold text-ink-high flex items-center gap-2">
                   골프 스윙 분석 <span className="text-emerald-400 text-sm">BETA</span>
                 </h1>
-                <p className="text-xs sm:text-sm text-slate-400 mt-1 leading-relaxed">
+                <p className="text-xs sm:text-sm text-ink-muted mt-1 leading-relaxed">
                   스윙 mp4/mov를 업로드하면 이벤트 세그멘테이션 · 3D 바이오메카닉 지표 · 클럽 헤드 궤적을 즉시 계산합니다.
                 </p>
               </div>
             </header>
             <SwingVideoAnalysis studentLessons={allMyLessons} />
-            <footer className="pt-4 mt-6 border-t border-slate-800 text-[11px] text-slate-500 leading-relaxed space-y-1.5">
+            <footer className="pt-4 mt-6 border-t border-line-subtle text-[11px] text-ink-muted leading-relaxed space-y-1.5">
               <p>첫 실행 시 MediaPipe Heavy 모델(~30MB)이 CDN에서 다운로드된 뒤 브라우저에 캐시됩니다. Chrome / Edge 권장 (GPU 가속).</p>
               <p>권장 촬영: 720p+ · 30fps · 5초 이내 · 정면(FO) 또는 측면(DTL) · 단색 배경.</p>
             </footer>
@@ -892,7 +892,7 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
       )}
 
       {effectiveSubView === 'NEW' && (
-        <div className="fixed inset-0 z-50 bg-[#05070A] overflow-y-auto">
+        <div className="fixed inset-0 z-50 bg-base overflow-y-auto">
           <NewLessonForm
             existingClients={[clientProfile]}
             userRole="CLIENT"
