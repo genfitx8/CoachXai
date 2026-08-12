@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from './Button';
-import { Card, CardTitle } from './ui/Card';
+import { Card } from './ui/Card';
+import { CoachXMark, CoachXLogo } from './ui';
 import { Input, PasswordInput } from './ui/Input';
 import { Modal } from './ui/Modal';
 import { authService } from '../services/authService';
 import {
-  Activity,
   Mail,
   Lock,
   User,
@@ -402,8 +402,8 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
       <div className="min-h-screen bg-bg-base flex items-center justify-center p-4 safe-top safe-bottom">
         <Card variant="elevated" padding="none" className="w-full max-w-md overflow-hidden">
           <div className="bg-gradient-to-br from-primary-500 to-primary-700 px-8 py-10 text-center">
-            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-white/10 backdrop-blur-sm">
-              <Activity className="h-7 w-7 text-white" />
+            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-white/10 backdrop-blur-sm">
+              <CoachXMark size={32} tone="dark" />
             </div>
             <h1 className="text-display-sm font-semibold text-white">{t('signup_title')}</h1>
             <p className="mt-1 text-sm text-primary-100">CoachX AI</p>
@@ -741,10 +741,9 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
               <div className="absolute left-1/2 top-0 h-48 w-48 -translate-x-1/2 -translate-y-1/4 rounded-full bg-cyan-500/8 blur-3xl" />
               <div className="absolute left-1/2 top-0 h-40 w-40 -translate-x-1/2 -translate-y-1/4 rounded-full bg-primary-600/10 blur-2xl" />
             </div>
-            <div className="relative mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl border border-cyan-300/20 bg-bg-overlay shadow-elev-2">
-              <Activity className="h-8 w-8 text-cyan-300" />
+            <div className="relative mx-auto mb-5 flex flex-col items-center gap-2">
+              <CoachXLogo size={44} orientation="vertical" tone="dark" korean />
             </div>
-            <CardTitle className="text-display-sm">CoachX AI</CardTitle>
             <p className="mt-2 text-sm leading-relaxed text-ink-muted">{t('app_desc')}</p>
           </div>
 
