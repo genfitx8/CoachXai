@@ -736,7 +736,9 @@ const AppContent: React.FC = () => {
       (coachView === 'LESSON_UPLOAD' || coachView === 'LESSON_IMPACT')
     ) {
       setPendingLessonUpload(null);
-      setCoachView('LESSON_LIST');
+      // Feature-flag rollback: bail out of an invalid intermediate view
+      // back to the redesigned home instead of the legacy list.
+      setCoachView('COACHX');
     }
   }, [coachView, isAutomatedVideoEditingEnabled]);
 
