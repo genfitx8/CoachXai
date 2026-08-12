@@ -3,6 +3,7 @@ import { BarChart3, Video, MapPin, Dumbbell, BookOpen, ChevronRight, Sparkles } 
 import { ClientProfile, Lesson, StudentContext } from '../types';
 import { useLanguage } from './LanguageContext';
 import { getStudentContext } from '../services/studentContextService';
+import { StudentGrowthOverview } from './StudentGrowthOverview';
 
 type GrowthFilter = 'ALL' | 'SWING' | 'ROUND' | 'PRACTICE' | 'LESSON';
 
@@ -11,6 +12,8 @@ interface GrowthTimelineProps {
   allMyLessons: Lesson[];
   onOpenDetailedStats: () => void;
   onOpenLesson: (lesson: Lesson) => void;
+  /** Optional entry into the diagnosis flow — shown when no session exists. */
+  onStartDiagnosis?: () => void;
 }
 
 /**
@@ -31,6 +34,7 @@ export const GrowthTimeline: React.FC<GrowthTimelineProps> = ({
   allMyLessons,
   onOpenDetailedStats,
   onOpenLesson,
+  onStartDiagnosis,
 }) => {
   const { language } = useLanguage();
   const lang = (language as 'ko' | 'en' | 'ja') ?? 'ko';
@@ -77,6 +81,15 @@ export const GrowthTimeline: React.FC<GrowthTimelineProps> = ({
           {L.detailedStats}
         </button>
       </div>
+
+      {/* 5b redesign banner: 지금 상태 (진단 3점) + 샷/스코어/몸 탭 차트.
+          Renders above the existing 기록함 timeline. Empty-state safe. */}
+      <StudentGrowthOverview
+        clientProfile={clientProfile}
+        lessons={allMyLessons}
+        onOpenDetailedStats={onOpenDetailedStats}
+        onStartDiagnosis={onStartDiagnosis}
+      />
 
       {/* Club profile row */}
       <section className="bg-slate-900/70 border border-slate-800 rounded-2xl p-4">
