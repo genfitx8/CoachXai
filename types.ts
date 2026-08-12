@@ -5,6 +5,12 @@ export interface MediaItem {
   type: 'video' | 'image' | 'audio';
   role?: 'BEFORE' | 'AFTER';
   createdAt: number;
+  /**
+   * Where this media originated. `live_lesson` marks a clip captured
+   * inside the 3c LiveLessonCompanion so downstream surfaces (review,
+   * evidence) can badge it as "레슨 중" instead of a manual upload.
+   */
+  source?: 'live_lesson';
 }
 
 export interface ClientFeedback {

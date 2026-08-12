@@ -501,9 +501,17 @@ export const LessonReviewScreen: React.FC<LessonReviewScreenProps> = ({
               {attachments.map((m) => (
                 <div
                   key={m.id}
-                  className="aspect-square rounded-lg bg-white/5 border border-line-subtle flex items-center justify-center text-[10px] font-mono text-ink-muted"
+                  className="relative aspect-square rounded-lg bg-white/5 border border-line-subtle flex items-center justify-center text-[10px] font-mono text-ink-muted"
                 >
                   {m.type === 'video' ? '영상' : m.type === 'audio' ? '오디오' : '사진'}
+                  {m.source === 'live_lesson' && (
+                    <span
+                      className="absolute top-1 right-1 px-1.5 py-0.5 rounded bg-emerald-500/25 border border-emerald-400/40 text-[9px] font-bold text-emerald-100 tracking-wide"
+                      title="레슨 중 동반 모드에서 캡처됨"
+                    >
+                      LIVE
+                    </span>
+                  )}
                 </div>
               ))}
             </div>
