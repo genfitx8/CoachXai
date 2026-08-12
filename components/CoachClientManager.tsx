@@ -56,9 +56,9 @@ interface CoachClientManagerProps {
   pageTitle?: string;
 }
 
-const clientManagerPanelClass = 'bg-slate-900/70 border border-slate-800/80 rounded-2xl shadow-lg shadow-black/20';
+const clientManagerPanelClass = 'bg-white/[0.03] border border-line-subtle rounded-2xl shadow-lg shadow-black/20';
 const clientFormInputClass =
-  'w-full px-4 py-2.5 border border-slate-700 rounded-xl bg-slate-900 text-slate-100 placeholder:text-slate-500 focus:ring-2 focus:ring-emerald-500 outline-none';
+  'w-full px-4 py-2.5 border border-line-subtle rounded-xl bg-base text-ink-high placeholder:text-ink-muted focus:ring-2 focus:ring-emerald-500 outline-none';
 const clientCardActionButtonClass =
   'w-full flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl transition-colors text-sm font-semibold';
 
@@ -275,18 +275,18 @@ export const CoachClientManager: React.FC<CoachClientManagerProps> = ({
   }
 
   return (
-    <div className="space-y-6 animate-fade-in pb-12 text-slate-100">
+    <div className="space-y-6 animate-fade-in pb-12 text-ink-high">
       <div className="flex items-center justify-between">
         <Button variant="ghost" onClick={onBack} className="pl-0">
           <ArrowLeft className="w-5 h-5 mr-1" /> {t('coach_client_back')}
         </Button>
-        <h2 className="text-xl font-bold text-slate-100">{pageTitle ?? t('coach_client_title')}</h2>
+        <h2 className="text-xl font-bold text-ink-high">{pageTitle ?? t('coach_client_title')}</h2>
       </div>
 
       {/* Toolbar */}
       <div className={`flex flex-col sm:flex-row gap-4 justify-between items-center p-4 ${clientManagerPanelClass}`}>
         <div className="relative w-full sm:w-auto flex-1">
-          <Search className="absolute left-3 top-3 w-5 h-5 text-slate-500" />
+          <Search className="absolute left-3 top-3 w-5 h-5 text-ink-muted" />
           <input
             type="text"
             placeholder={t('coach_client_search')}
@@ -307,7 +307,7 @@ export const CoachClientManager: React.FC<CoachClientManagerProps> = ({
       </div>
 
       {growthSummary && (
-        <div className="bg-gradient-to-r from-slate-800 via-slate-800 to-slate-700 rounded-2xl p-4 text-white border border-slate-700/70 shadow-lg shadow-black/20">
+        <div className="bg-gradient-to-r from-emerald-500/10 via-emerald-500/5 to-transparent rounded-2xl p-4 text-ink-high border border-line-subtle shadow-lg shadow-black/20">
           <p className="text-xs font-semibold text-white/70 uppercase tracking-wide mb-2">
             {t('coachx_tab_members')}
           </p>
@@ -337,11 +337,11 @@ export const CoachClientManager: React.FC<CoachClientManagerProps> = ({
       {/* Client List */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {filteredClients.length === 0 ? (
-          <div className="col-span-full text-center py-12 bg-slate-900/70 rounded-2xl border border-dashed border-slate-700/80">
-            <div className="w-16 h-16 bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4">
-              <User className="w-8 h-8 text-slate-500" />
+          <div className="col-span-full text-center py-12 bg-white/[0.03] rounded-2xl border border-dashed border-line-subtle">
+            <div className="w-16 h-16 bg-white/[0.05] rounded-full flex items-center justify-center mx-auto mb-4">
+              <User className="w-8 h-8 text-ink-muted" />
             </div>
-            <p className="text-slate-300 font-medium">
+            <p className="text-ink-medium font-medium">
               {visibleClients.length === 0
                 ? t('coach_client_empty')
                 : t('coach_client_no_results')}
@@ -361,7 +361,7 @@ export const CoachClientManager: React.FC<CoachClientManagerProps> = ({
             return (
             <div
               key={reportKey}
-               className="bg-slate-900/70 p-5 rounded-2xl border border-slate-800/80 shadow-lg shadow-black/20 hover:border-emerald-500/40 transition-all duration-200 group relative"
+               className="bg-white/[0.03] p-5 rounded-2xl border border-line-subtle shadow-lg shadow-black/20 hover:border-emerald-500/40 transition-all duration-200 group relative"
             >
               <div className="flex items-start justify-between mb-3">
                 <div className="flex items-center gap-3">
@@ -370,7 +370,7 @@ export const CoachClientManager: React.FC<CoachClientManagerProps> = ({
                   </div>
                   <div>
                     <div className="flex items-center gap-2 flex-wrap">
-                       <h3 className="font-bold text-slate-100">{client.name}</h3>
+                       <h3 className="font-bold text-ink-high">{client.name}</h3>
                       {client.isSubscribed && (
                         <span className="px-1.5 py-0.5 bg-emerald-100 text-emerald-700 text-[10px] font-bold rounded-full border border-emerald-200">PRO</span>
                       )}
@@ -394,11 +394,11 @@ export const CoachClientManager: React.FC<CoachClientManagerProps> = ({
                         {assignmentLabel}
                       </span>
                     </div>
-                     <p className="text-sm text-slate-400 flex items-center gap-1">
+                     <p className="text-sm text-ink-muted flex items-center gap-1">
                       <Phone className="w-3 h-3" /> {client.phone}
                     </p>
                     {client.email && (
-                      <p className="text-xs text-slate-500 mt-0.5">
+                      <p className="text-xs text-ink-muted mt-0.5">
                         {client.email}
                       </p>
                     )}
@@ -408,13 +408,13 @@ export const CoachClientManager: React.FC<CoachClientManagerProps> = ({
                   <div className="flex gap-1">
                     <button
                       onClick={() => openEditModal(client)}
-                      className="p-2 text-slate-500 hover:text-emerald-300 hover:bg-emerald-500/10 rounded-lg transition-colors"
+                      className="p-2 text-ink-muted hover:text-emerald-300 hover:bg-emerald-500/10 rounded-lg transition-colors"
                     >
                       <Edit className="w-4 h-4" />
                     </button>
                     <button
                       onClick={() => handleDelete(client)}
-                      className="p-2 text-slate-500 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition-colors"
+                      className="p-2 text-ink-muted hover:text-red-300 hover:bg-red-500/10 rounded-lg transition-colors"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
@@ -423,19 +423,19 @@ export const CoachClientManager: React.FC<CoachClientManagerProps> = ({
               </div>
 
               {client.memo && (
-                <div className="bg-slate-800/80 p-3 rounded-xl mb-3 border border-slate-700/70">
-                  <p className="text-xs text-slate-300 line-clamp-2 flex gap-1">
+                <div className="bg-white/[0.04] p-3 rounded-xl mb-3 border border-line-subtle">
+                  <p className="text-xs text-ink-medium line-clamp-2 flex gap-1">
                     <MessageSquare className="w-3 h-3 mt-0.5 flex-shrink-0" />{' '}
                     {client.memo}
                   </p>
                 </div>
               )}
 
-              <div className="flex items-center gap-2 text-xs text-slate-400 mt-2 pt-2 border-t border-slate-800">
+              <div className="flex items-center gap-2 text-xs text-ink-muted mt-2 pt-2 border-t border-line-subtle">
                 <Briefcase className="w-3 h-3" />
                 {client.golfExperience || t('coach_client_exp_none')}
               </div>
-              <div className="mt-2 text-xs text-slate-500 space-y-1">
+              <div className="mt-2 text-xs text-ink-muted space-y-1">
                 {client.designatedCoach && (
                   <p>{t('coach_client_detail_designated_coach')}: {client.designatedCoach}</p>
                 )}
@@ -495,7 +495,7 @@ export const CoachClientManager: React.FC<CoachClientManagerProps> = ({
                 <button
                   onClick={() => setDetailReport(report)}
                   data-testid={`growth-report-btn-${client.name}`}
-                  className={`mt-2 ${clientCardActionButtonClass} bg-slate-800 text-slate-200 border border-slate-700 hover:bg-slate-700`}
+                  className={`mt-2 ${clientCardActionButtonClass} bg-white/[0.05] text-ink-high border border-line-subtle hover:bg-white/[0.08]`}
                 >
                   <FileBarChart className="w-4 h-4" />
                   {t('coachx_view_full_report')}
@@ -513,8 +513,8 @@ export const CoachClientManager: React.FC<CoachClientManagerProps> = ({
           data-testid="coach-client-add-modal"
           className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in"
         >
-          <div className="bg-slate-900 text-slate-100 rounded-2xl w-full max-w-sm overflow-hidden shadow-2xl border border-slate-700/80">
-            <div className="bg-slate-800 px-6 py-4 flex justify-between items-center text-white border-b border-slate-700">
+          <div className="bg-base text-ink-high rounded-2xl w-full max-w-sm overflow-hidden shadow-2xl border border-line-subtle">
+            <div className="bg-white/[0.05] px-6 py-4 flex justify-between items-center text-white border-b border-line-subtle">
               <h3 className="font-bold text-lg">
                 {editingClient ? t('coach_client_form_title_edit') : t('coach_client_form_title_new')}
               </h3>
@@ -524,7 +524,7 @@ export const CoachClientManager: React.FC<CoachClientManagerProps> = ({
             </div>
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
               <div>
-                <label className="block text-xs font-bold text-slate-400 mb-1">
+                <label className="block text-xs font-bold text-ink-muted mb-1">
                   {t('coach_client_name_label')} <span className="text-red-500">*</span>
                 </label>
                 <input
@@ -537,7 +537,7 @@ export const CoachClientManager: React.FC<CoachClientManagerProps> = ({
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-400 mb-1">
+                <label className="block text-xs font-bold text-ink-muted mb-1">
                   {t('coach_client_phone_label')} <span className="text-red-500">*</span>
                 </label>
                 <input
@@ -548,12 +548,12 @@ export const CoachClientManager: React.FC<CoachClientManagerProps> = ({
                   placeholder="010-0000-0000"
                   required
                 />
-                <p className="text-[10px] text-slate-500 mt-1">
+                <p className="text-[10px] text-ink-muted mt-1">
                   {t('coach_client_phone_note')}
                 </p>
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-400 mb-1">
+                <label className="block text-xs font-bold text-ink-muted mb-1">
                   {t('coach_client_memo_label')}
                 </label>
                 <textarea
