@@ -845,4 +845,77 @@ describe('swingAnalysisService.rebuildAnalysis', () => {
       expect(dropOff).toBeLessThanOrEqual(1);
     }
   });
+
+  it('populates handPath2D across the analyzed range with monotonic timestamps', () => {
+    const fps = 60;
+    const analysis = buildSyntheticAnalysis(fps);
+    const path = analysis.summary.handPath2D;
+    expect(path).toBeDefined();
+    // Synthetic swing runs ~2.3s → at 60 fps we expect ~138 samples.
+    // Path spans from address (~t=0.5) through finish (~t≥1.9), so at least
+    // 60 samples must be present.
+    expect(path!.length).toBeGreaterThan(60);
+    // Timestamps must be strictly monotonic (frames are ordered).
+    for (let i = 1; i < path!.length; i++) {
+      expect(path![i].t).toBeGreaterThan(path![i - 1].t);
+    }
+    // All samples must be inside the normalized image plane.
+    for (const p of path!) {
+      expect(p.x).toBeGreaterThanOrEqual(-2); // synthetic geometry is centered on 0
+      expect(p.x).toBeLessThanOrEqual(2);
+      expect(p.y).toBeGreaterThanOrEqual(-2);
+      expect(p.y).toBeLessThanOrEqual(2);
+    }
+  });
+
+  it('skips wrist samples below the confidence floor', () => {
+    // Build a tiny 5-frame synthetic swing where the middle frame's wrists
+    // have zero confidence. buildSummary should skip that frame and emit a
+    // 4-point path instead of a 5-point one.
+    const fps = 30;
+    const frames: SwingFrame[] = [];
+    for (let i = 0; i < 5; i++) {
+      const t = i / fps;
+      const kps: SkeletonKeypoint[] = [];
+      for (let j = 0; j < 33; j++) {
+        kps.push({ x: 0, y: 0, z: 0, confidence: 1, name: `p${j}` });
+      }
+      // Wrists move linearly right so the path is non-degenerate.
+      kps[15] = { x: 0.1 * i, y: 0.2 + 0.05 * i, z: 0, confidence: 1, name: 'p15' };
+      kps[16] = { x: 0.1 * i, y: 0.2 + 0.05 * i, z: 0, confidence: 1, name: 'p16' };
+      // Landmarks needed for handedness / address detection are steady.
+      kps[11] = { x: -0.2, y: -0.7, z: 0, confidence: 1, name: 'p11' };
+      kps[12] = { x: 0.2, y: -0.7, z: 0, confidence: 1, name: 'p12' };
+      kps[23] = { x: -0.1, y: 0, z: 0, confidence: 1, name: 'p23' };
+      kps[24] = { x: 0.1, y: 0, z: 0, confidence: 1, name: 'p24' };
+      kps[27] = { x: -0.1, y: 0.9, z: 0, confidence: 1, name: 'p27' };
+      kps[28] = { x: 0.1, y: 0.9, z: 0, confidence: 1, name: 'p28' };
+      // Drop wrist confidence on the middle frame.
+      if (i === 2) {
+        kps[15] = { ...kps[15], confidence: 0 };
+        kps[16] = { ...kps[16], confidence: 0 };
+      }
+      frames.push({
+        t,
+        keypoints: kps,
+        worldKeypoints: kps.map((k) => ({ ...k })),
+        angles: {},
+        confidence: 1,
+      });
+    }
+    // Manufacture a minimal event map that covers the range from frame 0
+    // (address) through frame 4 (finish) so buildSummary walks the whole
+    // window.
+    const events = {
+      address: { name: 'address' as const, frameIndex: 0, t: 0, metrics: {} },
+      finish: { name: 'finish' as const, frameIndex: 4, t: 4 / fps, metrics: {} },
+    };
+    const summary = buildSummary(frames, events, fps, undefined, false);
+    expect(summary.handPath2D).toBeDefined();
+    // Confidence-0 middle frame is dropped; 4 remaining are kept.
+    expect(summary.handPath2D!.length).toBe(4);
+    // The dropped frame's timestamp (2/fps) must not appear in the path.
+    const droppedT = 2 / fps;
+    expect(summary.handPath2D!.every((p) => Math.abs(p.t - droppedT) > 1e-6)).toBe(true);
+  });
 });
