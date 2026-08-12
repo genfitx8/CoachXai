@@ -151,32 +151,63 @@ export const apiService = {
     return !!BASE_URL;
   },
 
-  setToken(token: string) { localStorage.setItem(TOKEN_KEY, token); },
+  setToken(token: string) {
+    // A malformed login response can hand us `undefined`, which localStorage
+    // silently coerces to the string "undefined". Every later request then
+    // sends `Authorization: Bearer undefined` and JSON.parse'ing readers of
+    // downstream storage entries crash. Refuse the write instead.
+    if (typeof token !== 'string' || token.length === 0) {
+      localStorage.removeItem(TOKEN_KEY);
+      return;
+    }
+    localStorage.setItem(TOKEN_KEY, token);
+  },
   clearToken() { localStorage.removeItem(TOKEN_KEY); },
-  getToken(): string | null { return localStorage.getItem(TOKEN_KEY); },
+  getToken(): string | null {
+    const raw = localStorage.getItem(TOKEN_KEY);
+    // Heal the "undefined" / "null" strings left over from an earlier bad
+    // write so callers see the same null they would on a fresh browser.
+    if (raw === null || raw === '' || raw === 'undefined' || raw === 'null') {
+      if (raw !== null) localStorage.removeItem(TOKEN_KEY);
+      return null;
+    }
+    return raw;
+  },
 
   // ── Auth ──────────────────────────────────────────────────────────────────
 
   async signupCoach(name: string, email: string, password: string, phone: string): Promise<{ token: string; coach: CoachProfile }> {
     const data = await req<{ token: string; coach: CoachProfile }>('POST', '/api/auth/signup/coach', { name, email, password, phone });
+    if (!data?.token || !data?.coach?.id) {
+      throw new Error('회원가입 응답 형식이 올바르지 않습니다.');
+    }
     this.setToken(data.token);
     return data;
   },
 
   async loginCoach(email: string, password: string): Promise<{ token: string; coach: CoachProfile }> {
     const data = await req<{ token: string; coach: CoachProfile }>('POST', '/api/auth/login/coach', { email, password });
+    if (!data?.token || !data?.coach?.id) {
+      throw new Error('로그인 응답 형식이 올바르지 않습니다.');
+    }
     this.setToken(data.token);
     return data;
   },
 
   async signupClient(name: string, email: string, password: string, phone: string): Promise<{ token: string; client: ClientProfile }> {
     const data = await req<{ token: string; client: ClientProfile }>('POST', '/api/auth/signup/client', { name, email, password, phone });
+    if (!data?.token || !data?.client?.id) {
+      throw new Error('회원가입 응답 형식이 올바르지 않습니다.');
+    }
     this.setToken(data.token);
     return data;
   },
 
   async loginClient(email: string, password: string): Promise<{ token: string; client: ClientProfile }> {
     const data = await req<{ token: string; client: ClientProfile }>('POST', '/api/auth/login/client', { email, password });
+    if (!data?.token || !data?.client?.id) {
+      throw new Error('로그인 응답 형식이 올바르지 않습니다.');
+    }
     this.setToken(data.token);
     return data;
   },
