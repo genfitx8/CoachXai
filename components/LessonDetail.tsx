@@ -31,6 +31,13 @@ interface LessonDetailProps {
   onDelete?: () => void;
   onEdit?: (lesson: Lesson) => void; // Added for full editing
   onRecordAnotherLesson?: () => void; // Start a new lesson record for the same member
+  /**
+   * Open the coach-only structured review (redesign screen 8b). Shown as
+   * a top-right "검토" button when set and the current viewer is a coach.
+   * The button label switches to "학생 발송됨" once approvalStatus flips
+   * to 'approved' so it's clear the lesson is already released.
+   */
+  onOpenReview?: () => void;
 }
 
 const SEQUENCE_LABELS = [
@@ -62,7 +69,7 @@ export async function persistAdditionalMediaSourceForOffline(params: {
   }
 }
 
-export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons = [], role = 'COACH', onBack, onUpdate, onDelete, onEdit, onRecordAnotherLesson }) => {
+export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons = [], role = 'COACH', onBack, onUpdate, onDelete, onEdit, onRecordAnotherLesson, onOpenReview }) => {
   const { t } = useLanguage();
   // resolvedMainUrl is always null on mount; the IDB effect below resolves it.
   // Using null here avoids a double-blob-URL problem: if resolveSync() were
@@ -1184,7 +1191,20 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
           <ArrowLeft className="w-5 h-5" />
         </button>
         <h2 className="text-base sm:text-lg font-bold truncate flex-1 min-w-0 text-center px-2">{lesson.title}</h2>
-        <div className="w-11 flex justify-end">
+        <div className="flex justify-end items-center gap-1">
+            {canEdit && onOpenReview && (
+                <button
+                    onClick={onOpenReview}
+                    className={`px-3 py-2 rounded-full text-xs font-bold transition-all duration-200 hover:scale-105 transform min-h-[36px] flex items-center gap-1 border ${
+                      lesson.approvalStatus === 'approved'
+                        ? 'bg-emerald-500/20 border-emerald-400/50 text-emerald-100'
+                        : 'bg-emerald-500 border-emerald-400 text-[#04150e]'
+                    }`}
+                    title={lesson.approvalStatus === 'approved' ? '학생에게 전달됨 (다시 열기)' : '기록 검토 · 승인'}
+                >
+                    {lesson.approvalStatus === 'approved' ? '학생 발송됨' : '검토'}
+                </button>
+            )}
             {canEdit && onEdit && (
                 <button
                     onClick={() => onEdit(lesson)}
@@ -1514,6 +1534,80 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
               )}
           </div>
           ) : null}
+
+          {/* ── 코치 정리 (redesign 8b review sections) ─────────────────────
+             When the coach approved a structured review, show it here as the
+             preferred rendering — the flat coach_notes / assigned_homework
+             blocks below still render for completeness on legacy lessons or
+             when the coach kept freeform notes alongside the structure. The
+             card only appears once approvalStatus flips to 'approved' so a
+             draft never leaks; the server visibility filter also enforces
+             this at query time.
+          */}
+          {lesson.reviewSections && lesson.approvalStatus === 'approved' && (
+            <div className="rounded-2xl border border-emerald-100 bg-white shadow-sm overflow-hidden">
+              <div className="bg-gradient-to-r from-emerald-600 via-emerald-500 to-emerald-600 px-4 py-3 flex items-center gap-2 text-white">
+                <CheckCircle className="w-4 h-4" />
+                <span className="text-sm font-bold">코치 정리</span>
+                {lesson.approvedAt && (
+                  <span className="ml-auto text-[11px] font-mono opacity-80">
+                    {new Date(lesson.approvedAt).toLocaleDateString('ko-KR')} 전달됨
+                  </span>
+                )}
+              </div>
+              <div className="px-4 py-4 space-y-4 text-gray-800">
+                {lesson.reviewSections.todayCovered && (
+                  <div>
+                    <div className="text-[11px] font-mono uppercase tracking-wider text-emerald-700 mb-1">
+                      오늘 다룬 것
+                    </div>
+                    <p className="text-sm leading-relaxed whitespace-pre-line">
+                      {lesson.reviewSections.todayCovered}
+                    </p>
+                  </div>
+                )}
+                {lesson.reviewSections.feedback && (
+                  <div>
+                    <div className="text-[11px] font-mono uppercase tracking-wider text-emerald-700 mb-1">
+                      피드백
+                    </div>
+                    <p className="text-sm leading-relaxed whitespace-pre-line">
+                      {lesson.reviewSections.feedback}
+                    </p>
+                  </div>
+                )}
+                {(lesson.reviewSections.nextActions?.length ?? 0) > 0 && (
+                  <div className="rounded-xl border border-emerald-100 bg-emerald-50/60 px-3 py-3">
+                    <div className="text-[11px] font-mono uppercase tracking-wider text-emerald-700 mb-2">
+                      다음 액션
+                    </div>
+                    <ul className="space-y-1.5">
+                      {lesson.reviewSections.nextActions?.map((a, i) => (
+                        <li key={i} className="flex items-start gap-2 text-sm text-gray-800">
+                          <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-emerald-500 flex-shrink-0" />
+                          <span className="leading-relaxed">{a}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {/* 자유 메모 (freeMemo) — coach-private per the redesign; the
+                   server currently ships reviewSections whole, but we still
+                   hide the memo from the student explicitly so a future
+                   server-side leak doesn't accidentally surface it. */}
+                {!isClientView && lesson.reviewSections.freeMemo && (
+                  <div className="border-t border-emerald-100 pt-3">
+                    <div className="text-[11px] font-mono uppercase tracking-wider text-slate-500 mb-1">
+                      자유 메모 · 코치 비공개
+                    </div>
+                    <p className="text-sm leading-relaxed text-slate-600 whitespace-pre-line">
+                      {lesson.reviewSections.freeMemo}
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* ... (Rest of content: Assigned Homework, Scorecard, AI Analysis, etc.) ... */}
           {/* Assigned Homework Section */}

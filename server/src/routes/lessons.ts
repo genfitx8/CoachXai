@@ -28,7 +28,7 @@ function reSignMediaTree(value: unknown): unknown {
   return value;
 }
 
-function mapLesson(row: Record<string, unknown>) {
+function mapLesson(row: Record<string, unknown>, viewerRole?: 'coach' | 'client') {
   // Prefer signing the stored key when available; fall back to re-signing
   // whatever's in video_url (covers legacy rows that only have the URL form).
   const videoKey = row.video_key as string | null;
@@ -36,6 +36,20 @@ function mapLesson(row: Record<string, unknown>) {
     videoKey
       ? signMediaUrl(videoKey).url
       : reSignIfMedia(row.video_url as string | null);
+
+  // Redesign 8b: freeMemo is the coach's private note, never shipped to
+  // the student. Strip it here so a future consumer bug can't accidentally
+  // surface it — the client UI already hides it, but data-layer defense
+  // in depth is worth the two lines.
+  let reviewSections = reSignMediaTree(row.review_sections) as
+    | Record<string, unknown>
+    | null
+    | undefined;
+  if (viewerRole === 'client' && reviewSections && typeof reviewSections === 'object') {
+    const { freeMemo: _freeMemo, ...rest } = reviewSections as Record<string, unknown>;
+    void _freeMemo;
+    reviewSections = rest;
+  }
 
   return {
     id: row.id,
@@ -80,6 +94,12 @@ function mapLesson(row: Record<string, unknown>) {
     ownership: (row.ownership as string | null) ?? 'shared',
     visibility: (row.visibility as string | null) ?? 'coach',
     originalCoachId: row.original_coach_id,
+    // Review workflow (redesign 8b). NULL approval_status means legacy
+    // lesson from before the review flow — treated as visible.
+    approvalStatus: row.approval_status ?? undefined,
+    approvedAt: row.approved_at ?? undefined,
+    sharedToStudent: row.shared_to_student ?? undefined,
+    reviewSections: reviewSections ?? undefined,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -118,6 +138,16 @@ router.get('/', async (req: Request, res: Response) => {
         ? client.phone.replace(/[^0-9]/g, '')
         : '';
 
+      // Review gate (redesign 8b): a lesson in 'draft' approval status is
+      // coach-only until the coach hits 승인. NULL approval_status keeps
+      // legacy pre-8b lessons visible so this migration doesn't hide
+      // existing history. Combined into the visibility filter below.
+      const STUDENT_VISIBLE_FILTER = `
+        COALESCE(ownership, 'shared') <> 'coach'
+        AND (approval_status IS NULL OR approval_status = 'approved')
+        AND (shared_to_student IS NULL OR shared_to_student = true)
+      `;
+
       if (normalizedPhone) {
         // Search by client_id composite OR by normalized phone number.
         // The phone-based branch catches lessons created before the member
@@ -131,18 +161,18 @@ router.get('/', async (req: Request, res: Response) => {
         result = await pool.query(
           `SELECT * FROM (
             SELECT * FROM lessons
-              WHERE client_id = $1 AND COALESCE(ownership, 'shared') <> 'coach'
+              WHERE client_id = $1 AND ${STUDENT_VISIBLE_FILTER}
             UNION
             SELECT * FROM lessons
               WHERE REGEXP_REPLACE(COALESCE(client_phone, ''), '[^0-9]', '', 'g') = $2
-                AND COALESCE(ownership, 'shared') <> 'coach'
+                AND ${STUDENT_VISIBLE_FILTER}
           ) AS combined ORDER BY created_at DESC`,
           [clientCompositeId, normalizedPhone]
         );
       } else {
         result = await pool.query(
           `SELECT * FROM lessons
-             WHERE client_id = $1 AND COALESCE(ownership, 'shared') <> 'coach'
+             WHERE client_id = $1 AND ${STUDENT_VISIBLE_FILTER}
              ORDER BY created_at DESC`,
           [clientCompositeId]
         );
@@ -152,7 +182,7 @@ router.get('/', async (req: Request, res: Response) => {
       return;
     }
 
-    res.json({ lessons: result.rows.map(mapLesson) });
+    res.json({ lessons: result.rows.map((r) => mapLesson(r, userRole)) });
   } catch (err) {
     console.error('[lessons] GET / error:', err);
     res.status(500).json({ error: 'Internal server error' });
@@ -303,7 +333,7 @@ router.post('/', async (req: Request, res: Response) => {
       ]
     );
 
-    res.status(201).json({ lesson: mapLesson(result.rows[0]) });
+    res.status(201).json({ lesson: mapLesson(result.rows[0], userRole) });
   } catch (err) {
     console.error('[lessons] POST / error:', err);
     res.status(500).json({ error: 'Internal server error' });
@@ -376,6 +406,7 @@ router.put('/:id', async (req: Request, res: Response) => {
       compareVideoUrl, compareVideoMetadata,
       media, lessonPackageId, sessionNumber,
       visibility,
+      approvalStatus, approvedAt, sharedToStudent, reviewSections,
     } = req.body as Record<string, unknown>;
 
     // Visibility (#309): the student can downgrade to 'self' (본인만); the
@@ -387,6 +418,32 @@ router.put('/:id', async (req: Request, res: Response) => {
       typeof visibility === 'string' && ALLOWED_VISIBILITY.has(visibility)
         ? visibility
         : (existing.visibility as string | null) ?? 'coach';
+
+    // Review workflow (8b): only coaches may change approval state.
+    // Students who PUT their own lessons (e.g. self-added quick logs)
+    // can't flip approvalStatus — the field silently ignores their input.
+    const isCoach = userRole === 'coach';
+    const ALLOWED_APPROVAL = new Set(['draft', 'approved']);
+    const nextApprovalStatus = isCoach
+      ? typeof approvalStatus === 'string' && ALLOWED_APPROVAL.has(approvalStatus)
+        ? approvalStatus
+        : (existing.approval_status as string | null) ?? null
+      : (existing.approval_status as string | null) ?? null;
+    const nextApprovedAt = isCoach
+      ? typeof approvedAt === 'number'
+        ? approvedAt
+        : nextApprovalStatus === 'approved'
+          ? (existing.approved_at as number | null) ?? Date.now()
+          : null
+      : (existing.approved_at as number | null) ?? null;
+    const nextSharedToStudent = isCoach
+      ? typeof sharedToStudent === 'boolean'
+        ? sharedToStudent
+        : (existing.shared_to_student as boolean | null)
+      : (existing.shared_to_student as boolean | null);
+    const nextReviewSections = isCoach
+      ? reviewSections ?? existing.review_sections ?? null
+      : existing.review_sections ?? null;
 
     // Preserve immutable ownership fields — clients cannot reassign a lesson
     // to another student or change its coach linkage via PUT.
@@ -424,6 +481,10 @@ router.put('/:id', async (req: Request, res: Response) => {
         compare_video_url = $31, compare_video_metadata = $32,
         media = $33, lesson_package_id = $34, session_number = $35,
         visibility = $36,
+        approval_status = $39,
+        approved_at = $40,
+        shared_to_student = $41,
+        review_sections = $42,
         updated_at = $37
       WHERE id = $38
       RETURNING *`,
@@ -454,10 +515,14 @@ router.put('/:id', async (req: Request, res: Response) => {
         lessonPackageId ?? null, sessionNumber ?? null,
         nextVisibility,
         now, id,
+        nextApprovalStatus,
+        nextApprovedAt,
+        nextSharedToStudent,
+        nextReviewSections ? JSON.stringify(nextReviewSections) : null,
       ]
     );
 
-    res.json({ lesson: mapLesson(result.rows[0]) });
+    res.json({ lesson: mapLesson(result.rows[0], userRole) });
   } catch (err) {
     console.error('[lessons] PUT /:id error:', err);
     res.status(500).json({ error: 'Internal server error' });

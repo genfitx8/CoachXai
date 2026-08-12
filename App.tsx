@@ -62,6 +62,7 @@ import { Button } from './components/Button';
 import { CoachXHub } from './components/CoachXHub';
 import { CoachXChat } from './components/CoachXChat';
 import { CoachAIHome, type TodayLessonSummary } from './components/CoachAIHome';
+import { LessonReviewScreen } from './components/LessonReviewScreen';
 import { CoachXAssistant } from './components/CoachXAssistant';
 import { buildMemberGrowthReports } from './services/coachXService';
 import { DIAGNOSIS_FACTORS, DIAGNOSIS_PROCESS } from './constants/diagnosis';
@@ -160,7 +161,7 @@ const AppContent: React.FC = () => {
   const [coachProfile, setCoachProfile] = useState<CoachProfile | null>(null);
 
   // View State (Coach)
-  const [coachView, setCoachView] = useState<ViewState | 'RESERVATIONS' | 'BAY_RESERVATION' | 'MY_BAY_RESERVATIONS' | 'COACHX_DASHBOARD'>('LESSON_LIST');
+  const [coachView, setCoachView] = useState<ViewState | 'RESERVATIONS' | 'BAY_RESERVATION' | 'MY_BAY_RESERVATIONS' | 'COACHX_DASHBOARD' | 'LESSON_REVIEW'>('LESSON_LIST');
   const [hamburgerOpen, setHamburgerOpen] = useState(false);
   const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(null);
   const [selectedClientFilter, setSelectedClientFilter] = useState<string>(''); // '' or clientName
@@ -2057,7 +2058,36 @@ const AppContent: React.FC = () => {
             onUpdate={handleUpdateLesson}
             onDelete={() => handleDeleteLesson(selectedLesson.id)}
             onEdit={handleEditLesson}
+            onOpenReview={() => setCoachView('LESSON_REVIEW')}
             onRecordAnotherLesson={() => handleRecordAnotherLessonForClient(selectedLesson)}
+          />
+        )}
+
+        {coachView === 'LESSON_REVIEW' && selectedLesson && (
+          <LessonReviewScreen
+            lesson={selectedLesson}
+            headerSubtitle={selectedLesson.clientName || ''}
+            onBack={() => setCoachView('DETAIL')}
+            onSaveDraft={async (patch) => {
+              const merged: Lesson = { ...selectedLesson, ...patch };
+              setSelectedLesson(merged);
+              await handleUpdateLesson(merged);
+            }}
+            onApprove={async (patch) => {
+              const merged: Lesson = { ...selectedLesson, ...patch };
+              setSelectedLesson(merged);
+              await handleUpdateLesson(merged);
+            }}
+            onUndoApproval={async () => {
+              const rolled: Lesson = {
+                ...selectedLesson,
+                approvalStatus: 'draft',
+                approvedAt: undefined,
+                sharedToStudent: false,
+              };
+              setSelectedLesson(rolled);
+              await handleUpdateLesson(rolled);
+            }}
           />
         )}
 
