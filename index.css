@@ -44,6 +44,10 @@ body {
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
   color: var(--ink-high);
+  /* Korean typography: never break an 어절 mid-word. Long unbreakable runs
+     (URLs, code identifiers) still wrap via overflow-wrap. */
+  word-break: keep-all;
+  overflow-wrap: break-word;
 }
 
 html,
