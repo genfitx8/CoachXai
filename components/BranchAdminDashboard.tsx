@@ -23,6 +23,7 @@ import { BayManager } from './BayManager';
 import { BayPriceRuleManager } from './BayPriceRuleManager';
 import { BranchReservationStatus } from './BranchReservationStatus';
 import { BranchMemberPointGrant } from './BranchMemberPointGrant';
+import { BranchOverviewMobile } from './BranchOverviewMobile';
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
@@ -65,6 +66,28 @@ export const BranchAdminDashboard: React.FC<BranchAdminDashboardProps> = ({
 }) => {
   const { t } = useLanguage();
   const [activeTab, setActiveTab] = useState<Tab>('hours');
+
+  // 7c · Mobile-first overview vs full editor. `auto` follows the
+  // viewport (mobile → overview, desktop → editor). `desktop` is the
+  // escape hatch a mobile user taps when they need to edit hours,
+  // prices, or staff — the full editor renders even on a narrow screen.
+  const [viewMode, setViewMode] = useState<'auto' | 'desktop'>('auto');
+  const [isNarrow, setIsNarrow] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    return window.matchMedia('(max-width: 767px)').matches;
+  });
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const mq = window.matchMedia('(max-width: 767px)');
+    const handler = (e: MediaQueryListEvent) => setIsNarrow(e.matches);
+    if (mq.addEventListener) mq.addEventListener('change', handler);
+    else mq.addListener(handler);
+    return () => {
+      if (mq.removeEventListener) mq.removeEventListener('change', handler);
+      else mq.removeListener(handler);
+    };
+  }, []);
+  const showMobileOverview = viewMode === 'auto' && isNarrow;
 
   // Branch data
   const [branch, setBranch] = useState<Branch | null>(null);
@@ -215,6 +238,43 @@ export const BranchAdminDashboard: React.FC<BranchAdminDashboardProps> = ({
 
   // ── render ───────────────────────────────────────────────────────────────────
 
+  if (showMobileOverview) {
+    // 7c mobile: read-only overview with a logout button in the header
+    // and an escape hatch to the full editor. The overview owns its own
+    // data fetching so we don't duplicate branch state here.
+    return (
+      <div className="min-h-screen bg-base text-ink-high flex flex-col">
+        <header className="sticky top-0 z-40 backdrop-blur-md bg-base/85 border-b border-line-subtle">
+          <div className="px-4 py-3 flex items-center justify-between">
+            <div className="min-w-0">
+              <div className="text-[11px] font-mono uppercase tracking-wider text-ink-muted">
+                {username}
+              </div>
+              <div className="text-[15px] font-bold text-ink-high truncate">
+                {branchName}
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={onLogout}
+              className="flex items-center gap-1.5 text-[12px] text-ink-medium hover:text-ink-high px-3 py-1.5 rounded-lg border border-line-subtle bg-white/[0.03]"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              {t('branch_logout_btn')}
+            </button>
+          </div>
+        </header>
+        <main className="flex-1">
+          <BranchOverviewMobile
+            branchId={branchId}
+            branchName={branchName}
+            onOpenDesktopEditor={() => setViewMode('desktop')}
+          />
+        </main>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       {/* Header */}
@@ -229,13 +289,24 @@ export const BranchAdminDashboard: React.FC<BranchAdminDashboardProps> = ({
               <p className="text-xs text-gray-500">{username} · {t('branch_manager_label')}</p>
             </div>
           </div>
-          <Button
-            onClick={onLogout}
-            className="bg-gray-100 text-gray-700 hover:bg-gray-200 text-sm py-2 px-4 flex items-center gap-2"
-          >
-            <LogOut className="w-4 h-4" />
-            {t('branch_logout_btn')}
-          </Button>
+          <div className="flex items-center gap-2">
+            {isNarrow && viewMode === 'desktop' && (
+              <button
+                type="button"
+                onClick={() => setViewMode('auto')}
+                className="text-xs text-emerald-700 hover:text-emerald-800 border border-emerald-200 bg-emerald-50 rounded-lg px-3 py-2 font-medium"
+              >
+                요약으로
+              </button>
+            )}
+            <Button
+              onClick={onLogout}
+              className="bg-gray-100 text-gray-700 hover:bg-gray-200 text-sm py-2 px-4 flex items-center gap-2"
+            >
+              <LogOut className="w-4 h-4" />
+              {t('branch_logout_btn')}
+            </Button>
+          </div>
         </div>
       </header>
 
