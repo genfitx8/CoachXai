@@ -10,6 +10,7 @@ import { NewLessonForm } from './NewLessonForm';
 import { ClientReservation } from './ClientReservation';
 import { ClientBayReservation } from './ClientBayReservation';
 import { MyBayReservations } from './MyBayReservations';
+import { StudentReservationSummary } from './StudentReservationSummary';
 import { PointPurchase } from './PointPurchase';
 import { PaymentSuccess } from './PaymentSuccess';
 import { PaymentFail } from './PaymentFail';
@@ -72,6 +73,7 @@ type SubView =
   | 'STATS'
   | 'PROFILE'
   | 'RECENT_RECORDS'
+  | 'LESSON_BOOKING'
   | 'BAY_RESERVATION'
   | 'MY_BAY_RESERVATIONS'
   | 'POINT_PURCHASE'
@@ -550,27 +552,43 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
             </main>
           </div>
         ) : (
+          // 5c redesign: reservation tab opens on the overview screen —
+          // next lesson + package balance + CTAs — instead of dropping
+          // straight into the booking form. The old ClientReservation
+          // and ClientBayReservation flows are one tap away as sub-views.
           <div className="pb-20">
-            <TabHeader
-              title={reservationTabTitle}
-              right={
-                <button
-                  onClick={() => setSubView('BAY_RESERVATION')}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800/70 border border-slate-700 text-xs font-semibold text-slate-200 hover:bg-slate-700 transition-colors"
-                >
-                  <Target className="w-3.5 h-3.5" />
-                  {language === 'en' ? 'Bay' : language === 'ja' ? '打席' : '타석'}
-                </button>
-              }
+            <TabHeader title={reservationTabTitle} />
+            <StudentReservationSummary
+              clientProfile={clientProfile}
+              myLessons={myLessonsRaw}
+              onOpenLessonBooking={() => setSubView('LESSON_BOOKING')}
+              onOpenBayBooking={() => setSubView('BAY_RESERVATION')}
+              onOpenMyBayReservations={() => setSubView('MY_BAY_RESERVATIONS')}
+              onOpenLesson={(lessonId) => {
+                // Reservation ids and lesson ids are distinct — the
+                // summary card carries a LessonReservation.id. Deep
+                // linking a reservation into a lesson detail belongs to
+                // a follow-up; for now open the lesson list scope.
+                const target = myLessonsRaw.find((l) => l.id === lessonId);
+                if (target) {
+                  setSelectedLesson(target);
+                  setSubView('DETAIL');
+                }
+              }}
             />
-            <main className="max-w-md mx-auto">
-              <ClientReservation
-                clientProfile={clientProfile}
-                onBack={() => setTab('HOME')}
-              />
-            </main>
           </div>
         )
+      )}
+
+      {effectiveSubView === 'LESSON_BOOKING' && (
+        <div className="min-h-screen">
+          <main className="max-w-md mx-auto">
+            <ClientReservation
+              clientProfile={clientProfile}
+              onBack={handleBackToTab}
+            />
+          </main>
+        </div>
       )}
 
       {!effectiveSubView && tab === 'GROWTH' && (
