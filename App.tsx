@@ -193,6 +193,15 @@ const AppContent: React.FC = () => {
   const [selectedClientForPackage, setSelectedClientForPackage] = useState<ClientProfile | null>(null);
   /** When creating a new lesson via a package session, pre-fill this context. */
   const [pendingPackageSession, setPendingPackageSession] = useState<{ pkg: LessonPackage; sessionNumber: number } | null>(null);
+  /**
+   * 3c handoff bucket: clips captured by LiveLessonCompanion. Set on
+   * companion 종료, drained by NewLessonForm on first mount, cleared
+   * via onInitialClipsConsumed so a subsequent NEW visit doesn't
+   * re-attach the same clips.
+   */
+  const [pendingLiveClips, setPendingLiveClips] = useState<
+    import('./components/LiveLessonCompanion').CapturedClip[]
+  >([]);
 
   // Training Program State
   const [trainingPrograms, setTrainingPrograms] = useState<TrainingProgram[]>([]);
@@ -2193,10 +2202,10 @@ const AppContent: React.FC = () => {
             lessonDate={new Date().toISOString().slice(0, 10)}
             onCancel={() => setCoachView('LESSON_LIST')}
             onFinish={(clips) => {
-              // 3c 라우팅 배선 (MVP): 캡처된 clip 수를 코치에게 알리고
-              // 해당 학생을 prefill한 새 레슨 기록 화면으로 이동한다.
-              // 실제 clip → NewLessonForm attachment prop-drilling은
-              // 후속 세션에서 진행 (NewLessonForm 첨부 파이프라인 확장 필요).
+              // 3c 후속: 캡처된 clip을 pending 버킷에 넣어 NewLessonForm이
+              // 마운트되며 첨부로 자동 승격하게 하고, 매칭된 학생을 prefill한
+              // 채로 NEW 뷰로 넘긴다. 폼이 clip을 소비하면
+              // onInitialClipsConsumed로 버킷을 비워 중복 첨부를 막는다.
               const matchedClient =
                 clients.find((c) => c.name === selectedClientFilter) ?? {
                   name: selectedClientFilter,
@@ -2206,11 +2215,7 @@ const AppContent: React.FC = () => {
                       ? currentUser.id
                       : undefined,
                 };
-              if (clips.length > 0) {
-                alert(
-                  `${clips.length}건 캡처됨.\n새 레슨 기록에서 첨부해 주세요.`
-                );
-              }
+              setPendingLiveClips(clips);
               setIsEditingLesson(false);
               setSelectedLesson(null);
               setPrefilledSuggestionClient(matchedClient);
@@ -2250,6 +2255,8 @@ const AppContent: React.FC = () => {
               }}
               initialData={isEditingLesson ? selectedLesson ?? undefined : undefined}
               prefilledClient={prefilledSuggestionClient ?? undefined}
+              initialClips={pendingLiveClips.length > 0 ? pendingLiveClips : undefined}
+              onInitialClipsConsumed={() => setPendingLiveClips([])}
             />
           </>
         )}
