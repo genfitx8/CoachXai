@@ -182,6 +182,72 @@ const extractModel = (result: unknown): string | undefined => {
   return typeof rec.model === 'string' && rec.model.trim() ? rec.model : undefined;
 };
 
+/**
+ * Pull observability signals from the AI evidence envelope
+ * (`swingEvidence` / `historyEvidence` / `confidence`) wherever it
+ * appears in a response — either at the top level (WeeklyInsight,
+ * MotionCapture) or inside an `insights[]` / `items[]` array
+ * (CoachXInsight, AICoachingInsight). Returns the weakest confidence
+ * across insights so a mixed response is flagged by its worst signal,
+ * and the aggregated evidence counts across all items.
+ *
+ * Returns undefined-valued fields when the response doesn't carry an
+ * envelope — the schema is optional, so features that haven't adopted
+ * it yet log with all-undefined evidence metrics rather than misleading
+ * zeros.
+ */
+const extractEvidenceMetrics = (
+  result: unknown
+): {
+  evidenceCount?: number;
+  confidence?: 'strong' | 'plausible' | 'speculative';
+  referencedLessonCount?: number;
+} => {
+  if (!result || typeof result !== 'object') return {};
+  const rank: Record<string, number> = { strong: 3, plausible: 2, speculative: 1 };
+  const worstConfidence = (a?: string, b?: string): string | undefined => {
+    if (!a) return b;
+    if (!b) return a;
+    return (rank[a] ?? 99) <= (rank[b] ?? 99) ? a : b;
+  };
+  const walk = (
+    node: unknown,
+    acc: { evidence: number; refs: number; conf?: string; seenAny: boolean }
+  ): void => {
+    if (!node || typeof node !== 'object') return;
+    if (Array.isArray(node)) {
+      for (const item of node) walk(item, acc);
+      return;
+    }
+    const rec = node as Record<string, unknown>;
+    if (Array.isArray(rec.swingEvidence)) {
+      acc.evidence += rec.swingEvidence.length;
+      acc.seenAny = true;
+    }
+    if (Array.isArray(rec.historyEvidence)) {
+      acc.evidence += rec.historyEvidence.length;
+      acc.refs += rec.historyEvidence.length;
+      acc.seenAny = true;
+    }
+    if (typeof rec.confidence === 'string' && rank[rec.confidence]) {
+      acc.conf = worstConfidence(acc.conf, rec.confidence);
+      acc.seenAny = true;
+    }
+    // Nested envelopes: recurse into common container fields.
+    for (const key of ['insights', 'items', 'measurements']) {
+      if (Array.isArray(rec[key])) walk(rec[key], acc);
+    }
+  };
+  const acc = { evidence: 0, refs: 0, conf: undefined as string | undefined, seenAny: false };
+  walk(result, acc);
+  if (!acc.seenAny) return {};
+  return {
+    evidenceCount: acc.evidence,
+    referencedLessonCount: acc.refs,
+    confidence: acc.conf as 'strong' | 'plausible' | 'speculative' | undefined,
+  };
+};
+
 export const invokeBackendAI = async <T>(feature: string, payload: unknown): Promise<T> => {
   const startedAt = Date.now();
   const meta = inspectPayload(payload);
@@ -245,6 +311,7 @@ export const invokeBackendAI = async <T>(feature: string, payload: unknown): Pro
 
     const responseText = extractResponseText(body.result);
     const modelId = extractModel(body.result);
+    const evidence = extractEvidenceMetrics(body.result);
 
     // Fire-and-forget success log. Do NOT await — telemetry must never
     // add latency to the response the caller returns to the user.
@@ -259,6 +326,7 @@ export const invokeBackendAI = async <T>(feature: string, payload: unknown): Pro
       hasSchema: meta.hasSchema,
       model: modelId,
       ...injection,
+      ...evidence,
     });
 
     // Cache write for the eligible features. Same exemplar guard as the

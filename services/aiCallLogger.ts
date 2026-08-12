@@ -78,6 +78,19 @@ export interface RecordAiCallInput {
   injectionSuspected?: boolean;
   /** Comma-joined pattern ids that matched (for dashboard display). */
   injectionMatches?: string;
+  /**
+   * Count of grounded evidence items the response carried — swing metrics,
+   * frame IDs, past-lesson quotes. The observability screen flags zero-
+   * evidence responses on features that should be citing sources.
+   */
+  evidenceCount?: number;
+  /**
+   * Weakest confidence level the model self-reported on this call (below
+   * 'plausible' means the coach should treat the answer as 추정).
+   */
+  confidence?: 'strong' | 'plausible' | 'speculative';
+  /** Number of prior lessons the response referenced by id. */
+  referencedLessonCount?: number;
 }
 
 /**
@@ -104,6 +117,15 @@ export const recordAiCall = async (input: RecordAiCallInput): Promise<void> => {
       model: input.model?.trim() || undefined,
       injectionSuspected: input.injectionSuspected ? true : undefined,
       injectionMatches: input.injectionMatches || undefined,
+      evidenceCount:
+        typeof input.evidenceCount === 'number' && input.evidenceCount >= 0
+          ? Math.floor(input.evidenceCount)
+          : undefined,
+      confidence: input.confidence,
+      referencedLessonCount:
+        typeof input.referencedLessonCount === 'number' && input.referencedLessonCount >= 0
+          ? Math.floor(input.referencedLessonCount)
+          : undefined,
       createdAt: Date.now(),
     };
 

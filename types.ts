@@ -778,12 +778,17 @@ export interface PromptAttachment {
  * - 'edited':  coach edited the AI draft (implicit approval of the result)
  * - 'feedback': student rated the deliverable highly (future)
  * - 'auto':    heuristic pick (recency + depth + quality signals)
+ * - 'dissent': coach explicitly said "다르게 봐요" — an equally strong signal
+ *              that the AI's take diverges from theirs. Stored so future
+ *              few-shot injection can carry the negative example alongside
+ *              positives; the redesign's 6a screen ("코치 판단") writes here.
  */
 export type CoachStyleExemplarSource =
   | 'starred'
   | 'edited'
   | 'feedback'
-  | 'auto';
+  | 'auto'
+  | 'dissent';
 
 /**
  * A concrete AI output the coach has endorsed for a specific target.
@@ -856,6 +861,26 @@ export interface AiCallLog {
   injectionSuspected?: boolean;
   /** Comma-joined ids of matched injection patterns (dashboard display). */
   injectionMatches?: string;
+  /**
+   * Number of concrete evidence items the response carried (swing metrics,
+   * frame IDs, past-lesson quotes). Zero means the model's judgement wasn't
+   * grounded — the admin observability screen surfaces evidence-less
+   * responses so we can find prompts that need tightening.
+   */
+  evidenceCount?: number;
+  /**
+   * Coarse-grained confidence the model self-reported for the primary
+   * judgement, when the response schema included the field. Anything below
+   * 'plausible' should be treated as推정 in the UI. Callers that produce
+   * multiple judgements per call should pass the weakest (worst case).
+   */
+  confidence?: 'strong' | 'plausible' | 'speculative';
+  /**
+   * Number of prior lessons the response cited by id. Zero is normal for
+   * a first-time analysis; a persistently zero count on features that
+   * receive lesson history suggests the model isn't actually using it.
+   */
+  referencedLessonCount?: number;
   createdAt: number;
 }
 

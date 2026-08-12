@@ -22,7 +22,9 @@ const log = createLogger('coachStyle');
 /**
  * Compute the quality tier for an exemplar based on where the signal came from.
  * Callers can override, but this keeps the mapping consistent by default.
- * - tier 1: coach explicitly starred, or student rated the output highly
+ * - tier 1: coach explicitly starred, coach explicitly dissented, or student
+ *           rated the output highly — all three are the strongest signals of
+ *           coach intent (positive or negative)
  * - tier 2: coach edited an AI draft (implicit acceptance of the shape)
  * - tier 3: auto-selected by heuristics (recency, depth, etc.)
  */
@@ -30,6 +32,7 @@ export const tierForSource = (source: CoachStyleExemplarSource): 1 | 2 | 3 => {
   switch (source) {
     case 'starred':
     case 'feedback':
+    case 'dissent':
       return 1;
     case 'edited':
       return 2;

@@ -37,6 +37,53 @@ const formatWeekRange = (start: string, end: string): string => {
   return `${s.getMonth() + 1}월 ${s.getDate()}일 ~ ${e.getMonth() + 1}월 ${e.getDate()}일`;
 };
 
+const CONFIDENCE_STYLE: Record<
+  'strong' | 'plausible' | 'speculative',
+  { label: string; cls: string }
+> = {
+  strong: { label: '확신도 높음', cls: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
+  plausible: { label: '확신도 보통', cls: 'bg-slate-100 text-slate-700 border-slate-200' },
+  speculative: { label: '추정', cls: 'bg-amber-100 text-amber-800 border-amber-200' },
+};
+
+const ConfidenceChip: React.FC<{ level: 'strong' | 'plausible' | 'speculative' }> = ({ level }) => {
+  const { label, cls } = CONFIDENCE_STYLE[level];
+  return (
+    <span
+      className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${cls}`}
+      title={`AI 확신도: ${label}`}
+    >
+      {label}
+    </span>
+  );
+};
+
+const EvidenceBlock: React.FC<{ swing?: string[]; history?: string[] }> = ({ swing, history }) => (
+  <div className="rounded-xl border border-slate-200 bg-white/70 p-3 space-y-2">
+    <div className="text-[10px] font-mono uppercase tracking-wider text-slate-500">근거</div>
+    {swing?.length ? (
+      <ul className="space-y-1 text-xs text-slate-700 leading-relaxed">
+        {swing.map((e, i) => (
+          <li key={`s-${i}`} className="flex items-start gap-2">
+            <span className="mt-1 w-1 h-1 rounded-full bg-emerald-500 flex-shrink-0" />
+            <span>{e}</span>
+          </li>
+        ))}
+      </ul>
+    ) : null}
+    {history?.length ? (
+      <ul className="space-y-1 text-xs text-slate-600 leading-relaxed border-t border-slate-100 pt-2">
+        {history.map((e, i) => (
+          <li key={`h-${i}`} className="flex items-start gap-2">
+            <span className="mt-1 w-1 h-1 rounded-full bg-slate-400 flex-shrink-0" />
+            <span>이력 · {e}</span>
+          </li>
+        ))}
+      </ul>
+    ) : null}
+  </div>
+);
+
 export const WeeklyInsightCard: React.FC<WeeklyInsightCardProps> = ({
   clientId,
   coachId,
@@ -88,6 +135,12 @@ export const WeeklyInsightCard: React.FC<WeeklyInsightCardProps> = ({
         summary: partial.summary,
         keyPatterns: partial.keyPatterns,
         recommendedFocus: partial.recommendedFocus,
+        // Envelope fields — persisted only when the model filled them (schema
+        // makes them optional so we don't clutter the store with empty arrays).
+        ...(partial.swingEvidence?.length ? { swingEvidence: partial.swingEvidence } : {}),
+        ...(partial.historyEvidence?.length ? { historyEvidence: partial.historyEvidence } : {}),
+        ...(partial.confidence ? { confidence: partial.confidence } : {}),
+        ...(partial.caveats?.length ? { caveats: partial.caveats } : {}),
         generatedAt: now,
       };
 
@@ -150,10 +203,17 @@ export const WeeklyInsightCard: React.FC<WeeklyInsightCardProps> = ({
       {/* Latest Insight */}
       {latestInsight && (
         <div className="bg-slate-50 rounded-2xl p-5 border border-slate-100 shadow-sm space-y-4">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-emerald-600 bg-emerald-100 px-2 py-0.5 rounded-full">
-              {formatWeekRange(latestInsight.weekStart, latestInsight.weekEnd)}
-            </span>
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-xs font-bold text-emerald-600 bg-emerald-100 px-2 py-0.5 rounded-full">
+                {formatWeekRange(latestInsight.weekStart, latestInsight.weekEnd)}
+              </span>
+              {/* Confidence chip — anything below plausible reads as 추정
+                  per the redesign's "확신 낮음" rule. */}
+              {latestInsight.confidence && (
+                <ConfidenceChip level={latestInsight.confidence} />
+              )}
+            </div>
             <span className="text-[10px] text-gray-400">
               {new Date(latestInsight.generatedAt).toLocaleDateString('ko-KR')} 생성
             </span>
@@ -167,6 +227,15 @@ export const WeeklyInsightCard: React.FC<WeeklyInsightCardProps> = ({
             </div>
             <p className="text-sm text-gray-700 leading-relaxed">{latestInsight.summary}</p>
           </div>
+
+          {/* Evidence — grounds the summary in specific numbers from the
+              week's logs so the coach can trace each claim back to a rep. */}
+          {(latestInsight.swingEvidence?.length || latestInsight.historyEvidence?.length) ? (
+            <EvidenceBlock
+              swing={latestInsight.swingEvidence}
+              history={latestInsight.historyEvidence}
+            />
+          ) : null}
 
           {/* Key Patterns */}
           {latestInsight.keyPatterns.length > 0 && (
@@ -194,6 +263,16 @@ export const WeeklyInsightCard: React.FC<WeeklyInsightCardProps> = ({
             </div>
             <p className="text-sm text-gray-700 leading-relaxed">{latestInsight.recommendedFocus}</p>
           </div>
+
+          {/* Caveats — surfaced last so the coach reads them after the
+              recommendation but before acting on it. */}
+          {latestInsight.caveats?.length ? (
+            <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 leading-relaxed">
+              {latestInsight.caveats.map((c, i) => (
+                <div key={i}>· {c}</div>
+              ))}
+            </div>
+          ) : null}
         </div>
       )}
 
