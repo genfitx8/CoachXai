@@ -28,7 +28,7 @@ function reSignMediaTree(value: unknown): unknown {
   return value;
 }
 
-function mapLesson(row: Record<string, unknown>) {
+function mapLesson(row: Record<string, unknown>, viewerRole?: 'coach' | 'client') {
   // Prefer signing the stored key when available; fall back to re-signing
   // whatever's in video_url (covers legacy rows that only have the URL form).
   const videoKey = row.video_key as string | null;
@@ -36,6 +36,20 @@ function mapLesson(row: Record<string, unknown>) {
     videoKey
       ? signMediaUrl(videoKey).url
       : reSignIfMedia(row.video_url as string | null);
+
+  // Redesign 8b: freeMemo is the coach's private note, never shipped to
+  // the student. Strip it here so a future consumer bug can't accidentally
+  // surface it — the client UI already hides it, but data-layer defense
+  // in depth is worth the two lines.
+  let reviewSections = reSignMediaTree(row.review_sections) as
+    | Record<string, unknown>
+    | null
+    | undefined;
+  if (viewerRole === 'client' && reviewSections && typeof reviewSections === 'object') {
+    const { freeMemo: _freeMemo, ...rest } = reviewSections as Record<string, unknown>;
+    void _freeMemo;
+    reviewSections = rest;
+  }
 
   return {
     id: row.id,
@@ -85,7 +99,7 @@ function mapLesson(row: Record<string, unknown>) {
     approvalStatus: row.approval_status ?? undefined,
     approvedAt: row.approved_at ?? undefined,
     sharedToStudent: row.shared_to_student ?? undefined,
-    reviewSections: reSignMediaTree(row.review_sections) ?? undefined,
+    reviewSections: reviewSections ?? undefined,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -168,7 +182,7 @@ router.get('/', async (req: Request, res: Response) => {
       return;
     }
 
-    res.json({ lessons: result.rows.map(mapLesson) });
+    res.json({ lessons: result.rows.map((r) => mapLesson(r, userRole)) });
   } catch (err) {
     console.error('[lessons] GET / error:', err);
     res.status(500).json({ error: 'Internal server error' });
@@ -319,7 +333,7 @@ router.post('/', async (req: Request, res: Response) => {
       ]
     );
 
-    res.status(201).json({ lesson: mapLesson(result.rows[0]) });
+    res.status(201).json({ lesson: mapLesson(result.rows[0], userRole) });
   } catch (err) {
     console.error('[lessons] POST / error:', err);
     res.status(500).json({ error: 'Internal server error' });
@@ -508,7 +522,7 @@ router.put('/:id', async (req: Request, res: Response) => {
       ]
     );
 
-    res.json({ lesson: mapLesson(result.rows[0]) });
+    res.json({ lesson: mapLesson(result.rows[0], userRole) });
   } catch (err) {
     console.error('[lessons] PUT /:id error:', err);
     res.status(500).json({ error: 'Internal server error' });
