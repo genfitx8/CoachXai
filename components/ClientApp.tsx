@@ -859,7 +859,6 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
               onRefreshLessons?.();
             }
           }}
-          onNewRecord={handleNewLessonCTA}
         />
       )}
 

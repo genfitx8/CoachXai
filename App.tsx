@@ -61,6 +61,7 @@ import {
 import { Button } from './components/Button';
 import { CoachXHub } from './components/CoachXHub';
 import { CoachXChat } from './components/CoachXChat';
+import { CoachAIHome, type TodayLessonSummary } from './components/CoachAIHome';
 import { CoachXAssistant } from './components/CoachXAssistant';
 import { buildMemberGrowthReports } from './services/coachXService';
 import { DIAGNOSIS_FACTORS, DIAGNOSIS_PROCESS } from './constants/diagnosis';
@@ -159,7 +160,7 @@ const AppContent: React.FC = () => {
   const [coachProfile, setCoachProfile] = useState<CoachProfile | null>(null);
 
   // View State (Coach)
-  const [coachView, setCoachView] = useState<ViewState | 'RESERVATIONS' | 'BAY_RESERVATION' | 'MY_BAY_RESERVATIONS'>('LESSON_LIST');
+  const [coachView, setCoachView] = useState<ViewState | 'RESERVATIONS' | 'BAY_RESERVATION' | 'MY_BAY_RESERVATIONS' | 'COACHX_DASHBOARD'>('LESSON_LIST');
   const [hamburgerOpen, setHamburgerOpen] = useState(false);
   const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(null);
   const [selectedClientFilter, setSelectedClientFilter] = useState<string>(''); // '' or clientName
@@ -1478,14 +1479,16 @@ const AppContent: React.FC = () => {
    * so the nav renders as an overlay backdrop without highlighting anything.
    */
   const activeCoachTab: CoachTab | null =
-    coachView === 'LESSON_LIST' ? 'LESSON'
+    coachView === 'COACHX' || coachView === 'LESSON_LIST' ? 'LESSON'
     : coachView === 'CLIENTS' ? 'CLIENTS'
     : coachView === 'RESERVATIONS' ? 'RESERVATIONS'
     : null;
 
   const handleCoachTabChange = (next: CoachTab) => {
     setSelectedLesson(null);
-    if (next === 'LESSON') setCoachView('LESSON_LIST');
+    // Primary "대화" tab lands on the conversational home; the legacy lesson
+    // list stays reachable from the dashboard link inside CoachAIHome.
+    if (next === 'LESSON') setCoachView('COACHX');
     else if (next === 'CLIENTS') setCoachView('CLIENTS');
     else setCoachView('RESERVATIONS');
   };
@@ -1494,6 +1497,36 @@ const AppContent: React.FC = () => {
     setIsEditingLesson(false);
     setSelectedLesson(null);
     setCoachView('NEW');
+  };
+
+  /**
+   * Distil the coach's lesson list into today's schedule for CoachAIHome's
+   * briefing card. A lesson counts as "today" when its scheduled `date`
+   * (YYYY-MM-DD) matches the local date; the ordering is chronological by
+   * start time when parseable, otherwise by creation order.
+   */
+  const buildTodayLessonSummaries = (lessons: Lesson[]): TodayLessonSummary[] => {
+    const now = new Date();
+    const todayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    return lessons
+      .filter((l) => typeof l.date === 'string' && l.date.startsWith(todayKey))
+      .map((l) => {
+        // Lesson.date is stored as YYYY-MM-DD; use createdAt time when present
+        // for a stable ordering hint. The 시각 field the redesign specifies
+        // isn't stored yet, so we surface either an explicit time in the
+        // title or a generic "레슨" placeholder.
+        const timeMatch = (l.title ?? '').match(/(\d{1,2})[:시](\d{2})?/);
+        const time = timeMatch
+          ? `${timeMatch[1].padStart(2, '0')}:${(timeMatch[2] ?? '00').padStart(2, '0')}`
+          : '';
+        return {
+          id: l.id,
+          clientName: l.clientName ?? '',
+          time,
+          title: l.title ?? '',
+          status: 'scheduled' as const,
+        };
+      });
   };
 
   const handleCoachHamburgerAction = (action: CoachHamburgerAction) => {
@@ -2212,11 +2245,21 @@ const AppContent: React.FC = () => {
         )}
 
         {coachView === 'COACHX' && currentUser && 'id' in currentUser && (
+          <CoachAIHome
+            coachProfile={currentUser as CoachProfile}
+            allLessons={allCoachLessons}
+            clients={clients}
+            todayLessons={buildTodayLessonSummaries(allCoachLessons)}
+            onNavigateToDashboard={() => setCoachView('COACHX_DASHBOARD')}
+          />
+        )}
+
+        {coachView === 'COACHX_DASHBOARD' && currentUser && 'id' in currentUser && (
           <CoachXHub
             coachProfile={currentUser as CoachProfile}
             allLessons={allCoachLessons}
             clients={clients}
-            onBack={() => setCoachView('LESSON_LIST')}
+            onBack={() => setCoachView('COACHX')}
             onOpenChat={(initialQuery) => {
               setCoachXChatInitialQuery(initialQuery);
               setCoachView('COACHX_CHAT');
@@ -2433,12 +2476,13 @@ const AppContent: React.FC = () => {
         />
       )}
 
-      {/* Bottom nav — visible on the three primary tabs, hidden on sub-views */}
+      {/* Bottom nav — visible on the three primary tabs, hidden on sub-views.
+          The redesign removes the raised + button; new records now originate
+          from the agent conversation instead of a fixed CTA. */}
       {activeCoachTab && (
         <CoachBottomNav
           activeTab={activeCoachTab}
           onTabChange={handleCoachTabChange}
-          onNewRecord={handleCoachNewRecord}
         />
       )}
     </div>
