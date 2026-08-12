@@ -34,6 +34,7 @@ import {
   coachXInsightsSchema,
   extractGolfDataSchema,
   generateSystemPromptFromDocumentSchema,
+  handoverSummarySchema,
   interviewQuestionSchema,
   lessonReviewDraftSchema,
   motionCaptureSchema,
@@ -1933,6 +1934,166 @@ ${historyBlock}
     log.error('Generate Lesson Review Draft Error:', error);
     recordAiFallback('lesson_review_draft', {
       coachId,
+      errorMessage: error instanceof Error ? error.message : String(error),
+      hasSchema: true,
+    });
+    return fallback();
+  }
+};
+
+/**
+ * 7a · Compose the coach-handover briefing the incoming coach reads.
+ *
+ * Inputs are the outgoing coach's own view of the student — the server
+ * already strips freeMemo from any read the OUTGOING coach makes for a
+ * different viewer, but we still tell the model explicitly to only use
+ * approved coachNotes / aiAnalysis / assignedHomework and never leak
+ * anything that reads as a private aside. `sharedItems` mirrors the
+ * checkbox state from CoachHandoverFlow so the model omits sections
+ * the outgoing coach chose not to share.
+ *
+ * Returns a shape that maps 1:1 onto `HandoverSummary` (minus id, from/
+ * to coach ids, clientId, and timestamps the caller stamps on).
+ */
+export interface HandoverSummaryDraft {
+  headline: string;
+  keyPoints: string[];
+  recentFocus: string;
+  watchOuts?: string[];
+  swingEvidence?: string[];
+  historyEvidence?: string[];
+  confidence?: 'strong' | 'plausible' | 'speculative';
+  caveats?: string[];
+}
+
+export interface HandoverShareItems {
+  recentLessons: boolean;
+  swingHistory: boolean;
+  diagnosisScores: boolean;
+  currentCurriculum: boolean;
+}
+
+export const generateHandoverSummary = async (
+  clientProfile: ClientProfile | undefined,
+  pastLessons: Lesson[],
+  shareItems: HandoverShareItems,
+  fromCoachId?: string
+): Promise<HandoverSummaryDraft> => {
+  const approved = pastLessons.filter(
+    (l) => l.approvalStatus === undefined || l.approvalStatus === 'approved'
+  );
+  const recent = approved.slice(0, 8);
+
+  const fallback = (): HandoverSummaryDraft => ({
+    headline: recent.length > 0
+      ? `최근 ${recent.length}회 레슨 흐름을 이어가면 됩니다.`
+      : '이 학생의 이력이 아직 정리되지 않았습니다. 첫 대화로 파악해 주세요.',
+    keyPoints: [],
+    recentFocus: recent[0]?.title ?? '기록 없음',
+    watchOuts: [],
+  });
+
+  if (recent.length === 0) return fallback();
+
+  try {
+    const historyBlock = recent
+      .map((l, i) => {
+        const parts = [`레슨 ${i + 1} (${l.date ?? '?'}): ${l.title ?? ''}`];
+        // freeMemo is coach-private. Never fed to the model even for the
+        // outgoing coach's own handover — the whole point of the flow is
+        // the redesign's promise that private memos never migrate.
+        if (l.coachNotes) parts.push(`코치노트: ${l.coachNotes}`);
+        if (l.assignedHomework?.length)
+          parts.push(`숙제: ${l.assignedHomework.join(', ')}`);
+        return parts.join(' | ');
+      })
+      .join('\n');
+
+    const shareBlock = [
+      shareItems.recentLessons ? '최근 레슨 요약' : null,
+      shareItems.swingHistory ? '스윙 이력' : null,
+      shareItems.diagnosisScores ? '진단 점수' : null,
+      shareItems.currentCurriculum ? '현재 커리큘럼' : null,
+    ]
+      .filter(Boolean)
+      .join(', ');
+
+    const profileBlock = clientProfile
+      ? `회원: ${clientProfile.name}${clientProfile.handicap ? `, 핸디캡 ${clientProfile.handicap}` : ''}`
+      : '';
+
+    const prompt = `당신은 인수인계 브리핑 작성 AI입니다. 학생을 이어받는 새 코치가 이 요약만 읽고 첫 대화를 자연스럽게 시작할 수 있어야 합니다.
+${profileBlock}
+공유 허용 항목: ${shareBlock || '없음'}
+
+**최근 승인된 레슨 이력 (${recent.length}회):**
+${historyBlock}
+
+**작성 지침:**
+- headline: "여기서 이어서 하시면 됩니다" 톤 한 문장.
+- keyPoints: 이전 코치가 최근에 집중했던 포인트 2~4개. 짧은 명사구.
+- recentFocus: 가장 최근 레슨의 코칭 각도 한 문단 (2~3문장).
+- watchOuts: 학생 특이사항(회피 성향·자주 놓치는 부분·심리 이슈). 없으면 [].
+- swingEvidence: 근거가 된 관찰/수치. 없으면 [].
+- historyEvidence: 인용한 레슨 참조 (예: "레슨 2, 3의 임팩트 코멘트"). 없으면 [].
+- confidence: 데이터가 충분하면 strong, 부족하면 plausible, 거의 없으면 speculative.
+- caveats: 데이터 공백이나 신뢰가 약한 지점. 없으면 [].
+- 공유 허용 항목에 없는 카테고리는 인용하지 마세요.
+- 코치 개인 메모(freeMemo)는 절대 포함하지 마세요 (여기 프롬프트에도 이미 없습니다).
+- 없는 정보를 지어내지 마세요.
+
+반드시 JSON으로만 응답:
+{
+  "headline": "...",
+  "keyPoints": ["...", "..."],
+  "recentFocus": "...",
+  "watchOuts": ["..."],
+  "swingEvidence": ["..."],
+  "historyEvidence": ["..."],
+  "confidence": "strong" | "plausible" | "speculative",
+  "caveats": ["..."]
+}`;
+
+    const result = await invokeBackendAI<unknown>('handover_summary', {
+      prompt,
+      coachId: fromCoachId,
+      responseMimeType: 'application/json',
+      responseSchema: handoverSummarySchema,
+    });
+    const text = getResponseText(result);
+    const parsed = (text ? parseJsonObjectFromText(text) : result) as
+      | Record<string, unknown>
+      | null;
+    if (
+      !parsed ||
+      typeof parsed.headline !== 'string' ||
+      !Array.isArray(parsed.keyPoints) ||
+      typeof parsed.recentFocus !== 'string'
+    ) {
+      throw new Error('Invalid handover summary response');
+    }
+    const stringArray = (v: unknown): string[] | undefined =>
+      Array.isArray(v)
+        ? v.filter((s): s is string => typeof s === 'string').map((s) => s.trim()).filter(Boolean)
+        : undefined;
+    return {
+      headline: parsed.headline as string,
+      keyPoints: stringArray(parsed.keyPoints) ?? [],
+      recentFocus: parsed.recentFocus as string,
+      watchOuts: stringArray(parsed.watchOuts),
+      swingEvidence: stringArray(parsed.swingEvidence),
+      historyEvidence: stringArray(parsed.historyEvidence),
+      confidence:
+        typeof parsed.confidence === 'string' &&
+        ['strong', 'plausible', 'speculative'].includes(parsed.confidence)
+          ? (parsed.confidence as 'strong' | 'plausible' | 'speculative')
+          : undefined,
+      caveats: stringArray(parsed.caveats),
+    };
+  } catch (error) {
+    log.error('Generate Handover Summary Error:', error);
+    recordAiFallback('handover_summary', {
+      coachId: fromCoachId,
       errorMessage: error instanceof Error ? error.message : String(error),
       hasSchema: true,
     });
