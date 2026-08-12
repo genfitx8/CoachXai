@@ -246,13 +246,13 @@ export const HomeworkModal: React.FC<HomeworkModalProps> = ({ isOpen, onClose, c
         <div className="flex border-b border-gray-100 flex-shrink-0">
             <button 
                 onClick={() => setActiveTab('LIST')}
-                className={`flex-1 py-3 text-sm font-bold transition-colors ${activeTab === 'LIST' ? 'text-indigo-600 border-b-2 border-indigo-600' : 'text-gray-400 hover:text-gray-600'}`}
+                className={`flex-1 py-3 text-sm font-bold transition-colors ${activeTab === 'LIST' ? 'text-emerald-600 border-b-2 border-emerald-600' : 'text-gray-400 hover:text-gray-600'}`}
             >
                 {t('homework_tab_list')}
             </button>
             <button 
                 onClick={() => setActiveTab('ASSIGN')}
-                className={`flex-1 py-3 text-sm font-bold transition-colors ${activeTab === 'ASSIGN' ? 'text-indigo-600 border-b-2 border-indigo-600' : 'text-gray-400 hover:text-gray-600'}`}
+                className={`flex-1 py-3 text-sm font-bold transition-colors ${activeTab === 'ASSIGN' ? 'text-emerald-600 border-b-2 border-emerald-600' : 'text-gray-400 hover:text-gray-600'}`}
             >
                 {t('homework_tab_assign')}
             </button>
@@ -269,7 +269,7 @@ export const HomeworkModal: React.FC<HomeworkModalProps> = ({ isOpen, onClose, c
                                 <circle cx="32" cy="32" r="28" fill="none" stroke="#e5e7eb" strokeWidth="6" />
                                 <circle cx="32" cy="32" r="28" fill="none" stroke="#4f46e5" strokeWidth="6" strokeDasharray="176" strokeDashoffset={176 - (176 * stats.rate / 100)} className="transition-all duration-1000 ease-out" />
                             </svg>
-                            <span className="absolute text-xs font-bold text-indigo-600">{stats.rate}%</span>
+                            <span className="absolute text-xs font-bold text-emerald-600">{stats.rate}%</span>
                         </div>
                         <div className="flex-1">
                             <h4 className="font-bold text-gray-900">{t('homework_stats_title')}</h4>
@@ -294,11 +294,11 @@ export const HomeworkModal: React.FC<HomeworkModalProps> = ({ isOpen, onClose, c
                         ) : (
                             <ul className="space-y-2">
                                 {recentHomework.map(hw => (
-                                    <li key={hw.id} className={`bg-white p-3 rounded-xl shadow-sm border flex items-center justify-between transition-colors ${hw.isCompleted ? 'border-indigo-100 bg-indigo-50/30' : 'border-gray-100'}`}>
+                                    <li key={hw.id} className={`bg-white p-3 rounded-xl shadow-sm border flex items-center justify-between transition-colors ${hw.isCompleted ? 'border-emerald-100 bg-emerald-50/30' : 'border-gray-100'}`}>
                                         <div className="flex items-center gap-3 flex-1">
                                             <button 
                                                 onClick={() => handleToggleStatus(hw.id, hw.isCompleted)}
-                                                className={`transition-colors ${hw.isCompleted ? 'text-indigo-600' : 'text-gray-300 hover:text-gray-400'}`}
+                                                className={`transition-colors ${hw.isCompleted ? 'text-emerald-600' : 'text-gray-300 hover:text-gray-400'}`}
                                             >
                                                 {hw.isCompleted ? <CheckSquare className="w-6 h-6" /> : <Square className="w-6 h-6" />}
                                             </button>
@@ -306,7 +306,7 @@ export const HomeworkModal: React.FC<HomeworkModalProps> = ({ isOpen, onClose, c
                                                 <p className={`font-bold text-sm ${hw.isCompleted ? 'text-gray-800' : 'text-gray-900'}`}>{hw.title}</p>
                                                 <p className="text-xs text-gray-500 flex items-center gap-1">
                                                     <CalendarIcon className="w-3 h-3" /> {hw.date}
-                                                    {hw.isCompleted && <span className="ml-2 text-indigo-600 font-bold text-[10px]">{t('homework_done_confirmed')}</span>}
+                                                    {hw.isCompleted && <span className="ml-2 text-emerald-600 font-bold text-[10px]">{t('homework_done_confirmed')}</span>}
                                                 </p>
                                             </div>
                                         </div>
@@ -344,10 +344,10 @@ export const HomeworkModal: React.FC<HomeworkModalProps> = ({ isOpen, onClose, c
                                     value={taskTitle}
                                     onChange={(e) => setTaskTitle(e.target.value)}
                                     placeholder={t('homework_placeholder')}
-                                    className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                                    className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
                                 />
                                 <select 
-                                    className="w-1/3 border border-gray-300 rounded-lg px-2 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                                    className="w-1/3 border border-gray-300 rounded-lg px-2 py-2 text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
                                     onChange={(e) => setTaskTitle(e.target.value)}
                                     value=""
                                 >
@@ -366,7 +366,7 @@ export const HomeworkModal: React.FC<HomeworkModalProps> = ({ isOpen, onClose, c
                                     type="date" 
                                     value={startDate} 
                                     onChange={(e) => setStartDate(e.target.value)} 
-                                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
                                 />
                             </div>
                             <div>
@@ -374,7 +374,7 @@ export const HomeworkModal: React.FC<HomeworkModalProps> = ({ isOpen, onClose, c
                                 <select 
                                     value={durationWeeks}
                                     onChange={(e) => setDurationWeeks(Number(e.target.value))}
-                                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
                                 >
                                     {DURATION_OPTIONS.map(opt => (
                                         <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -387,7 +387,7 @@ export const HomeworkModal: React.FC<HomeworkModalProps> = ({ isOpen, onClose, c
                         <div>
                             <label className="block text-xs font-bold text-gray-500 mb-2 flex items-center justify-between">
                                 <span>{t('homework_days_select')}</span>
-                                <span className="text-indigo-600 font-normal">{t('homework_times_per_week').replace('{n}', String(selectedDays.length))}</span>
+                                <span className="text-emerald-600 font-normal">{t('homework_times_per_week').replace('{n}', String(selectedDays.length))}</span>
                             </label>
                             <div className="flex justify-between gap-1">
                                 {WEEK_DAYS.map(day => {
@@ -409,9 +409,9 @@ export const HomeworkModal: React.FC<HomeworkModalProps> = ({ isOpen, onClose, c
                             </div>
                         </div>
 
-                        <div className="bg-indigo-50 p-3 rounded-lg flex items-center justify-between">
-                            <span className="text-xs text-indigo-700 font-medium">{t('homework_total_label')}</span>
-                            <span className="text-lg font-bold text-indigo-900">{t('homework_total_count_unit').replace('{n}', String(calculateTotalTasks()))}</span>
+                        <div className="bg-emerald-50 p-3 rounded-lg flex items-center justify-between">
+                            <span className="text-xs text-emerald-700 font-medium">{t('homework_total_label')}</span>
+                            <span className="text-lg font-bold text-emerald-900">{t('homework_total_count_unit').replace('{n}', String(calculateTotalTasks()))}</span>
                         </div>
 
                         <Button onClick={handleAssign} isLoading={isLoading} className="w-full mt-2" icon={<Repeat className="w-4 h-4" />}>

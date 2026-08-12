@@ -231,7 +231,7 @@ export const ReservationManager: React.FC<ReservationManagerProps> = ({
       case 'PENDING':    return 'bg-yellow-100 text-yellow-700 border-yellow-300';
       case 'REQUESTED':  return 'bg-yellow-100 text-yellow-700 border-yellow-300';
       case 'ADMIN_BLOCK_PENDING':
-      case 'COACH_APPROVED': return 'bg-indigo-100 text-indigo-700 border-indigo-300';
+      case 'COACH_APPROVED': return 'bg-emerald-100 text-emerald-700 border-emerald-300';
       case 'CONFIRMED':  return 'bg-green-100 text-green-700 border-green-300';
       case 'CHANGE_REQUESTED': return 'bg-purple-100 text-purple-700 border-purple-300';
       case 'CANCEL_REQUESTED': return 'bg-orange-100 text-orange-700 border-orange-300';
@@ -249,7 +249,7 @@ export const ReservationManager: React.FC<ReservationManagerProps> = ({
       case 'PENDING':    return 'border-l-yellow-400';
       case 'REQUESTED':  return 'border-l-yellow-400';
       case 'ADMIN_BLOCK_PENDING':
-      case 'COACH_APPROVED': return 'border-l-indigo-400';
+      case 'COACH_APPROVED': return 'border-l-emerald-400';
       case 'CONFIRMED':  return 'border-l-green-400';
       case 'CHANGE_REQUESTED': return 'border-l-purple-400';
       case 'CANCEL_REQUESTED': return 'border-l-orange-400';
@@ -456,7 +456,7 @@ export const ReservationManager: React.FC<ReservationManagerProps> = ({
                         : reservation?.status === 'PENDING' || reservation?.status === 'REQUESTED' || reservation?.status === 'CHANGE_REQUESTED'
                         ? 'bg-yellow-100 border-yellow-300 text-yellow-700 cursor-default'
                         : reservation?.status === 'ADMIN_BLOCK_PENDING' || reservation?.status === 'COACH_APPROVED' || reservation?.status === 'CANCEL_REQUESTED'
-                        ? 'bg-indigo-100 border-indigo-300 text-indigo-700 cursor-default'
+                        ? 'bg-emerald-100 border-emerald-300 text-emerald-700 cursor-default'
                         : reservation?.status === 'CONFIRMED'
                         ? 'bg-green-100 border-green-300 text-green-700 cursor-default'
                         : 'bg-emerald-50 border-emerald-300 text-emerald-700 hover:bg-emerald-100 cursor-pointer';
@@ -540,7 +540,7 @@ export const ReservationManager: React.FC<ReservationManagerProps> = ({
                       filterStatus === s
                         ? s === 'ALL'       ? 'bg-blue-600 text-white'
                         : s === 'REQUESTED'   ? 'bg-yellow-500 text-white'
-                        : s === 'ADMIN_BLOCK_PENDING' ? 'bg-indigo-500 text-white'
+                        : s === 'ADMIN_BLOCK_PENDING' ? 'bg-emerald-500 text-white'
                         : s === 'CONFIRMED' ? 'bg-green-600 text-white'
                         : s === 'BLOCKED'   ? 'bg-red-500 text-white'
                         :                     'bg-gray-600 text-white'

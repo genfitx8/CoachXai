@@ -59,7 +59,7 @@ export const MembershipPurchase: React.FC<MembershipPurchaseProps> = ({
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-blue-50">
+    <div className="min-h-screen bg-gradient-to-br from-emerald-50 to-blue-50">
       <div className="bg-white/80 backdrop-blur-sm border-b border-gray-100 px-4 py-4 flex items-center gap-3 sticky top-0 z-10">
         <BackButton onClick={onBack} tone="light" />
         <div>
@@ -69,10 +69,10 @@ export const MembershipPurchase: React.FC<MembershipPurchaseProps> = ({
       </div>
 
       <div className="p-4 max-w-md mx-auto space-y-4 pt-6">
-        <div className="rounded-2xl bg-gradient-to-r from-indigo-600 to-blue-600 text-white p-5 shadow-lg">
+        <div className="rounded-2xl bg-gradient-to-r from-emerald-600 to-blue-600 text-white p-5 shadow-lg">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs text-indigo-100 font-semibold">추천 플랜</p>
+              <p className="text-xs text-emerald-100 font-semibold">추천 플랜</p>
               <h2 className="text-2xl font-black mt-1">🔵 PRO 멤버십</h2>
             </div>
             <div className="bg-white/20 p-3 rounded-xl">
@@ -82,10 +82,10 @@ export const MembershipPurchase: React.FC<MembershipPurchaseProps> = ({
           <p className="text-3xl font-black mt-4">₩{price.toLocaleString()}<span className="text-base font-medium"> / 월</span></p>
         </div>
 
-        <div className="bg-white rounded-2xl border border-indigo-100 p-4 space-y-3">
+        <div className="bg-white rounded-2xl border border-emerald-100 p-4 space-y-3">
           {['기록 무제한', 'AI 분석 무제한', '성장 그래프 · 훈련 추천', '상세 분석 리포트'].map((item) => (
             <div key={item} className="flex items-center gap-2 text-sm text-gray-700">
-              <CheckCircle2 className="w-4 h-4 text-indigo-600" />
+              <CheckCircle2 className="w-4 h-4 text-emerald-600" />
               <span>{item}</span>
             </div>
           ))}
@@ -100,7 +100,7 @@ export const MembershipPurchase: React.FC<MembershipPurchaseProps> = ({
         <button
           onClick={handleUpgrade}
           disabled={loading}
-          className="w-full bg-gradient-to-r from-indigo-700 to-blue-600 disabled:from-gray-300 disabled:to-gray-400 text-white rounded-2xl py-4 font-bold text-base shadow-lg shadow-slate-200 disabled:shadow-none transition-all flex items-center justify-center gap-2"
+          className="w-full bg-gradient-to-r from-emerald-700 to-blue-600 disabled:from-gray-300 disabled:to-gray-400 text-white rounded-2xl py-4 font-bold text-base shadow-lg shadow-slate-200 disabled:shadow-none transition-all flex items-center justify-center gap-2"
         >
           {loading ? (
             <>

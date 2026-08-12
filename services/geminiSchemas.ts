@@ -9,6 +9,44 @@
  * Type strings follow the OpenAPI 3.0 subset Gemini accepts.
  */
 
+/**
+ * Shared "why do you believe this?" envelope pattern.
+ *
+ * The redesign requires every AI judgement the coach sees to carry the
+ * frames/metrics it looked at, how confident it is, and any past-lesson
+ * references it drew on. `aiCoachingSummaryService` already ships this
+ * shape via prompt-level schema hints (see `AICoachingInsight`); this
+ * fragment lets us bolt the same fields onto feature-schema level so the
+ * server-enforced JSON output includes them for shot_analysis, coachx
+ * insights, weekly insights, and motion capture.
+ *
+ * Spread it into a schema's `properties` map; the fields stay optional so
+ * upgrading a schema doesn't force a matching prompt change in the same
+ * commit — models simply omit fields they weren't asked to fill.
+ */
+export const evidenceEnvelopeSchema = {
+  /** Frame/metric citations pulled straight from the analysis pipeline. */
+  swingEvidence: {
+    type: 'ARRAY',
+    items: { type: 'STRING' },
+  },
+  /** References to prior lessons/rounds the judgement leans on. */
+  historyEvidence: {
+    type: 'ARRAY',
+    items: { type: 'STRING' },
+  },
+  /** How firm the correlation is — surface warning UI below `plausible`. */
+  confidence: {
+    type: 'STRING',
+    enum: ['strong', 'plausible', 'speculative'],
+  },
+  /** Free-form caveats the coach should read before trusting the call. */
+  caveats: {
+    type: 'ARRAY',
+    items: { type: 'STRING' },
+  },
+} as const;
+
 export const extractGolfDataSchema = {
   type: 'OBJECT',
   properties: {
@@ -49,6 +87,7 @@ export const weeklyInsightSchema = {
       items: { type: 'STRING' },
     },
     recommendedFocus: { type: 'STRING' },
+    ...evidenceEnvelopeSchema,
   },
   required: ['summary', 'keyPatterns', 'recommendedFocus'],
 } as const;
@@ -64,6 +103,7 @@ export const coachXInsightsSchema = {
       },
       title: { type: 'STRING' },
       body: { type: 'STRING' },
+      ...evidenceEnvelopeSchema,
     },
     required: ['type', 'title', 'body'],
   },
@@ -103,6 +143,7 @@ export const motionCaptureSchema = {
       },
     },
     aiAnalysis: { type: 'STRING' },
+    ...evidenceEnvelopeSchema,
   },
   required: ['measurements', 'aiAnalysis'],
 } as const;

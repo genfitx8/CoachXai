@@ -497,7 +497,7 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
   const showBottomNav = !effectiveSubView;
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#05070A] via-[#070b12] to-[#0B1220] text-slate-100 font-sans">
+    <div className="min-h-screen bg-base text-ink-high font-sans">
       {/* ── Tab bodies (only when no sub-view is active) ─────────────────────── */}
       {!effectiveSubView && tab === 'HOME' && (
         <div className="pb-20">
@@ -613,22 +613,22 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
             <div className="space-y-4 animate-fade-in">
               <div className="flex items-center gap-3 pb-2">
                 <BackButton onClick={handleBackToTab} tone="dark" />
-                <div className="w-1 h-6 bg-gradient-to-b from-indigo-500 to-violet-500 rounded-full" />
+                <div className="w-1 h-6 bg-gradient-to-b from-emerald-500 to-emerald-500 rounded-full" />
                 <h2 className="text-xl font-black text-slate-100">{t('recent_records')}</h2>
-                <span className="bg-indigo-500/15 border border-indigo-300/30 text-indigo-200 px-2 py-0.5 rounded-full text-xs font-bold">
+                <span className="bg-emerald-500/15 border border-emerald-300/30 text-emerald-200 px-2 py-0.5 rounded-full text-xs font-bold">
                   {allMyLessons.length}
                 </span>
                 <div className="ml-auto flex items-center gap-2">
                   <button
                     onClick={toggleShowMedia}
-                    className={`p-2 rounded-lg transition-colors ${showMedia ? 'bg-indigo-500/20 text-indigo-200 border border-indigo-300/30' : 'bg-slate-900 border border-slate-700 text-slate-400 hover:bg-slate-800'}`}
+                    className={`p-2 rounded-lg transition-colors ${showMedia ? 'bg-emerald-500/20 text-emerald-200 border border-emerald-300/30' : 'bg-slate-900 border border-slate-700 text-slate-400 hover:bg-slate-800'}`}
                     title={showMedia ? '미디어 숨기기' : '미디어 표시'}
                   >
                     {showMedia ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
                   </button>
                   <button
                     onClick={() => setShowDateFilter(!showDateFilter)}
-                    className={`p-2 rounded-lg transition-colors ${showDateFilter || (searchStartDate || searchEndDate) ? 'bg-indigo-500/20 text-indigo-200 border border-indigo-300/30' : 'bg-slate-900 border border-slate-700 text-slate-400 hover:bg-slate-800'}`}
+                    className={`p-2 rounded-lg transition-colors ${showDateFilter || (searchStartDate || searchEndDate) ? 'bg-emerald-500/20 text-emerald-200 border border-emerald-300/30' : 'bg-slate-900 border border-slate-700 text-slate-400 hover:bg-slate-800'}`}
                   >
                     <Filter className="w-4 h-4" />
                   </button>
@@ -859,7 +859,6 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
               onRefreshLessons?.();
             }
           }}
-          onNewRecord={handleNewLessonCTA}
         />
       )}
 

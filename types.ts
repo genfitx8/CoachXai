@@ -162,6 +162,25 @@ export interface Lesson {
   /** 1-based session number within the lesson package. Always set together with `lessonPackageId`. */
   sessionNumber?: number;
   motionCaptureData?: MotionCaptureData;
+  /**
+   * Data ownership tier (#309): 'student' | 'shared' | 'coach'. Lessons
+   * default to 'shared' — the student keeps read access on handover, the
+   * coach retains it while active. Server-authoritative; not settable by
+   * clients.
+   */
+  ownership?: 'student' | 'shared' | 'coach';
+  /**
+   * Media visibility scope (#309): 'self' | 'coach' | 'branch'. The
+   * student can downgrade to 'self' (본인만); the coach can raise to
+   * 'branch' (지점까지). Default 'coach' (담당 코치까지).
+   */
+  visibility?: 'self' | 'coach' | 'branch';
+  /**
+   * Original coach at record-creation time. Preserved across handovers so
+   * attribution survives when coach_id is reassigned or nulled after the
+   * coach account closes.
+   */
+  originalCoachId?: string;
   createdAt: number;
 }
 
@@ -898,7 +917,9 @@ export interface PromptTemplate {
 
 // ── Weekly Insight Types ─────────────────────────────────────────────────────
 
-export interface WeeklyInsight {
+import type { AIEvidenceEnvelope } from './types/aiEvidence';
+
+export interface WeeklyInsight extends AIEvidenceEnvelope {
   id: string;
   clientId: string; // `${name}_${phone}`
   coachId?: string;

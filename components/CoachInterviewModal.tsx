@@ -169,7 +169,7 @@ export const CoachInterviewModal: React.FC<CoachInterviewModalProps> = ({
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
           <div className="flex items-center gap-2">
-            <MessageCircle className="w-5 h-5 text-indigo-500" />
+            <MessageCircle className="w-5 h-5 text-emerald-500" />
             <h2 id="coach-interview-title" className="font-bold text-gray-800 text-base">
               인터뷰로 프롬프트 생성{' '}
               <span className="text-gray-400 font-normal">— target: {target}</span>
@@ -203,8 +203,8 @@ export const CoachInterviewModal: React.FC<CoachInterviewModalProps> = ({
           )}
           {transcript.map((turn, i) => (
             <div key={i} className="space-y-2">
-              <div className="bg-indigo-50 rounded-lg p-3">
-                <p className="text-[11px] font-bold text-indigo-500 mb-1">
+              <div className="bg-emerald-50 rounded-lg p-3">
+                <p className="text-[11px] font-bold text-emerald-500 mb-1">
                   Q{i + 1}
                 </p>
                 <p className="text-sm text-gray-800 whitespace-pre-wrap">
@@ -224,8 +224,8 @@ export const CoachInterviewModal: React.FC<CoachInterviewModalProps> = ({
             </div>
           ))}
           {(isLoadingQuestion || currentQuestion) && (
-            <div className="bg-indigo-50 rounded-lg p-3">
-              <p className="text-[11px] font-bold text-indigo-500 mb-1">
+            <div className="bg-emerald-50 rounded-lg p-3">
+              <p className="text-[11px] font-bold text-emerald-500 mb-1">
                 Q{transcript.length + 1}
               </p>
               {isLoadingQuestion ? (
@@ -258,7 +258,7 @@ export const CoachInterviewModal: React.FC<CoachInterviewModalProps> = ({
             }
             rows={3}
             disabled={isLoadingQuestion || isFinalising || !currentQuestion}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none resize-y text-sm disabled:bg-gray-50 disabled:cursor-not-allowed"
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none resize-y text-sm disabled:bg-gray-50 disabled:cursor-not-allowed"
           />
           <div className="flex flex-wrap items-center gap-2 justify-between">
             <div className="text-xs text-gray-400">

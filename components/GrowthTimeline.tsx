@@ -67,7 +67,7 @@ export const GrowthTimeline: React.FC<GrowthTimelineProps> = ({
     <div className="space-y-4 animate-fade-in">
       {/* Title row */}
       <div className="flex items-center gap-3">
-        <div className="w-1 h-6 bg-gradient-to-b from-indigo-500 to-violet-500 rounded-full" />
+        <div className="w-1 h-6 bg-gradient-to-b from-emerald-500 to-emerald-500 rounded-full" />
         <h2 className="text-xl font-black text-slate-100">{L.title}</h2>
         <button
           onClick={onOpenDetailedStats}
@@ -81,7 +81,7 @@ export const GrowthTimeline: React.FC<GrowthTimelineProps> = ({
       {/* Club profile row */}
       <section className="bg-slate-900/70 border border-slate-800 rounded-2xl p-4">
         <div className="flex items-center gap-2 mb-3">
-          <Sparkles className="w-4 h-4 text-indigo-300" />
+          <Sparkles className="w-4 h-4 text-emerald-300" />
           <h3 className="text-sm font-bold text-slate-100">{L.clubProfiles}</h3>
         </div>
         {clubProfiles.length === 0 ? (
@@ -101,7 +101,7 @@ export const GrowthTimeline: React.FC<GrowthTimelineProps> = ({
                 <p className="text-lg font-bold text-slate-100">
                   {cp.avgCarry ? `${Math.round(cp.avgCarry)}m` : '—'}
                 </p>
-                <p className="text-[11px] text-indigo-300">
+                <p className="text-[11px] text-emerald-300">
                   {cp.ballFlight ? cp.ballFlight.toUpperCase() : ''}
                   {cp.missPattern ? ` · ${cp.missPattern}` : ''}
                 </p>
@@ -121,7 +121,7 @@ export const GrowthTimeline: React.FC<GrowthTimelineProps> = ({
               onClick={() => setFilter(key)}
               className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap border transition-colors ${
                 isActive
-                  ? 'bg-indigo-600 border-indigo-500 text-white'
+                  ? 'bg-emerald-600 border-emerald-500 text-white'
                   : 'bg-slate-900 border-slate-700 text-slate-300 hover:bg-slate-800'
               }`}
             >
@@ -156,7 +156,7 @@ export const GrowthTimeline: React.FC<GrowthTimelineProps> = ({
                     {lesson.title || labelForLesson(lesson, lang)}
                   </p>
                   {lesson.club && (
-                    <p className="text-[11px] text-indigo-300">{lesson.club}</p>
+                    <p className="text-[11px] text-emerald-300">{lesson.club}</p>
                   )}
                 </div>
                 <ChevronRight className="w-4 h-4 text-slate-500 flex-shrink-0" />
@@ -218,7 +218,7 @@ const STRINGS = {
 
 const iconForLesson = (lesson: Lesson) => {
   const t = lesson.recordType ?? (lesson.mediaType === 'video' ? 'PRACTICE' : 'LESSON');
-  if (lesson.mediaType === 'video') return <Video className="w-4 h-4 text-indigo-300" />;
+  if (lesson.mediaType === 'video') return <Video className="w-4 h-4 text-emerald-300" />;
   if (t === 'SCORE') return <MapPin className="w-4 h-4 text-emerald-300" />;
   if (t === 'PRACTICE') return <Dumbbell className="w-4 h-4 text-cyan-300" />;
   return <BookOpen className="w-4 h-4 text-amber-300" />;

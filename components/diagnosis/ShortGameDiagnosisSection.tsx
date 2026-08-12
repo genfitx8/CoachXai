@@ -15,7 +15,7 @@ const parseNullable = (raw: string): number | null => {
 };
 
 const inputCls =
-  'w-full rounded-lg border border-slate-700 bg-slate-900 px-2 py-1.5 text-sm text-slate-100 outline-none focus:border-violet-500 text-center';
+  'w-full rounded-lg border border-slate-700 bg-slate-900 px-2 py-1.5 text-sm text-slate-100 outline-none focus:border-emerald-500 text-center';
 
 export const ShortGameDiagnosisSection: React.FC<Props> = ({ data, onChange }) => {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({
@@ -77,7 +77,7 @@ export const ShortGameDiagnosisSection: React.FC<Props> = ({ data, onChange }) =
       className="w-full flex items-center justify-between px-4 py-3 hover:bg-slate-800/50 transition-colors"
     >
       <div>
-        <p className="text-sm font-semibold text-violet-300 text-left">{title}</p>
+        <p className="text-sm font-semibold text-emerald-300 text-left">{title}</p>
         <p className="text-xs text-slate-400 text-left mt-0.5">{subtitle}</p>
       </div>
       {expanded[key] ? (

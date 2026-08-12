@@ -107,7 +107,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
           className="absolute left-1/2 top-1/2 h-96 w-96 -translate-x-1/2 -translate-y-1/2 rounded-full bg-cyan-500/15 blur-3xl animate-coachx-orb-drift"
         />
         <div
-          className="absolute left-1/2 top-1/2 h-80 w-80 -translate-x-1/2 -translate-y-1/2 rounded-full bg-violet-500/10 blur-3xl animate-coachx-orb-drift"
+          className="absolute left-1/2 top-1/2 h-80 w-80 -translate-x-1/2 -translate-y-1/2 rounded-full bg-emerald-500/10 blur-3xl animate-coachx-orb-drift"
           style={{ animationDelay: '1.2s' }}
         />
         <div
@@ -115,7 +115,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
           style={{ animationDelay: '0.4s' }}
         />
         <div
-          className="absolute left-1/2 top-1/2 h-56 w-56 -translate-x-1/2 -translate-y-1/2 rounded-full border border-violet-300/20 animate-pulse"
+          className="absolute left-1/2 top-1/2 h-56 w-56 -translate-x-1/2 -translate-y-1/2 rounded-full border border-emerald-300/20 animate-pulse"
           style={{ animationDelay: '1s' }}
         />
       </div>

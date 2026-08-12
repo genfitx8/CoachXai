@@ -47,9 +47,9 @@ const VideoDropZone: React.FC<VideoDropZoneProps> = ({
 
   const labelColor = label === 'BEFORE' ? 'text-blue-400' : 'text-emerald-400';
   const borderColor = isDragging
-    ? 'border-indigo-400'
+    ? 'border-emerald-400'
     : file
-    ? 'border-indigo-500/60'
+    ? 'border-emerald-500/60'
     : 'border-slate-600/60';
 
   return (
@@ -101,7 +101,7 @@ const VideoDropZone: React.FC<VideoDropZoneProps> = ({
           >
             <div className="w-14 h-14 rounded-full bg-slate-800 flex items-center justify-center">
               {isDragging ? (
-                <Upload className="w-6 h-6 text-indigo-400" />
+                <Upload className="w-6 h-6 text-emerald-400" />
               ) : (
                 <Video className="w-6 h-6" />
               )}
@@ -218,7 +218,7 @@ export const LessonUploadPage: React.FC<LessonUploadPageProps> = ({
           <ArrowLeft className="w-5 h-5" />
         </button>
         <div>
-          <p className="text-[11px] uppercase tracking-[0.16em] text-indigo-300/80 font-semibold">
+          <p className="text-[11px] uppercase tracking-[0.16em] text-emerald-300/80 font-semibold">
             Step 1 of 2
           </p>
           <h2 className="text-xl font-bold text-slate-50">자동 영상 편집</h2>
@@ -238,7 +238,7 @@ export const LessonUploadPage: React.FC<LessonUploadPageProps> = ({
             id="student-select"
             value={selectedStudentId}
             onChange={(e) => setSelectedStudentId(e.target.value)}
-            className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
             data-testid="student-select"
           >
             <option value="">— Select a student —</option>
@@ -257,7 +257,7 @@ export const LessonUploadPage: React.FC<LessonUploadPageProps> = ({
               <button
                 type="button"
                 onClick={onGoToStudents}
-                className="flex items-center gap-2 w-fit px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold transition-colors"
+                className="flex items-center gap-2 w-fit px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold transition-colors"
               >
                 <Users className="w-4 h-4" />
                 회원 등록하러 가기
@@ -292,7 +292,7 @@ export const LessonUploadPage: React.FC<LessonUploadPageProps> = ({
       <Button
         onClick={handleNext}
         disabled={!canProceed}
-        className="w-full py-4 text-base rounded-2xl border border-indigo-500/40 shadow-lg shadow-indigo-900/30 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 disabled:opacity-40 disabled:cursor-not-allowed justify-center"
+        className="w-full py-4 text-base rounded-2xl border border-emerald-500/40 shadow-lg shadow-emerald-900/30 bg-gradient-to-r from-emerald-600 to-emerald-600 hover:from-emerald-500 hover:to-emerald-500 disabled:opacity-40 disabled:cursor-not-allowed justify-center"
         icon={<ArrowRight className="w-5 h-5" />}
         data-testid="upload-next-btn"
       >

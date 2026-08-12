@@ -91,7 +91,7 @@ export const PartLessonRecordForm: React.FC<PartLessonRecordFormProps> = ({
             type="date"
             value={lessonDate}
             onChange={(e) => setLessonDate(e.target.value)}
-            className="w-full px-3 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-slate-200 text-sm focus:outline-none focus:border-indigo-500"
+            className="w-full px-3 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-slate-200 text-sm focus:outline-none focus:border-emerald-500"
           />
         </div>
 
@@ -103,7 +103,7 @@ export const PartLessonRecordForm: React.FC<PartLessonRecordFormProps> = ({
             onChange={(e) => setTextMemo(e.target.value)}
             placeholder="오늘 레슨에서 집중한 내용, 학생의 반응, 다음 레슨 포인트..."
             rows={5}
-            className="w-full px-3 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-slate-200 text-sm focus:outline-none focus:border-indigo-500 resize-none placeholder-slate-600"
+            className="w-full px-3 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-slate-200 text-sm focus:outline-none focus:border-emerald-500 resize-none placeholder-slate-600"
           />
         </div>
 
@@ -112,7 +112,7 @@ export const PartLessonRecordForm: React.FC<PartLessonRecordFormProps> = ({
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">핵심 포인트 체크</label>
-              <span className="text-xs text-indigo-300 font-medium">
+              <span className="text-xs text-emerald-300 font-medium">
                 {checkedCount}/{checklist.length} 완료
               </span>
             </div>
@@ -148,7 +148,7 @@ export const PartLessonRecordForm: React.FC<PartLessonRecordFormProps> = ({
             <select
               value={linkedLessonId}
               onChange={(e) => setLinkedLessonId(e.target.value)}
-              className="w-full px-3 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-slate-200 text-sm focus:outline-none focus:border-indigo-500"
+              className="w-full px-3 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-slate-200 text-sm focus:outline-none focus:border-emerald-500"
             >
               <option value="">— 연결 안 함 —</option>
               {existingLessons.map((l) => (
@@ -177,7 +177,7 @@ export const PartLessonRecordForm: React.FC<PartLessonRecordFormProps> = ({
             onChange={(e) => setCoachFeedback(e.target.value)}
             placeholder="학생이 볼 수 있는 피드백과 다음 훈련 과제..."
             rows={3}
-            className="w-full px-3 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-slate-200 text-sm focus:outline-none focus:border-indigo-500 resize-none placeholder-slate-600"
+            className="w-full px-3 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-slate-200 text-sm focus:outline-none focus:border-emerald-500 resize-none placeholder-slate-600"
           />
         </div>
       </div>
@@ -193,7 +193,7 @@ export const PartLessonRecordForm: React.FC<PartLessonRecordFormProps> = ({
         <button
           onClick={handleSave}
           disabled={saving}
-          className="flex-1 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-bold text-sm transition-colors flex items-center justify-center gap-1.5"
+          className="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold text-sm transition-colors flex items-center justify-center gap-1.5"
         >
           <Save className="w-4 h-4" />
           {saving ? '저장 중...' : '저장'}

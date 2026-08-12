@@ -103,7 +103,7 @@ export const CurriculumViewer: React.FC<CurriculumViewerProps> = ({
       <div className="flex flex-col items-center justify-center py-20 gap-3">
         <BookOpen className="w-8 h-8 text-slate-600" />
         <p className="text-slate-400 text-sm">커리큘럼을 불러올 수 없습니다.</p>
-        <button onClick={onClose} className="text-indigo-400 text-sm hover:underline">돌아가기</button>
+        <button onClick={onClose} className="text-emerald-400 text-sm hover:underline">돌아가기</button>
       </div>
     );
   }
@@ -130,11 +130,11 @@ export const CurriculumViewer: React.FC<CurriculumViewerProps> = ({
           <div className="mt-2 space-y-1">
             <div className="flex justify-between text-xs text-slate-500">
               <span>전체 진도</span>
-              <span className="text-indigo-300 font-semibold">{overallProgress}%</span>
+              <span className="text-emerald-300 font-semibold">{overallProgress}%</span>
             </div>
             <div className="h-1.5 bg-slate-800 rounded-full overflow-hidden">
               <div
-                className="h-full bg-indigo-500 rounded-full transition-all"
+                className="h-full bg-emerald-500 rounded-full transition-all"
                 style={{ width: `${overallProgress}%` }}
               />
             </div>
@@ -152,7 +152,7 @@ export const CurriculumViewer: React.FC<CurriculumViewerProps> = ({
                 onClick={() => { setSelectedPart(part); setPartView('content'); }}
                 className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-left text-xs font-medium transition-all ${
                   isSelected
-                    ? 'bg-indigo-600/20 border border-indigo-500/40 text-indigo-200'
+                    ? 'bg-emerald-600/20 border border-emerald-500/40 text-emerald-200'
                     : 'hover:bg-slate-800 text-slate-400 hover:text-slate-200 border border-transparent'
                 }`}
               >
@@ -172,7 +172,7 @@ export const CurriculumViewer: React.FC<CurriculumViewerProps> = ({
             <div className="bg-slate-900/70 border border-slate-800 rounded-2xl p-5">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <div className="text-xs text-indigo-400/80 font-semibold uppercase tracking-wider mb-1">
+                  <div className="text-xs text-emerald-400/80 font-semibold uppercase tracking-wider mb-1">
                     PART {selectedPart.order}
                   </div>
                   <h3 className="text-lg font-bold text-slate-100 leading-snug">{selectedPart.title}</h3>
@@ -197,7 +197,7 @@ export const CurriculumViewer: React.FC<CurriculumViewerProps> = ({
                       onClick={() => setPartView(key as PartView)}
                       className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
                         partView === key
-                          ? 'bg-indigo-600 text-white'
+                          ? 'bg-emerald-600 text-white'
                           : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
                       }`}
                     >
@@ -229,7 +229,7 @@ export const CurriculumViewer: React.FC<CurriculumViewerProps> = ({
               <div className="bg-slate-900/70 border border-slate-800 rounded-2xl p-5 space-y-5">
                 {/* Markdown-rendered content */}
                 <div
-                  className="prose prose-invert prose-sm max-w-none prose-headings:text-slate-100 prose-p:text-slate-300 prose-li:text-slate-300 prose-strong:text-slate-100 prose-blockquote:border-indigo-500 prose-blockquote:text-slate-400"
+                  className="prose prose-invert prose-sm max-w-none prose-headings:text-slate-100 prose-p:text-slate-300 prose-li:text-slate-300 prose-strong:text-slate-100 prose-blockquote:border-emerald-500 prose-blockquote:text-slate-400"
                   dangerouslySetInnerHTML={{
                     __html: renderMarkdown(selectedPart.content ?? ''),
                   }}
@@ -239,13 +239,13 @@ export const CurriculumViewer: React.FC<CurriculumViewerProps> = ({
                 {(selectedPart.keyPoints ?? []).length > 0 && (
                   <div className="border-t border-slate-800 pt-5 space-y-3">
                     <div className="flex items-center gap-2">
-                      <ClipboardList className="w-4 h-4 text-indigo-400" />
+                      <ClipboardList className="w-4 h-4 text-emerald-400" />
                       <h4 className="text-sm font-bold text-slate-200">핵심 포인트</h4>
                     </div>
                     <ul className="space-y-2">
                       {(selectedPart.keyPoints ?? []).map((point, i) => (
                         <li key={i} className="flex items-start gap-2.5 text-sm text-slate-300">
-                          <span className="mt-0.5 w-5 h-5 rounded-full bg-indigo-600/20 text-indigo-300 flex items-center justify-center text-[10px] font-bold shrink-0">
+                          <span className="mt-0.5 w-5 h-5 rounded-full bg-emerald-600/20 text-emerald-300 flex items-center justify-center text-[10px] font-bold shrink-0">
                             {i + 1}
                           </span>
                           {point}
@@ -340,7 +340,7 @@ function renderMarkdown(text: string): string {
     .replace(/^## (.+)$/gm, '<h2 class="text-lg font-bold text-slate-100 mt-5 mb-3">$1</h2>')
     .replace(/^# (.+)$/gm, '<h1 class="text-xl font-bold text-slate-100 mt-6 mb-3">$1</h1>')
     .replace(/\*\*(.+?)\*\*/g, '<strong class="text-slate-100 font-semibold">$1</strong>')
-    .replace(/^> (.+)$/gm, '<blockquote class="border-l-4 border-indigo-500 pl-4 py-1 my-3 text-slate-400 italic bg-indigo-950/30 rounded-r-lg">$1</blockquote>')
+    .replace(/^> (.+)$/gm, '<blockquote class="border-l-4 border-emerald-500 pl-4 py-1 my-3 text-slate-400 italic bg-emerald-950/30 rounded-r-lg">$1</blockquote>')
     .replace(/^- \[ \] (.+)$/gm, '<li class="flex items-start gap-2 text-slate-300 my-1"><span class="mt-1 w-4 h-4 border border-slate-600 rounded flex-shrink-0 inline-block"></span><span>$1</span></li>')
     .replace(/^- (.+)$/gm, '<li class="text-slate-300 my-0.5 pl-4 list-disc">$1</li>')
     .replace(/^\d+\. (.+)$/gm, '<li class="text-slate-300 my-0.5 pl-4 list-decimal">$1</li>')

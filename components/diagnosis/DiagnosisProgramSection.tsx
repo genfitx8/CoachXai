@@ -465,11 +465,11 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
               onClick={() => toggleSection('basic')}
               className="w-full flex items-center justify-between text-left hover:opacity-80 transition-opacity"
             >
-              <h4 className="text-sm font-semibold text-violet-300">{t('diagnosis_golfer_section_basic')}</h4>
+              <h4 className="text-sm font-semibold text-emerald-300">{t('diagnosis_golfer_section_basic')}</h4>
               {expandedSections.basic ? (
-                <ChevronUp className="w-4 h-4 text-violet-300" />
+                <ChevronUp className="w-4 h-4 text-emerald-300" />
               ) : (
-                <ChevronDown className="w-4 h-4 text-violet-300" />
+                <ChevronDown className="w-4 h-4 text-emerald-300" />
               )}
             </button>
             {expandedSections.basic && (
@@ -480,7 +480,7 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
                   value={memberName}
                   onChange={(event) => setGolferProfile((prev) => ({ ...prev, name: event.target.value }))}
                   placeholder={t('diagnosis_golfer_name_placeholder')}
-                  className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none focus:border-violet-500"
+                  className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none focus:border-emerald-500"
                   data-testid="diagnosis-member-name-input"
                 />
               </label>
@@ -491,7 +491,7 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
                   onChange={(event) =>
                     setGolferProfile((prev) => ({ ...prev, gender: event.target.value as GolferProfile['gender'] }))
                   }
-                  className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none focus:border-violet-500"
+                  className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none focus:border-emerald-500"
                   data-testid="diagnosis-golfer-gender-select"
                 >
                   <option value="">{t('diagnosis_golfer_select_placeholder')}</option>
@@ -508,7 +508,7 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
                   value={golferProfile.age ?? ''}
                   onChange={(event) => setGolferProfile((prev) => ({ ...prev, age: parseNullableNumber(event.target.value) }))}
                   placeholder={t('diagnosis_golfer_age_placeholder')}
-                  className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none focus:border-violet-500"
+                  className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none focus:border-emerald-500"
                   data-testid="diagnosis-golfer-age-input"
                 />
               </label>
@@ -519,7 +519,7 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
                   value={golferProfile.contact}
                   onChange={(event) => setGolferProfile((prev) => ({ ...prev, contact: event.target.value }))}
                   placeholder="010-0000-0000"
-                  className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none focus:border-violet-500"
+                  className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none focus:border-emerald-500"
                   data-testid="diagnosis-golfer-contact-input"
                 />
               </label>
@@ -530,7 +530,7 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
                   min={0}
                   value={golferProfile.heightCm ?? ''}
                   onChange={(event) => setGolferProfile((prev) => ({ ...prev, heightCm: parseNullableNumber(event.target.value) }))}
-                  className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none focus:border-violet-500"
+                  className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none focus:border-emerald-500"
                   data-testid="diagnosis-golfer-height-input"
                 />
               </label>
@@ -541,7 +541,7 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
                   min={0}
                   value={golferProfile.weightKg ?? ''}
                   onChange={(event) => setGolferProfile((prev) => ({ ...prev, weightKg: parseNullableNumber(event.target.value) }))}
-                  className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none focus:border-violet-500"
+                  className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none focus:border-emerald-500"
                   data-testid="diagnosis-golfer-weight-input"
                 />
               </label>
@@ -555,11 +555,11 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
               onClick={() => toggleSection('history')}
               className="w-full flex items-center justify-between text-left hover:opacity-80 transition-opacity"
             >
-              <h4 className="text-sm font-semibold text-violet-300">{t('diagnosis_golfer_section_history')}</h4>
+              <h4 className="text-sm font-semibold text-emerald-300">{t('diagnosis_golfer_section_history')}</h4>
               {expandedSections.history ? (
-                <ChevronUp className="w-4 h-4 text-violet-300" />
+                <ChevronUp className="w-4 h-4 text-emerald-300" />
               ) : (
-                <ChevronDown className="w-4 h-4 text-violet-300" />
+                <ChevronDown className="w-4 h-4 text-emerald-300" />
               )}
             </button>
             {expandedSections.history && (
@@ -572,7 +572,7 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
                   value={golferProfile.yearsOfExperience ?? ''}
                   onChange={(event) => setGolferProfile((prev) => ({ ...prev, yearsOfExperience: parseNullableNumber(event.target.value) }))}
                   placeholder="0"
-                  className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none focus:border-violet-500"
+                  className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none focus:border-emerald-500"
                   data-testid="diagnosis-golfer-years-of-experience-input"
                 />
               </label>
@@ -583,7 +583,7 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
                   min={0}
                   value={golferProfile.averageScore ?? ''}
                   onChange={(event) => setGolferProfile((prev) => ({ ...prev, averageScore: parseNullableNumber(event.target.value) }))}
-                  className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none focus:border-violet-500"
+                  className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none focus:border-emerald-500"
                   data-testid="diagnosis-golfer-average-score-input"
                 />
               </label>
@@ -594,7 +594,7 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
                   min={0}
                   value={golferProfile.bestScore ?? ''}
                   onChange={(event) => setGolferProfile((prev) => ({ ...prev, bestScore: parseNullableNumber(event.target.value) }))}
-                  className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none focus:border-violet-500"
+                  className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none focus:border-emerald-500"
                   data-testid="diagnosis-golfer-best-score-input"
                 />
               </label>
@@ -605,7 +605,7 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
                   onChange={(event) =>
                     setGolferProfile((prev) => ({ ...prev, dominantHand: event.target.value as GolferProfile['dominantHand'] }))
                   }
-                  className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none focus:border-violet-500"
+                  className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none focus:border-emerald-500"
                   data-testid="diagnosis-golfer-dominant-hand-select"
                 >
                   <option value="">{t('diagnosis_golfer_select_placeholder')}</option>
@@ -619,7 +619,7 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
                   value={golferProfile.roundFrequency}
                   onChange={(event) => setGolferProfile((prev) => ({ ...prev, roundFrequency: event.target.value }))}
                   placeholder={t('diagnosis_golfer_round_frequency_placeholder')}
-                  className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none focus:border-violet-500"
+                  className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none focus:border-emerald-500"
                   data-testid="diagnosis-golfer-round-frequency-input"
                 />
               </label>
@@ -629,7 +629,7 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
                   value={golferProfile.practiceFrequency}
                   onChange={(event) => setGolferProfile((prev) => ({ ...prev, practiceFrequency: event.target.value }))}
                   placeholder={t('diagnosis_golfer_practice_frequency_placeholder')}
-                  className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none focus:border-violet-500"
+                  className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none focus:border-emerald-500"
                   data-testid="diagnosis-golfer-practice-frequency-input"
                 />
               </label>
@@ -643,11 +643,11 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
               onClick={() => toggleSection('physical')}
               className="w-full flex items-center justify-between text-left hover:opacity-80 transition-opacity"
             >
-              <h4 className="text-sm font-semibold text-violet-300">{t('diagnosis_golfer_section_physical')}</h4>
+              <h4 className="text-sm font-semibold text-emerald-300">{t('diagnosis_golfer_section_physical')}</h4>
               {expandedSections.physical ? (
-                <ChevronUp className="w-4 h-4 text-violet-300" />
+                <ChevronUp className="w-4 h-4 text-emerald-300" />
               ) : (
-                <ChevronDown className="w-4 h-4 text-violet-300" />
+                <ChevronDown className="w-4 h-4 text-emerald-300" />
               )}
             </button>
             {expandedSections.physical && (
@@ -657,7 +657,7 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
                 <input
                   value={golferProfile.injuryHistory}
                   onChange={(event) => setGolferProfile((prev) => ({ ...prev, injuryHistory: event.target.value }))}
-                  className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none focus:border-violet-500"
+                  className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none focus:border-emerald-500"
                   data-testid="diagnosis-golfer-injury-history-input"
                 />
               </label>
@@ -667,7 +667,7 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
                   rows={3}
                   value={golferProfile.injuryMemo}
                   onChange={(event) => setGolferProfile((prev) => ({ ...prev, injuryMemo: event.target.value }))}
-                  className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none focus:border-violet-500"
+                  className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none focus:border-emerald-500"
                   data-testid="diagnosis-golfer-injury-memo-input"
                 />
               </label>
@@ -676,7 +676,7 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
                 <input
                   value={golferProfile.currentPainAreas}
                   onChange={(event) => setGolferProfile((prev) => ({ ...prev, currentPainAreas: event.target.value }))}
-                  className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none focus:border-violet-500"
+                  className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none focus:border-emerald-500"
                   data-testid="diagnosis-golfer-current-pain-areas-input"
                 />
               </label>
@@ -686,7 +686,7 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
                   rows={3}
                   value={golferProfile.otherSportsExperience}
                   onChange={(event) => setGolferProfile((prev) => ({ ...prev, otherSportsExperience: event.target.value }))}
-                  className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none focus:border-violet-500"
+                  className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none focus:border-emerald-500"
                   data-testid="diagnosis-golfer-other-sports-input"
                 />
               </label>
@@ -698,7 +698,7 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
                   max={5}
                   value={golferProfile.flexibilitySelfAssessment ?? ''}
                   onChange={(event) => setGolferProfile((prev) => ({ ...prev, flexibilitySelfAssessment: parseNullableNumber(event.target.value) }))}
-                  className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none focus:border-violet-500"
+                  className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none focus:border-emerald-500"
                   data-testid="diagnosis-golfer-flexibility-input"
                 />
               </label>
@@ -712,11 +712,11 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
               onClick={() => toggleSection('equipment')}
               className="w-full flex items-center justify-between text-left hover:opacity-80 transition-opacity"
             >
-              <h4 className="text-sm font-semibold text-violet-300">{t('diagnosis_golfer_section_equipment')}</h4>
+              <h4 className="text-sm font-semibold text-emerald-300">{t('diagnosis_golfer_section_equipment')}</h4>
               {expandedSections.equipment ? (
-                <ChevronUp className="w-4 h-4 text-violet-300" />
+                <ChevronUp className="w-4 h-4 text-emerald-300" />
               ) : (
-                <ChevronDown className="w-4 h-4 text-violet-300" />
+                <ChevronDown className="w-4 h-4 text-emerald-300" />
               )}
             </button>
             {expandedSections.equipment && (
@@ -791,7 +791,7 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
                   <input
                     value={golferProfile.driverModel}
                     onChange={(event) => setGolferProfile((prev) => ({ ...prev, driverModel: event.target.value }))}
-                    className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none focus:border-violet-500"
+                    className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none focus:border-emerald-500"
                     data-testid="diagnosis-golfer-driver-model-input"
                   />
                 </label>
@@ -800,7 +800,7 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
                   <input
                     value={golferProfile.ironModel}
                     onChange={(event) => setGolferProfile((prev) => ({ ...prev, ironModel: event.target.value }))}
-                    className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none focus:border-violet-500"
+                    className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none focus:border-emerald-500"
                     data-testid="diagnosis-golfer-iron-model-input"
                   />
                 </label>
@@ -809,7 +809,7 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
                   <input
                     value={golferProfile.shaftFlex}
                     onChange={(event) => setGolferProfile((prev) => ({ ...prev, shaftFlex: event.target.value }))}
-                    className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none focus:border-violet-500"
+                    className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none focus:border-emerald-500"
                     data-testid="diagnosis-golfer-shaft-flex-input"
                   />
                 </label>
@@ -818,7 +818,7 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
                   <input
                     value={golferProfile.ballBrand}
                     onChange={(event) => setGolferProfile((prev) => ({ ...prev, ballBrand: event.target.value }))}
-                    className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none focus:border-violet-500"
+                    className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none focus:border-emerald-500"
                     data-testid="diagnosis-golfer-ball-brand-input"
                   />
                 </label>
@@ -833,11 +833,11 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
               onClick={() => toggleSection('goals')}
               className="w-full flex items-center justify-between text-left hover:opacity-80 transition-opacity"
             >
-              <h4 className="text-sm font-semibold text-violet-300">{t('diagnosis_golfer_section_goals')}</h4>
+              <h4 className="text-sm font-semibold text-emerald-300">{t('diagnosis_golfer_section_goals')}</h4>
               {expandedSections.goals ? (
-                <ChevronUp className="w-4 h-4 text-violet-300" />
+                <ChevronUp className="w-4 h-4 text-emerald-300" />
               ) : (
-                <ChevronDown className="w-4 h-4 text-violet-300" />
+                <ChevronDown className="w-4 h-4 text-emerald-300" />
               )}
             </button>
             {expandedSections.goals && (
@@ -867,7 +867,7 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
                 rows={3}
                 value={golferProfile.primaryConcern}
                 onChange={(event) => setGolferProfile((prev) => ({ ...prev, primaryConcern: event.target.value }))}
-                className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none focus:border-violet-500"
+                className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none focus:border-emerald-500"
                 data-testid="diagnosis-golfer-primary-concern-input"
               />
             </label>
@@ -878,7 +878,7 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
                 min={0}
                 value={golferProfile.targetHandicap ?? ''}
                 onChange={(event) => setGolferProfile((prev) => ({ ...prev, targetHandicap: parseNullableNumber(event.target.value) }))}
-                className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none focus:border-violet-500"
+                className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none focus:border-emerald-500"
                 data-testid="diagnosis-golfer-target-handicap-input"
               />
             </label>
@@ -910,7 +910,7 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
         return (
           <div className="space-y-4">
             <div className="rounded-xl border border-slate-700 bg-slate-900 p-4">
-              <h4 className="text-sm font-semibold text-violet-300 mb-3">신체 체형 진단 (스켈레톤 분석)</h4>
+              <h4 className="text-sm font-semibold text-emerald-300 mb-3">신체 체형 진단 (스켈레톤 분석)</h4>
               <p className="text-xs text-slate-400 mb-4">
                 스켈레톤 분석을 통해 신체 정렬과 체형 밸런스를 자동으로 측정하거나, 수동으로 점수를 입력할 수 있습니다.
               </p>
@@ -947,7 +947,7 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
                 value={bodyScoreInput}
                 onChange={(event) => handleBodyScoreChange(event.target.value)}
                 placeholder="스켈레톤 분석 후 자동 입력"
-                className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none focus:border-violet-500"
+                className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none focus:border-emerald-500"
                 data-testid={`diagnosis-score-input-${factorKey}`}
               />
               <p className="text-xs text-slate-400">
@@ -1007,7 +1007,7 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
           return (
             <div className="mt-3 rounded-lg border border-slate-600 bg-slate-800 p-3">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-semibold text-violet-300">최적화 기준 비교</span>
+                <span className="text-xs font-semibold text-emerald-300">최적화 기준 비교</span>
                 <div className="flex items-center gap-1.5">
                   <span className="text-xs text-slate-400">기준 헤드스피드 {analysis.clubSpeed.toFixed(1)} m/s</span>
                   <span className={`text-sm font-bold ${scoreColor}`}>{analysis.overallScore}점</span>
@@ -1034,7 +1034,7 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
         return (
           <div className="space-y-4">
             <div className="rounded-xl border border-slate-700 bg-slate-900 p-4">
-              <h4 className="text-sm font-semibold text-violet-300 mb-3">
+              <h4 className="text-sm font-semibold text-emerald-300 mb-3">
                 {t('equipment_diagnosis_title') || '장비 진단 (트랙맨 데이터)'}
               </h4>
               <p className="text-xs text-slate-400 mb-4">
@@ -1051,7 +1051,7 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
                     <select
                       value={selectedClub}
                       onChange={(e) => setSelectedClub(e.target.value)}
-                      className="flex-1 rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none focus:border-violet-500"
+                      className="flex-1 rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none focus:border-emerald-500"
                       data-testid="equipment-club-select"
                     >
                       <option value="">{t('equipment_select_club_placeholder') || '클럽을 선택하세요'}</option>
@@ -1119,7 +1119,7 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-semibold text-slate-100">{clubLabel}</p>
                             {analyzingTrackmanIndex === index ? (
-                              <p className="text-xs text-violet-400 mt-0.5 flex items-center gap-1">
+                              <p className="text-xs text-emerald-400 mt-0.5 flex items-center gap-1">
                                 <Loader2 className="w-3 h-3 animate-spin" />
                                 AI가 수치를 읽는 중...
                               </p>
@@ -1161,7 +1161,7 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
                                   readOnly={field === 'smashFactor' && !!(data.ballSpeed && data.clubSpeed)}
                                   onChange={(e) => handleUpdateTrackmanData(index, field, e.target.value)}
                                   placeholder={placeholder}
-                                  className={`w-full rounded-lg border border-slate-700 bg-slate-900 px-2 py-1.5 text-sm text-slate-100 outline-none focus:border-violet-500 ${field === 'smashFactor' && data.ballSpeed && data.clubSpeed ? 'text-slate-400 cursor-not-allowed' : ''}`}
+                                  className={`w-full rounded-lg border border-slate-700 bg-slate-900 px-2 py-1.5 text-sm text-slate-100 outline-none focus:border-emerald-500 ${field === 'smashFactor' && data.ballSpeed && data.clubSpeed ? 'text-slate-400 cursor-not-allowed' : ''}`}
                                   data-testid={`trackman-${index}-${field}`}
                                 />
                               </label>
@@ -1183,7 +1183,7 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
               <div className="flex items-center justify-between">
                 <span className="text-sm text-slate-300">{factor.label} 점수</span>
                 {golferProfile.trackmanData && golferProfile.trackmanData.some((d) => d.clubSpeed) && (
-                  <span className="text-xs text-violet-400">트랙맨 수치 기반 자동 계산됨</span>
+                  <span className="text-xs text-emerald-400">트랙맨 수치 기반 자동 계산됨</span>
                 )}
               </div>
               <input
@@ -1193,7 +1193,7 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
                 step={1}
                 value={factorScores[factorKey] ?? 0}
                 onChange={(event) => handleScoreChange(factorKey, event.target.value)}
-                className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none focus:border-violet-500"
+                className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none focus:border-emerald-500"
                 data-testid={`diagnosis-score-input-${factorKey}`}
               />
               <p className="text-xs text-slate-400">
@@ -1260,7 +1260,7 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
                       value={shot[field] ?? ''}
                       onChange={(e) => updateShot(type, idx, field, e.target.value)}
                       placeholder="—"
-                      className="w-full rounded-lg border border-slate-700 bg-slate-900 px-2 py-1.5 text-sm text-slate-100 outline-none focus:border-violet-500"
+                      className="w-full rounded-lg border border-slate-700 bg-slate-900 px-2 py-1.5 text-sm text-slate-100 outline-none focus:border-emerald-500"
                       data-testid={`skill-${type}-${idx}-${field}`}
                     />
                   </label>
@@ -1276,7 +1276,7 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
           {/* Full Shot */}
           <div className="rounded-xl border border-slate-700 bg-slate-900 p-4 space-y-3">
             <div>
-              <h4 className="text-sm font-semibold text-violet-300">풀샷 진단</h4>
+              <h4 className="text-sm font-semibold text-emerald-300">풀샷 진단</h4>
               <p className="text-xs text-slate-400 mt-1">130m~210m 목표 샷 — 캐리, 토탈, 탄착군, 발사각, 최고점, 스핀을 입력하세요.</p>
             </div>
             <div className="space-y-2">
@@ -1287,7 +1287,7 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
           {/* Short Game */}
           <div className="rounded-xl border border-slate-700 bg-slate-900 p-4 space-y-3">
             <div>
-              <h4 className="text-sm font-semibold text-violet-300">숏게임 진단</h4>
+              <h4 className="text-sm font-semibold text-emerald-300">숏게임 진단</h4>
               <p className="text-xs text-slate-400 mt-1">30m~100m 숏게임 샷 — 거리 제어 및 핀 공략 정확도를 입력하세요.</p>
             </div>
             <div className="space-y-2">
@@ -1298,7 +1298,7 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
           {/* Score */}
           <div className="rounded-xl border border-slate-700 bg-slate-900 p-4 space-y-3">
             <div className="flex items-center justify-between">
-              <span className="text-sm font-semibold text-violet-300">{factor.label} 점수</span>
+              <span className="text-sm font-semibold text-emerald-300">{factor.label} 점수</span>
               {autoScore !== null && (
                 <span className="text-xs text-emerald-400">자동 계산: {autoScore}점</span>
               )}
@@ -1310,7 +1310,7 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
               step={1}
               value={factorScores[factorKey] ?? 0}
               onChange={(event) => handleScoreChange(factorKey, event.target.value)}
-              className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none focus:border-violet-500"
+              className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none focus:border-emerald-500"
               data-testid={`diagnosis-score-input-${factorKey}`}
             />
             <p className="text-xs text-slate-400">
@@ -1359,7 +1359,7 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
           <div className="flex items-center justify-between">
             <span className="text-sm text-slate-200">{item.label}</span>
             {item.rating !== null && (
-              <span className="text-xs text-violet-300">{RATING_LABELS[item.rating]}</span>
+              <span className="text-xs text-emerald-300">{RATING_LABELS[item.rating]}</span>
             )}
           </div>
           <div className="flex gap-1.5">
@@ -1370,7 +1370,7 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
                 onClick={() => updateRating(section, item.key, n)}
                 className={`flex-1 rounded-lg py-2 text-xs font-semibold transition-colors ${
                   item.rating === n
-                    ? 'bg-violet-600 text-white border border-violet-500'
+                    ? 'bg-emerald-600 text-white border border-emerald-500'
                     : 'bg-slate-800 text-slate-400 border border-slate-700 hover:bg-slate-700 hover:text-slate-200'
                 }`}
                 data-testid={`course-mental-rating-${item.key}-${n}`}
@@ -1392,7 +1392,7 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
           {/* 코스메니지먼트 */}
           <div className="rounded-xl border border-slate-700 bg-slate-900 p-4 space-y-4">
             <div>
-              <h4 className="text-sm font-semibold text-violet-300">코스 메니지먼트</h4>
+              <h4 className="text-sm font-semibold text-emerald-300">코스 메니지먼트</h4>
               <p className="text-xs text-slate-400 mt-1">클럽 선택, 공략 전략, 위험 관리 능력을 1–5점으로 평가하세요.</p>
             </div>
             <div className="space-y-4">
@@ -1405,7 +1405,7 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
                 value={courseMentalData.courseNote}
                 onChange={(e) => setCourseMentalData((prev) => ({ ...prev, courseNote: e.target.value }))}
                 placeholder="클럽 선택 패턴, 공략 루트 결정, 위험 대처 관련 관찰 내용을 입력하세요."
-                className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none focus:border-violet-500"
+                className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none focus:border-emerald-500"
                 data-testid="diagnosis-course-note-input"
               />
             </label>
@@ -1414,7 +1414,7 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
           {/* 멘탈 */}
           <div className="rounded-xl border border-slate-700 bg-slate-900 p-4 space-y-4">
             <div>
-              <h4 className="text-sm font-semibold text-violet-300">멘탈</h4>
+              <h4 className="text-sm font-semibold text-emerald-300">멘탈</h4>
               <p className="text-xs text-slate-400 mt-1">루틴, 집중력, 압박 대처, 회복력 등을 1–5점으로 평가하세요.</p>
             </div>
             <div className="space-y-4">
@@ -1427,7 +1427,7 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
                 value={courseMentalData.mentalNote}
                 onChange={(e) => setCourseMentalData((prev) => ({ ...prev, mentalNote: e.target.value }))}
                 placeholder="루틴 일관성, 압박 대처, 미스 후 반응 등 멘탈 관련 관찰 내용을 입력하세요."
-                className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none focus:border-violet-500"
+                className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none focus:border-emerald-500"
                 data-testid="diagnosis-mental-note-input"
               />
             </label>
@@ -1441,7 +1441,7 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
             </div>
             <div className="text-right">
               {courseMentalScore !== null ? (
-                <p className="text-2xl font-bold text-violet-300" data-testid="course-mental-score">{courseMentalScore}점</p>
+                <p className="text-2xl font-bold text-emerald-300" data-testid="course-mental-score">{courseMentalScore}점</p>
               ) : (
                 <p className="text-sm text-slate-500" data-testid="course-mental-score-empty">
                   {ratedCount}/{totalCount} 항목 입력됨
@@ -1530,7 +1530,7 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
                         aria-current={index === activeStepIndex ? 'step' : undefined}
                         className={`rounded-full border px-2 py-1 ${
                           index === activeStepIndex
-                            ? 'border-violet-500 bg-violet-500/20 text-violet-200'
+                            ? 'border-emerald-500 bg-emerald-500/20 text-emerald-200'
                             : 'border-slate-700 bg-slate-900 text-slate-400'
                         }`}
                       >
@@ -1539,7 +1539,7 @@ export const DiagnosisProgramSection: React.FC<DiagnosisProgramSectionProps> = (
                     ))}
                   </ol>
                 </nav>
-                <p className="mt-2 text-sm font-semibold text-violet-300">프로세스 {activeStepIndex + 1} / {program.steps.length}</p>
+                <p className="mt-2 text-sm font-semibold text-emerald-300">프로세스 {activeStepIndex + 1} / {program.steps.length}</p>
                 <p className="mt-1 font-medium text-slate-100">{currentStep?.title}</p>
                 <p className="mt-1 text-sm text-slate-300">{currentStep?.description}</p>
               </div>

@@ -307,9 +307,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 </div>
 
                 <div className="flex gap-2">
-                    <div className="flex-1 bg-indigo-50 rounded-lg p-2 flex items-center justify-between border border-indigo-100 min-w-0">
-                        <span className="text-xs text-indigo-600 font-bold truncate">코치</span>
-                        <span className="text-sm font-bold text-indigo-800 flex-shrink-0 ml-1">{coaches.length}</span>
+                    <div className="flex-1 bg-emerald-50 rounded-lg p-2 flex items-center justify-between border border-emerald-100 min-w-0">
+                        <span className="text-xs text-emerald-600 font-bold truncate">코치</span>
+                        <span className="text-sm font-bold text-emerald-800 flex-shrink-0 ml-1">{coaches.length}</span>
                     </div>
                     <div className="flex-1 bg-gray-50 rounded-lg p-2 flex items-center justify-between border border-gray-200 min-w-0">
                         <span className="text-xs text-gray-600 font-bold truncate">일반</span>
@@ -330,7 +330,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           </div>
 
           <div className="bg-white p-4 sm:p-6 rounded-xl shadow-sm border border-gray-200 flex items-center gap-4 min-w-0">
-             <div className="w-12 h-12 sm:w-14 sm:h-14 bg-indigo-50 rounded-full flex flex-shrink-0 items-center justify-center text-indigo-600">
+             <div className="w-12 h-12 sm:w-14 sm:h-14 bg-emerald-50 rounded-full flex flex-shrink-0 items-center justify-center text-emerald-600">
                 {isFbConnected ? <Cloud className="w-7 h-7 sm:w-8 sm:h-8" /> : <Activity className="w-7 h-7 sm:w-8 sm:h-8" />}
              </div>
              <div className="min-w-0 flex-1">
@@ -358,7 +358,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </button>
             <button 
                 onClick={() => setActiveTab('COACH_ACTIVITY')}
-                className={`pb-3 text-sm font-bold transition-colors border-b-2 whitespace-nowrap flex items-center gap-1.5 ${activeTab === 'COACH_ACTIVITY' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
+                className={`pb-3 text-sm font-bold transition-colors border-b-2 whitespace-nowrap flex items-center gap-1.5 ${activeTab === 'COACH_ACTIVITY' ? 'border-emerald-600 text-emerald-600' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
             >
                 <Activity className="w-3.5 h-3.5" /> {t('admin_tab_coach_activity')}
             </button>
@@ -406,19 +406,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </button>
             <button
                 onClick={() => setActiveTab('AI_PROMPTS')}
-                className={`pb-3 text-sm font-bold transition-colors border-b-2 whitespace-nowrap flex items-center gap-1.5 ${activeTab === 'AI_PROMPTS' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
+                className={`pb-3 text-sm font-bold transition-colors border-b-2 whitespace-nowrap flex items-center gap-1.5 ${activeTab === 'AI_PROMPTS' ? 'border-emerald-600 text-emerald-600' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
             >
                 <Sparkles className="w-3.5 h-3.5" /> {t('admin_tab_prompts')}
             </button>
             <button
                 onClick={() => setActiveTab('AI_OBSERVABILITY')}
-                className={`pb-3 text-sm font-bold transition-colors border-b-2 whitespace-nowrap flex items-center gap-1.5 ${activeTab === 'AI_OBSERVABILITY' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
+                className={`pb-3 text-sm font-bold transition-colors border-b-2 whitespace-nowrap flex items-center gap-1.5 ${activeTab === 'AI_OBSERVABILITY' ? 'border-emerald-600 text-emerald-600' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
             >
                 <Activity className="w-3.5 h-3.5" /> AI 관측성
             </button>
             <button
                 onClick={() => setActiveTab('CURRICULUM_TEMPLATES')}
-                className={`pb-3 text-sm font-bold transition-colors border-b-2 whitespace-nowrap flex items-center gap-1.5 ${activeTab === 'CURRICULUM_TEMPLATES' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
+                className={`pb-3 text-sm font-bold transition-colors border-b-2 whitespace-nowrap flex items-center gap-1.5 ${activeTab === 'CURRICULUM_TEMPLATES' ? 'border-emerald-600 text-emerald-600' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
             >
                 <ListChecks className="w-3.5 h-3.5" /> 커리큘럼 콘텐츠
             </button>
@@ -442,7 +442,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                             </button>
                             <button 
                                 onClick={() => setMemberType('COACH')}
-                                className={`px-4 py-1.5 text-sm font-bold rounded-md transition-all ${memberType === 'COACH' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                                className={`px-4 py-1.5 text-sm font-bold rounded-md transition-all ${memberType === 'COACH' ? 'bg-white text-emerald-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
                             >
                                 코치 회원 ({coaches.length})
                             </button>
@@ -470,7 +470,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                                                 <td className="px-6 py-4 font-medium text-gray-900">{client.name}</td>
                                                 <td className="px-6 py-4 text-gray-500">{client.phone}</td>
                                                 <td className="px-6 py-4 text-gray-600">
-                                                    {client.designatedCoach ? <span className="inline-flex items-center gap-1 bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded text-xs font-bold"><Award className="w-3 h-3"/> {client.designatedCoach}</span> : '-'}
+                                                    {client.designatedCoach ? <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded text-xs font-bold"><Award className="w-3 h-3"/> {client.designatedCoach}</span> : '-'}
                                                 </td>
                                                 <td className="px-6 py-4">
                                                     {client.isSubscribed ? 
@@ -497,7 +497,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                             </table>
                         ) : (
                             <table className="w-full text-sm text-left">
-                                <thead className="bg-indigo-50 text-indigo-700 font-medium border-b border-indigo-100">
+                                <thead className="bg-emerald-50 text-emerald-700 font-medium border-b border-emerald-100">
                                     <tr>
                                         <th className="px-6 py-3">코치 이름</th>
                                         <th className="px-6 py-3">이메일</th>
@@ -514,9 +514,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                                         coaches.map((coach) => {
                                             const managedCount = clients.filter(c => c.coachId === coach.id || c.designatedCoach === coach.name).length;
                                             return (
-                                                <tr key={coach.id} className="hover:bg-indigo-50/30 transition-colors">
+                                                <tr key={coach.id} className="hover:bg-emerald-50/30 transition-colors">
                                                     <td className="px-6 py-4 font-bold text-gray-900 flex items-center gap-2">
-                                                        <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-xs">
+                                                        <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center text-xs">
                                                             {coach.name.charAt(0)}
                                                         </div>
                                                         {coach.name}
@@ -530,7 +530,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                                                     </td>
                                                     <td className="px-6 py-4">
                                                         {coach.isSubscribed ? 
-                                                            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-bold bg-indigo-100 text-indigo-700"><CheckCircle className="w-3 h-3" /> Premium</span> : 
+                                                            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700"><CheckCircle className="w-3 h-3" /> Premium</span> : 
                                                             <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-bold bg-gray-100 text-gray-500">Free Plan</span>
                                                         }
                                                     </td>
@@ -539,7 +539,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                                                             <button
                                                                 data-testid={`manage-subscription-${coach.id}`}
                                                                 onClick={() => openSubscriptionManager(coach)}
-                                                                className="text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 p-2 rounded-lg transition-colors flex items-center gap-1 text-xs font-bold"
+                                                                className="text-emerald-600 hover:text-emerald-800 hover:bg-emerald-50 p-2 rounded-lg transition-colors flex items-center gap-1 text-xs font-bold"
                                                             >
                                                                 <CreditCard className="w-4 h-4" /> 구독 관리
                                                             </button>
@@ -599,7 +599,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                                             <td className="px-6 py-4 text-gray-600">{lesson.clientName}</td>
                                             <td className="px-6 py-4">
                                                 {lesson.createdBy === 'COACH' ? 
-                                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-100"><Award className="w-3 h-3" /> PRO</span> : 
+                                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-100"><Award className="w-3 h-3" /> PRO</span> : 
                                                     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-100"><User className="w-3 h-3" /> CLIENT</span>
                                                 }
                                             </td>
@@ -737,7 +737,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                                             <div className="flex justify-between items-start mb-1">
                                                 <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
                                                     msg.target === 'ALL' ? 'bg-gray-100 text-gray-600' : 
-                                                    msg.target === 'COACHES' ? 'bg-indigo-100 text-indigo-600' : 
+                                                    msg.target === 'COACHES' ? 'bg-emerald-100 text-emerald-600' : 
                                                     'bg-emerald-100 text-emerald-600'
                                                 }`}>
                                                     {msg.target === 'ALL' ? t('admin_message_target_all') : msg.target === 'COACHES' ? t('admin_message_target_coaches') : t('admin_message_target_members')}

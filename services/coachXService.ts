@@ -8,12 +8,13 @@
 
 import { Lesson, ClientProfile, CoachProfile } from '../types';
 import { lessonBelongsToClient } from '../utils/clientMatch';
+import type { AIEvidenceEnvelope } from '../types/aiEvidence';
 
 export type CoachXLanguage = 'ko' | 'en' | 'ja' | 'th';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-export interface CoachXInsight {
+export interface CoachXInsight extends AIEvidenceEnvelope {
   type: 'pattern' | 'attention' | 'curriculum' | 'coach_growth' | 'stagnation';
   title: string;
   body: string;

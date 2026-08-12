@@ -164,7 +164,7 @@ export const CurriculumManager: React.FC<CurriculumManagerProps> = ({
               value={newTitle}
               onChange={(e) => setNewTitle(e.target.value)}
               placeholder="예: 2026 시즌 기초 트레이닝"
-              className="w-full px-3 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-slate-200 text-sm focus:outline-none focus:border-indigo-500 placeholder-slate-600"
+              className="w-full px-3 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-slate-200 text-sm focus:outline-none focus:border-emerald-500 placeholder-slate-600"
             />
           </div>
           <div className="space-y-1.5">
@@ -174,7 +174,7 @@ export const CurriculumManager: React.FC<CurriculumManagerProps> = ({
               onChange={(e) => setNewDescription(e.target.value)}
               rows={3}
               placeholder="이 커리큘럼의 목표나 대상 학생을 적어주세요"
-              className="w-full px-3 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-slate-200 text-sm focus:outline-none focus:border-indigo-500 resize-none placeholder-slate-600"
+              className="w-full px-3 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-slate-200 text-sm focus:outline-none focus:border-emerald-500 resize-none placeholder-slate-600"
             />
           </div>
 
@@ -183,7 +183,7 @@ export const CurriculumManager: React.FC<CurriculumManagerProps> = ({
             <div className="flex flex-wrap gap-2">
               {['신체', '스윙 기술', '장비', '코스매니지먼트', '멘탈'].map((label, i) => (
                 <span key={label} className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-xl text-xs text-slate-300">
-                  <span className="text-indigo-400 font-bold">{i + 1}</span>
+                  <span className="text-emerald-400 font-bold">{i + 1}</span>
                   {label}
                 </span>
               ))}
@@ -194,7 +194,7 @@ export const CurriculumManager: React.FC<CurriculumManagerProps> = ({
           <button
             onClick={handleCreate}
             disabled={!newTitle.trim() || creating}
-            className="w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-white font-bold text-sm transition-colors"
+            className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white font-bold text-sm transition-colors"
           >
             {creating ? '생성 중...' : '커리큘럼 만들기'}
           </button>
@@ -224,7 +224,7 @@ export const CurriculumManager: React.FC<CurriculumManagerProps> = ({
             <select
               value={assignCurriculumId}
               onChange={(e) => setAssignCurriculumId(e.target.value)}
-              className="w-full px-3 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-slate-200 text-sm focus:outline-none focus:border-indigo-500"
+              className="w-full px-3 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-slate-200 text-sm focus:outline-none focus:border-emerald-500"
             >
               <option value="">— 커리큘럼을 선택하세요 —</option>
               {curriculums.map((c) => (
@@ -250,12 +250,12 @@ export const CurriculumManager: React.FC<CurriculumManagerProps> = ({
                     }}
                     className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border text-left transition-all text-sm ${
                       selected
-                        ? 'border-indigo-500/60 bg-indigo-600/10 text-indigo-200'
+                        ? 'border-emerald-500/60 bg-emerald-600/10 text-emerald-200'
                         : 'border-slate-700 bg-slate-800/40 text-slate-300 hover:border-slate-600'
                     }`}
                   >
                     <div className={`w-4 h-4 rounded border flex-shrink-0 flex items-center justify-center ${
-                      selected ? 'border-indigo-400 bg-indigo-600' : 'border-slate-600'
+                      selected ? 'border-emerald-400 bg-emerald-600' : 'border-slate-600'
                     }`}>
                       {selected && <CheckCircle className="w-3 h-3 text-white" />}
                     </div>
@@ -273,7 +273,7 @@ export const CurriculumManager: React.FC<CurriculumManagerProps> = ({
           <button
             onClick={handleAssign}
             disabled={!assignCurriculumId || selectedStudentIds.length === 0 || assigning}
-            className="w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-white font-bold text-sm transition-colors"
+            className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white font-bold text-sm transition-colors"
           >
             {assigning ? '배정 중...' : `${selectedStudentIds.length}명에게 커리큘럼 배정`}
           </button>
@@ -306,7 +306,7 @@ export const CurriculumManager: React.FC<CurriculumManagerProps> = ({
             <p className="text-slate-400 text-sm">아직 배정된 학생이 없습니다.</p>
             <button
               onClick={() => { setAssignCurriculumId(selectedCurriculum.id); setView('assign'); }}
-              className="flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-sm font-bold transition-colors"
+              className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-sm font-bold transition-colors"
             >
               <UserPlus className="w-4 h-4" />
               학생 배정
@@ -329,12 +329,12 @@ export const CurriculumManager: React.FC<CurriculumManagerProps> = ({
                       <span className="font-bold text-slate-100">{client?.name ?? prog.studentId}</span>
                       {client?.phone && <span className="text-slate-500 text-xs ml-2">{client.phone}</span>}
                     </div>
-                    <span className="text-sm font-bold text-indigo-300">{pct}%</span>
+                    <span className="text-sm font-bold text-emerald-300">{pct}%</span>
                   </div>
                   <div>
                     <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
                       <div
-                        className="h-full bg-indigo-500 rounded-full transition-all"
+                        className="h-full bg-emerald-500 rounded-full transition-all"
                         style={{ width: `${pct}%` }}
                       />
                     </div>
@@ -400,7 +400,7 @@ export const CurriculumManager: React.FC<CurriculumManagerProps> = ({
           대시보드로
         </button>
         <h2 className="text-xl font-bold text-slate-100 flex items-center gap-2">
-          <BookOpen className="w-5 h-5 text-indigo-400" />
+          <BookOpen className="w-5 h-5 text-emerald-400" />
           교육 커리큘럼
         </h2>
       </div>
@@ -421,7 +421,7 @@ export const CurriculumManager: React.FC<CurriculumManagerProps> = ({
       <div className="flex flex-wrap gap-2">
         <button
           onClick={() => setView('create')}
-          className="flex items-center gap-1.5 px-4 py-2 bg-indigo-600/20 border border-indigo-500/40 hover:bg-indigo-600/30 text-indigo-300 rounded-xl text-sm font-semibold transition-all"
+          className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600/20 border border-emerald-500/40 hover:bg-emerald-600/30 text-emerald-300 rounded-xl text-sm font-semibold transition-all"
         >
           <Plus className="w-4 h-4" />
           새 커리큘럼 만들기
@@ -443,7 +443,7 @@ export const CurriculumManager: React.FC<CurriculumManagerProps> = ({
           placeholder="커리큘럼 검색..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-full pl-9 pr-4 py-2.5 bg-slate-900/70 border border-slate-800 rounded-xl text-slate-200 text-sm focus:outline-none focus:border-indigo-500 placeholder-slate-600"
+          className="w-full pl-9 pr-4 py-2.5 bg-slate-900/70 border border-slate-800 rounded-xl text-slate-200 text-sm focus:outline-none focus:border-emerald-500 placeholder-slate-600"
         />
       </div>
 
@@ -467,8 +467,8 @@ export const CurriculumManager: React.FC<CurriculumManagerProps> = ({
               className="bg-slate-900/70 border border-slate-800 rounded-2xl p-5 space-y-4"
             >
               <div className="flex items-start gap-3">
-                <div className="p-2.5 rounded-xl bg-indigo-500/10">
-                  <BookOpen className="w-5 h-5 text-indigo-400" />
+                <div className="p-2.5 rounded-xl bg-emerald-500/10">
+                  <BookOpen className="w-5 h-5 text-emerald-400" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <h3 className="font-bold text-slate-100 text-sm leading-snug">{cur.title}</h3>
@@ -495,7 +495,7 @@ export const CurriculumManager: React.FC<CurriculumManagerProps> = ({
               <div className="flex flex-wrap gap-2">
                 <button
                   onClick={() => openViewer(cur)}
-                  className="flex items-center gap-1.5 px-3 py-2 bg-indigo-600/20 hover:bg-indigo-600/30 border border-indigo-500/30 text-indigo-300 rounded-xl text-xs font-semibold transition-all"
+                  className="flex items-center gap-1.5 px-3 py-2 bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/30 text-emerald-300 rounded-xl text-xs font-semibold transition-all"
                 >
                   <BookOpen className="w-3.5 h-3.5" />
                   커리큘럼 열기

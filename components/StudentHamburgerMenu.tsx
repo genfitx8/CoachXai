@@ -108,7 +108,7 @@ export const StudentHamburgerMenu: React.FC<StudentHamburgerMenuProps> = ({
       <aside className="absolute left-0 top-0 h-full w-[86%] max-w-sm bg-[#0A0F1A] border-r border-slate-800 shadow-2xl flex flex-col animate-slide-in-left">
         {/* Header */}
         <div className="px-5 py-5 border-b border-slate-800 flex items-center gap-3">
-          <div className="bg-gradient-to-br from-indigo-500/30 to-violet-500/20 p-2.5 rounded-full text-indigo-100 border border-indigo-300/20">
+          <div className="bg-gradient-to-br from-emerald-500/30 to-emerald-500/20 p-2.5 rounded-full text-emerald-100 border border-emerald-300/20">
             <User className="w-5 h-5" />
           </div>
           <div className="min-w-0 flex-1">
@@ -188,7 +188,7 @@ const Section: React.FC<{ title: string; children: React.ReactNode }> = ({ title
 type Accent = 'indigo' | 'cyan' | 'amber' | 'emerald';
 
 const accentToClasses: Record<Accent, { icon: string; bg: string }> = {
-  indigo: { icon: 'text-indigo-300', bg: 'bg-indigo-500/10 border-indigo-300/20' },
+  indigo: { icon: 'text-emerald-300', bg: 'bg-emerald-500/10 border-emerald-300/20' },
   cyan: { icon: 'text-cyan-300', bg: 'bg-cyan-400/10 border-cyan-300/20' },
   amber: { icon: 'text-amber-300', bg: 'bg-amber-400/10 border-amber-300/20' },
   emerald: { icon: 'text-emerald-300', bg: 'bg-emerald-400/10 border-emerald-300/20' },

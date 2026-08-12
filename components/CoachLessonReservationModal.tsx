@@ -22,7 +22,7 @@ function formatHour(h: number) {
 }
 
 const formInputFieldClass =
-  'w-full px-3 py-2.5 border border-slate-700 rounded-xl text-sm bg-slate-900 text-slate-100 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none';
+  'w-full px-3 py-2.5 border border-slate-700 rounded-xl text-sm bg-slate-900 text-slate-100 focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none';
 const formSectionTitleClass = 'text-sm font-semibold text-slate-200 mb-2';
 
 export const CoachLessonReservationModal: React.FC<CoachLessonReservationModalProps> = ({
@@ -255,7 +255,7 @@ export const CoachLessonReservationModal: React.FC<CoachLessonReservationModalPr
               </svg>
             </div>
             <p className="text-slate-200 whitespace-pre-line mb-6">{successMsg}</p>
-            <Button onClick={handleDone} className="w-full bg-indigo-600 hover:bg-indigo-500">확인</Button>
+            <Button onClick={handleDone} className="w-full bg-emerald-600 hover:bg-emerald-500">확인</Button>
           </div>
         </div>
       </>
@@ -294,14 +294,14 @@ export const CoachLessonReservationModal: React.FC<CoachLessonReservationModalPr
               </label>
 
               {selectedMember ? (
-                <div className="flex items-center justify-between bg-indigo-500/10 border border-indigo-500/30 rounded-xl px-3 py-2">
+                <div className="flex items-center justify-between bg-emerald-500/10 border border-emerald-500/30 rounded-xl px-3 py-2">
                   <div>
-                    <p className="font-medium text-indigo-200">{selectedMember.name}</p>
-                    <p className="text-xs text-indigo-300">{selectedMember.phone}</p>
+                    <p className="font-medium text-emerald-200">{selectedMember.name}</p>
+                    <p className="text-xs text-emerald-300">{selectedMember.phone}</p>
                   </div>
                   <button
                     onClick={() => setSelectedMember(null)}
-                    className="text-indigo-300 hover:text-indigo-100 transition-colors ml-2"
+                    className="text-emerald-300 hover:text-emerald-100 transition-colors ml-2"
                     aria-label="회원 선택 취소"
                   >
                     <X size={16} />
@@ -322,7 +322,7 @@ export const CoachLessonReservationModal: React.FC<CoachLessonReservationModalPr
                   />
                   {searchLoading && (
                     <div className="absolute inset-y-0 right-3 flex items-center">
-                      <div className="w-4 h-4 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin" />
+                      <div className="w-4 h-4 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin" />
                     </div>
                   )}
                   {memberResults.length > 0 && (
@@ -463,10 +463,10 @@ export const CoachLessonReservationModal: React.FC<CoachLessonReservationModalPr
                             disabled={slot.pricePoints === null}
                             className={`px-2 py-1.5 rounded text-xs border transition-colors ${
                               bayHour === slot.startHour && availableBays.length > 0
-                                ? 'bg-indigo-600 text-white border-indigo-600'
+                                ? 'bg-emerald-600 text-white border-emerald-600'
                                 : slot.pricePoints === null
                                 ? 'bg-slate-800 text-slate-500 border-slate-700 cursor-not-allowed'
-                                : 'bg-slate-900 text-slate-200 border-slate-700 hover:border-indigo-500'
+                                : 'bg-slate-900 text-slate-200 border-slate-700 hover:border-emerald-500'
                             }`}
                           >
                             {formatHour(slot.startHour)}
@@ -491,8 +491,8 @@ export const CoachLessonReservationModal: React.FC<CoachLessonReservationModalPr
                             onClick={() => setSelectedBayEntry(entry)}
                             className={`px-3 py-2 rounded border text-xs text-left transition-colors ${
                               selectedBayEntry?.bay.id === entry.bay.id
-                                ? 'bg-indigo-600 text-white border-indigo-600'
-                                : 'bg-slate-900 text-slate-200 border-slate-700 hover:border-indigo-500'
+                                ? 'bg-emerald-600 text-white border-emerald-600'
+                                : 'bg-slate-900 text-slate-200 border-slate-700 hover:border-emerald-500'
                             }`}
                           >
                             <span className="font-medium">{entry.bay.floor}층 {entry.bay.roomNumber}번</span>
@@ -505,7 +505,7 @@ export const CoachLessonReservationModal: React.FC<CoachLessonReservationModalPr
 
                   {bayLoading && (
                     <div className="flex justify-center py-2">
-                      <div className="w-5 h-5 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin" />
+                      <div className="w-5 h-5 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin" />
                     </div>
                   )}
 
@@ -538,7 +538,7 @@ export const CoachLessonReservationModal: React.FC<CoachLessonReservationModalPr
               <button
                 onClick={handleSave}
                 disabled={loading || !selectedMember}
-                className="flex-1 px-4 py-2.5 bg-indigo-600 text-white rounded-xl text-sm hover:bg-indigo-500 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                className="flex-1 px-4 py-2.5 bg-emerald-600 text-white rounded-xl text-sm hover:bg-emerald-500 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
                 {loading ? (
                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />

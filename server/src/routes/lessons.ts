@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import pool from '../services/db';
 import { authMiddleware } from '../middleware/auth';
+import { signMediaUrl, reSignIfMedia } from '../services/mediaAccess';
 
 const router = Router();
 const UUID_PATTERN =
@@ -9,7 +10,33 @@ const UUID_PATTERN =
 // All routes require authentication
 router.use(authMiddleware);
 
+/**
+ * Recursively re-sign any /api/files/... URLs inside the arbitrary JSON
+ * that additional_media / compare_video_metadata etc. can carry. Walks
+ * strings only; objects and arrays are traversed structurally.
+ */
+function reSignMediaTree(value: unknown): unknown {
+  if (typeof value === 'string') return reSignIfMedia(value);
+  if (Array.isArray(value)) return value.map(reSignMediaTree);
+  if (value && typeof value === 'object') {
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+      out[k] = reSignMediaTree(v);
+    }
+    return out;
+  }
+  return value;
+}
+
 function mapLesson(row: Record<string, unknown>) {
+  // Prefer signing the stored key when available; fall back to re-signing
+  // whatever's in video_url (covers legacy rows that only have the URL form).
+  const videoKey = row.video_key as string | null;
+  const videoUrl =
+    videoKey
+      ? signMediaUrl(videoKey).url
+      : reSignIfMedia(row.video_url as string | null);
+
   return {
     id: row.id,
     clientId: row.client_id,
@@ -24,12 +51,12 @@ function mapLesson(row: Record<string, unknown>) {
     targetDistance: row.target_distance,
     score: row.score,
     scorecardDetail: row.scorecard_detail,
-    videoUrl: row.video_url,
+    videoUrl,
     videoKey: row.video_key,
     mediaType: row.media_type,
     swingAngle: row.swing_angle,
-    additionalMedia: row.additional_media,
-    thumbnailUrl: row.thumbnail_url,
+    additionalMedia: reSignMediaTree(row.additional_media),
+    thumbnailUrl: reSignIfMedia(row.thumbnail_url as string | null),
     coachNotes: row.coach_notes,
     aiAnalysis: row.ai_analysis,
     scorecard: row.scorecard,
@@ -41,13 +68,18 @@ function mapLesson(row: Record<string, unknown>) {
     feedbackStatus: row.feedback_status,
     memberBodyAnalysis: row.member_body_analysis,
     assignedHomework: row.assigned_homework,
-    editedVideoUrl: row.edited_video_url,
-    videoEditMetadata: row.video_edit_metadata,
-    compareVideoUrl: row.compare_video_url,
-    compareVideoMetadata: row.compare_video_metadata,
-    media: row.media,
+    editedVideoUrl: reSignIfMedia(row.edited_video_url as string | null),
+    videoEditMetadata: reSignMediaTree(row.video_edit_metadata),
+    compareVideoUrl: reSignIfMedia(row.compare_video_url as string | null),
+    compareVideoMetadata: reSignMediaTree(row.compare_video_metadata),
+    media: reSignMediaTree(row.media),
     lessonPackageId: row.lesson_package_id,
     sessionNumber: row.session_number,
+    // Data ownership 3-tier (#309). Defaults match the DB defaults so a
+    // client that hasn't updated its types yet still sees sensible values.
+    ownership: (row.ownership as string | null) ?? 'shared',
+    visibility: (row.visibility as string | null) ?? 'coach',
+    originalCoachId: row.original_coach_id,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -90,34 +122,28 @@ router.get('/', async (req: Request, res: Response) => {
         // Search by client_id composite OR by normalized phone number.
         // The phone-based branch catches lessons created before the member
         // signed up, or when the coach stored the phone in a different format.
-        // When coach_id is available, also require it on the phone branch to
-        // avoid surfacing unrelated records.
-        if (client.coach_id) {
-          result = await pool.query(
-            `SELECT * FROM (
-              SELECT * FROM lessons WHERE client_id = $1
-              UNION
-              SELECT * FROM lessons
-                WHERE coach_id = $3
-                AND REGEXP_REPLACE(COALESCE(client_phone, ''), '[^0-9]', '', 'g') = $2
-            ) AS combined ORDER BY created_at DESC`,
-            [clientCompositeId, normalizedPhone, client.coach_id]
-          );
-        } else {
-          // No coach linkage yet – search across all coaches by phone only.
-          result = await pool.query(
-            `SELECT * FROM (
-              SELECT * FROM lessons WHERE client_id = $1
-              UNION
-              SELECT * FROM lessons
-                WHERE REGEXP_REPLACE(COALESCE(client_phone, ''), '[^0-9]', '', 'g') = $2
-            ) AS combined ORDER BY created_at DESC`,
-            [clientCompositeId, normalizedPhone]
-          );
-        }
+        //
+        // Data ownership (#309): the phone branch is no longer gated by the
+        // student's *current* coach_id. Lessons default to ownership='shared'
+        // — the student keeps read access on handover — so a member who moved
+        // coaches still sees their history. Coach-only rows (ownership='coach')
+        // are excluded so private lesson notes never leak to the student.
+        result = await pool.query(
+          `SELECT * FROM (
+            SELECT * FROM lessons
+              WHERE client_id = $1 AND COALESCE(ownership, 'shared') <> 'coach'
+            UNION
+            SELECT * FROM lessons
+              WHERE REGEXP_REPLACE(COALESCE(client_phone, ''), '[^0-9]', '', 'g') = $2
+                AND COALESCE(ownership, 'shared') <> 'coach'
+          ) AS combined ORDER BY created_at DESC`,
+          [clientCompositeId, normalizedPhone]
+        );
       } else {
         result = await pool.query(
-          'SELECT * FROM lessons WHERE client_id = $1 ORDER BY created_at DESC',
+          `SELECT * FROM lessons
+             WHERE client_id = $1 AND COALESCE(ownership, 'shared') <> 'coach'
+             ORDER BY created_at DESC`,
           [clientCompositeId]
         );
       }
@@ -152,6 +178,7 @@ router.post('/', async (req: Request, res: Response) => {
       editedVideoUrl, videoEditMetadata,
       compareVideoUrl, compareVideoMetadata,
       media, lessonPackageId, sessionNumber,
+      visibility,
     } = req.body as Record<string, unknown>;
     const lessonId =
       typeof id === 'string' && id.trim().length > 0 ? id.trim() : null;
@@ -159,6 +186,14 @@ router.post('/', async (req: Request, res: Response) => {
       res.status(400).json({ error: 'Invalid lesson id: must be a valid UUID format' });
       return;
     }
+    // ownership is server-authoritative — lessons are always 'shared' at
+    // creation, and only the internal handover flow may downgrade later.
+    // visibility is client-selectable within a whitelist.
+    const ALLOWED_VISIBILITY = new Set(['self', 'coach', 'branch']);
+    const resolvedVisibility =
+      typeof visibility === 'string' && ALLOWED_VISIBILITY.has(visibility)
+        ? visibility
+        : 'coach';
 
     // Resolve the coach_id and client_id server-side so client uploads can't
     // spoof another student's records or store their own auth id as coach_id.
@@ -218,6 +253,7 @@ router.post('/', async (req: Request, res: Response) => {
         edited_video_url, video_edit_metadata,
         compare_video_url, compare_video_metadata,
         media, lesson_package_id, session_number,
+        ownership, visibility, original_coach_id,
         created_at, updated_at
       ) VALUES (
         COALESCE($1::uuid, gen_random_uuid()),
@@ -233,7 +269,8 @@ router.post('/', async (req: Request, res: Response) => {
         $31, $32,
         $33, $34,
         $35, $36, $37,
-        $38, $39
+        'shared', $38, $5,
+        $39, $40
       ) RETURNING *`,
       [
         lessonId,
@@ -261,6 +298,7 @@ router.post('/', async (req: Request, res: Response) => {
         compareVideoMetadata ? JSON.stringify(compareVideoMetadata) : null,
         media ? JSON.stringify(media) : null,
         lessonPackageId ?? null, sessionNumber ?? null,
+        resolvedVisibility,
         now, now,
       ]
     );
@@ -337,7 +375,18 @@ router.put('/:id', async (req: Request, res: Response) => {
       editedVideoUrl, videoEditMetadata,
       compareVideoUrl, compareVideoMetadata,
       media, lessonPackageId, sessionNumber,
+      visibility,
     } = req.body as Record<string, unknown>;
+
+    // Visibility (#309): the student can downgrade to 'self' (본인만); the
+    // coach can raise to 'branch' (지점까지) via UI. Both roles may set
+    // 'coach' (담당 코치까지, the default). Unknown values keep the existing
+    // level rather than corrupting the row.
+    const ALLOWED_VISIBILITY = new Set(['self', 'coach', 'branch']);
+    const nextVisibility =
+      typeof visibility === 'string' && ALLOWED_VISIBILITY.has(visibility)
+        ? visibility
+        : (existing.visibility as string | null) ?? 'coach';
 
     // Preserve immutable ownership fields — clients cannot reassign a lesson
     // to another student or change its coach linkage via PUT.
@@ -374,8 +423,9 @@ router.put('/:id', async (req: Request, res: Response) => {
         edited_video_url = $29, video_edit_metadata = $30,
         compare_video_url = $31, compare_video_metadata = $32,
         media = $33, lesson_package_id = $34, session_number = $35,
-        updated_at = $36
-      WHERE id = $37
+        visibility = $36,
+        updated_at = $37
+      WHERE id = $38
       RETURNING *`,
       [
         preservedClientId, preservedClientName, preservedClientPhone,
@@ -402,6 +452,7 @@ router.put('/:id', async (req: Request, res: Response) => {
         compareVideoMetadata ? JSON.stringify(compareVideoMetadata) : null,
         media ? JSON.stringify(media) : null,
         lessonPackageId ?? null, sessionNumber ?? null,
+        nextVisibility,
         now, id,
       ]
     );

@@ -90,7 +90,7 @@ export const GolfDataVisualizer: React.FC<GolfDataVisualizerProps> = ({
                 {renderMetricCard("비거리 (Total)", currentData.totalDistance, "m", "text-gray-900")}
                 {renderMetricCard("캐리 (Carry)", currentData.carryDistance, "m", "text-blue-600")}
                 {renderMetricCard("볼 스피드", currentData.ballSpeed, "m/s", "text-emerald-600")}
-                {renderMetricCard("헤드 스피드", currentData.clubHeadSpeed, "m/s", "text-indigo-600")}
+                {renderMetricCard("헤드 스피드", currentData.clubHeadSpeed, "m/s", "text-emerald-600")}
             </div>
 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

@@ -775,7 +775,7 @@ export const ClientStats: React.FC<ClientStatsProps> = ({ lessons, onBack, clien
                 inside handles the "데이터 부족" state itself. */}
             {clientProfile && (
                 <div className="bg-white rounded-xl shadow-lg border border-purple-100/60 overflow-hidden">
-                    <div className="bg-gradient-to-r from-purple-600 to-indigo-600 px-4 py-3 border-b border-indigo-500 flex justify-between items-center">
+                    <div className="bg-gradient-to-r from-purple-600 to-emerald-600 px-4 py-3 border-b border-emerald-500 flex justify-between items-center">
                         <h3 className="font-bold text-white text-sm flex items-center gap-2">
                             <Sparkles className="w-4 h-4" /> AI 종합 분석 리포트
                         </h3>
@@ -1141,7 +1141,7 @@ export const ClientStats: React.FC<ClientStatsProps> = ({ lessons, onBack, clien
                                 <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-md hover:shadow-lg transition-shadow">
                                     <div className="flex items-center justify-between mb-3">
                                         <h3 className="font-bold text-gray-900 text-sm flex items-center gap-2">
-                                            <span className="w-1.5 h-5 bg-gradient-to-b from-violet-600 to-purple-700 rounded-full shadow-sm"></span>
+                                            <span className="w-1.5 h-5 bg-gradient-to-b from-emerald-600 to-purple-700 rounded-full shadow-sm"></span>
                                             핀으로부터 거리
                                         </h3>
                                         <span className="text-[10px] text-gray-400 flex items-center gap-1">
@@ -1150,7 +1150,7 @@ export const ClientStats: React.FC<ClientStatsProps> = ({ lessons, onBack, clien
                                     </div>
 
                                     {/* Highlight stat card */}
-                                    <div className="bg-gradient-to-br from-violet-600 via-purple-700 to-fuchsia-700 rounded-xl p-4 text-white shadow-xl shadow-purple-900/15 mb-4">
+                                    <div className="bg-gradient-to-br from-emerald-600 via-purple-700 to-fuchsia-700 rounded-xl p-4 text-white shadow-xl shadow-purple-900/15 mb-4">
                                         <div className="flex items-end justify-between gap-2">
                                             <div className="min-w-0">
                                                 <div className="flex items-center gap-1 opacity-90 mb-1 text-xs font-semibold">
@@ -1331,9 +1331,9 @@ export const ClientStats: React.FC<ClientStatsProps> = ({ lessons, onBack, clien
                                         <span className="text-[10px] text-orange-700 block mb-1 flex items-center justify-center gap-1"><RefreshCw className="w-3 h-3"/> 파세이브율</span>
                                         <span className="text-sm font-bold text-orange-800">{scoreSummary.scramblingRate !== null ? `${scoreSummary.scramblingRate}%` : '-'}</span>
                                     </div>
-                                    <div className="bg-indigo-50 p-2 rounded-lg text-center border border-indigo-100">
-                                        <span className="text-[10px] text-indigo-700 block mb-1 flex items-center justify-center gap-1"><Target className="w-3 h-3"/> 평균 퍼팅</span>
-                                        <span className="text-sm font-bold text-indigo-800">{scoreSummary.avgPutts !== null ? `${scoreSummary.avgPutts}개` : '-'}</span>
+                                    <div className="bg-emerald-50 p-2 rounded-lg text-center border border-emerald-100">
+                                        <span className="text-[10px] text-emerald-700 block mb-1 flex items-center justify-center gap-1"><Target className="w-3 h-3"/> 평균 퍼팅</span>
+                                        <span className="text-sm font-bold text-emerald-800">{scoreSummary.avgPutts !== null ? `${scoreSummary.avgPutts}개` : '-'}</span>
                                     </div>
                                 </div>
                             )}
@@ -1349,9 +1349,9 @@ export const ClientStats: React.FC<ClientStatsProps> = ({ lessons, onBack, clien
                                             <span className="text-[10px] text-blue-700 block mb-1">Avg 드라이버</span>
                                             <span className="text-sm font-bold text-blue-900">{scoreSummary.avgTeeDistance || '-'}m</span>
                                         </div>
-                                        <div className="bg-indigo-50 p-2 rounded-lg text-center border border-indigo-100">
-                                            <span className="text-[10px] text-indigo-700 block mb-1">Avg 세컨 남은거리</span>
-                                            <span className="text-sm font-bold text-indigo-900">{scoreSummary.avgSecondDistance || '-'}m</span>
+                                        <div className="bg-emerald-50 p-2 rounded-lg text-center border border-emerald-100">
+                                            <span className="text-[10px] text-emerald-700 block mb-1">Avg 세컨 남은거리</span>
+                                            <span className="text-sm font-bold text-emerald-900">{scoreSummary.avgSecondDistance || '-'}m</span>
                                         </div>
                                         <div className="bg-emerald-50 p-2 rounded-lg text-center border border-emerald-100">
                                             <span className="text-[10px] text-emerald-700 block mb-1">Avg 퍼팅 거리</span>
@@ -1434,7 +1434,7 @@ export const ClientStats: React.FC<ClientStatsProps> = ({ lessons, onBack, clien
                                                 <select
                                                     value={selectedRound1 || ''}
                                                     onChange={(e) => setSelectedRound1(e.target.value)}
-                                                    className="w-full px-3 py-2 text-xs border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none bg-white"
+                                                    className="w-full px-3 py-2 text-xs border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none bg-white"
                                                 >
                                                     {roundsForComparison.map(round => (
                                                         <option key={round.id} value={round.id} disabled={round.id === selectedRound2}>
@@ -1448,7 +1448,7 @@ export const ClientStats: React.FC<ClientStatsProps> = ({ lessons, onBack, clien
                                                 <select
                                                     value={selectedRound2 || ''}
                                                     onChange={(e) => setSelectedRound2(e.target.value)}
-                                                    className="w-full px-3 py-2 text-xs border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none bg-white"
+                                                    className="w-full px-3 py-2 text-xs border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none bg-white"
                                                 >
                                                     {roundsForComparison.map(round => (
                                                         <option key={round.id} value={round.id} disabled={round.id === selectedRound1}>
@@ -1462,8 +1462,8 @@ export const ClientStats: React.FC<ClientStatsProps> = ({ lessons, onBack, clien
                                         {/* Comparison Stats Card */}
                                         {comparisonData && (
                                             <>
-                                                <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-4 border border-indigo-100">
-                                                    <h4 className="font-bold text-sm text-indigo-800 mb-3 flex items-center gap-2">
+                                                <div className="bg-gradient-to-br from-blue-50 to-emerald-50 rounded-xl p-4 border border-emerald-100">
+                                                    <h4 className="font-bold text-sm text-emerald-800 mb-3 flex items-center gap-2">
                                                         📊 경기력 비교 분석
                                                     </h4>
                                                     

@@ -263,7 +263,7 @@ export const ClientReservation: React.FC<ClientReservationProps> = ({ clientProf
         return 'bg-yellow-100 text-yellow-700 border-yellow-300';
       case 'ADMIN_BLOCK_PENDING':
       case 'COACH_APPROVED':
-        return 'bg-indigo-100 text-indigo-700 border-indigo-300';
+        return 'bg-emerald-100 text-emerald-700 border-emerald-300';
       case 'CONFIRMED':
         return 'bg-green-100 text-green-700 border-green-300';
       case 'CHANGE_REQUESTED':
@@ -291,7 +291,7 @@ export const ClientReservation: React.FC<ClientReservationProps> = ({ clientProf
         return 'border-yellow-100';
       case 'ADMIN_BLOCK_PENDING':
       case 'COACH_APPROVED':
-        return 'border-indigo-100';
+        return 'border-emerald-100';
       case 'CONFIRMED':
         return 'border-green-100';
       case 'CHANGE_REQUESTED':
@@ -692,7 +692,7 @@ export const ClientReservation: React.FC<ClientReservationProps> = ({ clientProf
                       <div className="flex gap-2">
                         <button
                           onClick={() => handleChangeRequest(reservation.id)}
-                          className="flex items-center gap-1 px-3 py-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition text-sm"
+                          className="flex items-center gap-1 px-3 py-2 text-emerald-600 hover:bg-emerald-50 rounded-lg transition text-sm"
                         >
                           변경 요청
                         </button>

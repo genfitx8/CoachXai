@@ -126,7 +126,7 @@ export const MembershipPaymentSuccess: React.FC<MembershipPaymentSuccessProps> =
   }, [clientProfile, onMembershipUpdated]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-blue-50 flex flex-col">
+    <div className="min-h-screen bg-gradient-to-br from-emerald-50 to-blue-50 flex flex-col">
       <div className="bg-white/80 backdrop-blur-sm border-b border-gray-100 px-4 py-3 flex items-center gap-3 sticky top-0 z-10">
         <BackButton onClick={onBack} tone="light" />
         <h1 className="text-lg font-bold text-gray-900">멤버십 결제 결과</h1>
@@ -135,25 +135,25 @@ export const MembershipPaymentSuccess: React.FC<MembershipPaymentSuccessProps> =
       <div className="flex-1 flex flex-col items-center justify-center p-6">
       {status === 'loading' && (
         <div className="text-center space-y-4">
-          <Loader2 className="w-16 h-16 text-indigo-700 animate-spin mx-auto" />
+          <Loader2 className="w-16 h-16 text-emerald-700 animate-spin mx-auto" />
           <p className="text-gray-600 font-medium">멤버십 결제를 확인하는 중입니다…</p>
         </div>
       )}
 
       {status === 'success' && (
         <div className="bg-white rounded-3xl shadow-xl p-6 sm:p-8 max-w-sm w-full text-center space-y-5">
-          <CheckCircle className="w-20 h-20 text-indigo-700 mx-auto" />
+          <CheckCircle className="w-20 h-20 text-emerald-700 mx-auto" />
           <div>
             <h2 className="text-2xl font-black text-gray-900">업그레이드 완료!</h2>
             <p className="text-gray-500 mt-1 text-sm">{planName}이 활성화되었습니다</p>
           </div>
-          <div className="bg-indigo-50 rounded-2xl p-4 text-sm text-gray-700">
-            <div className="font-bold text-indigo-700">멤버십 만료일</div>
+          <div className="bg-emerald-50 rounded-2xl p-4 text-sm text-gray-700">
+            <div className="font-bold text-emerald-700">멤버십 만료일</div>
             <div className="text-lg font-black text-gray-900 mt-1 break-keep">{endDate}</div>
           </div>
           <button
             onClick={onBack}
-            className="w-full bg-gradient-to-r from-indigo-700 to-blue-600 text-white rounded-2xl py-3 font-bold shadow-lg shadow-slate-200"
+            className="w-full bg-gradient-to-r from-emerald-700 to-blue-600 text-white rounded-2xl py-3 font-bold shadow-lg shadow-slate-200"
           >
             홈으로 돌아가기
           </button>

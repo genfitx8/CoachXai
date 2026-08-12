@@ -101,7 +101,7 @@ export const GolfAIAgent: React.FC<GolfAIAgentProps> = ({
           <Bot className="w-9 h-9 text-white" />
         </div>
         <h3 className="text-lg font-black mb-1">AI 골프 코치</h3>
-        <p className="text-indigo-100 text-sm leading-relaxed">
+        <p className="text-emerald-100 text-sm leading-relaxed">
           최근 레슨 기록을 분석해 맞춤형 연습 미션을 추천해드립니다.
         </p>
       </div>
@@ -136,7 +136,7 @@ export const GolfAIAgent: React.FC<GolfAIAgentProps> = ({
       {missions.length > 0 && (
         <div className="space-y-3">
           <div className="flex items-center gap-2">
-            <Zap className="w-4 h-4 text-indigo-500" />
+            <Zap className="w-4 h-4 text-emerald-500" />
             <h4 className="font-bold text-gray-800 text-sm">추천 미션</h4>
             <span className="text-xs text-gray-400">클릭하여 미션으로 등록</span>
           </div>
@@ -150,7 +150,7 @@ export const GolfAIAgent: React.FC<GolfAIAgentProps> = ({
                 className={`w-full text-left p-4 rounded-xl border transition-all group ${
                   isSaved
                     ? 'bg-emerald-50 border-emerald-200 cursor-default'
-                    : 'bg-white hover:bg-indigo-50 border-gray-100 hover:border-indigo-200 shadow-sm hover:shadow-md'
+                    : 'bg-white hover:bg-emerald-50 border-gray-100 hover:border-emerald-200 shadow-sm hover:shadow-md'
                 }`}
               >
                 <div className="flex items-start gap-3">
@@ -158,7 +158,7 @@ export const GolfAIAgent: React.FC<GolfAIAgentProps> = ({
                     className={`p-2 rounded-full shadow-sm font-bold text-xs border flex-shrink-0 ${
                       isSaved
                         ? 'bg-emerald-700 border-emerald-700 text-white'
-                        : 'bg-white border-gray-100 text-indigo-500'
+                        : 'bg-white border-gray-100 text-emerald-500'
                     }`}
                   >
                     {isSaved ? (
@@ -172,7 +172,7 @@ export const GolfAIAgent: React.FC<GolfAIAgentProps> = ({
                       className={`font-bold text-sm ${
                         isSaved
                           ? 'text-emerald-700'
-                          : 'text-gray-800 group-hover:text-indigo-700'
+                          : 'text-gray-800 group-hover:text-emerald-700'
                       }`}
                     >
                       {mission}
@@ -190,8 +190,8 @@ export const GolfAIAgent: React.FC<GolfAIAgentProps> = ({
 
       {/* Empty State */}
       {!isGenerating && missions.length === 0 && !errorMsg && (
-        <div className="text-center py-10 bg-gradient-to-br from-gray-50 to-indigo-50/30 rounded-2xl border border-indigo-100">
-          <Sparkles className="w-10 h-10 text-indigo-300 mx-auto mb-3" />
+        <div className="text-center py-10 bg-gradient-to-br from-gray-50 to-emerald-50/30 rounded-2xl border border-emerald-100">
+          <Sparkles className="w-10 h-10 text-emerald-300 mx-auto mb-3" />
           <p className="text-gray-500 text-sm font-medium">
             버튼을 눌러 AI 맞춤 미션을 추천받으세요
           </p>

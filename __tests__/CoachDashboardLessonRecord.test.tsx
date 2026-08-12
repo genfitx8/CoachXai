@@ -226,24 +226,9 @@ describe('Coach app shell (post-redesign)', () => {
     expect(screen.getByText('신체 체형 진단')).toBeInTheDocument();
   });
 
-  it('opens NewLessonForm and offers a direct-registration entry when + record is tapped', async () => {
-    await renderCoachApp();
-
-    // Tap the raised "+ 기록" button on the bottom nav.
-    fireEvent.click(screen.getByRole('button', { name: /^기록$/ }));
-
-    const lessonRecordStartBtn = await screen.findByRole('button', { name: /레슨 기록 시작/i });
-    const directRegisterBtn = screen.getByTestId('lesson-start-direct-register-btn');
-    const buttonGroup = lessonRecordStartBtn.parentElement;
-    expect(buttonGroup).not.toBeNull();
-    const buttonsInOrder = Array.from(buttonGroup!.querySelectorAll('button'));
-    expect(buttonsInOrder.indexOf(directRegisterBtn)).toBeGreaterThan(
-      buttonsInOrder.indexOf(lessonRecordStartBtn)
-    );
-
-    fireEvent.click(directRegisterBtn);
-    await waitFor(() => {
-      expect(screen.getByTestId('coach-client-add-modal')).toBeInTheDocument();
-    });
-  });
+  // The redesign removes the raised "+ 기록" button from the bottom nav —
+  // new records now originate from the agent conversation instead of a fixed
+  // CTA. The direct-registration entry point still exists on the
+  // LessonStartPromptModal; its coverage lives with that component's own
+  // tests rather than here.
 });

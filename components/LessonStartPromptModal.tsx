@@ -73,16 +73,16 @@ export const LessonStartPromptModal: React.FC<LessonStartPromptModalProps> = ({
         </button>
 
         {/* Top accent bar */}
-        <div className="h-1.5 w-full bg-gradient-to-r from-indigo-500 to-blue-400" />
+        <div className="h-1.5 w-full bg-gradient-to-r from-emerald-500 to-blue-400" />
 
         <div className="px-6 pt-5 pb-6 space-y-4">
           {/* Icon + heading */}
           <div className="flex items-center gap-3">
-            <div className="flex-shrink-0 w-11 h-11 rounded-full bg-indigo-100 flex items-center justify-center">
-              <PlayCircle className="w-6 h-6 text-indigo-600" />
+            <div className="flex-shrink-0 w-11 h-11 rounded-full bg-emerald-100 flex items-center justify-center">
+              <PlayCircle className="w-6 h-6 text-emerald-600" />
             </div>
             <div>
-              <p className="text-xs font-semibold text-indigo-500 uppercase tracking-wide">
+              <p className="text-xs font-semibold text-emerald-500 uppercase tracking-wide">
                 {t('lesson_start_prompt_title')}
               </p>
               <h2 className="text-base font-bold text-gray-900 leading-snug">
@@ -95,14 +95,14 @@ export const LessonStartPromptModal: React.FC<LessonStartPromptModalProps> = ({
           </div>
 
           {/* Lesson info card */}
-          <div className="bg-indigo-50 rounded-xl px-4 py-3 flex items-center justify-between">
-            <div className="flex items-center gap-2 text-indigo-700 font-medium text-sm">
+          <div className="bg-emerald-50 rounded-xl px-4 py-3 flex items-center justify-between">
+            <div className="flex items-center gap-2 text-emerald-700 font-medium text-sm">
               <Clock className="w-4 h-4 flex-shrink-0" />
               <span>
                 {timeLabel} – {endTimeLabel}
               </span>
             </div>
-            <span className="text-xs font-semibold text-indigo-500 bg-indigo-100 px-2 py-0.5 rounded-full">
+            <span className="text-xs font-semibold text-emerald-500 bg-emerald-100 px-2 py-0.5 rounded-full">
               {timingLabel}
             </span>
           </div>
@@ -112,7 +112,7 @@ export const LessonStartPromptModal: React.FC<LessonStartPromptModalProps> = ({
             {/* Primary: Start */}
             <button
               onClick={() => onStart(suggestion)}
-              className="w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-sm transition-colors flex items-center justify-center gap-2 shadow-sm"
+              className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-sm transition-colors flex items-center justify-center gap-2 shadow-sm"
             >
               <PlayCircle className="w-4 h-4" />
               {t('lesson_start_prompt_start_btn')}
