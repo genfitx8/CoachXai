@@ -1614,6 +1614,10 @@ const AppContent: React.FC = () => {
       case 'CURRICULUM':
         setCoachView('CURRICULUM');
         break;
+      case 'LESSON_LIST':
+        setSelectedLesson(null);
+        setCoachView('LESSON_LIST');
+        break;
       case 'LESSON_UPLOAD':
         setCoachView('LESSON_UPLOAD');
         break;
