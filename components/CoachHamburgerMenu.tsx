@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import {
   X, User, Sparkles, Dumbbell, BookOpen, Film,
-  Target, ClipboardList, Globe, LogOut, ChevronRight,
+  Target, ClipboardList, Globe, LogOut, ChevronRight, FileText,
 } from 'lucide-react';
 import { CoachProfile } from '../types';
 import { useLanguage } from './LanguageContext';
@@ -11,6 +11,7 @@ export type CoachHamburgerAction =
   | 'COACHX_ASSISTANT'
   | 'DIAGNOSIS_PROGRAM'
   | 'CURRICULUM'
+  | 'LESSON_LIST'
   | 'LESSON_UPLOAD'
   | 'BAY_RESERVATION'
   | 'MY_BAY_RESERVATIONS'
@@ -28,6 +29,7 @@ interface CoachHamburgerMenuProps {
 
 const labels = {
   ko: {
+    lessonList: '전체 레슨 기록',
     profile: '내 프로필',
     coachxAssistant: 'CoachX AI',
     diagnosis: '정밀진단 프로그램',
@@ -42,6 +44,7 @@ const labels = {
     settings: '설정',
   },
   en: {
+    lessonList: 'All lesson records',
     profile: 'My profile',
     coachxAssistant: 'CoachX AI',
     diagnosis: 'Precision diagnosis',
@@ -56,6 +59,7 @@ const labels = {
     settings: 'Settings',
   },
   ja: {
+    lessonList: 'レッスン記録一覧',
     profile: 'マイプロフィール',
     coachxAssistant: 'CoachX AI',
     diagnosis: '精密診断プログラム',
@@ -137,6 +141,7 @@ export const CoachHamburgerMenu: React.FC<CoachHamburgerMenuProps> = ({
           </Section>
 
           <Section title={L.services}>
+            <Row icon={FileText} label={L.lessonList} onClick={() => handle('LESSON_LIST')} accent="emerald" />
             <Row icon={BookOpen} label={L.curriculum} onClick={() => handle('CURRICULUM')} accent="amber" />
             {showAutomatedVideoEditing && (
               <Row icon={Film} label={L.lessonUpload} onClick={() => handle('LESSON_UPLOAD')} accent="violet" />
