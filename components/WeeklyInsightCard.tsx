@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
-import { WeeklyInsight, QuickLogEntry, Lesson, ClientProfile } from '../types';
-import { Sparkles, ChevronLeft, RefreshCw, TrendingUp, Target, List } from 'lucide-react';
+import { WeeklyInsight, QuickLogEntry, Lesson, ClientProfile, CoachStyleExemplar } from '../types';
+import { Sparkles, ChevronLeft, RefreshCw, TrendingUp, Target, List, Info } from 'lucide-react';
 import { generateWeeklyInsight } from '../services/geminiService';
 import { firebaseService } from '../services/firebase';
 import { storageService } from '../services/storage';
+import { EvidenceDetailModal } from './EvidenceDetailModal';
+import { coachStyleService, tierForSource } from '../services/coachStyleService';
 
 interface WeeklyInsightCardProps {
   clientId: string;
@@ -100,6 +102,32 @@ export const WeeklyInsightCard: React.FC<WeeklyInsightCardProps> = ({
   const [isGenerating, setIsGenerating] = useState(false);
   const [loadedFromFirebase, setLoadedFromFirebase] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  /** Which insight is currently showing the 6a evidence sheet, if any. */
+  const [evidenceFor, setEvidenceFor] = useState<WeeklyInsight | null>(null);
+
+  const persistExemplar = async (
+    insight: WeeklyInsight,
+    source: 'starred' | 'dissent',
+    output: string
+  ) => {
+    if (!coachId) return;
+    const exemplar: CoachStyleExemplar = {
+      id: crypto.randomUUID(),
+      coachId,
+      target: 'weekly_insight',
+      // Input snapshot: what the model saw. Keep short to fit few-shot budget.
+      input: `Weekly insight for ${clientProfile?.name ?? clientId} · week ${insight.weekStart}`,
+      output,
+      source,
+      tier: tierForSource(source),
+      reason:
+        source === 'dissent'
+          ? '코치가 6a 화면에서 다르게 판단'
+          : '코치가 6a 화면에서 승인',
+      createdAt: Date.now(),
+    };
+    await coachStyleService.save(exemplar, isFirebaseMode);
+  };
 
   // Load from Firebase on mount
   React.useEffect(() => {
@@ -213,6 +241,23 @@ export const WeeklyInsightCard: React.FC<WeeklyInsightCardProps> = ({
               {latestInsight.confidence && (
                 <ConfidenceChip level={latestInsight.confidence} />
               )}
+              {/* "왜 이 제안?" — opens the 6a evidence detail modal so
+                  the coach can inspect the full envelope and either
+                  endorse or dissent. Only shown when the coach can
+                  actually act (coachId known) and the response carries
+                  an envelope worth showing. */}
+              {coachId && (latestInsight.swingEvidence?.length ||
+                latestInsight.historyEvidence?.length ||
+                latestInsight.confidence ||
+                latestInsight.caveats?.length) ? (
+                <button
+                  type="button"
+                  onClick={() => setEvidenceFor(latestInsight)}
+                  className="text-[10px] font-bold text-emerald-700 hover:text-emerald-800 flex items-center gap-1 px-1 py-0.5"
+                >
+                  <Info className="w-3 h-3" /> 왜 이 제안?
+                </button>
+              ) : null}
             </div>
             <span className="text-[10px] text-gray-400">
               {new Date(latestInsight.generatedAt).toLocaleDateString('ko-KR')} 생성
@@ -311,6 +356,36 @@ export const WeeklyInsightCard: React.FC<WeeklyInsightCardProps> = ({
             </div>
           )}
         </div>
+      )}
+
+      {evidenceFor && (
+        <EvidenceDetailModal
+          claim={evidenceFor.summary}
+          envelope={{
+            swingEvidence: evidenceFor.swingEvidence,
+            historyEvidence: evidenceFor.historyEvidence,
+            confidence: evidenceFor.confidence,
+            caveats: evidenceFor.caveats,
+          }}
+          target="weekly_insight"
+          subjectLabel={
+            clientProfile?.name
+              ? `${clientProfile.name} · ${formatWeekRange(evidenceFor.weekStart, evidenceFor.weekEnd)}`
+              : formatWeekRange(evidenceFor.weekStart, evidenceFor.weekEnd)
+          }
+          onAccept={() => {
+            // Endorsement flows into the few-shot pool at tier 1 so future
+            // weekly insights lean toward the coach's approved framing.
+            void persistExemplar(evidenceFor, 'starred', evidenceFor.summary);
+          }}
+          onDissent={async (correction) => {
+            // Store the coach's counter-take as tier-1 negative example.
+            // The output field carries the correction verbatim so future
+            // prompts can reference it directly.
+            await persistExemplar(evidenceFor, 'dissent', correction);
+          }}
+          onClose={() => setEvidenceFor(null)}
+        />
       )}
     </div>
   );
