@@ -1479,6 +1479,24 @@ const TimelineEditor: React.FC<TimelineEditorProps> = ({
     setEdits((prev) => ({ ...prev, eventTimes: { ...prev.eventTimes, [name]: currentT } }));
   };
 
+  /**
+   * Nudge an event forward / backward by exactly one sampled frame. The
+   * timeline strip drag is fast for coarse placement; this button is the
+   * companion for the last-mile precision — a coach who's ±2 frames off on
+   * a top position doesn't have to fight with a mouse.
+   */
+  const frameStepSec = analysis.sampledFps > 0 ? 1 / analysis.sampledFps : 1 / 30;
+  const nudgeEvent = (name: SwingEventName, direction: -1 | 1) => {
+    setEdits((prev) => {
+      const current = prev.eventTimes[name] ?? currentT;
+      const next = Math.max(0, Math.min(duration || Infinity, current + direction * frameStepSec));
+      // Seek the video so the coach visually confirms the new frame.
+      const v = videoRef.current;
+      if (v) v.currentTime = next;
+      return { ...prev, eventTimes: { ...prev.eventTimes, [name]: next } };
+    });
+  };
+
   const pct = (t: number): number =>
     duration <= 0 ? 0 : Math.max(0, Math.min(100, (t / duration) * 100));
 
@@ -1525,7 +1543,7 @@ const TimelineEditor: React.FC<TimelineEditorProps> = ({
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerUp}
-        className="relative h-14 select-none rounded-md bg-slate-800/70 overflow-hidden touch-none"
+        className="relative h-16 select-none rounded-md bg-slate-800/70 overflow-hidden touch-none"
         role="slider"
         aria-label="스윙 구간 및 포즈 편집 타임라인"
       >
@@ -1551,20 +1569,23 @@ const TimelineEditor: React.FC<TimelineEditorProps> = ({
           className="absolute top-0 bottom-0 w-px bg-slate-100/80"
           style={{ left: `${pct(currentT)}%` }}
         />
-        {/* Trim handles. */}
+        {/* Trim handles — wider than default so touch users can grab them. */}
         {(['start', 'end'] as const).map((side) => {
           const t = side === 'start' ? edits.intervalStartSec : edits.intervalEndSec;
           return (
             <div
               key={side}
               onPointerDown={(e) => onHandlePointerDown(e, { kind: 'trim', side })}
-              className="absolute top-0 bottom-0 w-2 -translate-x-1/2 cursor-ew-resize bg-emerald-400 hover:bg-emerald-300 shadow"
+              className="absolute top-0 bottom-0 w-3 -translate-x-1/2 cursor-ew-resize bg-emerald-400 hover:bg-emerald-300 shadow-lg touch-none"
               style={{ left: `${pct(t)}%` }}
               title={`${side === 'start' ? '시작' : '끝'} ${t.toFixed(2)}s`}
             />
           );
         })}
-        {/* Event markers. */}
+        {/* Event markers — bigger (36px) with an invisible tap-area extending
+            past the visible circle so drag is comfortable on touch devices.
+            The inner circle stays the visual anchor; the outer div is the
+            drag target. */}
         {EVENT_ORDER.map((name) => {
           const t = edits.eventTimes[name];
           if (t == null) return null;
@@ -1572,11 +1593,16 @@ const TimelineEditor: React.FC<TimelineEditorProps> = ({
             <div
               key={name}
               onPointerDown={(e) => onHandlePointerDown(e, { kind: 'event', name })}
-              className="absolute top-1 h-6 w-6 -translate-x-1/2 cursor-grab rounded-full border-2 border-slate-900 shadow-md flex items-center justify-center text-[9px] font-bold text-slate-900 active:cursor-grabbing"
-              style={{ left: `${pct(t)}%`, backgroundColor: EVENT_COLORS[name] }}
+              className="absolute top-0 h-full w-11 -translate-x-1/2 cursor-grab active:cursor-grabbing flex items-start justify-center pt-1 touch-none"
+              style={{ left: `${pct(t)}%` }}
               title={`${EVENT_LABEL[name]} ${t.toFixed(3)}s`}
             >
-              {EVENT_LABEL[name].slice(0, 1)}
+              <div
+                className="h-9 w-9 rounded-full border-2 border-slate-900 shadow-md flex items-center justify-center text-[11px] font-bold text-slate-900"
+                style={{ backgroundColor: EVENT_COLORS[name] }}
+              >
+                {EVENT_LABEL[name].slice(0, 1)}
+              </div>
             </div>
           );
         })}
@@ -1588,27 +1614,49 @@ const TimelineEditor: React.FC<TimelineEditorProps> = ({
           return (
             <div
               key={name}
-              className="flex items-center gap-2 rounded-md border border-slate-800 bg-slate-950 px-2 py-1.5"
+              className="flex items-center gap-1.5 rounded-md border border-slate-800 bg-slate-950 px-2 py-1.5"
             >
               <span
-                className="inline-block h-2.5 w-2.5 rounded-full"
+                className="inline-block h-2.5 w-2.5 rounded-full flex-shrink-0"
                 style={{ backgroundColor: EVENT_COLORS[name] }}
               />
               <span className="flex-1 text-slate-200 font-medium truncate">
                 {EVENT_LABEL[name]}
               </span>
-              <span className="font-mono text-slate-400">
+              <span className="font-mono text-slate-400 min-w-[52px] text-right">
                 {t != null ? `${t.toFixed(3)}s` : '—'}
               </span>
-              <button
-                type="button"
-                onClick={() => snapToPlayhead(name)}
-                disabled={busy}
-                className="rounded-sm border border-slate-700 px-1.5 py-0.5 text-[10px] text-slate-300 hover:bg-slate-800 disabled:opacity-40"
-                title="현재 재생 위치로 지정"
-              >
-                현재
-              </button>
+              {/* Frame-precision nudges. Step = 1 sampled frame so the coach
+                  can zero in on the exact moment without dragging. */}
+              <div className="flex items-center gap-0.5 flex-shrink-0">
+                <button
+                  type="button"
+                  onClick={() => nudgeEvent(name, -1)}
+                  disabled={busy}
+                  className="w-7 h-6 rounded-sm border border-slate-700 text-[11px] text-slate-300 hover:bg-slate-800 disabled:opacity-40 leading-none"
+                  title={`1 프레임 앞으로 (−${(frameStepSec * 1000).toFixed(0)}ms)`}
+                >
+                  ◀
+                </button>
+                <button
+                  type="button"
+                  onClick={() => nudgeEvent(name, +1)}
+                  disabled={busy}
+                  className="w-7 h-6 rounded-sm border border-slate-700 text-[11px] text-slate-300 hover:bg-slate-800 disabled:opacity-40 leading-none"
+                  title={`1 프레임 뒤로 (+${(frameStepSec * 1000).toFixed(0)}ms)`}
+                >
+                  ▶
+                </button>
+                <button
+                  type="button"
+                  onClick={() => snapToPlayhead(name)}
+                  disabled={busy}
+                  className="rounded-sm border border-slate-700 px-1.5 py-0.5 text-[10px] text-slate-300 hover:bg-slate-800 disabled:opacity-40"
+                  title="현재 재생 위치로 지정"
+                >
+                  현재
+                </button>
+              </div>
             </div>
           );
         })}
