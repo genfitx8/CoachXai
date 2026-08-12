@@ -2422,6 +2422,9 @@ const AppContent: React.FC = () => {
               );
               setCoachView('COACHX_CHAT');
             }}
+            viewerCoachId={
+              currentUser && 'id' in currentUser ? currentUser.id : undefined
+            }
           />
         )}
 

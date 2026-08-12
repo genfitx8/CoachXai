@@ -1,22 +1,26 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   ArrowLeft,
   BarChart3,
   BookOpen,
   ClipboardList,
+  HandHelping,
   MessageSquare,
   Package,
   Sparkles,
   TrendingDown,
   TrendingUp,
+  X,
 } from 'lucide-react';
 import type {
   ClientProfile,
+  HandoverSummary,
   Homework,
   Lesson,
   LessonPackage,
 } from '../types';
 import type { MemberGrowthReport } from '../services/coachXService';
+import { storageService } from '../services/storage';
 import { useLanguage } from './LanguageContext';
 
 /**
@@ -56,6 +60,12 @@ export interface CoachStudentDetailProps {
   onAssignHomework?: () => void;
   /** Open CoachX chat with this student pre-loaded as the subject. */
   onOpenChatForStudent: () => void;
+  /**
+   * Current coach viewing this screen. When a 7a handover briefing was
+   * stored for this coach + student pair, it is shown as a dismissible
+   * banner above the tab content on the first visit.
+   */
+  viewerCoachId?: string;
 }
 
 type Tab = 'summary' | 'records' | 'plan' | 'billing';
@@ -98,11 +108,30 @@ export const CoachStudentDetail: React.FC<CoachStudentDetailProps> = ({
   onOpenCurriculum,
   onAssignHomework,
   onOpenChatForStudent,
+  viewerCoachId,
 }) => {
   const { language } = useLanguage();
   const labels =
     language === 'en' ? TAB_LABELS_EN : language === 'ja' ? TAB_LABELS_JA : TAB_LABELS_KO;
   const [tab, setTab] = useState<Tab>('summary');
+
+  // 7a · Load handover briefing when the current coach was the recipient
+  // of a recent handover for this student. Dismissible per session; the
+  // banner does not re-appear once the coach closes it in this render.
+  const [handover, setHandover] = useState<HandoverSummary | null>(null);
+  const [handoverDismissed, setHandoverDismissed] = useState(false);
+  useEffect(() => {
+    if (!viewerCoachId) {
+      setHandover(null);
+      return;
+    }
+    const compositeId = `${student.name}_${student.phone ?? ''}`;
+    const match = storageService
+      .getHandoverSummariesForCoach(viewerCoachId)
+      .find((s) => s.clientId === compositeId);
+    setHandover(match ?? null);
+    setHandoverDismissed(false);
+  }, [viewerCoachId, student.name, student.phone]);
 
   const sortedLessons = useMemo(
     () => [...lessons].sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0)),
@@ -164,6 +193,12 @@ export const CoachStudentDetail: React.FC<CoachStudentDetailProps> = ({
       </header>
 
       <main className="max-w-2xl mx-auto px-5 py-5 space-y-4">
+        {handover && !handoverDismissed && (
+          <HandoverBanner
+            summary={handover}
+            onDismiss={() => setHandoverDismissed(true)}
+          />
+        )}
         {tab === 'summary' && (
           <SummaryTab
             latestLesson={latestLesson}
@@ -550,6 +585,85 @@ const TrendBadge: React.FC<{ trend: MemberGrowthReport['trendIndicator'] }> = ({
   }
   return null;
 };
+
+// ─── 7a · Handover briefing banner ────────────────────────────────────────
+
+const CONFIDENCE_LABEL: Record<
+  NonNullable<HandoverSummary['confidence']>,
+  string
+> = {
+  strong: '확신',
+  plausible: '추정',
+  speculative: '가설',
+};
+
+const HandoverBanner: React.FC<{
+  summary: HandoverSummary;
+  onDismiss: () => void;
+}> = ({ summary, onDismiss }) => (
+  <section
+    aria-label="이전 코치의 인수인계 요약"
+    className="relative rounded-2xl border border-emerald-500/30 bg-gradient-to-br from-emerald-500/[0.10] via-emerald-500/[0.05] to-transparent p-4"
+  >
+    <button
+      type="button"
+      onClick={onDismiss}
+      aria-label="배너 닫기"
+      className="absolute top-3 right-3 p-1 rounded-md text-ink-muted hover:text-ink-high hover:bg-white/5"
+    >
+      <X className="w-3.5 h-3.5" />
+    </button>
+
+    <div className="flex items-center gap-2 mb-2">
+      <HandHelping className="w-4 h-4 text-emerald-300" />
+      <div className="text-[11px] font-mono uppercase tracking-wider text-emerald-200">
+        인수인계 요약
+      </div>
+      {summary.confidence && (
+        <span className="text-[10px] font-bold text-emerald-200 px-1.5 py-0.5 rounded bg-emerald-500/15 border border-emerald-400/30">
+          {CONFIDENCE_LABEL[summary.confidence]}
+        </span>
+      )}
+    </div>
+
+    <div className="text-[14px] font-bold text-ink-high mb-2">
+      {summary.headline}
+    </div>
+
+    <p className="text-[12px] leading-relaxed text-ink-medium mb-3">
+      {summary.recentFocus}
+    </p>
+
+    {summary.keyPoints.length > 0 && (
+      <ul className="space-y-1 mb-2">
+        {summary.keyPoints.map((point, i) => (
+          <li
+            key={i}
+            className="text-[12px] leading-relaxed text-ink-medium flex items-start gap-1.5"
+          >
+            <span className="text-emerald-400 mt-0.5">·</span>
+            <span>{point}</span>
+          </li>
+        ))}
+      </ul>
+    )}
+
+    {summary.watchOuts && summary.watchOuts.length > 0 && (
+      <div className="mt-3 pt-3 border-t border-emerald-500/20">
+        <div className="text-[10px] font-mono uppercase tracking-wider text-amber-200/80 mb-1">
+          유의
+        </div>
+        <ul className="space-y-0.5">
+          {summary.watchOuts.map((w, i) => (
+            <li key={i} className="text-[11.5px] text-ink-medium">
+              · {w}
+            </li>
+          ))}
+        </ul>
+      </div>
+    )}
+  </section>
+);
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
 

@@ -931,6 +931,7 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
       {showHandoverFlow && (
         <CoachHandoverFlow
           clientProfile={clientProfile}
+          pastLessons={allLessons}
           onCoachChanged={(updated) => {
             // Propagate the new coach + designated coach name upward so
             // sub-screens (passport, home cards, etc.) re-render against
