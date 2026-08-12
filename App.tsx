@@ -2017,7 +2017,7 @@ const AppContent: React.FC = () => {
           <div className="space-y-6 animate-fade-in">
             {/* Title — bottom tab already indicates which section we're in */}
             <div className="flex items-center gap-2 min-w-0">
-              <h2 className="text-lg sm:text-xl font-bold text-slate-100 flex items-center gap-2 tracking-tight min-w-0">
+              <h2 className="text-lg sm:text-xl font-bold text-ink-high flex items-center gap-2 tracking-tight min-w-0">
                 <BookOpen className="w-5 h-5 text-emerald-300 flex-shrink-0" />
                 <span className="truncate">레슨 기록</span>
               </h2>
@@ -2025,14 +2025,14 @@ const AppContent: React.FC = () => {
 
             {/* Client Filter Section */}
             {userRole === 'COACH' && clients.length > 0 && (
-              <div className="bg-slate-900/70 rounded-2xl shadow-sm border border-slate-800/80 p-4">
+              <div className="bg-white/[0.03] rounded-2xl shadow-sm border border-line-subtle p-4">
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
                   <User className="w-5 h-5 text-emerald-300 flex-shrink-0" />
                   <div className="flex-1 min-w-[10rem]">
                     <select
                       value={selectedClientFilter}
                       onChange={(e) => setSelectedClientFilter(e.target.value)}
-                      className="w-full px-4 py-2.5 border border-slate-700 bg-slate-900 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none font-medium text-slate-200"
+                      className="w-full px-4 py-2.5 border border-line-subtle bg-base rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none font-medium text-ink-high"
                     >
                       <option value="">전체 회원 보기</option>
                       {clients
@@ -2071,7 +2071,7 @@ const AppContent: React.FC = () => {
                   {selectedClientFilter && (
                     <button
                       onClick={() => setSelectedClientFilter('')}
-                      className="text-sm text-slate-400 hover:text-red-400 flex items-center gap-1 px-3 py-1.5 rounded-xl hover:bg-red-500/10 transition-colors whitespace-nowrap flex-shrink-0"
+                      className="text-sm text-ink-muted hover:text-red-400 flex items-center gap-1 px-3 py-1.5 rounded-xl hover:bg-red-500/10 transition-colors whitespace-nowrap flex-shrink-0"
                     >
                       <X className="w-4 h-4" />
                       초기화
@@ -2079,7 +2079,7 @@ const AppContent: React.FC = () => {
                   )}
                 </div>
                 {selectedClientFilter && (
-                  <div className="mt-2 text-sm text-slate-300">
+                  <div className="mt-2 text-sm text-ink-medium">
                     <span className="font-bold text-emerald-300">{selectedClientFilter}</span>님의 레슨 {filteredLessons.length}개
                   </div>
                 )}
@@ -2087,18 +2087,18 @@ const AppContent: React.FC = () => {
             )}
 
             {/* Media Toggle Section */}
-            <div className="bg-slate-900/70 rounded-2xl shadow-sm border border-slate-800/80 p-4">
+            <div className="bg-white/[0.03] rounded-2xl shadow-sm border border-line-subtle p-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Filter className="w-5 h-5 text-emerald-300" />
-                  <span className="font-medium text-slate-200 text-sm">레슨 미디어 표시</span>
+                  <span className="font-medium text-ink-high text-sm">레슨 미디어 표시</span>
                 </div>
                 <button
                   onClick={toggleShowMedia}
                     className={`p-2.5 rounded-xl transition-colors ${
                       showMedia
                         ? 'bg-emerald-500/20 text-emerald-200'
-                        : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
+                        : 'bg-white/[0.05] text-ink-muted hover:bg-white/[0.08]'
                     }`}
                     title={showMedia ? '미디어 숨기기' : '미디어 표시'}
                   >
@@ -2109,14 +2109,14 @@ const AppContent: React.FC = () => {
 
             {/* Lesson Grid */}
             {filteredLessons.length === 0 ? (
-                <div className="text-center py-20 bg-slate-900/70 rounded-2xl border border-dashed border-slate-700/90">
-                <div className="w-16 h-16 bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Filter className="w-8 h-8 text-slate-500" />
+                <div className="text-center py-20 bg-white/[0.03] rounded-2xl border border-dashed border-line-subtle">
+                <div className="w-16 h-16 bg-white/[0.05] rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Filter className="w-8 h-8 text-ink-muted" />
                 </div>
-                <h3 className="text-lg font-bold text-slate-100">
+                <h3 className="text-lg font-bold text-ink-high">
                   {t('no_lessons')}
                 </h3>
-                <p className="text-slate-400">{t('no_lessons_desc')}</p>
+                <p className="text-ink-muted">{t('no_lessons_desc')}</p>
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
