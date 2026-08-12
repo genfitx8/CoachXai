@@ -1,4 +1,4 @@
-import { Lesson, ClientProfile, Homework, HomeworkTemplate, NotificationMessage, GolfCourse, CoachProfile, LessonReservation, Branch, BranchAdminAccount, Bay, BayPriceRule, BayReservation, LessonPackage, TrainingProgram, QuickLogEntry, WeeklyInsight, PromptTemplate, PromptTarget, PromptAttachment, CoachStyleExemplar, AiCallLog, StudentContext } from '../types';
+import { Lesson, ClientProfile, Homework, HomeworkTemplate, NotificationMessage, GolfCourse, CoachProfile, LessonReservation, Branch, BranchAdminAccount, Bay, BayPriceRule, BayReservation, LessonPackage, TrainingProgram, QuickLogEntry, WeeklyInsight, PromptTemplate, PromptTarget, PromptAttachment, CoachStyleExemplar, AiCallLog, StudentContext, PracticeSession } from '../types';
 import { createLogger } from '../utils/logger';
 
 const log = createLogger('storage');
@@ -25,6 +25,8 @@ const STORAGE_KEYS = {
   COACH_STYLE_EXEMPLARS: 'coachxai_style_exemplars',
   AI_CALL_LOGS: 'coachxai_ai_call_logs',
   STUDENT_CONTEXTS: 'coachxai_student_contexts',
+  PRACTICE_SESSIONS: 'coachxai_practice_sessions',
+  ACTIVE_PRACTICE_SESSION: 'coachxai_active_practice_session', // per-client → sessionId
 };
 
 // Rolling cap so the localStorage bucket doesn't grow without bound. Firestore
@@ -873,6 +875,82 @@ export const storageService = {
       localStorage.removeItem(STORAGE_KEYS.AI_CALL_LOGS);
     } catch (e) {
       log.error('Failed to clear AI call logs', e);
+    }
+  },
+
+  // ── Practice Session Methods ────────────────────────────────────────────────
+
+  getPracticeSessions: (): PracticeSession[] => {
+    try {
+      const data = localStorage.getItem(STORAGE_KEYS.PRACTICE_SESSIONS);
+      return data ? JSON.parse(data) : [];
+    } catch (e) {
+      log.error('Failed to load practice sessions', e);
+      return [];
+    }
+  },
+
+  getPracticeSessionsByClient: (clientId: string): PracticeSession[] => {
+    return storageService
+      .getPracticeSessions()
+      .filter((s) => s.clientId === clientId)
+      .sort((a, b) => b.startedAt - a.startedAt);
+  },
+
+  getPracticeSessionById: (sessionId: string): PracticeSession | null => {
+    return storageService.getPracticeSessions().find((s) => s.id === sessionId) ?? null;
+  },
+
+  savePracticeSession: (session: PracticeSession): void => {
+    try {
+      const all = storageService.getPracticeSessions();
+      const idx = all.findIndex((s) => s.id === session.id);
+      const updated = idx >= 0
+        ? [...all.slice(0, idx), session, ...all.slice(idx + 1)]
+        : [...all, session];
+      localStorage.setItem(STORAGE_KEYS.PRACTICE_SESSIONS, JSON.stringify(updated));
+    } catch (e) {
+      log.error('Failed to save practice session', e);
+    }
+  },
+
+  deletePracticeSession: (sessionId: string): void => {
+    try {
+      const all = storageService.getPracticeSessions();
+      localStorage.setItem(
+        STORAGE_KEYS.PRACTICE_SESSIONS,
+        JSON.stringify(all.filter((s) => s.id !== sessionId))
+      );
+    } catch (e) {
+      log.error('Failed to delete practice session', e);
+    }
+  },
+
+  /**
+   * Per-client pointer to the currently ACTIVE session, if any. Survives
+   * reloads so the student's session doesn't silently die when the browser
+   * refreshes mid-practice.
+   */
+  getActivePracticeSessionId: (clientId: string): string | null => {
+    try {
+      return localStorage.getItem(
+        `${STORAGE_KEYS.ACTIVE_PRACTICE_SESSION}:${clientId}`
+      );
+    } catch {
+      return null;
+    }
+  },
+
+  setActivePracticeSessionId: (clientId: string, sessionId: string | null): void => {
+    try {
+      const key = `${STORAGE_KEYS.ACTIVE_PRACTICE_SESSION}:${clientId}`;
+      if (sessionId) {
+        localStorage.setItem(key, sessionId);
+      } else {
+        localStorage.removeItem(key);
+      }
+    } catch (e) {
+      log.error('Failed to update active practice session pointer', e);
     }
   },
 };

@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import {
   X, User, ClipboardList, Target, Crown, Briefcase,
-  Globe, Sparkles, Video, LogOut, ChevronRight, ScanLine,
+  Globe, Sparkles, Video, LogOut, ChevronRight, ScanLine, Play,
 } from 'lucide-react';
 import { ClientProfile } from '../types';
 import { useLanguage } from './LanguageContext';
@@ -12,6 +12,7 @@ export type HamburgerAction =
   | 'POINT_PURCHASE'
   | 'MEMBERSHIP_PURCHASE'
   | 'SWING_ANALYSIS'
+  | 'PRACTICE_SESSION'
   | 'AI_TONE'
   | 'LANGUAGE'
   | 'LOGOUT';
@@ -32,6 +33,7 @@ const labels = {
     point: '포인트',
     membership: '멤버십',
     swing: '스윙 영상 분석',
+    practice: '연습 세션 시작',
     tone: 'AI 톤 설정',
     language: '언어',
     logout: '로그아웃',
@@ -45,6 +47,7 @@ const labels = {
     point: 'Points',
     membership: 'Membership',
     swing: 'Swing video analysis',
+    practice: 'Start practice session',
     tone: 'AI tone',
     language: 'Language',
     logout: 'Log out',
@@ -58,6 +61,7 @@ const labels = {
     point: 'ポイント',
     membership: 'メンバーシップ',
     swing: 'スイング動画分析',
+    practice: '練習セッション開始',
     tone: 'AIトーン設定',
     language: '言語',
     logout: 'ログアウト',
@@ -140,6 +144,7 @@ export const StudentHamburgerMenu: React.FC<StudentHamburgerMenuProps> = ({
           </Section>
 
           <Section title={L.services}>
+            <Row icon={Play} label={L.practice} onClick={() => handle('PRACTICE_SESSION')} accent="emerald" />
             <Row icon={Video} label={L.swing} onClick={() => handle('SWING_ANALYSIS')} accent="emerald" />
           </Section>
 

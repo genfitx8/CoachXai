@@ -16,6 +16,7 @@ import { PaymentFail } from './PaymentFail';
 import { MembershipPurchase } from './MembershipPurchase';
 import { MembershipPaymentSuccess } from './MembershipPaymentSuccess';
 import { StudentHome } from './StudentHome';
+import { PracticeSessionScreen } from './PracticeSessionScreen';
 import { StudentBottomNav, StudentTab } from './StudentBottomNav';
 import { StudentHamburgerMenu, HamburgerAction } from './StudentHamburgerMenu';
 import { GrowthTimeline } from './GrowthTimeline';
@@ -79,7 +80,8 @@ type SubView =
   | 'PAYMENT_SUCCESS'
   | 'MEMBERSHIP_PAYMENT_SUCCESS'
   | 'PAYMENT_FAIL'
-  | 'SWING_ANALYSIS';
+  | 'SWING_ANALYSIS'
+  | 'PRACTICE_SESSION';
 
 export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons, onLogout, onUpdateLesson, onSaveNewRecord, onDeleteLesson, onUpdateProfile, onRefreshLessons }) => {
   const { t, language, setLanguage } = useLanguage();
@@ -438,6 +440,9 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
       case 'SWING_ANALYSIS':
         setSubView('SWING_ANALYSIS');
         break;
+      case 'PRACTICE_SESSION':
+        setSubView('PRACTICE_SESSION');
+        break;
       case 'AI_TONE':
         setShowToneModal(true);
         break;
@@ -729,6 +734,18 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
               <p>권장 촬영: 720p+ · 30fps · 5초 이내 · 정면(FO) 또는 측면(DTL) · 단색 배경.</p>
             </footer>
           </div>
+        </div>
+      )}
+
+      {effectiveSubView === 'PRACTICE_SESSION' && (
+        <div className="min-h-screen bg-white">
+          <main className="max-w-md mx-auto px-4 py-6">
+            <PracticeSessionScreen
+              clientId={clientId}
+              coachId={clientProfile.coachId}
+              onBack={handleBackToTab}
+            />
+          </main>
         </div>
       )}
 

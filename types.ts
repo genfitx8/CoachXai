@@ -715,6 +715,106 @@ export interface QuickLogEntry {
   practiceArea?: PracticeArea;
 }
 
+// ── Practice Session Types ───────────────────────────────────────────────────
+// A PracticeSession is an "on/off" container the student opens when they
+// start practicing (screen-golf bay, driving range, on-course round). While
+// it's open, the CoachX agent appends time-ordered PracticeEvents to it.
+// Ended sessions become source data for training-program suggestions and
+// weekly insights.
+
+export type PracticeLocationType = 'SCREEN' | 'RANGE' | 'COURSE' | 'HOME' | 'OTHER';
+
+export type GolfClubKind =
+  | 'DRIVER'
+  | 'WOOD'
+  | 'HYBRID'
+  | 'LONG_IRON'
+  | 'MID_IRON'
+  | 'SHORT_IRON'
+  | 'WEDGE'
+  | 'PUTTER';
+
+export type ShotOutcome =
+  | 'GREAT'      // 목표대로 잘 맞음
+  | 'GOOD'       // 괜찮음
+  | 'MISS_LEFT'  // 훅/풀
+  | 'MISS_RIGHT' // 슬라이스/푸시
+  | 'FAT'        // 뒷땅
+  | 'THIN'       // 탑볼
+  | 'OTHER';
+
+/**
+ * Discriminated union of what the agent captured during a session.
+ * Adding a new event type = new case here; storage is generic append-only.
+ */
+export type PracticeEvent =
+  | {
+      id: string;
+      at: number; // epoch ms
+      type: 'shot';
+      club: GolfClubKind;
+      outcome: ShotOutcome;
+      /** Optional short note the student attached to this shot. */
+      note?: string;
+    }
+  | {
+      id: string;
+      at: number;
+      type: 'voice_note';
+      /** Blob URL / data URL for the recording, or Storage path in Firebase mode. */
+      audioRef: string;
+      /** Recording length in seconds; used to render a duration badge. */
+      durationSec: number;
+      /** Optional client-side transcript (filled in later if we add STT). */
+      transcript?: string;
+    }
+  | {
+      id: string;
+      at: number;
+      type: 'note';
+      text: string;
+    }
+  | {
+      id: string;
+      at: number;
+      type: 'drill';
+      /** Free-form drill label, or a drill id if it maps to drillLibrary. */
+      drillLabel: string;
+      reps?: number;
+    };
+
+export type PracticeSessionStatus = 'ACTIVE' | 'ENDED';
+
+export interface PracticeSession {
+  id: string;
+  clientId: string;
+  coachId?: string;
+  status: PracticeSessionStatus;
+  startedAt: number;
+  endedAt?: number;
+  /** YYYY-MM-DD of startedAt in local time — used for grouping. */
+  sessionDate: string;
+  locationType?: PracticeLocationType;
+  /** Free-form goal the student set for this session ("드라이버 슬라이스 줄이기"). */
+  goal?: string;
+  events: PracticeEvent[];
+  /** Filled when the session ends — cheap client-side rollup. */
+  summary?: PracticeSessionSummary;
+}
+
+/** Cheap counts computed at end-of-session; does not require an AI call. */
+export interface PracticeSessionSummary {
+  shotCount: number;
+  voiceNoteCount: number;
+  noteCount: number;
+  drillCount: number;
+  /** shots grouped by outcome, for a quick "how'd it go" card. */
+  outcomeCounts: Partial<Record<ShotOutcome, number>>;
+  /** shots grouped by club. */
+  clubCounts: Partial<Record<GolfClubKind, number>>;
+  durationSec: number;
+}
+
 // ── Prompt Management Types ──────────────────────────────────────────────────
 
 /**
