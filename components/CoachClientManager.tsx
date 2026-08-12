@@ -34,6 +34,12 @@ interface CoachClientManagerProps {
   onManagePackages?: (client: ClientProfile) => void;
   /** Called when coach wants to view a member's lesson records. */
   onViewLessons?: (client: ClientProfile) => void;
+  /**
+   * Called when the coach wants the unified 4-tab detail (redesign 4c).
+   * When set, the member row becomes tappable and jumps to that screen;
+   * without it the row keeps the older per-action button layout.
+   */
+  onOpenStudentDetail?: (client: ClientProfile) => void;
   /** Called when coach wants to generate a training program for a member. */
   onGenerateProgram?: (client: ClientProfile) => void;
   /** CoachX growth reports keyed by clientName_clientPhone – used to show trend badges. */
@@ -65,6 +71,7 @@ export const CoachClientManager: React.FC<CoachClientManagerProps> = ({
   coachId,
   onManagePackages,
   onViewLessons,
+  onOpenStudentDetail,
   onGenerateProgram,
   memberReports,
   onOpenCoachX,
@@ -446,11 +453,21 @@ export const CoachClientManager: React.FC<CoachClientManagerProps> = ({
                 )}
               </div>
 
+              {onOpenStudentDetail && isMyClient && (
+                <button
+                  onClick={() => onOpenStudentDetail(client)}
+                  data-testid={`open-student-detail-btn-${client.name}`}
+                  className={`mt-3 ${clientCardActionButtonClass} bg-emerald-500 hover:bg-emerald-600 text-[#04150e] border border-emerald-400`}
+                >
+                  <FileBarChart className="w-4 h-4" />
+                  학생 상세
+                </button>
+              )}
               {onViewLessons && isMyClient && (
                 <button
                   onClick={() => onViewLessons(client)}
                   data-testid={`view-lessons-btn-${client.name}`}
-                  className={`mt-3 ${clientCardActionButtonClass} bg-sky-500/10 text-sky-300 border border-sky-500/20 hover:bg-sky-500/20`}
+                  className={`mt-2 ${clientCardActionButtonClass} bg-sky-500/10 text-sky-300 border border-sky-500/20 hover:bg-sky-500/20`}
                 >
                   <BookOpen className="w-4 h-4" />
                   {t('coachx_stat_lessons')}

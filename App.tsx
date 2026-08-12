@@ -27,6 +27,7 @@ import { SwingComparison } from './components/SwingComparison';
 import { HomeworkModal } from './components/HomeworkModal';
 import { CoachProfileModal } from './components/CoachProfileModal';
 import { CoachClientManager } from './components/CoachClientManager';
+import { CoachStudentDetail } from './components/CoachStudentDetail';
 import { ClientStats } from './components/ClientStats';
 import { ReservationManager } from './components/ReservationManager';
 import { CoachBayReservation } from './components/CoachBayReservation';
@@ -162,7 +163,8 @@ const AppContent: React.FC = () => {
   const [coachProfile, setCoachProfile] = useState<CoachProfile | null>(null);
 
   // View State (Coach)
-  const [coachView, setCoachView] = useState<ViewState | 'RESERVATIONS' | 'BAY_RESERVATION' | 'MY_BAY_RESERVATIONS' | 'COACHX_DASHBOARD' | 'LESSON_REVIEW'>('LESSON_LIST');
+  const [coachView, setCoachView] = useState<ViewState | 'RESERVATIONS' | 'BAY_RESERVATION' | 'MY_BAY_RESERVATIONS' | 'COACHX_DASHBOARD' | 'LESSON_REVIEW' | 'STUDENT_DETAIL'>('LESSON_LIST');
+  const [selectedStudentForDetail, setSelectedStudentForDetail] = useState<ClientProfile | null>(null);
   const [hamburgerOpen, setHamburgerOpen] = useState(false);
   const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(null);
   const [selectedClientFilter, setSelectedClientFilter] = useState<string>(''); // '' or clientName
@@ -2194,6 +2196,10 @@ const AppContent: React.FC = () => {
               setSelectedClientForPackage(client);
               setCoachView('LESSON_PACKAGE');
             }}
+            onOpenStudentDetail={(client) => {
+              setSelectedStudentForDetail(client);
+              setCoachView('STUDENT_DETAIL');
+            }}
             onViewLessons={(client) => {
               setSelectedClientFilter(client.name);
               setCoachView('LESSON_LIST');
@@ -2242,6 +2248,63 @@ const AppContent: React.FC = () => {
             }}
             initialDate={calendarSelectedDate}
             onCoachUpdated={handleUpdateCoachProfile}
+          />
+        )}
+
+        {coachView === 'STUDENT_DETAIL' && selectedStudentForDetail && (
+          <CoachStudentDetail
+            student={selectedStudentForDetail}
+            lessons={allCoachLessons.filter(
+              (l) =>
+                (l.clientName === selectedStudentForDetail.name &&
+                  l.clientPhone === selectedStudentForDetail.phone) ||
+                l.clientId === `${selectedStudentForDetail.name}_${selectedStudentForDetail.phone}`
+            )}
+            homework={storageService
+              .getHomework()
+              .filter(
+                (h) =>
+                  h.clientId ===
+                  `${selectedStudentForDetail.name}_${selectedStudentForDetail.phone}`
+              )}
+            packages={lessonPackages.filter(
+              (p) =>
+                (p.clientName === selectedStudentForDetail.name &&
+                  p.clientPhone === selectedStudentForDetail.phone) ||
+                p.clientId ===
+                  `${selectedStudentForDetail.name}_${selectedStudentForDetail.phone}`
+            )}
+            growthReport={coachXMemberReports?.find(
+              (r) =>
+                r.clientName === selectedStudentForDetail.name &&
+                r.clientPhone === selectedStudentForDetail.phone
+            )}
+            onBack={() => {
+              setSelectedStudentForDetail(null);
+              setCoachView('CLIENTS');
+            }}
+            onOpenLesson={(l) => {
+              setSelectedLesson(l);
+              setCoachView('DETAIL');
+            }}
+            onManagePackages={() => {
+              setSelectedClientForPackage(selectedStudentForDetail);
+              setCoachView('LESSON_PACKAGE');
+            }}
+            onOpenCurriculum={() => setCoachView('CURRICULUM')}
+            onAssignHomework={() => {
+              setHomeworkTargetClient({
+                id: `${selectedStudentForDetail.name}_${selectedStudentForDetail.phone}`,
+                name: selectedStudentForDetail.name,
+              });
+              setShowHomeworkModal(true);
+            }}
+            onOpenChatForStudent={() => {
+              setCoachXChatInitialQuery(
+                `${selectedStudentForDetail.name} 님에 대해 이야기하고 싶어요.`
+              );
+              setCoachView('COACHX_CHAT');
+            }}
           />
         )}
 
