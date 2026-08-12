@@ -13,8 +13,9 @@ import {
 import { swingAnalysisService } from '../../services/swingAnalysisService';
 import { detectFaults } from '../../services/faultDetectionService';
 import { generateSwingCoachingReport } from '../../services/aiCoachingSummaryService';
+import { apiService } from '../../services/apiService';
 import type { AICoachingReport } from '../../types/aiCoachingReport';
-import type { Lesson } from '../../types';
+import type { ClientProfile, Lesson, MotionCaptureData } from '../../types';
 import type { SwingFault } from '../../types/swingFault';
 import type {
   KineticOrder,
@@ -1805,6 +1806,15 @@ interface SwingVideoAnalysisProps {
   studentLessons?: Lesson[];
   /** Coach id — used for AI system prompt selection. */
   coachId?: string;
+  /**
+   * Coach-side client roster. When provided, the analysis panel shows a
+   * "회원 레슨 기록에 저장" button that lets the coach pick a student and
+   * upload the video + analysis metrics as a Lesson record. Omitting hides
+   * the save UI (e.g., student's own self-analysis view).
+   */
+  clients?: ClientProfile[];
+  /** Fired after a successful save so parent state (lesson list) can refresh. */
+  onSavedToLesson?: (lesson: Lesson) => void;
 }
 
 export const SwingVideoAnalysis: React.FC<SwingVideoAnalysisProps> = ({
@@ -1812,6 +1822,8 @@ export const SwingVideoAnalysis: React.FC<SwingVideoAnalysisProps> = ({
   onDone,
   studentLessons,
   coachId,
+  clients,
+  onSavedToLesson,
 }) => {
   const [videoUrl, setVideoUrl] = useState<string | undefined>(initialVideoUrl);
   const [pickedObjectUrl, setPickedObjectUrl] = useState<string | undefined>();
@@ -1821,6 +1833,13 @@ export const SwingVideoAnalysis: React.FC<SwingVideoAnalysisProps> = ({
   const [busy, setBusy] = useState(false);
   const [editing, setEditing] = useState(false);
   const [cameraView, setCameraView] = useState<CameraView>('face_on');
+  // Save-to-lesson flow state (coach-only, shown when `clients` is provided).
+  const [saveOpen, setSaveOpen] = useState(false);
+  const [saveClientId, setSaveClientId] = useState<string>('');
+  const [saveClientFilter, setSaveClientFilter] = useState('');
+  const [saveNote, setSaveNote] = useState('');
+  const [saveBusy, setSaveBusy] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<null | { ok: true; lesson: Lesson } | { ok: false; error: string }>(null);
 
   useEffect(() => {
     return () => {
@@ -1852,6 +1871,111 @@ export const SwingVideoAnalysis: React.FC<SwingVideoAnalysisProps> = ({
       setBusy(false);
     }
   };
+
+  /**
+   * Upload the current video + analysis metrics as a Lesson record on the
+   * selected client. Runs client-side: uploads the blob to R2 via the
+   * presigned URL flow, then POSTs a Lesson with pose metrics baked into
+   * `motionCaptureData` so downstream tools (coach chat, member view) can
+   * quote them.
+   */
+  const saveToLesson = async () => {
+    if (!analysis || !videoUrl) return;
+    const client = clients?.find((c) => (c.id ?? `${c.name}_${c.phone}`) === saveClientId);
+    if (!client) {
+      setSaveStatus({ ok: false, error: '회원을 선택해 주세요.' });
+      return;
+    }
+    setSaveBusy(true);
+    setSaveStatus(null);
+    try {
+      // 1. Materialise blob URL → upload to R2 to get a permanent URL.
+      // Reuses the edited-video upload lane (same storage layout as coach
+      // edits) — the server generates the R2 key internally.
+      let permanentVideoUrl = videoUrl;
+      if (videoUrl.startsWith('blob:')) {
+        const res = await fetch(videoUrl);
+        const blob = await res.blob();
+        const tempLessonId = `swing_${Date.now()}`;
+        permanentVideoUrl = await apiService.uploadEditedVideo(
+          blob,
+          tempLessonId,
+          coachId ?? client.phone,
+        );
+      }
+      // 2. Compose motionCaptureData from our analysis so the lesson stores
+      //    the coaching-relevant numbers, not just the video.
+      const eventOrder: SwingEventName[] = [
+        'address', 'half_backswing', 'top', 'mid_downswing', 'impact', 'follow_through', 'finish',
+      ];
+      const measurements = eventOrder.flatMap((name) => {
+        const evt = analysis.events[name];
+        if (!evt) return [];
+        return [{
+          swingPhase: EVENT_LABEL[name],
+          timeSeconds: +evt.t.toFixed(3),
+          headLateralSway: typeof evt.metrics.headLateralMmFromAddress === 'number'
+            ? +(evt.metrics.headLateralMmFromAddress / 10).toFixed(1) : undefined,
+          headLift: typeof evt.metrics.headVerticalMmFromAddress === 'number'
+            ? +(evt.metrics.headVerticalMmFromAddress / 10).toFixed(1) : undefined,
+          hipSlide: typeof evt.metrics.hipLateralMmFromAddress === 'number'
+            ? +(evt.metrics.hipLateralMmFromAddress / 10).toFixed(1) : undefined,
+          upperBodyLift: typeof evt.metrics.hipVerticalMmFromAddress === 'number'
+            ? +(evt.metrics.hipVerticalMmFromAddress / 10).toFixed(1) : undefined,
+        }];
+      });
+      const motionCapture: MotionCaptureData = {
+        measurements,
+        aiAnalysis: [
+          `자동 스윙 분석 (${analysis.summary.cameraView === 'face_on' ? '정면' : '측면'} 뷰).`,
+          analysis.summary.backswingMs != null && analysis.summary.downswingMs != null
+            ? `템포 ${analysis.summary.backswingMs}ms / ${analysis.summary.downswingMs}ms.`
+            : '',
+          analysis.summary.swingPlaneClassification
+            ? `스윙 플레인: ${analysis.summary.swingPlaneClassification}.`
+            : '',
+        ].filter(Boolean).join(' '),
+        analyzedAt: Date.now(),
+      };
+      // 3. Build the Lesson payload.
+      const now = new Date();
+      const today = now.toISOString().slice(0, 10);
+      const lesson: Lesson = {
+        id: '', // server assigns
+        clientName: client.name,
+        clientPhone: client.phone,
+        coachId,
+        createdBy: 'COACH',
+        recordType: 'LESSON',
+        date: today,
+        title: `스윙 분석 (${analysis.summary.cameraView === 'face_on' ? '정면' : '측면'})`,
+        swingAngle: analysis.summary.cameraView === 'face_on' ? 'FRONT' : 'SIDE',
+        videoUrl: permanentVideoUrl,
+        mediaType: 'video',
+        coachNotes: saveNote,
+        tags: ['스윙분석', 'AI자동'],
+        motionCaptureData: motionCapture,
+        createdAt: Date.now(),
+      };
+      // 4. Save.
+      const saved = await apiService.saveLesson(lesson);
+      setSaveStatus({ ok: true, lesson: saved });
+      onSavedToLesson?.(saved);
+    } catch (e) {
+      setSaveStatus({ ok: false, error: e instanceof Error ? e.message : String(e) });
+    } finally {
+      setSaveBusy(false);
+    }
+  };
+
+  const filteredClients = useMemo(() => {
+    if (!clients) return [];
+    const q = saveClientFilter.trim().toLowerCase();
+    if (!q) return clients.slice(0, 20);
+    return clients
+      .filter((c) => c.name.toLowerCase().includes(q) || c.phone.includes(q))
+      .slice(0, 20);
+  }, [clients, saveClientFilter]);
 
   const runAnalysis = async (window?: { startTime: number; endTime: number }) => {
     if (!videoUrl) return;
@@ -2037,7 +2161,19 @@ export const SwingVideoAnalysis: React.FC<SwingVideoAnalysisProps> = ({
               </div>
             )}
             {videoUrl && !editing && (
-              <div className="flex justify-end">
+              <div className="flex justify-end gap-2">
+                {clients && clients.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setSaveOpen(true)}
+                    disabled={busy}
+                    className="flex items-center gap-1.5 rounded-md border border-emerald-700 bg-emerald-900/30 px-3 py-1.5 text-xs font-semibold text-emerald-100 hover:bg-emerald-800/40 disabled:opacity-40"
+                    title="분석 결과를 회원 레슨 기록에 업로드"
+                  >
+                    <Upload size={12} />
+                    회원 레슨에 저장
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => setEditing(true)}
@@ -2048,6 +2184,88 @@ export const SwingVideoAnalysis: React.FC<SwingVideoAnalysisProps> = ({
                   <Pencil size={12} />
                   구간·포즈 수동 편집
                 </button>
+              </div>
+            )}
+            {saveOpen && clients && (
+              <div className="rounded-lg border border-emerald-800/60 bg-slate-900 p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="text-sm font-semibold text-slate-100">회원 레슨 기록에 저장</div>
+                  <button
+                    type="button"
+                    onClick={() => { setSaveOpen(false); setSaveStatus(null); }}
+                    className="text-slate-400 hover:text-slate-100"
+                    aria-label="닫기"
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+                <input
+                  type="text"
+                  value={saveClientFilter}
+                  onChange={(e) => setSaveClientFilter(e.target.value)}
+                  placeholder="회원 이름 또는 전화번호 검색"
+                  className="w-full rounded-md border border-slate-700 bg-slate-950 px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-emerald-500"
+                />
+                <div className="max-h-48 overflow-y-auto space-y-1">
+                  {filteredClients.length === 0 && (
+                    <div className="text-[11px] text-slate-500 py-2">검색 결과 없음</div>
+                  )}
+                  {filteredClients.map((c) => {
+                    const id = c.id ?? `${c.name}_${c.phone}`;
+                    const selected = saveClientId === id;
+                    return (
+                      <button
+                        key={id}
+                        type="button"
+                        onClick={() => setSaveClientId(id)}
+                        className={`w-full text-left px-2.5 py-1.5 rounded-md text-xs transition-colors ${
+                          selected
+                            ? 'bg-emerald-900/40 border border-emerald-700 text-emerald-100'
+                            : 'bg-slate-950 border border-slate-800 text-slate-200 hover:bg-slate-800'
+                        }`}
+                      >
+                        <span className="font-semibold">{c.name}</span>
+                        <span className="ml-2 text-slate-400 font-mono">{c.phone}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+                <textarea
+                  value={saveNote}
+                  onChange={(e) => setSaveNote(e.target.value)}
+                  placeholder="코치 메모 (선택)"
+                  rows={2}
+                  className="w-full rounded-md border border-slate-700 bg-slate-950 px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-emerald-500"
+                />
+                {saveStatus?.ok === false && (
+                  <div className="text-xs text-red-300">
+                    <AlertTriangle size={11} className="inline mr-1" />
+                    {saveStatus.error}
+                  </div>
+                )}
+                {saveStatus?.ok === true && (
+                  <div className="text-xs text-emerald-300">
+                    ✓ {saveStatus.lesson.clientName} 회원 레슨 기록에 저장 완료
+                  </div>
+                )}
+                <div className="flex justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => { setSaveOpen(false); setSaveStatus(null); }}
+                    disabled={saveBusy}
+                    className="px-3 py-1.5 text-xs rounded-md border border-slate-700 text-slate-300 hover:bg-slate-800 disabled:opacity-40"
+                  >
+                    취소
+                  </button>
+                  <button
+                    type="button"
+                    onClick={saveToLesson}
+                    disabled={saveBusy || !saveClientId}
+                    className="px-3 py-1.5 text-xs rounded-md bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white font-semibold"
+                  >
+                    {saveBusy ? '업로드 중…' : '저장'}
+                  </button>
+                </div>
               </div>
             )}
             {editing && videoUrl && (
