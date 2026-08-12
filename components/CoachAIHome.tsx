@@ -138,7 +138,12 @@ export const CoachAIHome: React.FC<CoachAIHomeProps> = ({
   const quickChips = language === 'en' ? QUICK_CHIPS_EN : language === 'ja' ? QUICK_CHIPS_JA : QUICK_CHIPS_KO;
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-[#030407] text-white">
+    // Sit inside the app shell rather than over it: the app header (h-14, z-40)
+    // and the coach bottom nav (h≈16, z-40) must stay reachable so the coach
+    // can leave the AI Home. Before this, `fixed inset-0 z-50` covered both,
+    // trapping the coach on the chat with no visible way out — the redesign's
+    // "app crashed after login" report.
+    <div className="fixed top-14 inset-x-0 bottom-16 z-30 flex flex-col bg-[#030407] text-white">
       {/* Ambient background */}
       <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(56,189,248,0.05),transparent_50%)]" />
