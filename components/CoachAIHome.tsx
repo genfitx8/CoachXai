@@ -3,7 +3,7 @@ import { Lesson, ClientProfile, CoachProfile } from '../types';
 import { CoachXChatMessage } from '../services/coachXService';
 import { generateCoachXChatResponseStream } from '../services/geminiService';
 import { useLanguage } from './LanguageContext';
-import { Send, Mic, MicOff, LayoutDashboard, VolumeX, Volume2, MessageSquare, Target } from 'lucide-react';
+import { Send, Mic, MicOff, LayoutDashboard, VolumeX, Volume2, MessageSquare, Target, ClipboardCheck } from 'lucide-react';
 import { useTypingReveal } from '../hooks/useTypingReveal';
 import { useTextToSpeech } from '../hooks/useTextToSpeech';
 import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
@@ -150,6 +150,15 @@ export const CoachAIHome: React.FC<CoachAIHomeProps> = ({
 
   const quickChips = language === 'en' ? QUICK_CHIPS_EN : language === 'ja' ? QUICK_CHIPS_JA : QUICK_CHIPS_KO;
 
+  // 8b · Coach's pending-review pile — lessons the coach hasn't approved
+  // yet. Legacy pre-8b lessons (approval_status === undefined) don't
+  // count as "pending" since they were never routed through the review
+  // gate; only explicit 'draft' rows show up.
+  const draftCount = allLessons.reduce(
+    (n, l) => (l.approvalStatus === 'draft' ? n + 1 : n),
+    0
+  );
+
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-[#030407] text-white">
       {/* Ambient background */}
@@ -230,12 +239,17 @@ export const CoachAIHome: React.FC<CoachAIHomeProps> = ({
         />
       )}
 
-      {/* Today's schedule strip (only when no user messages yet) */}
-      {!userHasSent && todayLessons.length > 0 && (
+      {/* Today's schedule strip + pending-review chip (only when no user
+          messages yet). Both live in the same horizontal band so the
+          "start of the day" glance shows scheduled lessons AND the
+          approval backlog side-by-side without competing rows. */}
+      {!userHasSent && (todayLessons.length > 0 || draftCount > 0) && (
         <div className="relative z-10 flex gap-2 overflow-x-auto border-b border-white/5 bg-white/2 px-4 py-2.5 scrollbar-hide">
-          <span className="shrink-0 text-[10px] font-medium uppercase tracking-wider text-white/30 self-center mr-1">
-            {language === 'en' ? 'Today' : language === 'ja' ? '今日' : '오늘'}
-          </span>
+          {todayLessons.length > 0 && (
+            <span className="shrink-0 text-[10px] font-medium uppercase tracking-wider text-white/30 self-center mr-1">
+              {language === 'en' ? 'Today' : language === 'ja' ? '今日' : '오늘'}
+            </span>
+          )}
           {todayLessons.slice(0, 5).map((lesson) => (
             <button
               key={lesson.id}
@@ -251,6 +265,28 @@ export const CoachAIHome: React.FC<CoachAIHomeProps> = ({
               <span>{lesson.clientName}</span>
             </button>
           ))}
+          {draftCount > 0 && (
+            <button
+              type="button"
+              onClick={() => void handleSend(
+                language === 'en'
+                  ? `Show me my ${draftCount} lesson${draftCount > 1 ? 's' : ''} pending approval.`
+                  : language === 'ja'
+                    ? `未承認のレッスン${draftCount}件を教えて`
+                    : `승인 대기 중인 레슨 ${draftCount}건 알려줘`
+              )}
+              className="flex shrink-0 items-center gap-1.5 rounded-full border border-amber-400/40 bg-amber-500/10 px-3 py-1 text-xs font-semibold text-amber-100 transition-colors hover:border-amber-300/60 hover:bg-amber-500/20"
+            >
+              <ClipboardCheck className="h-3 w-3 text-amber-300" />
+              <span>
+                {language === 'en'
+                  ? `${draftCount} to review`
+                  : language === 'ja'
+                    ? `未承認 ${draftCount}件`
+                    : `미승인 ${draftCount}건`}
+              </span>
+            </button>
+          )}
         </div>
       )}
 

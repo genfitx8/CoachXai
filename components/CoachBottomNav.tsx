@@ -57,7 +57,7 @@ export const CoachBottomNav: React.FC<CoachBottomNavProps> = ({
         className={`relative flex flex-col items-center justify-center gap-1 py-3 transition-colors ${
           isActive
             ? 'text-emerald-300'
-            : 'text-slate-400 hover:text-slate-200'
+            : 'text-ink-muted hover:text-ink-medium'
         }`}
       >
         <div className="relative">

@@ -1894,7 +1894,7 @@ const AppContent: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#05070A]">
+      <div className="min-h-screen flex items-center justify-center bg-base">
         <div className="animate-pulse-soft" style={{ filter: 'drop-shadow(0 0 12px rgba(16,185,129,0.55))' }}>
           <CoachXMark size={64} tone="dark" />
         </div>
@@ -1984,13 +1984,13 @@ const AppContent: React.FC = () => {
   return (
     <div className="min-h-screen bg-base text-ink-high flex flex-col font-sans">
       {/* Header — hamburger opens the drawer, brand shows coach name */}
-      <header className="bg-[#0A0F1A]/95 border-b border-slate-800 shadow-lg shadow-black/30 sticky top-0 z-40 backdrop-blur-xl">
+      <header className="bg-base/95 border-b border-line-subtle shadow-lg shadow-black/30 sticky top-0 z-40 backdrop-blur-xl">
         <div className="max-w-7xl mx-auto px-3 h-14 flex items-center gap-2">
           <button
             type="button"
             onClick={() => setHamburgerOpen(true)}
             aria-label="Open menu"
-            className="p-2 rounded-lg text-slate-200 hover:bg-white/10 transition-colors"
+            className="p-2 rounded-lg text-ink-high hover:bg-white/10 transition-colors"
           >
             <Menu className="w-5 h-5" />
           </button>
@@ -1998,7 +1998,7 @@ const AppContent: React.FC = () => {
             <button
               type="button"
               onClick={() => setShowProfileModal(true)}
-              className="flex items-center gap-2 text-sm text-slate-200 hover:bg-slate-800 px-3 py-1.5 rounded-full transition-colors min-w-0"
+              className="flex items-center gap-2 text-sm text-ink-high hover:bg-white/8 px-3 py-1.5 rounded-full transition-colors min-w-0"
             >
               <div className="bg-emerald-500/20 p-1 rounded-full text-emerald-300 flex-shrink-0">
                 <User className="w-4 h-4" />
