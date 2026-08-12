@@ -1,9 +1,10 @@
 // CoachX Service Worker
 // Minimal service worker for PWA installability and basic offline support
 
-// v3: 교차 마크 로고로 재래스터화된 PNG를 강제 재캐시하기 위해 이름을 올렸음.
-// 파일 경로는 그대로여서 이름을 올리지 않으면 SW 는 이전 마크를 계속 서빙함.
-const CACHE_NAME = 'coachx-v3';
+// v4: PWA 아이콘 SVG (`/icons/icon-*.svg`) 까지 교차 마크로 교체했음.
+// 이전 v3 캐시에는 옛 C+X 그라디언트 SVG 가 남아 있을 수 있으므로 이름을 올려
+// 다음 방문 때 새 아이콘을 다시 받게 한다.
+const CACHE_NAME = 'coachx-v4';
 
 // App shell files to cache on install
 const APP_SHELL = [
@@ -11,6 +12,8 @@ const APP_SHELL = [
   '/index.html',
   '/manifest.json',
   '/brand/favicon.svg',
+  '/icons/icon-192.svg',
+  '/icons/icon-512.svg',
   '/icons/icon-192.png',
   '/icons/icon-512.png',
   '/icons/apple-touch-icon.png',
