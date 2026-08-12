@@ -113,6 +113,8 @@ interface PendingMedia {
   isRemote?: boolean; // Flag for existing files
   role?: 'BEFORE' | 'AFTER';
   editMetadata?: VideoEditMetadata; // Populated when user edits the swing video before upload
+  /** 3c handoff: mark clips that came from LiveLessonCompanion. */
+  source?: 'live_lesson';
 }
 
 type RecordType = 'PRACTICE' | 'SCORE' | 'LESSON';
@@ -427,6 +429,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
         type,
         duration: clip.durationSec || undefined,
         isRemote: false,
+        source: 'live_lesson',
       };
     });
 
@@ -1485,6 +1488,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
           type: item.type,
           role: item.role,
           createdAt: Date.now(),
+          ...(item.source ? { source: item.source } : {}),
         }));
 
       // Auto-tagging based on record type
