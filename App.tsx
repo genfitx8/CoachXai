@@ -20,6 +20,7 @@ import { ClientApp } from './components/ClientApp';
 import { LessonUploadPage } from './components/LessonUploadPage';
 import { ImpactSelectionPage } from './components/ImpactSelectionPage';
 import { AuthScreen } from './components/AuthScreen';
+import { InviteAcceptScreen } from './components/InviteAcceptScreen';
 import { CoachXLanding } from './components/CoachXLanding';
 import { AdminDashboard } from './components/AdminDashboard';
 import { BranchAdminDashboard } from './components/BranchAdminDashboard';
@@ -156,6 +157,17 @@ const AppContent: React.FC = () => {
   } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [showAuthScreen, setShowAuthScreen] = useState(false);
+  /**
+   * Pending invite context parsed from the URL on mount (?invite=<coachId>
+   * &coachName=<name>). Held here so the invited student sees the 7b
+   * landing before AuthScreen, and so handleLoginSuccess can bind the
+   * fresh CLIENT to that coach immediately after login.
+   */
+  const [pendingInvite, setPendingInvite] = useState<{
+    coachId: string;
+    coachName: string;
+  } | null>(null);
+  const [inviteAccepted, setInviteAccepted] = useState(false);
   // Data State
   const [lessons, setLessons] = useState<Lesson[]>([]);
   const [clients, setClients] = useState<ClientProfile[]>([]);
@@ -268,6 +280,19 @@ const AppContent: React.FC = () => {
   };
 
   // Initial Load
+  // 7b · Parse the invite params off the URL on first mount. Runs
+  // synchronously so the pre-auth render already knows whether to
+  // show the invite landing. Bare `?invite=<coachId>` is enough — a
+  // `coachName` param is optional and cosmetic.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const coachId = params.get('invite');
+    if (!coachId) return;
+    const coachName = params.get('coachName') ?? '';
+    setPendingInvite({ coachId, coachName });
+  }, []);
+
   useEffect(() => {
     const initApp = async () => {
       // 1. Check API availability
@@ -572,6 +597,31 @@ const AppContent: React.FC = () => {
       );
       if (!exists) {
         setClients((prev) => [...prev, data]);
+      }
+
+      // 7b · If the login came from an invite link and the fresh
+      // student isn't already bound, PUT the coach linkage. Silent
+      // fallback on failure — the student can still bind manually
+      // from their profile, and the invite tracking is best-effort.
+      if (pendingInvite && !data.coachId && apiService.isAvailable()) {
+        try {
+          const updated = await apiService.updateMyClientProfile({
+            coachId: pendingInvite.coachId,
+            designatedCoach: pendingInvite.coachName || undefined,
+          });
+          setCurrentUser(updated);
+        } catch (e) {
+          console.warn('[invite] failed to bind coach post-login', e);
+        }
+        setPendingInvite(null);
+        setInviteAccepted(false);
+        if (typeof window !== 'undefined' && window.history?.replaceState) {
+          // Strip the invite params so a reload doesn't re-trigger.
+          const url = new URL(window.location.href);
+          url.searchParams.delete('invite');
+          url.searchParams.delete('coachName');
+          window.history.replaceState(null, '', url.toString());
+        }
       }
     }
 
@@ -1834,6 +1884,21 @@ const AppContent: React.FC = () => {
   // --- Render Views ---
 
   if (!userRole) {
+    // 7b · Invite links land here first. Show the warm invite card
+    // until the student taps Continue, then hand off to AuthScreen so
+    // Kakao/email login can finish the flow. The bind-to-coach step
+    // fires inside handleLoginSuccess once the CLIENT session lands.
+    if (pendingInvite && !inviteAccepted) {
+      return (
+        <InviteAcceptScreen
+          coachName={pendingInvite.coachName}
+          onContinue={() => {
+            setInviteAccepted(true);
+            setShowAuthScreen(true);
+          }}
+        />
+      );
+    }
     if (!showAuthScreen) {
       return (
         <CoachXLanding
