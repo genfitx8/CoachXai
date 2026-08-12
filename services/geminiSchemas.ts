@@ -121,6 +121,30 @@ export const coachXGrowthProfileSchema = {
   required: ['recommendedActions', 'geminiSummary'],
 } as const;
 
+/**
+ * Draft of a coach's post-lesson review record (redesign screen 8b).
+ * The coach edits every field in place before hitting 승인 — the model
+ * just seeds sensible starting text. Evidence envelope rides along so
+ * "왜 이 제안?" can open the 6a modal on the feedback section.
+ *
+ * Kept intentionally shallow: no nested insights, no per-action metadata.
+ * The coach's edit surface is a plain textarea per section, so a
+ * complex schema would only be flattened before display.
+ */
+export const lessonReviewDraftSchema = {
+  type: 'OBJECT',
+  properties: {
+    todayCovered: { type: 'STRING' },
+    feedback: { type: 'STRING' },
+    nextActions: {
+      type: 'ARRAY',
+      items: { type: 'STRING' },
+    },
+    ...evidenceEnvelopeSchema,
+  },
+  required: ['todayCovered', 'feedback', 'nextActions'],
+} as const;
+
 export const motionCaptureSchema = {
   type: 'OBJECT',
   properties: {
