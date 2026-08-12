@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import pool from '../services/db';
 import { authMiddleware } from '../middleware/auth';
+import { signMediaUrl, reSignIfMedia } from '../services/mediaAccess';
 
 const router = Router();
 const UUID_PATTERN =
@@ -9,7 +10,33 @@ const UUID_PATTERN =
 // All routes require authentication
 router.use(authMiddleware);
 
+/**
+ * Recursively re-sign any /api/files/... URLs inside the arbitrary JSON
+ * that additional_media / compare_video_metadata etc. can carry. Walks
+ * strings only; objects and arrays are traversed structurally.
+ */
+function reSignMediaTree(value: unknown): unknown {
+  if (typeof value === 'string') return reSignIfMedia(value);
+  if (Array.isArray(value)) return value.map(reSignMediaTree);
+  if (value && typeof value === 'object') {
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+      out[k] = reSignMediaTree(v);
+    }
+    return out;
+  }
+  return value;
+}
+
 function mapLesson(row: Record<string, unknown>) {
+  // Prefer signing the stored key when available; fall back to re-signing
+  // whatever's in video_url (covers legacy rows that only have the URL form).
+  const videoKey = row.video_key as string | null;
+  const videoUrl =
+    videoKey
+      ? signMediaUrl(videoKey).url
+      : reSignIfMedia(row.video_url as string | null);
+
   return {
     id: row.id,
     clientId: row.client_id,
@@ -24,12 +51,12 @@ function mapLesson(row: Record<string, unknown>) {
     targetDistance: row.target_distance,
     score: row.score,
     scorecardDetail: row.scorecard_detail,
-    videoUrl: row.video_url,
+    videoUrl,
     videoKey: row.video_key,
     mediaType: row.media_type,
     swingAngle: row.swing_angle,
-    additionalMedia: row.additional_media,
-    thumbnailUrl: row.thumbnail_url,
+    additionalMedia: reSignMediaTree(row.additional_media),
+    thumbnailUrl: reSignIfMedia(row.thumbnail_url as string | null),
     coachNotes: row.coach_notes,
     aiAnalysis: row.ai_analysis,
     scorecard: row.scorecard,
@@ -41,11 +68,11 @@ function mapLesson(row: Record<string, unknown>) {
     feedbackStatus: row.feedback_status,
     memberBodyAnalysis: row.member_body_analysis,
     assignedHomework: row.assigned_homework,
-    editedVideoUrl: row.edited_video_url,
-    videoEditMetadata: row.video_edit_metadata,
-    compareVideoUrl: row.compare_video_url,
-    compareVideoMetadata: row.compare_video_metadata,
-    media: row.media,
+    editedVideoUrl: reSignIfMedia(row.edited_video_url as string | null),
+    videoEditMetadata: reSignMediaTree(row.video_edit_metadata),
+    compareVideoUrl: reSignIfMedia(row.compare_video_url as string | null),
+    compareVideoMetadata: reSignMediaTree(row.compare_video_metadata),
+    media: reSignMediaTree(row.media),
     lessonPackageId: row.lesson_package_id,
     sessionNumber: row.session_number,
     createdAt: row.created_at,

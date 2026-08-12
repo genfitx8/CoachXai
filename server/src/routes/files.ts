@@ -1,6 +1,8 @@
 import { Router, Request, Response } from 'express';
+import jwt from 'jsonwebtoken';
 import { authMiddleware } from '../middleware/auth';
-import { generateUploadUrl, generateDownloadUrl, getFileUrl } from '../services/r2';
+import { generateUploadUrl, generateDownloadUrl } from '../services/r2';
+import { signMediaUrl, verifyMediaToken } from '../services/mediaAccess';
 
 const router = Router();
 
@@ -58,7 +60,10 @@ router.post('/presign', authMiddleware, async (req: Request, res: Response) => {
 
   try {
     const uploadUrl = await generateUploadUrl(key, contentType);
-    const fileUrl = getFileUrl(key);
+    // Signed self-authenticating download URL — browsers can attach it to
+    // <video src> without an Authorization header. The token expires within
+    // the hour; long-lived media rendering re-signs on the next lesson fetch.
+    const { url: fileUrl } = signMediaUrl(key);
     console.log(`[files] Presign succeeded for key="${key}"`);
     res.json({ uploadUrl, fileUrl, maxBytes });
   } catch (err) {
@@ -67,13 +72,45 @@ router.post('/presign', authMiddleware, async (req: Request, res: Response) => {
   }
 });
 
-// GET /api/files/:key(*) – no auth required
-// Generates a presigned GET URL and 302-redirects to it
+/**
+ * Accept either a valid signed query token (?t=<sig>&e=<exp>) or a Bearer
+ * JWT. Query tokens carry the request into <video>/<img> tags where headers
+ * aren't an option; the header path stays open for API clients and tests.
+ */
+function isRequestAuthorized(req: Request, key: string): boolean {
+  const t = typeof req.query.t === 'string' ? req.query.t : undefined;
+  const e = typeof req.query.e === 'string' ? req.query.e : undefined;
+  if (verifyMediaToken(key, t, e)) return true;
+
+  const header = req.headers.authorization;
+  if (header && header.startsWith('Bearer ')) {
+    const secret = process.env.JWT_SECRET;
+    if (secret) {
+      try {
+        jwt.verify(header.slice(7), secret);
+        return true;
+      } catch {
+        // fall through to 401
+      }
+    }
+  }
+  return false;
+}
+
+// GET /api/files/:key(*)
+// Requires either a valid HMAC query token (?t=&e=) or a Bearer JWT.
+// Generates a presigned R2 URL and 302-redirects to it.
 router.get('/:key(*)', async (req: Request, res: Response) => {
   const { key } = req.params;
 
   if (!key) {
     res.status(400).json({ error: 'key is required' });
+    return;
+  }
+
+  if (!isRequestAuthorized(req, key)) {
+    console.warn(`[files] Unauthenticated GET blocked for key="${key}"`);
+    res.status(401).json({ error: 'Unauthorized' });
     return;
   }
 
