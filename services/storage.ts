@@ -1,4 +1,4 @@
-import { Lesson, ClientProfile, Homework, HomeworkTemplate, NotificationMessage, GolfCourse, CoachProfile, LessonReservation, Branch, BranchAdminAccount, Bay, BayPriceRule, BayReservation, LessonPackage, TrainingProgram, QuickLogEntry, WeeklyInsight, PromptTemplate, PromptTarget, PromptAttachment, CoachStyleExemplar, AiCallLog, StudentContext } from '../types';
+import { Lesson, ClientProfile, Homework, HomeworkTemplate, NotificationMessage, GolfCourse, CoachProfile, LessonReservation, Branch, BranchAdminAccount, Bay, BayPriceRule, BayReservation, LessonPackage, TrainingProgram, QuickLogEntry, WeeklyInsight, HandoverSummary, PromptTemplate, PromptTarget, PromptAttachment, CoachStyleExemplar, AiCallLog, StudentContext } from '../types';
 import { createLogger } from '../utils/logger';
 
 const log = createLogger('storage');
@@ -21,6 +21,7 @@ const STORAGE_KEYS = {
   TRAINING_PROGRAMS: 'swingnote_training_programs',
   QUICK_LOGS: 'swingnote_quick_logs',
   WEEKLY_INSIGHTS: 'swingnote_weekly_insights',
+  HANDOVER_SUMMARIES: 'coachxai_handover_summaries',
   PROMPT_TEMPLATES: 'swingnote_prompt_templates',
   COACH_STYLE_EXEMPLARS: 'coachxai_style_exemplars',
   AI_CALL_LOGS: 'coachxai_ai_call_logs',
@@ -697,6 +698,44 @@ export const storageService = {
   getWeeklyInsightsByClient: (clientId: string): WeeklyInsight[] => {
     return storageService.getWeeklyInsights()
       .filter((w) => w.clientId === clientId)
+      .sort((a, b) => b.generatedAt - a.generatedAt);
+  },
+
+  // ── 7a · Handover Summary Methods ─────────────────────────────────────────
+  //
+  // Local-storage backed only for now. When a proper server table lands, the
+  // apiService will overlay these methods without changing call sites.
+
+  getHandoverSummaries: (): HandoverSummary[] => {
+    try {
+      const data = localStorage.getItem(STORAGE_KEYS.HANDOVER_SUMMARIES);
+      return data ? JSON.parse(data) : [];
+    } catch (e) {
+      log.error('Failed to load handover summaries', e);
+      return [];
+    }
+  },
+
+  saveHandoverSummary: (summary: HandoverSummary): void => {
+    try {
+      const all = storageService.getHandoverSummaries();
+      const idx = all.findIndex((s) => s.id === summary.id);
+      const updated = idx >= 0
+        ? [...all.slice(0, idx), summary, ...all.slice(idx + 1)]
+        : [...all, summary];
+      localStorage.setItem(
+        STORAGE_KEYS.HANDOVER_SUMMARIES,
+        JSON.stringify(updated)
+      );
+    } catch (e) {
+      log.error('Failed to save handover summary', e);
+    }
+  },
+
+  getHandoverSummariesForCoach: (coachId: string): HandoverSummary[] => {
+    return storageService
+      .getHandoverSummaries()
+      .filter((s) => s.toCoachId === coachId)
       .sort((a, b) => b.generatedAt - a.generatedAt);
   },
 

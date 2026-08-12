@@ -145,6 +145,40 @@ export const lessonReviewDraftSchema = {
   required: ['todayCovered', 'feedback', 'nextActions'],
 } as const;
 
+/**
+ * 7a · Coach handover briefing.
+ *
+ * Composed at handover time from the outgoing coach's APPROVED lesson
+ * history (never freeMemo — that field is coach-private and stripped
+ * server-side for anyone but the author). The new coach reads this on
+ * their first visit to the student, so structure it for a quick scan:
+ *
+ *   - `headline`: one-line "여기서 이어서 하시면 됩니다."
+ *   - `keyPoints`: what the outgoing coach has been focusing on.
+ *   - `recentFocus`: the most recent lesson's coaching angle.
+ *   - `watchOuts`: student-specific pitfalls or preferences.
+ *   - `evidenceEnvelope`: which past lessons this leaned on, plus a
+ *     confidence signal — the new coach can jump to source lessons
+ *     directly instead of trusting the summary blindly.
+ */
+export const handoverSummarySchema = {
+  type: 'OBJECT',
+  properties: {
+    headline: { type: 'STRING' },
+    keyPoints: {
+      type: 'ARRAY',
+      items: { type: 'STRING' },
+    },
+    recentFocus: { type: 'STRING' },
+    watchOuts: {
+      type: 'ARRAY',
+      items: { type: 'STRING' },
+    },
+    ...evidenceEnvelopeSchema,
+  },
+  required: ['headline', 'keyPoints', 'recentFocus'],
+} as const;
+
 export const motionCaptureSchema = {
   type: 'OBJECT',
   properties: {

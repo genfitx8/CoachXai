@@ -1045,6 +1045,35 @@ export interface WeeklyInsight extends AIEvidenceEnvelope {
   generatedAt: number;
 }
 
+/**
+ * 7a · Coach handover briefing artifact.
+ *
+ * Generated the moment a student's coach reassignment is confirmed;
+ * read by the incoming coach on their first visit to the student.
+ * Never carries the outgoing coach's freeMemo — the server strips that
+ * field for anyone but the author, and the AI prompt is explicitly told
+ * to skip anything the coach marked private.
+ */
+export interface HandoverSummary extends AIEvidenceEnvelope {
+  id: string;
+  /** `${name}_${phone}` composite for the student the handover is about. */
+  clientId: string;
+  fromCoachId: string;
+  toCoachId: string;
+  headline: string;
+  keyPoints: string[];
+  recentFocus: string;
+  watchOuts?: string[];
+  /** Which categories the outgoing coach chose to share (7a review pane). */
+  sharedItems: {
+    recentLessons: boolean;
+    swingHistory: boolean;
+    diagnosisScores: boolean;
+    currentCurriculum: boolean;
+  };
+  generatedAt: number;
+}
+
 // ── Golf Lesson Upload / Impact Selection Types (MVP scaffolding) ─────────────
 
 /**

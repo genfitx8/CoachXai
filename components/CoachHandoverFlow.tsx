@@ -11,8 +11,10 @@ import {
   UserCircle2,
   X,
 } from 'lucide-react';
-import type { ClientProfile, CoachProfile } from '../types';
+import type { ClientProfile, CoachProfile, Lesson, HandoverSummary } from '../types';
 import { apiService } from '../services/apiService';
+import { generateHandoverSummary } from '../services/geminiService';
+import { storageService } from '../services/storage';
 
 /**
  * 7a · 코치 변경 · 인수인계
@@ -39,6 +41,13 @@ import { apiService } from '../services/apiService';
 
 export interface CoachHandoverFlowProps {
   clientProfile: ClientProfile;
+  /**
+   * All approved lessons for this student, filtered to whatever the
+   * outgoing coach can legally see. When provided the handover writes
+   * an AI-composed briefing for the incoming coach; when absent the
+   * flow still completes but the briefing is a bare fallback.
+   */
+  pastLessons?: Lesson[];
   onCoachChanged: (updatedProfile: ClientProfile) => void;
   onClose: () => void;
 }
@@ -63,6 +72,7 @@ const DEFAULT_SHARE: ShareItems = {
 
 export const CoachHandoverFlow: React.FC<CoachHandoverFlowProps> = ({
   clientProfile,
+  pastLessons,
   onCoachChanged,
   onClose,
 }) => {
@@ -101,6 +111,50 @@ export const CoachHandoverFlow: React.FC<CoachHandoverFlowProps> = ({
     setStage('submitting');
     setError(null);
     try {
+      // Compose the handover briefing BEFORE the coach_id flip. The
+      // outgoing coach is still authoritative here — the AI call uses
+      // their lessons + share preferences, and the resulting summary
+      // is stored keyed to the incoming coach so their first visit to
+      // the student surfaces it.
+      const fromCoachId = clientProfile.coachId ?? '';
+      const shareItems = {
+        recentLessons: share.recentLessons,
+        swingHistory: share.swingHistory,
+        diagnosisScores: share.diagnosisScores,
+        currentCurriculum: share.currentCurriculum,
+      };
+      try {
+        const draft = await generateHandoverSummary(
+          clientProfile,
+          pastLessons ?? [],
+          shareItems,
+          fromCoachId || undefined
+        );
+        const clientId = `${clientProfile.name}_${clientProfile.phone ?? ''}`;
+        const summary: HandoverSummary = {
+          id: `handover_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+          clientId,
+          fromCoachId,
+          toCoachId: selectedCoach.id,
+          headline: draft.headline,
+          keyPoints: draft.keyPoints,
+          recentFocus: draft.recentFocus,
+          watchOuts: draft.watchOuts,
+          sharedItems: shareItems,
+          swingEvidence: draft.swingEvidence,
+          historyEvidence: draft.historyEvidence,
+          confidence: draft.confidence,
+          caveats: draft.caveats,
+          generatedAt: Date.now(),
+        };
+        storageService.saveHandoverSummary(summary);
+      } catch (e) {
+        // Summary is best-effort — never block the coach reassignment
+        // itself. The student's move to the new coach is the primary
+        // action; the briefing can be regenerated later.
+        console.warn('[CoachHandoverFlow] summary generation failed', e);
+      }
+
       const updated = await apiService.updateMyClientProfile({
         coachId: selectedCoach.id,
         designatedCoach: selectedCoach.name,
