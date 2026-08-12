@@ -29,6 +29,51 @@ const createResetToken = (): string => {
 
 const normalizeEmail = (email: string): string => email.trim().toLowerCase();
 
+/**
+ * Safely read a JSON-encoded value out of `Storage`. A prior code path — a
+ * malformed API response, a JSON.stringify(undefined) that coerced to the
+ * literal "undefined" string on the way into localStorage — used to poison
+ * these entries and crash the app on every subsequent read with
+ * `SyntaxError: "undefined" is not valid JSON`. This helper treats those
+ * poisoned values as absent and self-heals by removing them, so the app
+ * boots cleanly the next time.
+ */
+function readJson<T>(storage: Storage, key: string): T | null {
+  const raw = storage.getItem(key);
+  if (raw === null) return null;
+  if (raw === '' || raw === 'undefined' || raw === 'null') {
+    storage.removeItem(key);
+    return null;
+  }
+  try {
+    return JSON.parse(raw) as T;
+  } catch (err) {
+    log.warn(`Removing corrupt storage entry "${key}":`, err);
+    storage.removeItem(key);
+    return null;
+  }
+}
+
+function writeJson(storage: Storage, key: string, value: unknown): void {
+  // Never persist undefined — JSON.stringify(undefined) returns `undefined`
+  // (not a string), which localStorage coerces to the literal "undefined"
+  // and every future JSON.parse then throws on read.
+  if (value === undefined) {
+    storage.removeItem(key);
+    return;
+  }
+  try {
+    const serialized = JSON.stringify(value);
+    if (typeof serialized !== 'string') {
+      storage.removeItem(key);
+      return;
+    }
+    storage.setItem(key, serialized);
+  } catch (err) {
+    log.warn(`Failed to persist storage entry "${key}":`, err);
+  }
+}
+
 export const authService = {
   // Coach Signup
   signupCoach: async (
@@ -45,7 +90,7 @@ export const authService = {
         phone.trim()
       );
       apiService.setToken(token);
-      localStorage.setItem(STORAGE_KEYS.COACH_PROFILE, JSON.stringify(coach));
+      writeJson(localStorage, STORAGE_KEYS.COACH_PROFILE, coach);
       return coach;
     } catch (error: any) {
       if (typeof error === 'string') throw error;
@@ -82,7 +127,7 @@ export const authService = {
       try {
         const { token, coach } = await apiService.loginCoach(normalizedEmail, password);
         apiService.setToken(token);
-        localStorage.setItem(STORAGE_KEYS.COACH_PROFILE, JSON.stringify(coach));
+        writeJson(localStorage, STORAGE_KEYS.COACH_PROFILE, coach);
         resolve(coach);
       } catch (error: any) {
         log.error('Login error:', error);
@@ -210,8 +255,8 @@ export const authService = {
           if (firebaseService.isInitialized()) {
             profiles = await firebaseService.getCoaches();
           } else {
-            const data = localStorage.getItem(STORAGE_KEYS.COACH_PROFILE);
-            if (data) profiles = [JSON.parse(data)];
+            const stored = readJson<CoachProfile>(localStorage, STORAGE_KEYS.COACH_PROFILE);
+            if (stored) profiles = [stored];
           }
         } else {
           // Check Firebase first if connected
@@ -253,8 +298,8 @@ export const authService = {
           if (firebaseService.isInitialized()) {
             profiles = await firebaseService.getCoaches();
           } else {
-            const data = localStorage.getItem(STORAGE_KEYS.COACH_PROFILE);
-            if (data) profiles = [JSON.parse(data)];
+            const stored = readJson<CoachProfile>(localStorage, STORAGE_KEYS.COACH_PROFILE);
+            if (stored) profiles = [stored];
           }
         } else {
           // Check Firebase first if connected
@@ -289,12 +334,11 @@ export const authService = {
   },
 
   updateCoachSubscription: (isSubscribed: boolean, endDate: string) => {
-    const data = localStorage.getItem(STORAGE_KEYS.COACH_PROFILE);
-    if (data) {
-      const profile: CoachProfile = JSON.parse(data);
+    const profile = readJson<CoachProfile>(localStorage, STORAGE_KEYS.COACH_PROFILE);
+    if (profile) {
       profile.isSubscribed = isSubscribed;
       profile.subscriptionEndDate = endDate;
-      localStorage.setItem(STORAGE_KEYS.COACH_PROFILE, JSON.stringify(profile));
+      writeJson(localStorage, STORAGE_KEYS.COACH_PROFILE, profile);
     }
   },
 
@@ -339,10 +383,6 @@ export const authService = {
     };
   } | null => {
     const role = sessionStorage.getItem(STORAGE_KEYS.SESSION_ROLE);
-    const clientDataStr = sessionStorage.getItem(STORAGE_KEYS.SESSION_CLIENT_DATA);
-    const branchAdminDataStr = sessionStorage.getItem(
-      STORAGE_KEYS.SESSION_BRANCH_ADMIN_DATA
-    );
 
     if (role === 'COACH') {
       return { role: 'COACH' };
@@ -352,15 +392,22 @@ export const authService = {
       return { role: 'ADMIN' };
     }
 
-    if (role === 'CLIENT' && clientDataStr) {
-      return { role: 'CLIENT', clientData: JSON.parse(clientDataStr) };
+    if (role === 'CLIENT') {
+      const clientData = readJson<{ name: string; phone: string }>(
+        sessionStorage,
+        STORAGE_KEYS.SESSION_CLIENT_DATA
+      );
+      if (clientData) return { role: 'CLIENT', clientData };
     }
 
-    if (role === 'BRANCH_ADMIN' && branchAdminDataStr) {
-      return {
-        role: 'BRANCH_ADMIN',
-        branchAdminData: JSON.parse(branchAdminDataStr),
-      };
+    if (role === 'BRANCH_ADMIN') {
+      const branchAdminData = readJson<{
+        branchId: string;
+        branchName: string;
+        username: string;
+        adminId: string;
+      }>(sessionStorage, STORAGE_KEYS.SESSION_BRANCH_ADMIN_DATA);
+      if (branchAdminData) return { role: 'BRANCH_ADMIN', branchAdminData };
     }
 
     return null;
@@ -377,7 +424,6 @@ export const authService = {
   },
 
   getCoachProfile: (): CoachProfile | null => {
-    const data = localStorage.getItem(STORAGE_KEYS.COACH_PROFILE);
-    return data ? JSON.parse(data) : null;
+    return readJson<CoachProfile>(localStorage, STORAGE_KEYS.COACH_PROFILE);
   },
 };
