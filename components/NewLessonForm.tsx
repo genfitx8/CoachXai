@@ -65,6 +65,7 @@ import {
 import { firebaseService } from '../services/firebase';
 import { storageService } from '../services/storage';
 import { videoStore, IDB_PREFIX, resolveSync } from '../services/videoStore';
+import type { CapturedClip } from './LiveLessonCompanion';
 import {
   isMediaPermissionError,
   requestMediaStream,
@@ -91,6 +92,16 @@ interface NewLessonFormProps {
    */
   prefilledClient?: ClientProfile;
   onDirectRegisterFromLessonStart?: () => void;
+  /**
+   * 3c handoff: clips captured during the live-lesson companion mode.
+   * The form converts each one to a PendingMedia entry on mount so the
+   * coach can review, trim, and save without re-selecting anything.
+   * Parent should clear this after handoff to avoid re-consuming on
+   * subsequent renders.
+   */
+  initialClips?: CapturedClip[];
+  /** Called once the form has consumed initialClips so the parent can clear its bucket. */
+  onInitialClipsConsumed?: () => void;
 }
 
 interface PendingMedia {
@@ -217,6 +228,8 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
   initialData,
   prefilledClient,
   onDirectRegisterFromLessonStart,
+  initialClips,
+  onInitialClipsConsumed,
 }) => {
   const { t } = useLanguage();
   // Wizard State: COACH starts at CLIENT_SELECT, CLIENT starts at TYPE_SELECT
@@ -376,6 +389,55 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
   const savedUrlsRef = useRef<Set<string>>(new Set());
 
   const showAddInterface = mediaItems.length === 0 || isAddingMore;
+
+  // 3c handoff: convert clips captured by LiveLessonCompanion into
+  // PendingMedia entries once, on the first render that receives them.
+  // Guarded with a ref so re-renders with the same clip array don't
+  // duplicate. Parent is expected to null out `initialClips` (via
+  // onInitialClipsConsumed) after handoff.
+  const consumedClipsRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    if (!initialClips?.length) return;
+    const fresh = initialClips.filter((c) => !consumedClipsRef.current.has(c.id));
+    if (fresh.length === 0) return;
+
+    const added: PendingMedia[] = fresh.map((clip) => {
+      const type: PendingMedia['type'] =
+        clip.kind === 'voice' ? 'audio' : clip.kind === 'photo' ? 'image' : 'video';
+      // The companion already produced an object URL for preview; the form
+      // creates its own via URL.createObjectURL below so cleanup ownership is
+      // clear (mediaUrlsRef → revokeObjectURL on unmount).
+      const ext =
+        type === 'audio' ? 'webm' : type === 'image' ? 'jpg' : 'mp4';
+      const filename = `live-${clip.kind}-${clip.id}.${ext}`;
+      const mime =
+        type === 'audio'
+          ? clip.blob.type || 'audio/webm'
+          : type === 'image'
+          ? clip.blob.type || 'image/jpeg'
+          : clip.blob.type || 'video/mp4';
+      const file = new File([clip.blob], filename, { type: mime });
+      const previewUrl = URL.createObjectURL(file);
+      mediaUrlsRef.current.push(previewUrl);
+      consumedClipsRef.current.add(clip.id);
+      return {
+        id: crypto.randomUUID(),
+        file,
+        previewUrl,
+        type,
+        duration: clip.durationSec || undefined,
+        isRemote: false,
+      };
+    });
+
+    setMediaItems((prev) => {
+      const next = [...added, ...prev];
+      // Keep the first newly-added item selected so the coach lands on it.
+      if (added.length > 0) setSelectedMediaId(added[0].id);
+      return next;
+    });
+    onInitialClipsConsumed?.();
+  }, [initialClips, onInitialClipsConsumed]);
 
   useEffect(() => {
     // If Client Mode, auto-fill name and phone
