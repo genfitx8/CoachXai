@@ -19,6 +19,11 @@ function mapClient(row: Record<string, unknown>) {
     subscriptionPlan: row.subscription_plan,
     subscriptionEndDate: row.subscription_end_date,
     pushToken: row.push_token,
+    // Redesign 7a handover trail (#309): previous coaches the student has
+    // worked with. Populated automatically when coach_id changes; the
+    // client uses this to render the "코치 이력" block in the passport
+    // (6f) and to feed the future 인수인계 요약 endpoint.
+    previousCoachIds: (row.previous_coach_ids as string[] | null) ?? [],
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -99,6 +104,17 @@ router.put('/me', async (req: Request, res: Response) => {
         phone            = COALESCE($3, phone),
         coach_id         = CASE WHEN $4::boolean THEN $5::uuid ELSE coach_id END,
         designated_coach = CASE WHEN $6::boolean THEN $7 ELSE designated_coach END,
+        -- 7a handover trail: when the student picks a new coach, push the
+        -- outgoing coach_id onto previous_coach_ids. The CASE evaluates
+        -- against the OLD coach_id (pre-update), and DISTINCT FROM guards
+        -- against a no-op change appending a duplicate row.
+        previous_coach_ids = CASE
+          WHEN $4::boolean
+            AND coach_id IS NOT NULL
+            AND coach_id IS DISTINCT FROM $5::uuid
+          THEN array_append(COALESCE(previous_coach_ids, ARRAY[]::uuid[]), coach_id)
+          ELSE previous_coach_ids
+        END,
         push_token       = COALESCE($8, push_token),
         updated_at       = $9
       WHERE id = $10
