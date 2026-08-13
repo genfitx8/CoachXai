@@ -33,7 +33,18 @@ interface CoachAIHomeProps {
   onOpenProfile?: () => void;
   /** 6c/6e onboarding — open the working-schedule editor. */
   onOpenSchedule?: () => void;
+  /**
+   * When provided, auto-sent as the first user message on mount. Used by
+   * "ask about this member" entry points from the dashboard, member list,
+   * and student detail — after the unification, every AI entry point
+   * lands here rather than opening a separate chat surface.
+   */
+  initialQuery?: string;
+  /** Cleared once the initial query has been consumed. */
+  onInitialQueryConsumed?: () => void;
 }
+
+const INITIAL_QUERY_DELAY_MS = 400;
 
 type Mode = 'chat' | 'voice';
 
@@ -51,6 +62,8 @@ export const CoachAIHome: React.FC<CoachAIHomeProps> = ({
   onRecordFirstLesson,
   onOpenProfile,
   onOpenSchedule,
+  initialQuery,
+  onInitialQueryConsumed,
 }) => {
   const { language } = useLanguage();
 
@@ -147,6 +160,20 @@ export const CoachAIHome: React.FC<CoachAIHomeProps> = ({
     language,
     onResult: handleSend,
   });
+
+  // Auto-send the initial query once on mount so member-card / dashboard
+  // deep-links land in the same chat surface instead of opening a
+  // separate one. Consumed callback lets the parent clear its pending
+  // query so a later back-and-forth navigation doesn't refire it.
+  useEffect(() => {
+    if (!initialQuery) return;
+    const timer = setTimeout(() => {
+      void handleSend(initialQuery);
+      onInitialQueryConsumed?.();
+    }, INITIAL_QUERY_DELAY_MS);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const quickChips = language === 'en' ? QUICK_CHIPS_EN : language === 'ja' ? QUICK_CHIPS_JA : QUICK_CHIPS_KO;
 

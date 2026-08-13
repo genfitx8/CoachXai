@@ -8,7 +8,6 @@ import {
   ChevronLeft,
   ChevronRight,
   Sparkles,
-  MessageSquare,
   TrendingUp,
   TrendingDown,
   Minus,
@@ -1107,23 +1106,6 @@ export const CoachXHub: React.FC<CoachXHubProps> = ({
             <p className="text-xs text-white/60">{t('coachx_stat_attention')}</p>
           </div>
         </div>
-      </div>
-
-      {/* ── Ask CoachX CTA ───────────────────────────────────────────────── */}
-      <div className="px-4 -mt-4 relative z-10">
-        <button
-          onClick={() => onOpenChat()}
-          className="w-full bg-gradient-to-r from-slate-700 to-slate-800 hover:from-slate-600 hover:to-slate-700 text-white rounded-2xl p-4 flex items-center gap-3 shadow-lg shadow-slate-900/15 transition-all"
-        >
-          <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0">
-            <MessageSquare className="w-5 h-5 text-white" />
-          </div>
-          <div className="flex-1 text-left">
-            <p className="font-bold text-sm">{t('coachx_ask_title')}</p>
-            <p className="text-xs text-white/70">{t('coachx_ask_desc')}</p>
-          </div>
-          <ChevronRight className="w-5 h-5 text-white/60 flex-shrink-0" />
-        </button>
       </div>
 
       {/* ── Tabs ─────────────────────────────────────────────────────────── */}
