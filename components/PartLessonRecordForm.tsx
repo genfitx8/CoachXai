@@ -71,14 +71,14 @@ export const PartLessonRecordForm: React.FC<PartLessonRecordFormProps> = ({
   const checkedCount = checklist.filter((c) => c.checked).length;
 
   return (
-    <div className="bg-slate-900 rounded-2xl border border-slate-700 overflow-hidden">
+    <div className="bg-base rounded-2xl border border-line-subtle overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between px-5 py-4 border-b border-slate-800">
+      <div className="flex items-center justify-between px-5 py-4 border-b border-line-subtle">
         <div>
-          <h3 className="text-base font-bold text-slate-100">레슨 기록</h3>
-          <p className="text-xs text-slate-400 mt-0.5 truncate max-w-[240px]">{part.title}</p>
+          <h3 className="text-base font-bold text-ink-high">레슨 기록</h3>
+          <p className="text-xs text-ink-muted mt-0.5 truncate max-w-[240px]">{part.title}</p>
         </div>
-        <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-slate-800 text-slate-400">
+        <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/[0.06] text-ink-muted">
           <X className="w-5 h-5" />
         </button>
       </div>
@@ -86,24 +86,24 @@ export const PartLessonRecordForm: React.FC<PartLessonRecordFormProps> = ({
       <div className="p-5 space-y-5 max-h-[70vh] overflow-y-auto">
         {/* Date */}
         <div className="space-y-1.5">
-          <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">레슨 날짜</label>
+          <label className="text-xs font-semibold text-ink-muted uppercase tracking-wider">레슨 날짜</label>
           <input
             type="date"
             value={lessonDate}
             onChange={(e) => setLessonDate(e.target.value)}
-            className="w-full px-3 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-slate-200 text-sm focus:outline-none focus:border-emerald-500"
+            className="w-full px-3 py-2.5 bg-white/[0.05] border border-line-subtle rounded-xl text-ink-high text-sm focus:outline-none focus:border-emerald-500"
           />
         </div>
 
         {/* Text Memo */}
         <div className="space-y-1.5">
-          <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">코치 메모</label>
+          <label className="text-xs font-semibold text-ink-muted uppercase tracking-wider">코치 메모</label>
           <textarea
             value={textMemo}
             onChange={(e) => setTextMemo(e.target.value)}
             placeholder="오늘 레슨에서 집중한 내용, 학생의 반응, 다음 레슨 포인트..."
             rows={5}
-            className="w-full px-3 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-slate-200 text-sm focus:outline-none focus:border-emerald-500 resize-none placeholder-slate-600"
+            className="w-full px-3 py-2.5 bg-white/[0.05] border border-line-subtle rounded-xl text-ink-high text-sm focus:outline-none focus:border-emerald-500 resize-none placeholder:text-ink-muted"
           />
         </div>
 
@@ -111,7 +111,7 @@ export const PartLessonRecordForm: React.FC<PartLessonRecordFormProps> = ({
         {checklist.length > 0 && (
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">핵심 포인트 체크</label>
+              <label className="text-xs font-semibold text-ink-muted uppercase tracking-wider">핵심 포인트 체크</label>
               <span className="text-xs text-emerald-300 font-medium">
                 {checkedCount}/{checklist.length} 완료
               </span>
@@ -124,12 +124,12 @@ export const PartLessonRecordForm: React.FC<PartLessonRecordFormProps> = ({
                   className={`w-full flex items-start gap-3 p-3 rounded-xl border text-left transition-all ${
                     item.checked
                       ? 'border-emerald-700/50 bg-emerald-900/10 text-emerald-300'
-                      : 'border-slate-700 bg-slate-800/40 text-slate-300 hover:border-slate-600'
+                      : 'border-line-subtle bg-white/[0.03] text-ink-medium hover:border-line-subtle'
                   }`}
                 >
                   {item.checked
                     ? <CheckSquare className="w-4 h-4 shrink-0 text-emerald-400 mt-0.5" />
-                    : <Square className="w-4 h-4 shrink-0 text-slate-500 mt-0.5" />
+                    : <Square className="w-4 h-4 shrink-0 text-ink-muted mt-0.5" />
                   }
                   <span className="text-sm">{item.text}</span>
                 </button>
@@ -141,14 +141,14 @@ export const PartLessonRecordForm: React.FC<PartLessonRecordFormProps> = ({
         {/* Link existing lesson */}
         {existingLessons.length > 0 && (
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+            <label className="text-xs font-semibold text-ink-muted uppercase tracking-wider flex items-center gap-1.5">
               <Link2 className="w-3.5 h-3.5" />
               기존 레슨 기록 연결
             </label>
             <select
               value={linkedLessonId}
               onChange={(e) => setLinkedLessonId(e.target.value)}
-              className="w-full px-3 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-slate-200 text-sm focus:outline-none focus:border-emerald-500"
+              className="w-full px-3 py-2.5 bg-white/[0.05] border border-line-subtle rounded-xl text-ink-high text-sm focus:outline-none focus:border-emerald-500"
             >
               <option value="">— 연결 안 함 —</option>
               {existingLessons.map((l) => (
@@ -160,7 +160,7 @@ export const PartLessonRecordForm: React.FC<PartLessonRecordFormProps> = ({
             {linkedLessonId && (
               <button
                 onClick={() => setLinkedLessonId('')}
-                className="flex items-center gap-1 text-xs text-slate-500 hover:text-red-400 transition-colors"
+                className="flex items-center gap-1 text-xs text-ink-muted hover:text-red-400 transition-colors"
               >
                 <Trash2 className="w-3 h-3" />
                 연결 해제
@@ -171,22 +171,22 @@ export const PartLessonRecordForm: React.FC<PartLessonRecordFormProps> = ({
 
         {/* Coach Feedback */}
         <div className="space-y-1.5">
-          <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">학생에게 남기는 피드백</label>
+          <label className="text-xs font-semibold text-ink-muted uppercase tracking-wider">학생에게 남기는 피드백</label>
           <textarea
             value={coachFeedback}
             onChange={(e) => setCoachFeedback(e.target.value)}
             placeholder="학생이 볼 수 있는 피드백과 다음 훈련 과제..."
             rows={3}
-            className="w-full px-3 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-slate-200 text-sm focus:outline-none focus:border-emerald-500 resize-none placeholder-slate-600"
+            className="w-full px-3 py-2.5 bg-white/[0.05] border border-line-subtle rounded-xl text-ink-high text-sm focus:outline-none focus:border-emerald-500 resize-none placeholder:text-ink-muted"
           />
         </div>
       </div>
 
       {/* Footer */}
-      <div className="px-5 py-4 border-t border-slate-800 flex gap-3">
+      <div className="px-5 py-4 border-t border-line-subtle flex gap-3">
         <button
           onClick={onClose}
-          className="flex-1 py-2.5 rounded-xl border border-slate-700 text-slate-300 hover:bg-slate-800 transition-colors text-sm font-medium"
+          className="flex-1 py-2.5 rounded-xl border border-line-subtle text-ink-medium hover:bg-white/[0.06] transition-colors text-sm font-medium"
         >
           취소
         </button>
