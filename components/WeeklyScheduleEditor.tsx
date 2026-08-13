@@ -35,7 +35,7 @@ const CATEGORY_META: Record<
   SWING:        { label: '스윙',        short: '스윙',        bg: 'bg-emerald-100',   text: 'text-emerald-800',   border: 'border-emerald-300',   group: 'LONG' },
   TARGETING:    { label: '타겟팅',      short: '타겟팅',      bg: 'bg-emerald-100',   text: 'text-emerald-800',   border: 'border-emerald-300',   group: 'LONG' },
   BALL_FLIGHT:  { label: '구질 구현',   short: '구질',        bg: 'bg-fuchsia-100',  text: 'text-fuchsia-800',  border: 'border-fuchsia-300',  group: 'LONG' },
-  REST:         { label: '휴식',        short: '휴식',        bg: 'bg-gray-100',     text: 'text-gray-500',     border: 'border-gray-200',     group: 'REST' },
+  REST:         { label: '휴식',        short: '휴식',        bg: 'bg-white/[0.06]',     text: 'text-ink-muted',     border: 'border-line-subtle',     group: 'REST' },
 };
 
 const CATEGORY_ORDER: TrainingCategory[] = [
@@ -147,13 +147,13 @@ export const WeeklyScheduleEditor: React.FC<WeeklyScheduleEditorProps> = ({
     <div className="space-y-4">
       {/* Diagnosis card */}
       {diagnosis && (diagnosis.summary || diagnosis.weakAreas.length > 0) && (
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
+        <div className="bg-white/[0.04] rounded-2xl shadow-sm border border-line-subtle p-4">
           <div className="flex items-center gap-2 mb-2">
             <AlertTriangle className="w-4 h-4 text-amber-500" />
-            <h3 className="font-bold text-sm text-gray-800">데이터 진단</h3>
+            <h3 className="font-bold text-sm text-ink-high">데이터 진단</h3>
           </div>
           {diagnosis.summary && (
-            <p className="text-sm text-gray-700 leading-relaxed mb-3">{diagnosis.summary}</p>
+            <p className="text-sm text-ink-medium leading-relaxed mb-3">{diagnosis.summary}</p>
           )}
           {diagnosis.weakAreas.length > 0 && (
             <div className="space-y-1.5">
@@ -166,7 +166,7 @@ export const WeeklyScheduleEditor: React.FC<WeeklyScheduleEditorProps> = ({
                     >
                       {meta.label}
                     </span>
-                    <span className="text-gray-600">{w.reason}</span>
+                    <span className="text-ink-medium">{w.reason}</span>
                     <span className="ml-auto text-red-500 font-bold">
                       {Math.round(w.severity * 100)}%
                     </span>
@@ -176,9 +176,9 @@ export const WeeklyScheduleEditor: React.FC<WeeklyScheduleEditorProps> = ({
             </div>
           )}
           {diagnosis.strengths.length > 0 && (
-            <div className="mt-3 pt-3 border-t border-gray-100">
+            <div className="mt-3 pt-3 border-t border-line-subtle">
               <p className="text-xs font-bold text-emerald-700 mb-1">유지할 강점</p>
-              <ul className="text-xs text-gray-600 list-disc list-inside space-y-0.5">
+              <ul className="text-xs text-ink-medium list-disc list-inside space-y-0.5">
                 {diagnosis.strengths.map((s, i) => (
                   <li key={i}>{s}</li>
                 ))}
@@ -189,17 +189,17 @@ export const WeeklyScheduleEditor: React.FC<WeeklyScheduleEditorProps> = ({
       )}
 
       {/* Ratio summary */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
+      <div className="bg-white/[0.04] rounded-2xl shadow-sm border border-line-subtle p-4">
         <div className="flex items-center justify-between mb-3">
-          <h3 className="font-bold text-sm text-gray-800 flex items-center gap-2">
+          <h3 className="font-bold text-sm text-ink-high flex items-center gap-2">
             <Target className="w-4 h-4 text-emerald-500" />
             훈련 비율
           </h3>
-          <span className="text-xs text-gray-500">
+          <span className="text-xs text-ink-muted">
             총 {Math.floor(schedule.totalMinutes / 60)}시간 {schedule.totalMinutes % 60}분
           </span>
         </div>
-        <div className="flex h-4 rounded-full overflow-hidden bg-gray-100 mb-2">
+        <div className="flex h-4 rounded-full overflow-hidden bg-white/[0.06] mb-2">
           <div
             className="bg-emerald-500 flex items-center justify-center text-[10px] font-bold text-white"
             style={{ width: `${shortLongSummary.shortPct}%` }}
@@ -232,19 +232,19 @@ export const WeeklyScheduleEditor: React.FC<WeeklyScheduleEditorProps> = ({
             })}
         </div>
         {schedule.overview && (
-          <p className="text-xs text-gray-500 mt-3 leading-relaxed">{schedule.overview}</p>
+          <p className="text-xs text-ink-muted mt-3 leading-relaxed">{schedule.overview}</p>
         )}
       </div>
 
       {/* Weekly grid */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
-          <h3 className="font-bold text-sm text-gray-800">주간 스케줄</h3>
+      <div className="bg-white/[0.04] rounded-2xl shadow-sm border border-line-subtle overflow-hidden">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-line-subtle">
+          <h3 className="font-bold text-sm text-ink-high">주간 스케줄</h3>
           {!isReadOnly && onRegenerate && (
             <button
               onClick={onRegenerate}
               disabled={isGenerating}
-              className="text-xs px-2.5 py-1 rounded-lg bg-slate-700 text-white hover:bg-slate-800 disabled:opacity-50 flex items-center gap-1"
+              className="text-xs px-2.5 py-1 rounded-lg bg-emerald-500/20 text-emerald-100 hover:bg-white/[0.10] disabled:opacity-50 flex items-center gap-1"
             >
               <Sparkles className="w-3 h-3" />
               {isGenerating ? '생성 중...' : 'AI 재생성'}
@@ -254,15 +254,15 @@ export const WeeklyScheduleEditor: React.FC<WeeklyScheduleEditorProps> = ({
         <div className="overflow-x-auto">
           <table className="w-full text-xs border-collapse">
             <thead>
-              <tr className="bg-gray-50">
-                <th className="w-14 py-1.5 text-gray-500 font-medium border-b border-gray-200 sticky left-0 bg-gray-50 z-10">
+              <tr className="bg-white/[0.03]">
+                <th className="w-14 py-1.5 text-ink-muted font-medium border-b border-line-subtle sticky left-0 bg-white/[0.03] z-10">
                   시간
                 </th>
                 {DAY_LABELS.map((d, i) => (
                   <th
                     key={d}
-                    className={`py-1.5 font-bold border-b border-gray-200 min-w-[48px] sm:min-w-[68px] ${
-                      i === 6 ? 'text-red-500' : i === 5 ? 'text-blue-500' : 'text-gray-700'
+                    className={`py-1.5 font-bold border-b border-line-subtle min-w-[48px] sm:min-w-[68px] ${
+                      i === 6 ? 'text-red-500' : i === 5 ? 'text-blue-500' : 'text-ink-medium'
                     }`}
                   >
                     {d}
@@ -273,7 +273,7 @@ export const WeeklyScheduleEditor: React.FC<WeeklyScheduleEditorProps> = ({
             <tbody>
               {HOUR_SLOTS.map((slot) => (
                 <tr key={slot}>
-                  <td className="w-14 py-1 px-1 text-gray-400 text-[10px] text-center border-b border-gray-100 sticky left-0 bg-white z-10">
+                  <td className="w-14 py-1 px-1 text-ink-muted text-[10px] text-center border-b border-line-subtle sticky left-0 bg-white/[0.04] z-10">
                     {slot}
                   </td>
                   {DAY_LABELS.map((_, day) => {
@@ -282,11 +282,11 @@ export const WeeklyScheduleEditor: React.FC<WeeklyScheduleEditorProps> = ({
                     const meta = session ? CATEGORY_META[session.category] : null;
                     const cellClass = session
                       ? `${meta!.bg} ${meta!.text} ${meta!.border} border-l-2`
-                      : 'hover:bg-gray-50';
+                      : 'hover:bg-white/[0.03]';
                     return (
                       <td
                         key={day}
-                        className={`border-b border-gray-100 p-0 align-top ${
+                        className={`border-b border-line-subtle p-0 align-top ${
                           isReadOnly ? '' : 'cursor-pointer'
                         }`}
                         onClick={() => handleCellClick(day, slot)}
@@ -310,7 +310,7 @@ export const WeeklyScheduleEditor: React.FC<WeeklyScheduleEditorProps> = ({
           </table>
         </div>
         {!isReadOnly && (
-          <div className="px-4 py-2 border-t border-gray-100 text-[11px] text-gray-500 bg-gray-50">
+          <div className="px-4 py-2 border-t border-line-subtle text-[11px] text-ink-muted bg-white/[0.03]">
             셀을 클릭해 훈련을 추가·수정하세요.
           </div>
         )}
@@ -386,18 +386,18 @@ const SessionEditModal: React.FC<SessionEditModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center p-2">
-      <div className="bg-white w-full max-w-md rounded-2xl shadow-xl overflow-hidden">
-        <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100">
-          <h4 className="font-bold text-sm text-gray-800">
+      <div className="bg-white/[0.04] w-full max-w-md rounded-2xl shadow-xl overflow-hidden">
+        <div className="flex items-center justify-between px-5 py-3 border-b border-line-subtle">
+          <h4 className="font-bold text-sm text-ink-high">
             {initial ? '훈련 세션 수정' : '훈련 세션 추가'}
           </h4>
-          <button onClick={onCancel} className="text-gray-400 hover:text-gray-600" aria-label="닫기">
+          <button onClick={onCancel} className="text-ink-muted hover:text-ink-medium" aria-label="닫기">
             <X className="w-4 h-4" />
           </button>
         </div>
         <div className="p-5 space-y-4 max-h-[70vh] overflow-y-auto">
           <div>
-            <label className="text-xs font-bold text-gray-500 mb-1 block">요일</label>
+            <label className="text-xs font-bold text-ink-muted mb-1 block">요일</label>
             <div className="flex gap-1">
               {DAY_LABELS.map((d, i) => (
                 <button
@@ -405,8 +405,8 @@ const SessionEditModal: React.FC<SessionEditModalProps> = ({
                   onClick={() => setDayOfWeek(i)}
                   className={`flex-1 py-2 rounded-lg text-xs font-bold border transition ${
                     dayOfWeek === i
-                      ? 'bg-slate-800 text-white border-slate-800'
-                      : 'bg-white text-gray-600 border-gray-200 hover:border-slate-400'
+                      ? 'bg-emerald-500/20 text-emerald-100 border-emerald-400/30'
+                      : 'bg-white/[0.04] text-ink-medium border-line-subtle hover:border-emerald-400/50'
                   }`}
                 >
                   {d}
@@ -417,17 +417,17 @@ const SessionEditModal: React.FC<SessionEditModalProps> = ({
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs font-bold text-gray-500 mb-1 block">시작 시간</label>
+              <label className="text-xs font-bold text-ink-muted mb-1 block">시작 시간</label>
               <input
                 type="time"
                 value={startTime}
                 onChange={(e) => setStartTime(e.target.value)}
                 step={1800}
-                className="w-full px-3 py-2 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
+                className="w-full px-3 py-2 border border-line-subtle rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
               />
             </div>
             <div>
-              <label className="text-xs font-bold text-gray-500 mb-1 block">
+              <label className="text-xs font-bold text-ink-muted mb-1 block">
                 <Clock className="w-3 h-3 inline mr-1" />
                 시간 (분)
               </label>
@@ -438,8 +438,8 @@ const SessionEditModal: React.FC<SessionEditModalProps> = ({
                     onClick={() => setDurationMinutes(m)}
                     className={`px-2.5 py-1.5 rounded-lg text-xs font-bold border ${
                       durationMinutes === m
-                        ? 'bg-slate-800 text-white border-slate-800'
-                        : 'bg-white text-gray-600 border-gray-200 hover:border-slate-400'
+                        ? 'bg-emerald-500/20 text-emerald-100 border-emerald-400/30'
+                        : 'bg-white/[0.04] text-ink-medium border-line-subtle hover:border-emerald-400/50'
                     }`}
                   >
                     {m}
@@ -450,7 +450,7 @@ const SessionEditModal: React.FC<SessionEditModalProps> = ({
           </div>
 
           <div>
-            <label className="text-xs font-bold text-gray-500 mb-1 block">카테고리</label>
+            <label className="text-xs font-bold text-ink-muted mb-1 block">카테고리</label>
             <div className="grid grid-cols-2 gap-1.5">
               {CATEGORY_ORDER.map((c) => {
                 const meta = CATEGORY_META[c];
@@ -462,7 +462,7 @@ const SessionEditModal: React.FC<SessionEditModalProps> = ({
                     className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition text-left ${
                       active
                         ? `${meta.bg} ${meta.text} ${meta.border}`
-                        : 'bg-white text-gray-600 border-gray-200 hover:border-slate-400'
+                        : 'bg-white/[0.04] text-ink-medium border-line-subtle hover:border-emerald-400/50'
                     }`}
                   >
                     {meta.label}
@@ -473,30 +473,30 @@ const SessionEditModal: React.FC<SessionEditModalProps> = ({
           </div>
 
           <div>
-            <label className="text-xs font-bold text-gray-500 mb-1 block">셀 표시 이름</label>
+            <label className="text-xs font-bold text-ink-muted mb-1 block">셀 표시 이름</label>
             <input
               type="text"
               value={label}
               onChange={(e) => setLabel(e.target.value)}
               maxLength={20}
-              className="w-full px-3 py-2 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
+              className="w-full px-3 py-2 border border-line-subtle rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
               placeholder="예: 숏게임 컨트롤"
             />
           </div>
 
           <div>
-            <label className="text-xs font-bold text-gray-500 mb-1 block">코치 메모 (옵션)</label>
+            <label className="text-xs font-bold text-ink-muted mb-1 block">코치 메모 (옵션)</label>
             <textarea
               value={note}
               onChange={(e) => setNote(e.target.value)}
               rows={3}
               maxLength={300}
-              className="w-full px-3 py-2 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 outline-none resize-none"
+              className="w-full px-3 py-2 border border-line-subtle rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 outline-none resize-none"
               placeholder="구체적 드릴/포커스를 적어주세요"
             />
           </div>
         </div>
-        <div className="px-5 py-3 border-t border-gray-100 flex items-center gap-2">
+        <div className="px-5 py-3 border-t border-line-subtle flex items-center gap-2">
           {onDelete && (
             <button
               onClick={onDelete}
@@ -508,13 +508,13 @@ const SessionEditModal: React.FC<SessionEditModalProps> = ({
           )}
           <button
             onClick={onCancel}
-            className="ml-auto px-3 py-2 rounded-lg text-sm text-gray-600 hover:bg-gray-100"
+            className="ml-auto px-3 py-2 rounded-lg text-sm text-ink-medium hover:bg-white/[0.06]"
           >
             취소
           </button>
           <button
             onClick={handleSubmit}
-            className="px-3 py-2 rounded-lg text-sm font-bold bg-slate-800 text-white hover:bg-slate-900 flex items-center gap-1"
+            className="px-3 py-2 rounded-lg text-sm font-bold bg-emerald-500/20 text-emerald-100 hover:bg-emerald-500/30 flex items-center gap-1"
           >
             <Plus className="w-3.5 h-3.5" />
             {initial ? '적용' : '추가'}
