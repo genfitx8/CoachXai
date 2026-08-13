@@ -22,7 +22,6 @@ import { LessonUploadPage } from './components/LessonUploadPage';
 import { ImpactSelectionPage } from './components/ImpactSelectionPage';
 import { AuthScreen } from './components/AuthScreen';
 import { InviteAcceptScreen } from './components/InviteAcceptScreen';
-import { CoachXLanding } from './components/CoachXLanding';
 import { AdminDashboard } from './components/AdminDashboard';
 import { BranchAdminDashboard } from './components/BranchAdminDashboard';
 import { SwingComparison } from './components/SwingComparison';
@@ -159,7 +158,6 @@ const AppContent: React.FC = () => {
     adminId: string;
   } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [showAuthScreen, setShowAuthScreen] = useState(false);
   /**
    * Pending invite context parsed from the URL on mount (?invite=<coachId>
    * &coachName=<name>). Held here so the invited student sees the 7b
@@ -1917,17 +1915,7 @@ const AppContent: React.FC = () => {
       return (
         <InviteAcceptScreen
           coachName={pendingInvite.coachName}
-          onContinue={() => {
-            setInviteAccepted(true);
-            setShowAuthScreen(true);
-          }}
-        />
-      );
-    }
-    if (!showAuthScreen) {
-      return (
-        <CoachXLanding
-          onLogin={() => setShowAuthScreen(true)}
+          onContinue={() => setInviteAccepted(true)}
         />
       );
     }
