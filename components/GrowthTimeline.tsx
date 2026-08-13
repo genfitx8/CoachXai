@@ -72,10 +72,10 @@ export const GrowthTimeline: React.FC<GrowthTimelineProps> = ({
       {/* Title row */}
       <div className="flex items-center gap-3">
         <div className="w-1 h-6 bg-gradient-to-b from-emerald-500 to-emerald-500 rounded-full" />
-        <h2 className="text-xl font-black text-slate-100">{L.title}</h2>
+        <h2 className="text-xl font-black text-ink-high">{L.title}</h2>
         <button
           onClick={onOpenDetailedStats}
-          className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800/70 border border-slate-700 text-xs font-semibold text-slate-200 hover:bg-slate-700 transition-colors"
+          className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/[0.05] border border-line-subtle text-xs font-semibold text-ink-high hover:bg-white/[0.08] transition-colors"
         >
           <BarChart3 className="w-3.5 h-3.5" />
           {L.detailedStats}
@@ -92,14 +92,14 @@ export const GrowthTimeline: React.FC<GrowthTimelineProps> = ({
       />
 
       {/* Club profile row */}
-      <section className="bg-slate-900/70 border border-slate-800 rounded-2xl p-4">
+      <section className="bg-white/[0.03] border border-line-subtle rounded-2xl p-4">
         <div className="flex items-center gap-2 mb-3">
           <Sparkles className="w-4 h-4 text-emerald-300" />
-          <h3 className="text-sm font-bold text-slate-100">{L.clubProfiles}</h3>
+          <h3 className="text-sm font-bold text-ink-high">{L.clubProfiles}</h3>
         </div>
         {clubProfiles.length === 0 ? (
           <div className="py-6 text-center">
-            <p className="text-xs text-slate-400 leading-relaxed max-w-xs mx-auto">
+            <p className="text-xs text-ink-muted leading-relaxed max-w-xs mx-auto">
               {L.emptyClubProfiles}
             </p>
           </div>
@@ -108,10 +108,10 @@ export const GrowthTimeline: React.FC<GrowthTimelineProps> = ({
             {clubProfiles.slice(0, 4).map(cp => (
               <div
                 key={cp.club}
-                className="bg-slate-950/60 border border-slate-700 rounded-xl p-3"
+                className="bg-white/[0.02] border border-line-subtle rounded-xl p-3"
               >
-                <p className="text-xs text-slate-400">{cp.club}</p>
-                <p className="text-lg font-bold text-slate-100">
+                <p className="text-xs text-ink-muted">{cp.club}</p>
+                <p className="text-lg font-bold text-ink-high">
                   {cp.avgCarry ? `${Math.round(cp.avgCarry)}m` : '—'}
                 </p>
                 <p className="text-[11px] text-emerald-300">
@@ -135,7 +135,7 @@ export const GrowthTimeline: React.FC<GrowthTimelineProps> = ({
               className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap border transition-colors ${
                 isActive
                   ? 'bg-emerald-600 border-emerald-500 text-white'
-                  : 'bg-slate-900 border-slate-700 text-slate-300 hover:bg-slate-800'
+                  : 'bg-base border-line-subtle text-ink-medium hover:bg-white/[0.06]'
               }`}
             >
               {L.filters[key]}
@@ -146,11 +146,11 @@ export const GrowthTimeline: React.FC<GrowthTimelineProps> = ({
 
       {/* Timeline list */}
       {filteredLessons.length === 0 ? (
-        <div className="text-center py-16 bg-slate-900/70 rounded-2xl border border-slate-800">
-          <div className="bg-slate-950 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-3 border border-slate-700">
-            <BookOpen className="w-7 h-7 text-slate-500" />
+        <div className="text-center py-16 bg-white/[0.03] rounded-2xl border border-line-subtle">
+          <div className="bg-base w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-3 border border-line-subtle">
+            <BookOpen className="w-7 h-7 text-ink-muted" />
           </div>
-          <p className="text-sm text-slate-300 font-semibold">{L.emptyList}</p>
+          <p className="text-sm text-ink-medium font-semibold">{L.emptyList}</p>
         </div>
       ) : (
         <ul className="space-y-2">
@@ -158,21 +158,21 @@ export const GrowthTimeline: React.FC<GrowthTimelineProps> = ({
             <li key={lesson.id}>
               <button
                 onClick={() => onOpenLesson(lesson)}
-                className="w-full flex items-center gap-3 bg-slate-900/70 border border-slate-800 hover:bg-slate-800/70 rounded-xl p-3 text-left transition-colors"
+                className="w-full flex items-center gap-3 bg-white/[0.03] border border-line-subtle hover:bg-white/[0.05] rounded-xl p-3 text-left transition-colors"
               >
-                <div className="w-9 h-9 rounded-lg bg-slate-800 border border-slate-700 flex items-center justify-center flex-shrink-0">
+                <div className="w-9 h-9 rounded-lg bg-white/[0.05] border border-line-subtle flex items-center justify-center flex-shrink-0">
                   {iconForLesson(lesson)}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs text-slate-400">{lesson.date}</p>
-                  <p className="text-sm font-semibold text-slate-100 truncate">
+                  <p className="text-xs text-ink-muted">{lesson.date}</p>
+                  <p className="text-sm font-semibold text-ink-high truncate">
                     {lesson.title || labelForLesson(lesson, lang)}
                   </p>
                   {lesson.club && (
                     <p className="text-[11px] text-emerald-300">{lesson.club}</p>
                   )}
                 </div>
-                <ChevronRight className="w-4 h-4 text-slate-500 flex-shrink-0" />
+                <ChevronRight className="w-4 h-4 text-ink-muted flex-shrink-0" />
               </button>
             </li>
           ))}
