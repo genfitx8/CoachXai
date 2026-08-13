@@ -62,10 +62,8 @@ import {
 } from './services/lessonStartSuggestionService';
 import { Button } from './components/Button';
 import { CoachXHub } from './components/CoachXHub';
-import { CoachXChat } from './components/CoachXChat';
 import { CoachAIHome, type TodayLessonSummary } from './components/CoachAIHome';
 import { LessonReviewScreen } from './components/LessonReviewScreen';
-import { CoachXAssistant } from './components/CoachXAssistant';
 import { CoachXMark } from './components/ui';
 import { buildMemberGrowthReports } from './services/coachXService';
 import { DIAGNOSIS_FACTORS, DIAGNOSIS_PROCESS } from './constants/diagnosis';
@@ -181,6 +179,11 @@ const AppContent: React.FC = () => {
   // → "전체 레슨" link inside CoachAIHome, but the default entry needs to
   // be the conversational home so the UX개편 is visible on first login.
   const [coachView, setCoachView] = useState<ViewState | 'RESERVATIONS' | 'BAY_RESERVATION' | 'MY_BAY_RESERVATIONS' | 'COACHX_DASHBOARD' | 'LESSON_REVIEW' | 'STUDENT_DETAIL' | 'LIVE_LESSON'>('COACHX');
+  // After consolidation to a single AI (CoachAIHome), every "ask CoachX"
+  // deep-link — member cards, dashboard CTA, student detail — routes to
+  // COACHX with this pre-filled query so all AI interactions land in the
+  // same chat surface.
+  const [coachAIInitialQuery, setCoachAIInitialQuery] = useState<string | undefined>(undefined);
   const [selectedStudentForDetail, setSelectedStudentForDetail] = useState<ClientProfile | null>(null);
   const [hamburgerOpen, setHamburgerOpen] = useState(false);
   const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(null);
@@ -229,9 +232,6 @@ const AppContent: React.FC = () => {
   // Lesson Upload / Impact Selection State (golf video editing MVP)
   const [pendingLessonUpload, setPendingLessonUpload] = useState<LessonUpload | null>(null);
 
-  // CoachX chat initial query (set when opening chat from a member card)
-  const [coachXChatInitialQuery, setCoachXChatInitialQuery] = useState<string | undefined>(undefined);
-  
   // Media visibility toggle for Coach.
   // readBooleanPref self-heals a poisoned "coach_showMedia" slot
   // (e.g. literal "undefined") so a corrupted preference can't crash
@@ -1607,9 +1607,6 @@ const AppContent: React.FC = () => {
       case 'PROFILE':
         setShowProfileModal(true);
         break;
-      case 'COACHX_ASSISTANT':
-        setCoachView('COACHX_ASSISTANT');
-        break;
       case 'DIAGNOSIS_PROGRAM':
         handleDiagnosisProgramClick();
         break;
@@ -2327,8 +2324,8 @@ const AppContent: React.FC = () => {
             pageTitle={undefined}
             memberReports={coachXMemberReports}
             onOpenCoachX={(query) => {
-              setCoachXChatInitialQuery(query);
-              setCoachView('COACHX_CHAT');
+              setCoachAIInitialQuery(query);
+              setCoachView('COACHX');
             }}
           />
         )}
@@ -2419,10 +2416,10 @@ const AppContent: React.FC = () => {
               setShowHomeworkModal(true);
             }}
             onOpenChatForStudent={() => {
-              setCoachXChatInitialQuery(
+              setCoachAIInitialQuery(
                 `${selectedStudentForDetail.name} 님에 대해 이야기하고 싶어요.`
               );
-              setCoachView('COACHX_CHAT');
+              setCoachView('COACHX');
             }}
             viewerCoachId={
               currentUser && 'id' in currentUser ? currentUser.id : undefined
@@ -2492,6 +2489,8 @@ const AppContent: React.FC = () => {
               setCoachView('NEW');
             }}
             onOpenProfile={() => setShowProfileModal(true)}
+            initialQuery={coachAIInitialQuery}
+            onInitialQueryConsumed={() => setCoachAIInitialQuery(undefined)}
           />
         )}
 
@@ -2502,34 +2501,9 @@ const AppContent: React.FC = () => {
             clients={clients}
             onBack={() => setCoachView('COACHX')}
             onOpenChat={(initialQuery) => {
-              setCoachXChatInitialQuery(initialQuery);
-              setCoachView('COACHX_CHAT');
-            }}
-          />
-        )}
-
-        {coachView === 'COACHX_CHAT' && currentUser && 'id' in currentUser && (
-          <CoachXChat
-            coachProfile={currentUser as CoachProfile}
-            allLessons={allCoachLessons}
-            clients={clients}
-            onBack={() => {
-              setCoachXChatInitialQuery(undefined);
+              setCoachAIInitialQuery(initialQuery);
               setCoachView('COACHX');
             }}
-            initialQuery={coachXChatInitialQuery}
-          />
-        )}
-
-        {coachView === 'COACHX_ASSISTANT' && currentUser && 'id' in currentUser && (
-          <CoachXAssistant
-            coachProfile={currentUser as CoachProfile}
-            allLessons={allCoachLessons}
-            clients={clients}
-            onBack={() => setCoachView('LESSON_LIST')}
-            onOpenBayReservation={() => setCoachView('RESERVATIONS')}
-            onOpenReservationManager={() => setCoachView('RESERVATIONS')}
-            onOpenCoachXHub={() => setCoachView('COACHX')}
           />
         )}
 
