@@ -99,7 +99,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
   }, [phase, coachName]);
 
   return (
-    <div className="animate-welcome-fade-in fixed inset-0 z-50 flex flex-col items-center justify-center overflow-hidden bg-[#030407] text-white">
+    <div className="animate-welcome-fade-in fixed inset-0 z-50 flex flex-col items-center justify-center overflow-hidden bg-base text-white">
       {/* Ambient background orbs */}
       <div aria-hidden="true" className="pointer-events-none absolute inset-0">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(56,189,248,0.07),transparent_55%)]" />

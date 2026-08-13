@@ -160,7 +160,7 @@ export const CoachAIHome: React.FC<CoachAIHomeProps> = ({
   );
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-[#030407] text-white">
+    <div className="fixed inset-0 z-50 flex flex-col bg-base text-white">
       {/* Ambient background */}
       <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(56,189,248,0.05),transparent_50%)]" />
@@ -169,7 +169,7 @@ export const CoachAIHome: React.FC<CoachAIHomeProps> = ({
       </div>
 
       {/* Header */}
-      <div className="relative z-10 flex items-center justify-between border-b border-white/8 bg-[#030407]/80 px-4 py-3 backdrop-blur-md">
+      <div className="relative z-10 flex items-center justify-between border-b border-white/8 bg-base/80 px-4 py-3 backdrop-blur-md">
         <div className="flex items-center gap-2.5">
           <CoachXMarkLive size={22} tone="dark" active={isTyping} />
           <div>
@@ -413,7 +413,7 @@ export const CoachAIHome: React.FC<CoachAIHomeProps> = ({
       )}
 
       {/* Input area */}
-      <div className="relative z-10 border-t border-white/8 bg-[#030407]/80 px-4 pb-safe pb-4 pt-3 backdrop-blur-md">
+      <div className="relative z-10 border-t border-white/8 bg-base/80 px-4 pb-safe pb-4 pt-3 backdrop-blur-md">
         {/* Mode toggle */}
         <div className="mb-3 flex justify-center">
           <div className="flex rounded-full border border-white/10 bg-white/4 p-0.5">
