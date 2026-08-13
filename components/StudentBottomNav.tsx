@@ -1,5 +1,5 @@
 import React from 'react';
-import { MessageSquare, Calendar, TrendingUp } from 'lucide-react';
+import { MessageSquare, Calendar, TrendingUp, Plus } from 'lucide-react';
 import { useLanguage } from './LanguageContext';
 
 export type StudentTab = 'HOME' | 'RESERVATION' | 'GROWTH';
@@ -7,6 +7,11 @@ export type StudentTab = 'HOME' | 'RESERVATION' | 'GROWTH';
 interface StudentBottomNavProps {
   activeTab: StudentTab;
   onTabChange: (tab: StudentTab) => void;
+  /**
+   * Raised center "+" CTA opens the new-lesson record form. Omit to hide the
+   * button entirely (e.g. when the caller has no save handler wired up).
+   */
+  onNewRecord?: () => void;
   /** When set, badges appear over the tab. */
   reservationBadge?: number;
   growthBadge?: number;
@@ -23,6 +28,12 @@ const labelFor = (tab: StudentTab, lang: 'ko' | 'en' | 'ja'): string => {
   return table[tab][lang];
 };
 
+const recordLabelFor = (lang: 'ko' | 'en' | 'ja'): string => {
+  if (lang === 'en') return 'Record';
+  if (lang === 'ja') return '記録';
+  return '기록';
+};
+
 const iconFor = (tab: StudentTab) => {
   switch (tab) {
     case 'HOME':
@@ -37,6 +48,7 @@ const iconFor = (tab: StudentTab) => {
 export const StudentBottomNav: React.FC<StudentBottomNavProps> = ({
   activeTab,
   onTabChange,
+  onNewRecord,
   reservationBadge,
   growthBadge,
 }) => {
@@ -77,16 +89,40 @@ export const StudentBottomNav: React.FC<StudentBottomNavProps> = ({
     );
   };
 
+  // The raised center CTA. Rendered as a floating button that overlaps the
+  // top edge of the nav so it reads as the primary action, not a tab.
+  const renderRecordButton = () => {
+    if (!onNewRecord) return null;
+    return (
+      <div className="pointer-events-none absolute left-1/2 -top-6 -translate-x-1/2 flex flex-col items-center">
+        <button
+          type="button"
+          onClick={onNewRecord}
+          aria-label={recordLabelFor(lang)}
+          className="pointer-events-auto w-14 h-14 rounded-full bg-emerald-500 text-white shadow-lg shadow-emerald-500/30 ring-4 ring-base flex items-center justify-center transition-transform hover:scale-105 active:scale-95"
+        >
+          <Plus className="w-6 h-6" strokeWidth={2.5} />
+        </button>
+        <span className="pointer-events-none mt-0.5 text-[10px] font-semibold text-ink-medium">
+          {recordLabelFor(lang)}
+        </span>
+      </div>
+    );
+  };
+
   return (
     <nav
       className="fixed bottom-0 inset-x-0 z-40 bg-base border-t border-line-subtle backdrop-blur-xl pb-safe"
       role="navigation"
       aria-label="Student navigation"
     >
-      <div className="max-w-md mx-auto grid grid-cols-3">
-        {renderTabButton('HOME')}
-        {renderTabButton('RESERVATION', reservationBadge)}
-        {renderTabButton('GROWTH', growthBadge)}
+      <div className="relative max-w-md mx-auto">
+        {renderRecordButton()}
+        <div className="grid grid-cols-3">
+          {renderTabButton('HOME')}
+          {renderTabButton('RESERVATION', reservationBadge)}
+          {renderTabButton('GROWTH', growthBadge)}
+        </div>
       </div>
     </nav>
   );
