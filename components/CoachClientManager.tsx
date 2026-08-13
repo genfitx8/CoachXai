@@ -388,7 +388,7 @@ export const CoachClientManager: React.FC<CoachClientManagerProps> = ({
                             ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                             : client.coachId
                               ? 'bg-amber-50 text-amber-700 border-amber-200'
-                              : 'bg-gray-100 text-gray-600 border-gray-200'
+                              : 'bg-white/[0.06] text-ink-medium border-line-subtle'
                         }`}
                       >
                         {assignmentLabel}
@@ -423,7 +423,7 @@ export const CoachClientManager: React.FC<CoachClientManagerProps> = ({
               </div>
 
               {client.memo && (
-                <div className="bg-white/[0.04] p-3 rounded-xl mb-3 border border-line-subtle">
+                <div className="bg-white/[0.04]/[0.04] p-3 rounded-xl mb-3 border border-line-subtle">
                   <p className="text-xs text-ink-medium line-clamp-2 flex gap-1">
                     <MessageSquare className="w-3 h-3 mt-0.5 flex-shrink-0" />{' '}
                     {client.memo}

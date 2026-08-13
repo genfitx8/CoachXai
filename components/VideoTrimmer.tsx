@@ -124,7 +124,7 @@ export const VideoTrimmer: React.FC<VideoTrimmerProps> = ({
             step="0.01"
             value={startTime}
             onChange={handleStartChange}
-            className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+            className="w-full h-2 bg-white/[0.10] rounded-lg appearance-none cursor-pointer accent-blue-600"
           />
         </div>
 
@@ -139,11 +139,11 @@ export const VideoTrimmer: React.FC<VideoTrimmerProps> = ({
             step="0.01"
             value={endTime}
             onChange={handleEndChange}
-            className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+            className="w-full h-2 bg-white/[0.10] rounded-lg appearance-none cursor-pointer accent-blue-600"
           />
         </div>
 
-        <div className="bg-gray-100 p-3 rounded-lg">
+        <div className="bg-white/[0.06] p-3 rounded-lg">
           <div className="text-sm">
             <div>전체 길이: {formatTime(duration)}</div>
             <div>선택 구간: {formatTime(startTime)} ~ {formatTime(endTime)}</div>

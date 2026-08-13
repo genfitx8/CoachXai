@@ -67,9 +67,9 @@ export const CoachSearch: React.FC<CoachSearchProps> = ({
   };
 
   return (
-    <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm space-y-4">
+    <div className="bg-white/[0.04] p-5 rounded-xl border border-line-subtle shadow-sm space-y-4">
       <div className="flex justify-between items-center mb-1">
-        <label className="text-sm font-bold text-gray-900 flex items-center gap-2">
+        <label className="text-sm font-bold text-ink-high flex items-center gap-2">
           <UserCheck className="w-4 h-4 text-emerald-600" /> 담당 코치 지정
         </label>
         {assignedCoachName && (
@@ -91,11 +91,11 @@ export const CoachSearch: React.FC<CoachSearchProps> = ({
             <p className="text-xs text-emerald-600 font-bold mb-0.5">
               현재 담당 코치
             </p>
-            <p className="text-lg font-bold text-gray-900">
+            <p className="text-lg font-bold text-ink-high">
               {assignedCoachName}
             </p>
           </div>
-          <div className="ml-auto bg-white p-1 rounded-full text-emerald-700 shadow-sm">
+          <div className="ml-auto bg-white/[0.04] p-1 rounded-full text-emerald-700 shadow-sm">
             <Check className="w-4 h-4" />
           </div>
         </div>
@@ -103,7 +103,7 @@ export const CoachSearch: React.FC<CoachSearchProps> = ({
         <div className="space-y-4">
           <div className="relative">
             <div className="relative">
-              <Search className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
+              <Search className="absolute left-3 top-3 w-5 h-5 text-ink-muted" />
               <input
                 type="text"
                 placeholder="코치 이름으로 검색하세요"
@@ -116,7 +116,7 @@ export const CoachSearch: React.FC<CoachSearchProps> = ({
                     handleSearch(e as any);
                   }
                 }}
-                className="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-700 outline-none transition-all"
+                className="w-full pl-10 pr-12 py-3 border border-line-subtle rounded-xl focus:ring-2 focus:ring-emerald-700 outline-none transition-all"
               />
               <button
                 type="button"
@@ -126,7 +126,7 @@ export const CoachSearch: React.FC<CoachSearchProps> = ({
                   handleSearch(e as any);
                 }}
                 disabled={isLoading || !searchTerm.trim()}
-                className="absolute right-2 top-2 bottom-2 bg-gray-900 text-white px-3 rounded-lg text-xs font-bold hover:bg-black disabled:bg-gray-300 transition-colors"
+                className="absolute right-2 top-2 bottom-2 bg-base text-white px-3 rounded-lg text-xs font-bold hover:bg-black disabled:bg-white/[0.10] transition-colors"
               >
                 검색
               </button>
@@ -142,23 +142,23 @@ export const CoachSearch: React.FC<CoachSearchProps> = ({
 
           {/* Results List */}
           {!isLoading && hasSearched && (
-            <div className="border border-gray-100 rounded-xl overflow-hidden animate-fade-in">
+            <div className="border border-line-subtle rounded-xl overflow-hidden animate-fade-in">
               {results.length > 0 ? (
                 <ul className="divide-y divide-gray-100">
                   {results.map((coach) => (
                     <li
                       key={coach.id}
-                      className="p-3 hover:bg-gray-50 flex items-center justify-between transition-colors"
+                      className="p-3 hover:bg-white/[0.03] flex items-center justify-between transition-colors"
                     >
                       <div className="flex items-center gap-3">
-                        <div className="bg-gray-100 p-2 rounded-full text-gray-500">
+                        <div className="bg-white/[0.06] p-2 rounded-full text-ink-muted">
                           <User className="w-4 h-4" />
                         </div>
                         <div>
-                          <p className="font-bold text-gray-900 text-sm">
+                          <p className="font-bold text-ink-high text-sm">
                             {coach.name}
                           </p>
-                          <p className="text-xs text-gray-500 font-mono">
+                          <p className="text-xs text-ink-muted font-mono">
                             ***-****-{coach.phoneLast4}
                           </p>
                         </div>
@@ -174,8 +174,8 @@ export const CoachSearch: React.FC<CoachSearchProps> = ({
                   ))}
                 </ul>
               ) : (
-                <div className="py-6 text-center text-gray-500 text-sm bg-gray-50 flex flex-col items-center gap-2">
-                  <AlertCircle className="w-5 h-5 text-gray-400" />
+                <div className="py-6 text-center text-ink-muted text-sm bg-white/[0.03] flex flex-col items-center gap-2">
+                  <AlertCircle className="w-5 h-5 text-ink-muted" />
                   <p>검색 결과가 없습니다.</p>
                 </div>
               )}

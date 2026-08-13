@@ -13,7 +13,7 @@ interface QuickGolfLogProps {
 const MOOD_OPTIONS: { value: QuickLogMood; label: string; emoji: string; color: string }[] = [
   { value: 'GREAT', label: '최고', emoji: '😄', color: 'bg-emerald-100 border-emerald-400 text-emerald-700' },
   { value: 'GOOD', label: '좋음', emoji: '😊', color: 'bg-green-100 border-green-400 text-green-700' },
-  { value: 'OKAY', label: '보통', emoji: '😐', color: 'bg-gray-100 border-gray-400 text-gray-700' },
+  { value: 'OKAY', label: '보통', emoji: '😐', color: 'bg-white/[0.06] border-line-subtle text-ink-medium' },
   { value: 'BAD', label: '나쁨', emoji: '😕', color: 'bg-orange-100 border-orange-400 text-orange-700' },
   { value: 'TERRIBLE', label: '최악', emoji: '😞', color: 'bg-red-100 border-red-400 text-red-700' },
 ];
@@ -83,31 +83,31 @@ export const QuickGolfLog: React.FC<QuickGolfLogProps> = ({ clientId, coachId, o
         <div className="bg-emerald-100 p-5 rounded-full">
           <CheckCircle className="w-12 h-12 text-emerald-700" />
         </div>
-        <p className="text-gray-800 font-bold text-lg">기록 완료! 🏌️</p>
-        <p className="text-gray-500 text-sm">오늘의 기록이 저장되었습니다.</p>
+        <p className="text-ink-high font-bold text-lg">기록 완료! 🏌️</p>
+        <p className="text-ink-muted text-sm">오늘의 기록이 저장되었습니다.</p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-5 animate-fade-in pb-8 text-gray-900">
+    <div className="space-y-5 animate-fade-in pb-8 text-ink-high">
       {/* Header */}
       <div className="flex items-center gap-3">
         <button
           onClick={onBack}
-          className="p-3 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-600 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
+          className="p-3 rounded-xl bg-white/[0.06] hover:bg-white/[0.10] text-ink-medium transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
           aria-label="뒤로"
         >
           <ChevronLeft className="w-5 h-5" />
         </button>
         <div className="w-1 h-6 bg-gradient-to-b from-emerald-700 to-teal-600 rounded-full" />
-        <h2 className="text-xl font-black text-gray-900">오늘의 빠른 기록</h2>
+        <h2 className="text-xl font-black text-ink-high">오늘의 빠른 기록</h2>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-5">
         {/* Mood */}
-        <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
-          <p className="text-sm font-bold text-gray-700 mb-3">오늘 샷감은 어땠나요?</p>
+        <div className="bg-white/[0.04] rounded-2xl p-5 shadow-sm border border-line-subtle">
+          <p className="text-sm font-bold text-ink-medium mb-3">오늘 샷감은 어땠나요?</p>
           <div className="flex gap-2 justify-between">
             {MOOD_OPTIONS.map((opt) => (
               <button
@@ -117,7 +117,7 @@ export const QuickGolfLog: React.FC<QuickGolfLogProps> = ({ clientId, coachId, o
                 className={`flex-1 flex flex-col items-center gap-1 py-3 rounded-xl border-2 transition-all ${
                   mood === opt.value
                     ? opt.color + ' scale-105 shadow-md'
-                    : 'border-gray-200 bg-white text-gray-500 hover:border-gray-300'
+                    : 'border-line-subtle bg-white/[0.04] text-ink-muted hover:border-line-subtle'
                 }`}
               >
                 <span className="text-2xl">{opt.emoji}</span>
@@ -128,7 +128,7 @@ export const QuickGolfLog: React.FC<QuickGolfLogProps> = ({ clientId, coachId, o
         </div>
 
         {/* Good Point */}
-        <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+        <div className="bg-white/[0.04] rounded-2xl p-5 shadow-sm border border-line-subtle">
           <label className="flex items-center gap-2 text-sm font-bold text-emerald-700 mb-2">
             <ThumbsUp className="w-4 h-4" />
             오늘 잘된 점 <span className="text-red-400">*</span>
@@ -138,14 +138,14 @@ export const QuickGolfLog: React.FC<QuickGolfLogProps> = ({ clientId, coachId, o
             value={goodPoint}
             onChange={(e) => setGoodPoint(e.target.value)}
             placeholder="예: 50m 웨지 컨트롤이 좋았다"
-            className="w-full text-sm p-3 border border-gray-200 rounded-xl focus:border-emerald-400 focus:ring-2 focus:ring-emerald-400/20 outline-none transition-all"
+            className="w-full text-sm p-3 border border-line-subtle rounded-xl focus:border-emerald-400 focus:ring-2 focus:ring-emerald-400/20 outline-none transition-all"
             maxLength={100}
             required
           />
         </div>
 
         {/* Problem Point */}
-        <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+        <div className="bg-white/[0.04] rounded-2xl p-5 shadow-sm border border-line-subtle">
           <label className="flex items-center gap-2 text-sm font-bold text-orange-600 mb-2">
             <ThumbsDown className="w-4 h-4" />
             개선이 필요한 점 <span className="text-red-400">*</span>
@@ -155,15 +155,15 @@ export const QuickGolfLog: React.FC<QuickGolfLogProps> = ({ clientId, coachId, o
             value={problemPoint}
             onChange={(e) => setProblemPoint(e.target.value)}
             placeholder="예: 드라이버 슬라이스가 심했다"
-            className="w-full text-sm p-3 border border-gray-200 rounded-xl focus:border-orange-400 focus:ring-2 focus:ring-orange-400/20 outline-none transition-all"
+            className="w-full text-sm p-3 border border-line-subtle rounded-xl focus:border-orange-400 focus:ring-2 focus:ring-orange-400/20 outline-none transition-all"
             maxLength={100}
             required
           />
         </div>
 
         {/* Practice Area */}
-        <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
-          <p className="text-sm font-bold text-gray-700 mb-3">오늘 주로 연습한 영역 (선택)</p>
+        <div className="bg-white/[0.04] rounded-2xl p-5 shadow-sm border border-line-subtle">
+          <p className="text-sm font-bold text-ink-medium mb-3">오늘 주로 연습한 영역 (선택)</p>
           <div className="flex flex-wrap gap-2">
             {AREA_OPTIONS.map((opt) => (
               <button
@@ -173,7 +173,7 @@ export const QuickGolfLog: React.FC<QuickGolfLogProps> = ({ clientId, coachId, o
                 className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-all ${
                   practiceArea === opt.value
                     ? 'bg-emerald-700 border-emerald-700 text-white shadow-md'
-                    : 'border-gray-200 bg-white text-gray-600 hover:border-emerald-300'
+                    : 'border-line-subtle bg-white/[0.04] text-ink-medium hover:border-emerald-300'
                 }`}
               >
                 {opt.label}
@@ -183,17 +183,17 @@ export const QuickGolfLog: React.FC<QuickGolfLogProps> = ({ clientId, coachId, o
         </div>
 
         {/* Notes */}
-        <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
-          <label className="text-sm font-bold text-gray-700 mb-2 block">추가 메모 (선택)</label>
+        <div className="bg-white/[0.04] rounded-2xl p-5 shadow-sm border border-line-subtle">
+          <label className="text-sm font-bold text-ink-medium mb-2 block">추가 메모 (선택)</label>
           <textarea
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             placeholder="오늘 기억하고 싶은 것을 자유롭게 적어주세요"
             rows={3}
-            className="w-full text-sm p-3 border border-gray-200 rounded-xl focus:border-emerald-400 focus:ring-2 focus:ring-emerald-400/20 outline-none transition-all resize-none"
+            className="w-full text-sm p-3 border border-line-subtle rounded-xl focus:border-emerald-400 focus:ring-2 focus:ring-emerald-400/20 outline-none transition-all resize-none"
             maxLength={300}
           />
-          <p className="text-[10px] text-gray-400 text-right mt-1">{notes.length}/300</p>
+          <p className="text-[10px] text-ink-muted text-right mt-1">{notes.length}/300</p>
         </div>
 
         {/* Submit */}

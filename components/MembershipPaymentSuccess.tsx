@@ -127,29 +127,29 @@ export const MembershipPaymentSuccess: React.FC<MembershipPaymentSuccessProps> =
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 to-blue-50 flex flex-col">
-      <div className="bg-white/80 backdrop-blur-sm border-b border-gray-100 px-4 py-3 flex items-center gap-3 sticky top-0 z-10">
+      <div className="bg-white/[0.08] backdrop-blur-sm border-b border-line-subtle px-4 py-3 flex items-center gap-3 sticky top-0 z-10">
         <BackButton onClick={onBack} tone="light" />
-        <h1 className="text-lg font-bold text-gray-900">멤버십 결제 결과</h1>
+        <h1 className="text-lg font-bold text-ink-high">멤버십 결제 결과</h1>
       </div>
 
       <div className="flex-1 flex flex-col items-center justify-center p-6">
       {status === 'loading' && (
         <div className="text-center space-y-4">
           <Loader2 className="w-16 h-16 text-emerald-700 animate-spin mx-auto" />
-          <p className="text-gray-600 font-medium">멤버십 결제를 확인하는 중입니다…</p>
+          <p className="text-ink-medium font-medium">멤버십 결제를 확인하는 중입니다…</p>
         </div>
       )}
 
       {status === 'success' && (
-        <div className="bg-white rounded-3xl shadow-xl p-6 sm:p-8 max-w-sm w-full text-center space-y-5">
+        <div className="bg-white/[0.04] rounded-3xl shadow-xl p-6 sm:p-8 max-w-sm w-full text-center space-y-5">
           <CheckCircle className="w-20 h-20 text-emerald-700 mx-auto" />
           <div>
-            <h2 className="text-2xl font-black text-gray-900">업그레이드 완료!</h2>
-            <p className="text-gray-500 mt-1 text-sm">{planName}이 활성화되었습니다</p>
+            <h2 className="text-2xl font-black text-ink-high">업그레이드 완료!</h2>
+            <p className="text-ink-muted mt-1 text-sm">{planName}이 활성화되었습니다</p>
           </div>
-          <div className="bg-emerald-50 rounded-2xl p-4 text-sm text-gray-700">
+          <div className="bg-emerald-50 rounded-2xl p-4 text-sm text-ink-medium">
             <div className="font-bold text-emerald-700">멤버십 만료일</div>
-            <div className="text-lg font-black text-gray-900 mt-1 break-keep">{endDate}</div>
+            <div className="text-lg font-black text-ink-high mt-1 break-keep">{endDate}</div>
           </div>
           <button
             onClick={onBack}
@@ -161,15 +161,15 @@ export const MembershipPaymentSuccess: React.FC<MembershipPaymentSuccessProps> =
       )}
 
       {status === 'error' && (
-        <div className="bg-white rounded-3xl shadow-xl p-6 sm:p-8 max-w-sm w-full text-center space-y-5">
+        <div className="bg-white/[0.04] rounded-3xl shadow-xl p-6 sm:p-8 max-w-sm w-full text-center space-y-5">
           <AlertCircle className="w-20 h-20 text-red-400 mx-auto" />
           <div>
-            <h2 className="text-xl font-black text-gray-900">결제 확인 실패</h2>
+            <h2 className="text-xl font-black text-ink-high">결제 확인 실패</h2>
             <p className="text-red-500 mt-2 text-sm">{errorMsg}</p>
           </div>
           <button
             onClick={onBack}
-            className="w-full flex items-center justify-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-2xl py-3 font-bold transition-colors"
+            className="w-full flex items-center justify-center gap-2 bg-white/[0.06] hover:bg-white/[0.10] text-ink-medium rounded-2xl py-3 font-bold transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
             돌아가기

@@ -102,11 +102,11 @@ export const PointPurchase: React.FC<PointPurchaseProps> = ({
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 to-teal-50">
       {/* Header */}
-      <div className="bg-white/80 backdrop-blur-sm border-b border-gray-100 px-4 py-4 flex items-center gap-3 sticky top-0 z-10">
+      <div className="bg-white/[0.08] backdrop-blur-sm border-b border-line-subtle px-4 py-4 flex items-center gap-3 sticky top-0 z-10">
         <BackButton onClick={onBack} tone="light" />
         <div>
-          <h1 className="text-lg font-bold text-gray-900">포인트 구매</h1>
-          <p className="text-xs text-gray-500">
+          <h1 className="text-lg font-bold text-ink-high">포인트 구매</h1>
+          <p className="text-xs text-ink-muted">
             현재 보유: {(clientProfile.currentPoints ?? 0).toLocaleString()}P
           </p>
         </div>
@@ -122,7 +122,7 @@ export const PointPurchase: React.FC<PointPurchaseProps> = ({
               className={`w-full relative rounded-2xl p-4 border-2 transition-all text-left flex items-center justify-between ${
                 selected?.points === pkg.points
                   ? 'border-emerald-700 bg-emerald-50 shadow-md shadow-emerald-100'
-                  : 'border-gray-200 bg-white hover:border-emerald-300'
+                  : 'border-line-subtle bg-white/[0.04] hover:border-emerald-300'
               }`}
             >
               {pkg.popular && (
@@ -135,20 +135,20 @@ export const PointPurchase: React.FC<PointPurchaseProps> = ({
                   className={`p-2.5 rounded-xl ${
                     selected?.points === pkg.points
                       ? 'bg-emerald-700 text-white'
-                      : 'bg-gray-100 text-gray-600'
+                      : 'bg-white/[0.06] text-ink-medium'
                   }`}
                 >
                   {pkg.icon}
                 </div>
                 <div>
-                  <div className="font-bold text-gray-900">{pkg.label}</div>
+                  <div className="font-bold text-ink-high">{pkg.label}</div>
                   <div className="text-sm text-emerald-600 font-semibold">
                     {pkg.points.toLocaleString()}P
                   </div>
                 </div>
               </div>
               <div className="text-right">
-                <div className="font-bold text-gray-900">
+                <div className="font-bold text-ink-high">
                   ₩{pkg.amount.toLocaleString()}
                 </div>
               </div>
@@ -184,7 +184,7 @@ export const PointPurchase: React.FC<PointPurchaseProps> = ({
           )}
         </button>
 
-        <p className="text-center text-xs text-gray-400 pb-4">
+        <p className="text-center text-xs text-ink-muted pb-4">
           PayApp으로 안전하게 결제됩니다
         </p>
       </div>

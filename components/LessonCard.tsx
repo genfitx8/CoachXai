@@ -54,7 +54,7 @@ export const LessonCard: React.FC<LessonCardProps> = ({ lesson, onClick, onShare
   const renderMediaPreview = () => {
     if (mediaError || !lessonMediaUrl) {
         return (
-            <div className="w-full h-full flex flex-col items-center justify-center bg-gray-100 text-gray-400">
+            <div className="w-full h-full flex flex-col items-center justify-center bg-white/[0.06] text-ink-muted">
                 <AlertCircle className="w-8 h-8 mb-2 opacity-50" />
                 <span className="text-xs">{t('media_load_error')}</span>
             </div>
@@ -74,7 +74,7 @@ export const LessonCard: React.FC<LessonCardProps> = ({ lesson, onClick, onShare
         case 'audio':
             return (
                 <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-emerald-800 to-gray-900">
-                    <div className="w-16 h-16 bg-white/10 rounded-full flex items-center justify-center backdrop-blur-sm">
+                    <div className="w-16 h-16 bg-white/[0.04]/10 rounded-full flex items-center justify-center backdrop-blur-sm">
                         <Mic className="w-8 h-8 text-emerald-300" />
                     </div>
                     <div className="mt-3 flex gap-1">
@@ -163,10 +163,10 @@ export const LessonCard: React.FC<LessonCardProps> = ({ lesson, onClick, onShare
   return (
     <div 
       onClick={() => onClick(lesson)}
-      className="bg-white rounded-xl shadow-md border border-gray-100 overflow-hidden hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 cursor-pointer group flex flex-col h-full relative"
+      className="bg-white/[0.04] rounded-xl shadow-md border border-line-subtle overflow-hidden hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 cursor-pointer group flex flex-col h-full relative"
     >
       {showMedia ? (
-        <div className="relative aspect-[9/16] bg-gray-200 flex items-center justify-center overflow-hidden">
+        <div className="relative aspect-[9/16] bg-white/[0.10] flex items-center justify-center overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent z-10" />
           
           {renderMediaPreview()}
@@ -192,24 +192,24 @@ export const LessonCard: React.FC<LessonCardProps> = ({ lesson, onClick, onShare
           )}
         </div>
       ) : (
-        <div className="relative h-12 bg-gradient-to-r from-gray-50 to-gray-100 flex items-center justify-center border-b border-gray-200">
-          <span className="text-xs text-gray-400 font-medium">{t('media_hidden')}</span>
+        <div className="relative h-12 bg-gradient-to-r from-gray-50 to-gray-100 flex items-center justify-center border-b border-line-subtle">
+          <span className="text-xs text-ink-muted font-medium">{t('media_hidden')}</span>
         </div>
       )}
       
       <div className="p-4 flex-1 flex flex-col">
         {/* Client Name */}
-        <div className="flex items-center text-xs text-gray-400 mb-1.5">
+        <div className="flex items-center text-xs text-ink-muted mb-1.5">
           <User className="w-3 h-3 mr-1" />
           <span className="font-medium">{lesson.clientName || t('client')}</span>
         </div>
         
         <div className="flex justify-between items-start mb-2 gap-2">
-          <h3 className="font-bold text-gray-900 line-clamp-1 group-hover:text-emerald-600 transition-colors text-sm min-w-0 flex-1">
+          <h3 className="font-bold text-ink-high line-clamp-1 group-hover:text-emerald-600 transition-colors text-sm min-w-0 flex-1">
             {lesson.title}
           </h3>
           {(lesson.club || typeof lesson.targetDistance === 'number') && (
-              <span className="flex-shrink-0 inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-semibold bg-gradient-to-r from-gray-100 to-gray-200 text-gray-800 border border-gray-300 truncate max-w-[100px] sm:max-w-[120px] shadow-sm">
+              <span className="flex-shrink-0 inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-semibold bg-gradient-to-r from-gray-100 to-gray-200 text-ink-high border border-line-subtle truncate max-w-[100px] sm:max-w-[120px] shadow-sm">
                   {lesson.club}
                   {lesson.club && typeof lesson.targetDistance === 'number' && ' · '}
                   {typeof lesson.targetDistance === 'number' && `${lesson.targetDistance}m`}
@@ -217,7 +217,7 @@ export const LessonCard: React.FC<LessonCardProps> = ({ lesson, onClick, onShare
           )}
         </div>
         
-        <div className="flex items-center text-xs text-gray-400 mb-3">
+        <div className="flex items-center text-xs text-ink-muted mb-3">
           <Calendar className="w-3 h-3 mr-1" />
           <span className="font-medium">{lesson.date}</span>
         </div>
@@ -230,7 +230,7 @@ export const LessonCard: React.FC<LessonCardProps> = ({ lesson, onClick, onShare
           ))}
         </div>
 
-        <div className="mt-auto pt-3 border-t border-gray-100 flex items-center justify-between">
+        <div className="mt-auto pt-3 border-t border-line-subtle flex items-center justify-between">
             <div className="flex items-center text-xs font-semibold text-emerald-600 group-hover:text-emerald-700 transition-colors">
                 {t('view_detail')} <ChevronRight className="w-3.5 h-3.5 ml-0.5 group-hover:translate-x-1 transition-transform" />
             </div>
@@ -239,7 +239,7 @@ export const LessonCard: React.FC<LessonCardProps> = ({ lesson, onClick, onShare
                 {onDelete && (
                     <button 
                         onClick={(e) => { e.stopPropagation(); onDelete(lesson, e); }}
-                        className="text-gray-400 hover:text-red-500 transition-colors p-1.5 rounded-full hover:bg-red-50 hover:scale-110 transform duration-200"
+                        className="text-ink-muted hover:text-red-500 transition-colors p-1.5 rounded-full hover:bg-red-50 hover:scale-110 transform duration-200"
                         title={t('delete')}
                     >
                         <Trash2 className="w-4 h-4" />

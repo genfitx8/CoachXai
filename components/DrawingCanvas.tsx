@@ -265,14 +265,14 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
 
         {/* Drawing Canvas */}
         <div className="space-y-2">
-          <div className="relative bg-gray-900 rounded-lg overflow-hidden">
+          <div className="relative bg-base rounded-lg overflow-hidden">
             <canvas ref={canvasRef} className="w-full" />
           </div>
         </div>
       </div>
 
       {/* Drawing Tools */}
-      <div className="bg-gray-50 p-4 rounded-lg space-y-4">
+      <div className="bg-white/[0.03] p-4 rounded-lg space-y-4">
         <div>
           <label className="block text-sm font-medium mb-2">도구</label>
           <div className="flex gap-2 flex-wrap">
@@ -332,7 +332,7 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
                 key={color.value}
                 onClick={() => setSelectedColor(color.value)}
                 className={`w-10 h-10 rounded-full border-2 ${
-                  selectedColor === color.value ? 'border-gray-900 scale-110' : 'border-gray-300'
+                  selectedColor === color.value ? 'border-ink-high scale-110' : 'border-line-subtle'
                 } transition-transform`}
                 style={{ backgroundColor: color.value }}
                 title={color.name}

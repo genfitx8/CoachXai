@@ -62,11 +62,11 @@ export const LessonStartPromptModal: React.FC<LessonStartPromptModalProps> = ({
       aria-label={t('lesson_start_prompt_title')}
     >
       {/* Card */}
-      <div className="relative w-full sm:max-w-md mx-4 mb-4 sm:mb-0 bg-white rounded-2xl shadow-2xl overflow-hidden animate-slide-up">
+      <div className="relative w-full sm:max-w-md mx-4 mb-4 sm:mb-0 bg-white/[0.04] rounded-2xl shadow-2xl overflow-hidden animate-slide-up">
         {/* Close / remind-later button */}
         <button
           onClick={() => onRemindLater(suggestion)}
-          className="absolute top-3 right-3 text-gray-400 hover:text-gray-600 transition-colors"
+          className="absolute top-3 right-3 text-ink-muted hover:text-ink-medium transition-colors"
           aria-label={t('lesson_start_prompt_later_btn')}
         >
           <X className="w-5 h-5" />
@@ -85,7 +85,7 @@ export const LessonStartPromptModal: React.FC<LessonStartPromptModalProps> = ({
               <p className="text-xs font-semibold text-emerald-500 uppercase tracking-wide">
                 {t('lesson_start_prompt_title')}
               </p>
-              <h2 className="text-base font-bold text-gray-900 leading-snug">
+              <h2 className="text-base font-bold text-ink-high leading-snug">
                 {t('lesson_start_prompt_body').replace(
                   '{clientName}',
                   reservation.clientName ?? '',
@@ -122,13 +122,13 @@ export const LessonStartPromptModal: React.FC<LessonStartPromptModalProps> = ({
             <div className="flex gap-2">
               <button
                 onClick={() => onRemindLater(suggestion)}
-                className="flex-1 py-2.5 rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 font-medium text-sm transition-colors"
+                className="flex-1 py-2.5 rounded-xl border border-line-subtle text-ink-medium hover:bg-white/[0.03] font-medium text-sm transition-colors"
               >
                 {t('lesson_start_prompt_later_btn')}
               </button>
               <button
                 onClick={() => onSkipToday(suggestion)}
-                className="flex-1 py-2.5 rounded-xl border border-gray-200 text-gray-500 hover:bg-gray-50 font-medium text-sm transition-colors flex items-center justify-center gap-1.5"
+                className="flex-1 py-2.5 rounded-xl border border-line-subtle text-ink-muted hover:bg-white/[0.03] font-medium text-sm transition-colors flex items-center justify-center gap-1.5"
               >
                 <BellOff className="w-3.5 h-3.5" />
                 {t('lesson_start_prompt_skip_today_btn')}
