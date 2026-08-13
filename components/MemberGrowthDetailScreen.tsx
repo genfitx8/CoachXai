@@ -110,7 +110,7 @@ const GrowthScoreGauge: React.FC<{ score: number }> = ({ score }) => {
         {/* Score label */}
         <div className="absolute inset-0 flex flex-col items-center justify-center">
           <span className={`text-2xl font-extrabold leading-none ${text}`}>{score}</span>
-          <span className="text-[10px] text-gray-400 mt-0.5">{t('coachx_growth_score_label')}</span>
+          <span className="text-[10px] text-ink-muted mt-0.5">{t('coachx_growth_score_label')}</span>
         </div>
       </div>
     </div>
@@ -145,7 +145,7 @@ const WeeklySparkline: React.FC<{ data: { weekLabel: string; count: number }[] }
               className={`w-full rounded-t-sm transition-all ${isLatest ? 'bg-emerald-500' : 'bg-emerald-200'}`}
               style={{ height: `${height}px` }}
             />
-            <span className="text-[8px] text-gray-400 leading-none">{d.weekLabel}</span>
+            <span className="text-[8px] text-ink-muted leading-none">{d.weekLabel}</span>
           </div>
         );
       })}
@@ -170,7 +170,7 @@ const TopicProgressionPanel: React.FC<{
 
   if (early.length === 0 && recent.length === 0) {
     return (
-      <p className="text-xs text-gray-400 italic">{t('coachx_topic_progression_empty')}</p>
+      <p className="text-xs text-ink-muted italic">{t('coachx_topic_progression_empty')}</p>
     );
   }
 
@@ -180,7 +180,7 @@ const TopicProgressionPanel: React.FC<{
       <div className="flex items-start gap-2">
         {/* Early column */}
         <div className="flex-1 min-w-0">
-          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1.5">
+          <p className="text-[10px] font-semibold text-ink-muted uppercase tracking-wide mb-1.5">
             {t('coachx_topic_early')}
           </p>
           {early.length > 0 ? (
@@ -199,15 +199,15 @@ const TopicProgressionPanel: React.FC<{
               ))}
             </div>
           ) : (
-            <p className="text-xs text-gray-400 italic">{t('coachx_topic_no_data')}</p>
+            <p className="text-xs text-ink-muted italic">{t('coachx_topic_no_data')}</p>
           )}
         </div>
 
-        <ArrowRight className="w-4 h-4 text-gray-300 mt-5 flex-shrink-0" />
+        <ArrowRight className="w-4 h-4 text-ink-muted mt-5 flex-shrink-0" />
 
         {/* Recent column */}
         <div className="flex-1 min-w-0">
-          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1.5">
+          <p className="text-[10px] font-semibold text-ink-muted uppercase tracking-wide mb-1.5">
             {t('coachx_topic_recent')}
           </p>
           {recent.length > 0 ? (
@@ -226,14 +226,14 @@ const TopicProgressionPanel: React.FC<{
               ))}
             </div>
           ) : (
-            <p className="text-xs text-gray-400 italic">{t('coachx_topic_no_data')}</p>
+            <p className="text-xs text-ink-muted italic">{t('coachx_topic_no_data')}</p>
           )}
         </div>
       </div>
 
       {/* Legend */}
       {(resolved.length > 0 || ongoing.length > 0 || newFocus.length > 0) && (
-        <div className="flex flex-wrap gap-2 pt-1 border-t border-gray-50">
+        <div className="flex flex-wrap gap-2 pt-1 border-t border-line-subtle">
           {resolved.length > 0 && (
             <span className="flex items-center gap-1 text-[10px] text-emerald-600">
               <CheckCircle2 className="w-3 h-3" />{t('coachx_topic_resolved')}: {resolved.join(', ')}
@@ -266,16 +266,16 @@ const IssueResolutionBar: React.FC<{ rate: number }> = ({ rate }) => {
   return (
     <div>
       <div className="flex justify-between items-center mb-1.5">
-        <span className="text-xs font-semibold text-gray-600">{t('coachx_issue_resolution_rate')}</span>
+        <span className="text-xs font-semibold text-ink-medium">{t('coachx_issue_resolution_rate')}</span>
         <span className={`text-xs font-bold ${textColor}`}>{pct}%</span>
       </div>
-      <div className="w-full bg-gray-100 rounded-full h-2.5 overflow-hidden">
+      <div className="w-full bg-white/[0.06] rounded-full h-2.5 overflow-hidden">
         <div
           className={`h-2.5 rounded-full transition-all duration-500 ${color}`}
           style={{ width: `${pct}%` }}
         />
       </div>
-      <p className="text-[10px] text-gray-400 mt-1">{t('coachx_issue_resolution_desc')}</p>
+      <p className="text-[10px] text-ink-muted mt-1">{t('coachx_issue_resolution_desc')}</p>
     </div>
   );
 };
@@ -301,7 +301,7 @@ export const MemberGrowthDetailScreen: React.FC<MemberGrowthDetailScreenProps> =
   }, [report.lessonCadence, t]);
 
   const cadenceColor = useMemo(() => {
-    if (report.lessonCadence === null) return 'text-gray-500';
+    if (report.lessonCadence === null) return 'text-ink-muted';
     if (report.lessonCadence <= 14)  return 'text-emerald-600';
     if (report.lessonCadence <= 21)  return 'text-amber-600';
     return 'text-red-500';
@@ -346,10 +346,10 @@ export const MemberGrowthDetailScreen: React.FC<MemberGrowthDetailScreenProps> =
   }, [report, t]);
 
   return (
-    <div className="flex flex-col min-h-screen bg-gray-50 animate-fade-in">
+    <div className="flex flex-col min-h-screen bg-white/[0.03] animate-fade-in">
       {/* ── Header ──────────────────────────────────────────────────────────── */}
       <div className="bg-gradient-to-br from-gray-900 via-emerald-950 to-emerald-950 px-4 pt-6 pb-8 relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-40 h-40 bg-slate-600/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute top-0 right-0 w-40 h-40 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
 
         <button
           onClick={onBack}
@@ -361,7 +361,7 @@ export const MemberGrowthDetailScreen: React.FC<MemberGrowthDetailScreenProps> =
 
         {/* Member identity row */}
         <div className="relative z-10 flex items-center gap-4 mb-5">
-          <div className="w-16 h-16 rounded-2xl bg-white/15 flex items-center justify-center text-2xl font-extrabold text-white flex-shrink-0">
+          <div className="w-16 h-16 rounded-2xl bg-white/[0.04]/15 flex items-center justify-center text-2xl font-extrabold text-white flex-shrink-0">
             {report.clientName.charAt(0) || '?'}
           </div>
           <div className="flex-1 min-w-0">
@@ -380,17 +380,17 @@ export const MemberGrowthDetailScreen: React.FC<MemberGrowthDetailScreenProps> =
 
         {/* Quick stats strip */}
         <div className="relative z-10 grid grid-cols-3 gap-2">
-          <div className="bg-white/10 rounded-xl p-3 text-center">
+          <div className="bg-white/[0.04]/10 rounded-xl p-3 text-center">
             <p className="text-lg font-bold text-white">{report.lessonCount}</p>
             <p className="text-[10px] text-white/60">{t('coachx_stat_lessons')}</p>
           </div>
-          <div className="bg-white/10 rounded-xl p-3 text-center">
+          <div className="bg-white/[0.04]/10 rounded-xl p-3 text-center">
             <p className="text-lg font-bold text-white">
               {report.lessonCadence !== null ? `${report.lessonCadence}d` : '—'}
             </p>
             <p className="text-[10px] text-white/60">{t('coachx_cadence_avg_days')}</p>
           </div>
-          <div className="bg-white/10 rounded-xl p-3 text-center">
+          <div className="bg-white/[0.04]/10 rounded-xl p-3 text-center">
             <p className="text-lg font-bold text-white">
               {report.daysSinceLastLesson !== null ? `${report.daysSinceLastLesson}d` : '—'}
             </p>
@@ -405,7 +405,7 @@ export const MemberGrowthDetailScreen: React.FC<MemberGrowthDetailScreenProps> =
           onClick={() => onAskCoachX(report.clientName)}
           className="w-full bg-gradient-to-r from-slate-700 to-slate-800 hover:from-slate-600 hover:to-slate-700 text-white rounded-2xl p-3.5 flex items-center gap-3 shadow-lg shadow-slate-900/15 transition-all"
         >
-          <div className="w-9 h-9 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0">
+          <div className="w-9 h-9 bg-white/[0.04]/20 rounded-xl flex items-center justify-center flex-shrink-0">
             <MessageSquare className="w-4 h-4 text-white" />
           </div>
           <div className="flex-1 text-left">
@@ -428,8 +428,8 @@ export const MemberGrowthDetailScreen: React.FC<MemberGrowthDetailScreenProps> =
         </div>
 
         {/* ── Weekly Activity Sparkline ─────────────────────────────────── */}
-        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide flex items-center gap-1.5 mb-3">
+        <div className="bg-white/[0.04] rounded-xl border border-line-subtle shadow-sm p-4">
+          <p className="text-xs font-semibold text-ink-muted uppercase tracking-wide flex items-center gap-1.5 mb-3">
             <BarChart3 className="w-3.5 h-3.5 text-emerald-500" />
             {t('coachx_weekly_activity_title')}
           </p>
@@ -437,8 +437,8 @@ export const MemberGrowthDetailScreen: React.FC<MemberGrowthDetailScreenProps> =
         </div>
 
         {/* ── Growth Metrics ────────────────────────────────────────────── */}
-        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 space-y-4">
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide flex items-center gap-1.5">
+        <div className="bg-white/[0.04] rounded-xl border border-line-subtle shadow-sm p-4 space-y-4">
+          <p className="text-xs font-semibold text-ink-muted uppercase tracking-wide flex items-center gap-1.5">
             <TrendingUp className="w-3.5 h-3.5 text-emerald-500" />
             {t('coachx_growth_metrics_title')}
           </p>
@@ -449,10 +449,10 @@ export const MemberGrowthDetailScreen: React.FC<MemberGrowthDetailScreenProps> =
           {/* Lesson cadence */}
           <div>
             <div className="flex justify-between items-center mb-1">
-              <span className="text-xs font-semibold text-gray-600">{t('coachx_lesson_cadence_title')}</span>
+              <span className="text-xs font-semibold text-ink-medium">{t('coachx_lesson_cadence_title')}</span>
               <span className={`text-xs font-bold ${cadenceColor}`}>{cadenceLabel}</span>
             </div>
-            <p className="text-[10px] text-gray-400">
+            <p className="text-[10px] text-ink-muted">
               {report.lessonCadence !== null
                 ? t('coachx_cadence_value').replace('{n}', String(report.lessonCadence))
                 : t('coachx_cadence_insufficient_data')}
@@ -462,10 +462,10 @@ export const MemberGrowthDetailScreen: React.FC<MemberGrowthDetailScreenProps> =
           {/* Growth score breakdown */}
           <div>
             <div className="flex justify-between items-center mb-1.5">
-              <span className="text-xs font-semibold text-gray-600">{t('coachx_growth_score_breakdown')}</span>
+              <span className="text-xs font-semibold text-ink-medium">{t('coachx_growth_score_breakdown')}</span>
               <span className={`text-sm font-extrabold ${scoreText}`}>{report.growthScore}/100</span>
             </div>
-            <div className="w-full bg-gray-100 rounded-full h-2.5 overflow-hidden">
+            <div className="w-full bg-white/[0.06] rounded-full h-2.5 overflow-hidden">
               <div
                 className={`h-2.5 rounded-full transition-all duration-500 ${
                   report.growthScore >= 70 ? 'bg-emerald-700' :
@@ -474,13 +474,13 @@ export const MemberGrowthDetailScreen: React.FC<MemberGrowthDetailScreenProps> =
                 style={{ width: `${report.growthScore}%` }}
               />
             </div>
-            <p className="text-[10px] text-gray-400 mt-1">{t('coachx_growth_score_desc')}</p>
+            <p className="text-[10px] text-ink-muted mt-1">{t('coachx_growth_score_desc')}</p>
           </div>
         </div>
 
         {/* ── Topic Progression ─────────────────────────────────────────── */}
-        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide flex items-center gap-1.5 mb-3">
+        <div className="bg-white/[0.04] rounded-xl border border-line-subtle shadow-sm p-4">
+          <p className="text-xs font-semibold text-ink-muted uppercase tracking-wide flex items-center gap-1.5 mb-3">
             <Activity className="w-3.5 h-3.5 text-emerald-500" />
             {t('coachx_topic_progression_title')}
           </p>
@@ -499,7 +499,7 @@ export const MemberGrowthDetailScreen: React.FC<MemberGrowthDetailScreenProps> =
             </p>
             <div className="flex flex-wrap gap-1.5">
               {report.repeatedIssues.map((issue, i) => (
-                <span key={i} className="text-xs bg-white text-amber-700 border border-amber-200 rounded-full px-2.5 py-1 font-medium flex items-center gap-1">
+                <span key={i} className="text-xs bg-white/[0.04] text-amber-700 border border-amber-200 rounded-full px-2.5 py-1 font-medium flex items-center gap-1">
                   <XCircle className="w-3 h-3 opacity-60" /> {issue}
                 </span>
               ))}
@@ -516,7 +516,7 @@ export const MemberGrowthDetailScreen: React.FC<MemberGrowthDetailScreenProps> =
             </p>
             <div className="flex flex-wrap gap-1.5">
               {report.strengths.map((s, i) => (
-                <span key={i} className="text-xs bg-white text-emerald-700 border border-emerald-200 rounded-full px-2.5 py-1 font-medium flex items-center gap-1">
+                <span key={i} className="text-xs bg-white/[0.04] text-emerald-700 border border-emerald-200 rounded-full px-2.5 py-1 font-medium flex items-center gap-1">
                   <CheckCircle2 className="w-3 h-3 opacity-70" /> {s}
                 </span>
               ))}
@@ -525,7 +525,7 @@ export const MemberGrowthDetailScreen: React.FC<MemberGrowthDetailScreenProps> =
         )}
 
         {/* ── Recommended Coaching Actions ─────────────────────────────── */}
-        <div className="bg-slate-50 rounded-xl border border-slate-100 p-4">
+        <div className="bg-white/[0.03] rounded-xl border border-line-subtle p-4">
           <p className="text-xs font-semibold text-emerald-700 uppercase tracking-wide flex items-center gap-1.5 mb-3">
             <Zap className="w-3.5 h-3.5" />
             {t('coachx_detail_actions_title')}
@@ -534,31 +534,31 @@ export const MemberGrowthDetailScreen: React.FC<MemberGrowthDetailScreenProps> =
             {actions.map((action, i) => (
               <li key={i} className="flex items-start gap-2">
                 <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0 mt-0.5" />
-                <p className="text-xs text-gray-700 leading-relaxed">{action}</p>
+                <p className="text-xs text-ink-medium leading-relaxed">{action}</p>
               </li>
             ))}
           </ul>
         </div>
 
         {/* ── Next Lesson Suggestion ────────────────────────────────────── */}
-        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide flex items-center gap-1.5 mb-2.5">
+        <div className="bg-white/[0.04] rounded-xl border border-line-subtle shadow-sm p-4">
+          <p className="text-xs font-semibold text-ink-muted uppercase tracking-wide flex items-center gap-1.5 mb-2.5">
             <Dumbbell className="w-3.5 h-3.5 text-emerald-500" />
             {t('coachx_suggested_focus')}
           </p>
-          <p className="text-sm text-gray-800 bg-emerald-50 rounded-lg px-3 py-2.5 leading-relaxed font-medium">
+          <p className="text-sm text-ink-high bg-emerald-50 rounded-lg px-3 py-2.5 leading-relaxed font-medium">
             {report.suggestedNextLesson}
           </p>
           {report.drillSuggestions.length > 0 && (
-            <div className="mt-3 pt-3 border-t border-gray-50">
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+            <div className="mt-3 pt-3 border-t border-line-subtle">
+              <p className="text-xs font-semibold text-ink-muted uppercase tracking-wide mb-2">
                 {t('coachx_suggested_drills_short')}
               </p>
               <ul className="space-y-1.5">
                 {report.drillSuggestions.map((drill, i) => (
                   <li key={i} className="flex items-start gap-1.5">
                     <span className="text-emerald-400 font-bold text-xs flex-shrink-0 mt-0.5">▸</span>
-                    <p className="text-xs text-gray-700">{drill}</p>
+                    <p className="text-xs text-ink-medium">{drill}</p>
                   </li>
                 ))}
               </ul>

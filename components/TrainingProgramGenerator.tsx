@@ -252,21 +252,21 @@ export const TrainingProgramGenerator: React.FC<TrainingProgramGeneratorProps> =
   // ── Render ───────────────────────────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen bg-gray-50 text-gray-900 pb-24">
+    <div className="min-h-screen bg-white/[0.03] text-ink-high pb-24">
       {/* Header */}
-      <div className="sticky top-0 z-10 bg-white border-b border-gray-200 px-4 py-3 flex items-center gap-3">
+      <div className="sticky top-0 z-10 bg-white/[0.04] border-b border-line-subtle px-4 py-3 flex items-center gap-3">
         <button
           onClick={onBack}
-          className="p-2 rounded-xl hover:bg-gray-100 transition-colors"
+          className="p-2 rounded-xl hover:bg-white/[0.06] transition-colors"
           aria-label="뒤로가기"
         >
-          <ArrowLeft className="w-5 h-5 text-gray-600" />
+          <ArrowLeft className="w-5 h-5 text-ink-medium" />
         </button>
         <div>
-          <h1 className="font-bold text-gray-900 text-base leading-tight">
+          <h1 className="font-bold text-ink-high text-base leading-tight">
             훈련 프로그램 생성
           </h1>
-          <p className="text-xs text-gray-500">{client.name} 회원</p>
+          <p className="text-xs text-ink-muted">{client.name} 회원</p>
         </div>
       </div>
 
@@ -283,8 +283,8 @@ export const TrainingProgramGenerator: React.FC<TrainingProgramGeneratorProps> =
         </div>
 
         {/* Config form */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 space-y-4">
-          <h2 className="font-bold text-gray-800 text-sm flex items-center gap-2">
+        <div className="bg-white/[0.04] rounded-2xl shadow-sm border border-line-subtle p-5 space-y-4">
+          <h2 className="font-bold text-ink-high text-sm flex items-center gap-2">
             <Target className="w-4 h-4 text-emerald-500" />
             프로그램 설정
           </h2>
@@ -292,7 +292,7 @@ export const TrainingProgramGenerator: React.FC<TrainingProgramGeneratorProps> =
           {/* Date range */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-bold text-gray-500 mb-1">
+              <label className="block text-xs font-bold text-ink-muted mb-1">
                 <Calendar className="w-3 h-3 inline mr-1" />
                 시작 날짜 <span className="text-red-500">*</span>
               </label>
@@ -303,11 +303,11 @@ export const TrainingProgramGenerator: React.FC<TrainingProgramGeneratorProps> =
                   setStartDate(e.target.value);
                   setFormError('');
                 }}
-                className="w-full px-3 py-2 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
+                className="w-full px-3 py-2 border border-line-subtle rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
               />
             </div>
             <div>
-              <label className="block text-xs font-bold text-gray-500 mb-1">
+              <label className="block text-xs font-bold text-ink-muted mb-1">
                 <Calendar className="w-3 h-3 inline mr-1" />
                 종료 날짜 <span className="text-red-500">*</span>
               </label>
@@ -318,14 +318,14 @@ export const TrainingProgramGenerator: React.FC<TrainingProgramGeneratorProps> =
                   setEndDate(e.target.value);
                   setFormError('');
                 }}
-                className="w-full px-3 py-2 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
+                className="w-full px-3 py-2 border border-line-subtle rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
               />
             </div>
           </div>
 
           {/* Frequency */}
           <div>
-            <label className="block text-xs font-bold text-gray-500 mb-1">
+            <label className="block text-xs font-bold text-ink-muted mb-1">
               빈도 설정 (주당 훈련 횟수) <span className="text-red-500">*</span>
             </label>
             <div className="flex items-center gap-3">
@@ -348,7 +348,7 @@ export const TrainingProgramGenerator: React.FC<TrainingProgramGeneratorProps> =
 
           {/* Session duration */}
           <div>
-            <label className="block text-xs font-bold text-gray-500 mb-1">
+            <label className="block text-xs font-bold text-ink-muted mb-1">
               <Clock className="w-3 h-3 inline mr-1" />
               훈련 시간 설정 (분) <span className="text-red-500">*</span>
             </label>
@@ -365,8 +365,8 @@ export const TrainingProgramGenerator: React.FC<TrainingProgramGeneratorProps> =
                   }}
                   className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors ${
                     sessionDurationMinutes === mins
-                      ? 'bg-slate-700 text-white border-slate-700'
-                      : 'bg-white text-gray-600 border-gray-300 hover:border-emerald-400'
+                      ? 'bg-emerald-500/20 text-emerald-100 border-line-subtle'
+                      : 'bg-white/[0.04] text-ink-medium border-line-subtle hover:border-emerald-400'
                   }`}
                 >
                   {mins}분
@@ -381,7 +381,7 @@ export const TrainingProgramGenerator: React.FC<TrainingProgramGeneratorProps> =
                   setSessionDurationMinutes(Number(e.target.value));
                   setFormError('');
                 }}
-                className="w-20 px-2 py-1 border border-gray-300 rounded-lg text-sm text-center focus:ring-2 focus:ring-emerald-500 outline-none"
+                className="w-20 px-2 py-1 border border-line-subtle rounded-lg text-sm text-center focus:ring-2 focus:ring-emerald-500 outline-none"
                 placeholder="직접입력"
                 aria-label="훈련 시간 직접 입력 (분)"
               />
@@ -390,7 +390,7 @@ export const TrainingProgramGenerator: React.FC<TrainingProgramGeneratorProps> =
 
           {/* Performance goal */}
           <div>
-            <label className="block text-xs font-bold text-gray-500 mb-1">
+            <label className="block text-xs font-bold text-ink-muted mb-1">
               향상하고 싶은 경기력 <span className="text-red-500">*</span>
             </label>
             <div
@@ -410,8 +410,8 @@ export const TrainingProgramGenerator: React.FC<TrainingProgramGeneratorProps> =
                   }}
                   className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
                     performanceGoal === goal
-                      ? 'bg-slate-700 text-white border-slate-700'
-                      : 'bg-white text-gray-600 border-gray-300 hover:border-emerald-400'
+                      ? 'bg-emerald-500/20 text-emerald-100 border-line-subtle'
+                      : 'bg-white/[0.04] text-ink-medium border-line-subtle hover:border-emerald-400'
                   }`}
                 >
                   {goal}
@@ -426,7 +426,7 @@ export const TrainingProgramGenerator: React.FC<TrainingProgramGeneratorProps> =
                   setCustomGoal(e.target.value);
                   setFormError('');
                 }}
-                className="w-full px-3 py-2 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
+                className="w-full px-3 py-2 border border-line-subtle rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
                 placeholder="목표를 직접 입력해주세요"
               />
             )}
@@ -441,7 +441,7 @@ export const TrainingProgramGenerator: React.FC<TrainingProgramGeneratorProps> =
           <Button
             onClick={handleGenerate}
             isLoading={isGenerating}
-            className="w-full bg-slate-700 hover:bg-slate-800"
+            className="w-full bg-emerald-500/20 hover:bg-emerald-500/30"
           >
             <Sparkles className="w-4 h-4 mr-2" />
             {isGenerating ? 'AI 분석 중...' : '훈련 프로그램 생성'}
@@ -450,8 +450,8 @@ export const TrainingProgramGenerator: React.FC<TrainingProgramGeneratorProps> =
 
         {/* Generated result (schedule + markdown plan) */}
         {(generatedPlan || generatedSchedule) && (
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-            <div className="bg-slate-800 px-5 py-4 flex justify-between items-center">
+          <div className="bg-white/[0.04] rounded-2xl shadow-sm border border-line-subtle overflow-hidden">
+            <div className="bg-white/[0.05] px-5 py-4 flex justify-between items-center">
               <h2 className="font-bold text-white flex items-center gap-2">
                 <Sparkles className="w-4 h-4" />
                 생성된 훈련 프로그램
@@ -470,13 +470,13 @@ export const TrainingProgramGenerator: React.FC<TrainingProgramGeneratorProps> =
             </div>
 
             {/* Tab switcher */}
-            <div className="flex border-b border-gray-100 bg-gray-50">
+            <div className="flex border-b border-line-subtle bg-white/[0.03]">
               <button
                 onClick={() => setPreviewTab('SCHEDULE')}
                 className={`flex-1 py-2.5 text-xs font-bold flex items-center justify-center gap-1.5 transition ${
                   previewTab === 'SCHEDULE'
-                    ? 'bg-white text-slate-800 border-b-2 border-slate-800'
-                    : 'text-gray-500 hover:text-gray-700'
+                    ? 'bg-white/[0.04] text-emerald-200 border-b-2 border-emerald-400/40'
+                    : 'text-ink-muted hover:text-ink-medium'
                 }`}
               >
                 <CalendarDays className="w-3.5 h-3.5" />
@@ -486,8 +486,8 @@ export const TrainingProgramGenerator: React.FC<TrainingProgramGeneratorProps> =
                 onClick={() => setPreviewTab('PLAN')}
                 className={`flex-1 py-2.5 text-xs font-bold flex items-center justify-center gap-1.5 transition ${
                   previewTab === 'PLAN'
-                    ? 'bg-white text-slate-800 border-b-2 border-slate-800'
-                    : 'text-gray-500 hover:text-gray-700'
+                    ? 'bg-white/[0.04] text-emerald-200 border-b-2 border-emerald-400/40'
+                    : 'text-ink-muted hover:text-ink-medium'
                 }`}
               >
                 <FileText className="w-3.5 h-3.5" />
@@ -506,11 +506,11 @@ export const TrainingProgramGenerator: React.FC<TrainingProgramGeneratorProps> =
                 />
               )}
               {previewTab === 'PLAN' && (
-                <div className="prose prose-sm max-w-none text-gray-700 whitespace-pre-wrap text-sm leading-relaxed">
+                <div className="prose prose-sm max-w-none text-ink-medium whitespace-pre-wrap text-sm leading-relaxed">
                   {generatedPlan || '주차별 계획이 아직 생성되지 않았습니다.'}
                 </div>
               )}
-              <div className="mt-4 pt-4 border-t border-gray-100">
+              <div className="mt-4 pt-4 border-t border-line-subtle">
                 <Button
                   onClick={handleSave}
                   className="w-full bg-emerald-800 hover:bg-emerald-900"
@@ -526,25 +526,25 @@ export const TrainingProgramGenerator: React.FC<TrainingProgramGeneratorProps> =
         {/* Saved programs */}
         {clientPrograms.length > 0 && (
           <div className="space-y-3">
-            <h2 className="font-bold text-gray-700 text-sm px-1">저장된 프로그램</h2>
+            <h2 className="font-bold text-ink-medium text-sm px-1">저장된 프로그램</h2>
             {clientPrograms.map((program) => {
               const isExpanded = expandedProgramId === program.id;
               return (
                 <div
                   key={program.id}
-                  className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden"
+                  className="bg-white/[0.04] rounded-2xl shadow-sm border border-line-subtle overflow-hidden"
                 >
                   <button
-                    className="w-full px-5 py-4 flex items-center justify-between text-left hover:bg-gray-50 transition-colors"
+                    className="w-full px-5 py-4 flex items-center justify-between text-left hover:bg-white/[0.03] transition-colors"
                     onClick={() =>
                       setExpandedProgramId(isExpanded ? null : program.id)
                     }
                   >
                     <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-gray-800 text-sm truncate">
+                      <p className="font-semibold text-ink-high text-sm truncate">
                         {program.config.performanceGoal}
                       </p>
-                      <p className="text-xs text-gray-400 mt-0.5">
+                      <p className="text-xs text-ink-muted mt-0.5">
                         {program.config.startDate} ~ {program.config.endDate} ·{' '}
                         주 {program.config.frequencyPerWeek}회 ·{' '}
                         {program.config.sessionDurationMinutes}분
@@ -562,16 +562,16 @@ export const TrainingProgramGenerator: React.FC<TrainingProgramGeneratorProps> =
                         <Trash2 className="w-4 h-4" />
                       </button>
                       {isExpanded ? (
-                        <ChevronUp className="w-4 h-4 text-gray-400" />
+                        <ChevronUp className="w-4 h-4 text-ink-muted" />
                       ) : (
-                        <ChevronDown className="w-4 h-4 text-gray-400" />
+                        <ChevronDown className="w-4 h-4 text-ink-muted" />
                       )}
                     </div>
                   </button>
                   {isExpanded && (
-                    <div className="px-5 pb-5 border-t border-gray-100 pt-4 space-y-3">
+                    <div className="px-5 pb-5 border-t border-line-subtle pt-4 space-y-3">
                       {program.weeklySchedule && (
-                        <div className="flex border border-gray-200 rounded-lg overflow-hidden text-xs font-bold">
+                        <div className="flex border border-line-subtle rounded-lg overflow-hidden text-xs font-bold">
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
@@ -582,8 +582,8 @@ export const TrainingProgramGenerator: React.FC<TrainingProgramGeneratorProps> =
                             }}
                             className={`flex-1 py-1.5 flex items-center justify-center gap-1 ${
                               (expandedTabByProgram[program.id] ?? 'SCHEDULE') === 'SCHEDULE'
-                                ? 'bg-slate-800 text-white'
-                                : 'bg-white text-gray-500 hover:bg-gray-50'
+                                ? 'bg-white/[0.05] text-white'
+                                : 'bg-white/[0.04] text-ink-muted hover:bg-white/[0.03]'
                             }`}
                           >
                             <CalendarDays className="w-3 h-3" />
@@ -599,8 +599,8 @@ export const TrainingProgramGenerator: React.FC<TrainingProgramGeneratorProps> =
                             }}
                             className={`flex-1 py-1.5 flex items-center justify-center gap-1 ${
                               expandedTabByProgram[program.id] === 'PLAN'
-                                ? 'bg-slate-800 text-white'
-                                : 'bg-white text-gray-500 hover:bg-gray-50'
+                                ? 'bg-white/[0.05] text-white'
+                                : 'bg-white/[0.04] text-ink-muted hover:bg-white/[0.03]'
                             }`}
                           >
                             <FileText className="w-3 h-3" />
@@ -622,7 +622,7 @@ export const TrainingProgramGenerator: React.FC<TrainingProgramGeneratorProps> =
                             }}
                           />
                         ) : (
-                          <div className="prose prose-sm max-w-none text-gray-700 whitespace-pre-wrap text-sm leading-relaxed">
+                          <div className="prose prose-sm max-w-none text-ink-medium whitespace-pre-wrap text-sm leading-relaxed">
                             {program.generatedPlan}
                           </div>
                         )}
