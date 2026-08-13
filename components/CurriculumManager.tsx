@@ -148,47 +148,47 @@ export const CurriculumManager: React.FC<CurriculumManagerProps> = ({
         <div className="flex items-center gap-3">
           <button
             onClick={() => setView('list')}
-            className="flex items-center gap-1.5 text-sm text-slate-400 hover:text-slate-200 transition-colors"
+            className="flex items-center gap-1.5 text-sm text-ink-muted hover:text-ink-high transition-colors"
           >
             <X className="w-4 h-4" />
             취소
           </button>
-          <h2 className="text-xl font-bold text-slate-100">새 커리큘럼 만들기</h2>
+          <h2 className="text-xl font-bold text-ink-high">새 커리큘럼 만들기</h2>
         </div>
 
-        <div className="bg-slate-900/70 border border-slate-800 rounded-2xl p-5 space-y-4">
+        <div className="bg-white/[0.03] border border-line-subtle rounded-2xl p-5 space-y-4">
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">커리큘럼 이름</label>
+            <label className="text-xs font-semibold text-ink-muted uppercase tracking-wider">커리큘럼 이름</label>
             <input
               type="text"
               value={newTitle}
               onChange={(e) => setNewTitle(e.target.value)}
               placeholder="예: 2026 시즌 기초 트레이닝"
-              className="w-full px-3 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-slate-200 text-sm focus:outline-none focus:border-emerald-500 placeholder-slate-600"
+              className="w-full px-3 py-2.5 bg-white/[0.05] border border-line-subtle rounded-xl text-ink-high text-sm focus:outline-none focus:border-emerald-500 placeholder:text-ink-muted"
             />
           </div>
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">설명 (선택)</label>
+            <label className="text-xs font-semibold text-ink-muted uppercase tracking-wider">설명 (선택)</label>
             <textarea
               value={newDescription}
               onChange={(e) => setNewDescription(e.target.value)}
               rows={3}
               placeholder="이 커리큘럼의 목표나 대상 학생을 적어주세요"
-              className="w-full px-3 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-slate-200 text-sm focus:outline-none focus:border-emerald-500 resize-none placeholder-slate-600"
+              className="w-full px-3 py-2.5 bg-white/[0.05] border border-line-subtle rounded-xl text-ink-high text-sm focus:outline-none focus:border-emerald-500 resize-none placeholder:text-ink-muted"
             />
           </div>
 
-          <div className="border-t border-slate-800 pt-4 space-y-2">
-            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">자동 생성되는 5개 파트</p>
+          <div className="border-t border-line-subtle pt-4 space-y-2">
+            <p className="text-xs font-semibold text-ink-muted uppercase tracking-wider">자동 생성되는 5개 파트</p>
             <div className="flex flex-wrap gap-2">
               {['신체', '스윙 기술', '장비', '코스매니지먼트', '멘탈'].map((label, i) => (
-                <span key={label} className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-xl text-xs text-slate-300">
+                <span key={label} className="flex items-center gap-1.5 px-3 py-1.5 bg-white/[0.05] border border-line-subtle rounded-xl text-xs text-ink-medium">
                   <span className="text-emerald-400 font-bold">{i + 1}</span>
                   {label}
                 </span>
               ))}
             </div>
-            <p className="text-xs text-slate-500">생성 후 각 파트의 내용을 자유롭게 수정할 수 있습니다.</p>
+            <p className="text-xs text-ink-muted">생성 후 각 파트의 내용을 자유롭게 수정할 수 있습니다.</p>
           </div>
 
           <button
@@ -210,21 +210,21 @@ export const CurriculumManager: React.FC<CurriculumManagerProps> = ({
         <div className="flex items-center gap-3">
           <button
             onClick={() => setView('list')}
-            className="flex items-center gap-1.5 text-sm text-slate-400 hover:text-slate-200 transition-colors"
+            className="flex items-center gap-1.5 text-sm text-ink-muted hover:text-ink-high transition-colors"
           >
             <X className="w-4 h-4" />
             취소
           </button>
-          <h2 className="text-xl font-bold text-slate-100">커리큘럼 배정</h2>
+          <h2 className="text-xl font-bold text-ink-high">커리큘럼 배정</h2>
         </div>
 
-        <div className="bg-slate-900/70 border border-slate-800 rounded-2xl p-5 space-y-4">
+        <div className="bg-white/[0.03] border border-line-subtle rounded-2xl p-5 space-y-4">
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">커리큘럼 선택</label>
+            <label className="text-xs font-semibold text-ink-muted uppercase tracking-wider">커리큘럼 선택</label>
             <select
               value={assignCurriculumId}
               onChange={(e) => setAssignCurriculumId(e.target.value)}
-              className="w-full px-3 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-slate-200 text-sm focus:outline-none focus:border-emerald-500"
+              className="w-full px-3 py-2.5 bg-white/[0.05] border border-line-subtle rounded-xl text-ink-high text-sm focus:outline-none focus:border-emerald-500"
             >
               <option value="">— 커리큘럼을 선택하세요 —</option>
               {curriculums.map((c) => (
@@ -234,7 +234,7 @@ export const CurriculumManager: React.FC<CurriculumManagerProps> = ({
           </div>
 
           <div className="space-y-2">
-            <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+            <label className="text-xs font-semibold text-ink-muted uppercase tracking-wider">
               학생 선택 ({selectedStudentIds.length}명 선택됨)
             </label>
             <div className="space-y-1.5 max-h-60 overflow-y-auto pr-1">
@@ -251,21 +251,21 @@ export const CurriculumManager: React.FC<CurriculumManagerProps> = ({
                     className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border text-left transition-all text-sm ${
                       selected
                         ? 'border-emerald-500/60 bg-emerald-600/10 text-emerald-200'
-                        : 'border-slate-700 bg-slate-800/40 text-slate-300 hover:border-slate-600'
+                        : 'border-line-subtle bg-white/[0.03] text-ink-medium hover:border-line-subtle'
                     }`}
                   >
                     <div className={`w-4 h-4 rounded border flex-shrink-0 flex items-center justify-center ${
-                      selected ? 'border-emerald-400 bg-emerald-600' : 'border-slate-600'
+                      selected ? 'border-emerald-400 bg-emerald-600' : 'border-line-subtle'
                     }`}>
                       {selected && <CheckCircle className="w-3 h-3 text-white" />}
                     </div>
                     <span className="font-medium">{client.name}</span>
-                    <span className="text-slate-500 text-xs ml-auto">{client.phone}</span>
+                    <span className="text-ink-muted text-xs ml-auto">{client.phone}</span>
                   </button>
                 );
               })}
               {myClients.length === 0 && (
-                <p className="text-slate-500 text-sm text-center py-4">등록된 학생이 없습니다.</p>
+                <p className="text-ink-muted text-sm text-center py-4">등록된 학생이 없습니다.</p>
               )}
             </div>
           </div>
@@ -289,21 +289,21 @@ export const CurriculumManager: React.FC<CurriculumManagerProps> = ({
         <div className="flex items-center gap-3">
           <button
             onClick={() => setView('list')}
-            className="flex items-center gap-1.5 text-sm text-slate-400 hover:text-slate-200 transition-colors"
+            className="flex items-center gap-1.5 text-sm text-ink-muted hover:text-ink-high transition-colors"
           >
             <ChevronRight className="w-4 h-4 rotate-180" />
             목록으로
           </button>
           <div>
-            <h2 className="text-lg font-bold text-slate-100">학생 진도 현황</h2>
-            <p className="text-xs text-slate-400">{selectedCurriculum.title}</p>
+            <h2 className="text-lg font-bold text-ink-high">학생 진도 현황</h2>
+            <p className="text-xs text-ink-muted">{selectedCurriculum.title}</p>
           </div>
         </div>
 
         {progressData.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 bg-slate-900/70 border border-slate-800 rounded-2xl gap-3">
-            <Users className="w-8 h-8 text-slate-600" />
-            <p className="text-slate-400 text-sm">아직 배정된 학생이 없습니다.</p>
+          <div className="flex flex-col items-center justify-center py-16 bg-white/[0.03] border border-line-subtle rounded-2xl gap-3">
+            <Users className="w-8 h-8 text-ink-muted" />
+            <p className="text-ink-muted text-sm">아직 배정된 학생이 없습니다.</p>
             <button
               onClick={() => { setAssignCurriculumId(selectedCurriculum.id); setView('assign'); }}
               className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-sm font-bold transition-colors"
@@ -322,23 +322,23 @@ export const CurriculumManager: React.FC<CurriculumManagerProps> = ({
               return (
                 <div
                   key={prog.id}
-                  className="bg-slate-900/70 border border-slate-800 rounded-2xl p-4 space-y-3"
+                  className="bg-white/[0.03] border border-line-subtle rounded-2xl p-4 space-y-3"
                 >
                   <div className="flex items-center justify-between">
                     <div>
-                      <span className="font-bold text-slate-100">{client?.name ?? prog.studentId}</span>
-                      {client?.phone && <span className="text-slate-500 text-xs ml-2">{client.phone}</span>}
+                      <span className="font-bold text-ink-high">{client?.name ?? prog.studentId}</span>
+                      {client?.phone && <span className="text-ink-muted text-xs ml-2">{client.phone}</span>}
                     </div>
                     <span className="text-sm font-bold text-emerald-300">{pct}%</span>
                   </div>
                   <div>
-                    <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
+                    <div className="h-2 bg-white/[0.05] rounded-full overflow-hidden">
                       <div
                         className="h-full bg-emerald-500 rounded-full transition-all"
                         style={{ width: `${pct}%` }}
                       />
                     </div>
-                    <div className="flex justify-between text-xs text-slate-500 mt-1">
+                    <div className="flex justify-between text-xs text-ink-muted mt-1">
                       <span>{completedCount}/{PART_COUNT} 파트 완료</span>
                       {prog.completedAt && (
                         <span className="text-emerald-400">전체 완료 ✓</span>
@@ -347,7 +347,7 @@ export const CurriculumManager: React.FC<CurriculumManagerProps> = ({
                   </div>
                   <button
                     onClick={() => openViewer(selectedCurriculum, client)}
-                    className="w-full py-2 rounded-xl border border-slate-700 hover:bg-slate-800 text-slate-300 hover:text-slate-100 text-xs font-medium transition-all flex items-center justify-center gap-1.5"
+                    className="w-full py-2 rounded-xl border border-line-subtle hover:bg-white/[0.06] text-ink-medium hover:text-ink-high text-xs font-medium transition-all flex items-center justify-center gap-1.5"
                   >
                     <BookOpen className="w-3.5 h-3.5" />
                     커리큘럼으로 레슨 기록 작성
@@ -394,12 +394,12 @@ export const CurriculumManager: React.FC<CurriculumManagerProps> = ({
       <div className="flex items-center gap-3">
         <button
           onClick={onBack}
-          className="flex items-center gap-1.5 text-sm text-slate-400 hover:text-slate-200 transition-colors px-3 py-2 rounded-xl hover:bg-slate-800 border border-transparent hover:border-slate-700"
+          className="flex items-center gap-1.5 text-sm text-ink-muted hover:text-ink-high transition-colors px-3 py-2 rounded-xl hover:bg-white/[0.06] border border-transparent hover:border-line-subtle"
         >
           <X className="w-4 h-4" />
           대시보드로
         </button>
-        <h2 className="text-xl font-bold text-slate-100 flex items-center gap-2">
+        <h2 className="text-xl font-bold text-ink-high flex items-center gap-2">
           <BookOpen className="w-5 h-5 text-emerald-400" />
           교육 커리큘럼
         </h2>
@@ -428,7 +428,7 @@ export const CurriculumManager: React.FC<CurriculumManagerProps> = ({
         </button>
         <button
           onClick={() => setView('assign')}
-          className="flex items-center gap-1.5 px-4 py-2 bg-slate-800 border border-slate-700 hover:bg-slate-700 text-slate-300 rounded-xl text-sm font-semibold transition-all"
+          className="flex items-center gap-1.5 px-4 py-2 bg-white/[0.05] border border-line-subtle hover:bg-white/[0.08] text-ink-medium rounded-xl text-sm font-semibold transition-all"
         >
           <UserPlus className="w-4 h-4" />
           학생에게 배정
@@ -437,26 +437,26 @@ export const CurriculumManager: React.FC<CurriculumManagerProps> = ({
 
       {/* Search */}
       <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-muted" />
         <input
           type="text"
           placeholder="커리큘럼 검색..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-full pl-9 pr-4 py-2.5 bg-slate-900/70 border border-slate-800 rounded-xl text-slate-200 text-sm focus:outline-none focus:border-emerald-500 placeholder-slate-600"
+          className="w-full pl-9 pr-4 py-2.5 bg-white/[0.03] border border-line-subtle rounded-xl text-ink-high text-sm focus:outline-none focus:border-emerald-500 placeholder:text-ink-muted"
         />
       </div>
 
       {loading ? (
-        <div className="flex items-center justify-center py-16 text-slate-500 text-sm">
+        <div className="flex items-center justify-center py-16 text-ink-muted text-sm">
           커리큘럼 목록 불러오는 중...
         </div>
       ) : filteredCurriculums.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-16 gap-4 bg-slate-900/50 border border-slate-800 rounded-2xl">
-          <BookOpen className="w-10 h-10 text-slate-700" />
+        <div className="flex flex-col items-center justify-center py-16 gap-4 bg-white/[0.02] border border-line-subtle rounded-2xl">
+          <BookOpen className="w-10 h-10 text-ink-muted" />
           <div className="text-center">
-            <p className="text-slate-400 font-medium">등록된 커리큘럼이 없습니다</p>
-            <p className="text-slate-600 text-xs mt-1">새 커리큘럼을 만들어 학생에게 배정하세요</p>
+            <p className="text-ink-muted font-medium">등록된 커리큘럼이 없습니다</p>
+            <p className="text-ink-muted text-xs mt-1">새 커리큘럼을 만들어 학생에게 배정하세요</p>
           </div>
         </div>
       ) : (
@@ -464,18 +464,18 @@ export const CurriculumManager: React.FC<CurriculumManagerProps> = ({
           {filteredCurriculums.map((cur) => (
             <div
               key={cur.id}
-              className="bg-slate-900/70 border border-slate-800 rounded-2xl p-5 space-y-4"
+              className="bg-white/[0.03] border border-line-subtle rounded-2xl p-5 space-y-4"
             >
               <div className="flex items-start gap-3">
                 <div className="p-2.5 rounded-xl bg-emerald-500/10">
                   <BookOpen className="w-5 h-5 text-emerald-400" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-bold text-slate-100 text-sm leading-snug">{cur.title}</h3>
+                  <h3 className="font-bold text-ink-high text-sm leading-snug">{cur.title}</h3>
                   {cur.description && (
-                    <p className="text-xs text-slate-400 mt-1 line-clamp-2">{cur.description}</p>
+                    <p className="text-xs text-ink-muted mt-1 line-clamp-2">{cur.description}</p>
                   )}
-                  <div className="flex items-center gap-3 mt-2 text-xs text-slate-500">
+                  <div className="flex items-center gap-3 mt-2 text-xs text-ink-muted">
                     <span className="flex items-center gap-1">
                       <Layers className="w-3 h-3" />
                       {PART_COUNT}개 파트
@@ -484,7 +484,7 @@ export const CurriculumManager: React.FC<CurriculumManagerProps> = ({
                 </div>
                 <button
                   onClick={() => handleDelete(cur.id)}
-                  className="p-2 rounded-lg hover:bg-red-500/10 text-slate-500 hover:text-red-400 transition-colors shrink-0"
+                  className="p-2 rounded-lg hover:bg-red-500/10 text-ink-muted hover:text-red-400 transition-colors shrink-0"
                   title="삭제"
                 >
                   <Trash2 className="w-4 h-4" />
@@ -502,14 +502,14 @@ export const CurriculumManager: React.FC<CurriculumManagerProps> = ({
                 </button>
                 <button
                   onClick={() => openProgress(cur)}
-                  className="flex items-center gap-1.5 px-3 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 rounded-xl text-xs font-semibold transition-all"
+                  className="flex items-center gap-1.5 px-3 py-2 bg-white/[0.05] hover:bg-white/[0.08] border border-line-subtle text-ink-medium rounded-xl text-xs font-semibold transition-all"
                 >
                   <BarChart3 className="w-3.5 h-3.5" />
                   학생 진도
                 </button>
                 <button
                   onClick={() => { setAssignCurriculumId(cur.id); setView('assign'); }}
-                  className="flex items-center gap-1.5 px-3 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 rounded-xl text-xs font-semibold transition-all"
+                  className="flex items-center gap-1.5 px-3 py-2 bg-white/[0.05] hover:bg-white/[0.08] border border-line-subtle text-ink-medium rounded-xl text-xs font-semibold transition-all"
                 >
                   <UserPlus className="w-3.5 h-3.5" />
                   배정
