@@ -59,7 +59,7 @@ const VideoScrubber: React.FC<VideoScrubberProps> = ({
         {label}
       </span>
 
-      <div className="rounded-2xl overflow-hidden bg-slate-950 aspect-video flex items-center justify-center">
+      <div className="rounded-2xl overflow-hidden bg-base aspect-video flex items-center justify-center">
         {videoUrl ? (
           // eslint-disable-next-line jsx-a11y/media-has-caption
           <video
@@ -72,7 +72,7 @@ const VideoScrubber: React.FC<VideoScrubberProps> = ({
             data-testid={`video-${label.toLowerCase()}`}
           />
         ) : (
-          <span className="text-slate-600 text-sm">No video</span>
+          <span className="text-ink-muted text-sm">No video</span>
         )}
       </div>
 
@@ -89,7 +89,7 @@ const VideoScrubber: React.FC<VideoScrubberProps> = ({
           aria-label={`${label} impact timestamp`}
           data-testid={`slider-${label.toLowerCase()}`}
         />
-        <div className="flex items-center justify-between text-xs text-slate-400">
+        <div className="flex items-center justify-between text-xs text-ink-muted">
           <span>0:00.00</span>
           <span className="flex items-center gap-1 text-emerald-300 font-semibold">
             <Clock className="w-3 h-3" />
@@ -105,7 +105,7 @@ const VideoScrubber: React.FC<VideoScrubberProps> = ({
         <button
           type="button"
           onClick={() => onImpactChange(Math.max(0, impactTimeSec - 0.033))}
-          className="flex-1 py-1.5 text-xs rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors"
+          className="flex-1 py-1.5 text-xs rounded-lg bg-white/[0.05] hover:bg-white/[0.08] text-ink-medium transition-colors"
           data-testid={`prev-frame-${label.toLowerCase()}`}
         >
           −1 frame
@@ -113,7 +113,7 @@ const VideoScrubber: React.FC<VideoScrubberProps> = ({
         <button
           type="button"
           onClick={() => onImpactChange(Math.min(duration, impactTimeSec + 0.033))}
-          className="flex-1 py-1.5 text-xs rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors"
+          className="flex-1 py-1.5 text-xs rounded-lg bg-white/[0.05] hover:bg-white/[0.08] text-ink-medium transition-colors"
           data-testid={`next-frame-${label.toLowerCase()}`}
         >
           +1 frame
@@ -156,7 +156,7 @@ export const ImpactSelectionPage: React.FC<ImpactSelectionPageProps> = ({
         <button
           type="button"
           onClick={onBack}
-          className="p-3 rounded-xl text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
+          className="p-3 rounded-xl text-ink-muted hover:text-ink-high hover:bg-white/[0.06] transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
           aria-label="Back"
           data-testid="impact-back-btn"
         >
@@ -166,19 +166,19 @@ export const ImpactSelectionPage: React.FC<ImpactSelectionPageProps> = ({
           <p className="text-[11px] uppercase tracking-[0.16em] text-emerald-300/80 font-semibold">
             Step 2 of 2
           </p>
-          <h2 className="text-xl font-bold text-slate-50">Set Impact Point</h2>
+          <h2 className="text-xl font-bold text-ink-high">Set Impact Point</h2>
         </div>
       </div>
 
       {/* Guidance */}
-      <p className="text-sm text-slate-400 leading-relaxed">
+      <p className="text-sm text-ink-muted leading-relaxed">
         Drag the slider or use the frame buttons to mark the exact impact frame
         in each video. The editing engine uses these timestamps to synchronise
         the BEFORE and AFTER swings.
       </p>
 
       {/* Scrubbers */}
-      <section className="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-4 space-y-6">
+      <section className="bg-white/[0.03] border border-line-subtle rounded-2xl p-4 space-y-6">
         <VideoScrubber
           label="BEFORE"
           videoUrl={lessonUpload.beforeVideoUrl}

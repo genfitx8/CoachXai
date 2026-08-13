@@ -151,7 +151,7 @@ export const CoachXLanding: React.FC<CoachXLandingProps> = ({
   const shouldShowFallbackHelp = !isInstalled && !deferredInstallPrompt && !supportsInstallPrompt;
 
   return (
-    <div className="min-h-screen bg-[#030407] text-white flex flex-col items-center justify-center relative overflow-hidden px-6">
+    <div className="min-h-screen bg-base text-white flex flex-col items-center justify-center relative overflow-hidden px-6">
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(56,189,248,0.06),transparent_55%)]" />
         <div
@@ -192,7 +192,7 @@ export const CoachXLanding: React.FC<CoachXLandingProps> = ({
 
       <div className="absolute bottom-8 left-0 right-0 z-10 flex flex-col items-center justify-center gap-4">
         {(shouldShowInstallButton || shouldShowFallbackHelp || installHintMessage) && (
-          <div className="max-w-xs px-4 py-3 rounded-2xl border border-cyan-300/20 bg-slate-950/60 backdrop-blur-md shadow-xl shadow-cyan-950/20 text-center">
+          <div className="max-w-xs px-4 py-3 rounded-2xl border border-cyan-300/20 bg-white/[0.03] backdrop-blur-md shadow-xl shadow-cyan-950/20 text-center">
             <p className="text-[11px] uppercase tracking-[0.2em] text-cyan-200/75">CoachX App</p>
             {shouldShowInstallButton ? (
               <button
@@ -203,14 +203,14 @@ export const CoachXLanding: React.FC<CoachXLandingProps> = ({
                 Install CoachX
               </button>
             ) : (
-              <p className="mt-2 text-xs text-slate-300 leading-relaxed">
+              <p className="mt-2 text-xs text-ink-medium leading-relaxed">
                 {isIosDevice
                   ? 'Install CoachX: tap Share, then choose “Add to Home Screen”.'
                   : 'Install prompt is unavailable here. Use your browser menu to add CoachX to your home screen.'}
               </p>
             )}
             {installHintMessage && (
-              <p className="mt-2 text-[11px] text-slate-400 leading-relaxed">{installHintMessage}</p>
+              <p className="mt-2 text-[11px] text-ink-muted leading-relaxed">{installHintMessage}</p>
             )}
           </div>
         )}
