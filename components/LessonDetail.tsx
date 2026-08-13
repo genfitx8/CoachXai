@@ -1165,7 +1165,7 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
       : '레슨 기록';
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-50 flex flex-col h-full overflow-hidden animate-fade-in">
+    <div className="fixed inset-0 z-50 bg-base flex flex-col h-full overflow-hidden animate-fade-in">
       <PermissionDeniedModal
         open={!!permissionRequest}
         kind={permissionRequest?.kind ?? 'microphone'}
@@ -1182,7 +1182,7 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
       />
       {/* ... (Header and Main Content rendering remains same) ... */}
       {/* Header */}
-      <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 px-4 py-3 flex items-center justify-between text-white flex-shrink-0 safe-area-top relative shadow-lg">
+      <div className="bg-base/95 border-b border-line-subtle px-4 py-3 flex items-center justify-between text-ink-high flex-shrink-0 safe-area-top relative backdrop-blur-md">
         <button
           onClick={onBack}
           className="p-3 bg-white/10 backdrop-blur-sm rounded-full hover:bg-white/20 text-white transition-all duration-200 hover:scale-110 transform min-w-[44px] min-h-[44px] flex items-center justify-center"
@@ -1217,17 +1217,17 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto bg-gray-50 custom-scrollbar safe-area-bottom">
+      <div className="flex-1 overflow-y-auto bg-white/[0.03] custom-scrollbar safe-area-bottom">
         <div className="max-w-4xl mx-auto p-4 space-y-6">
-          <div className="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-sm">
-            <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-slate-600">
-              <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-700 px-2.5 py-1 rounded-full">
+          <div className="bg-white/[0.04] rounded-2xl border border-line-subtle p-4 shadow-sm shadow-black/20">
+            <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-ink-medium">
+              <span className="inline-flex items-center gap-1 bg-emerald-500/[0.08] text-emerald-200 px-2.5 py-1 rounded-full">
                 <FileText className="w-3.5 h-3.5" aria-hidden="true" /> {recordTypeLabel}
               </span>
-              <span className="inline-flex items-center gap-1 bg-slate-100 text-slate-700 px-2.5 py-1 rounded-full">
+              <span className="inline-flex items-center gap-1 bg-white/[0.06] text-ink-medium px-2.5 py-1 rounded-full">
                 <User className="w-3.5 h-3.5" aria-hidden="true" /> {lesson.clientName}
               </span>
-              <span className="inline-flex items-center gap-1 bg-slate-100 text-slate-700 px-2.5 py-1 rounded-full">
+              <span className="inline-flex items-center gap-1 bg-white/[0.06] text-ink-medium px-2.5 py-1 rounded-full">
                 <Calendar className="w-3.5 h-3.5" aria-hidden="true" /> {lesson.date}
               </span>
             </div>
@@ -1257,7 +1257,7 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
                                 onPause={() => setIsPlaying(false)}
                             />
                             ) : (
-                                <div className="w-full h-full flex flex-col items-center justify-center text-gray-500">
+                                <div className="w-full h-full flex flex-col items-center justify-center text-ink-muted">
                                     <AlertCircle className="w-10 h-10 mb-2 opacity-50" />
                                     <p className="text-sm">비디오를 재생할 수 없습니다.</p>
                                 </div>
@@ -1299,8 +1299,8 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
                     )}
               </div>
               ) : (
-              <div className="bg-gray-100 rounded-xl aspect-[9/16] max-w-md mx-auto flex items-center justify-center">
-                <div className="text-center text-gray-400">
+              <div className="bg-white/[0.05] rounded-xl aspect-[9/16] max-w-md mx-auto flex items-center justify-center">
+                <div className="text-center text-ink-muted">
                   <Video className="w-12 h-12 mx-auto mb-2 opacity-40" />
                   <p className="text-sm">{t('lesson_no_video')}</p>
                   {canEdit && <p className="text-xs mt-1">{t('lesson_upload_hint')}</p>}
@@ -1379,7 +1379,7 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
                   {canEdit && (
                       <button 
                         onClick={() => setIsAddingMedia(true)}
-                        className="w-16 h-16 flex-shrink-0 rounded-lg border-2 border-dashed border-gray-300 flex flex-col items-center justify-center text-gray-400 hover:text-emerald-700 hover:border-emerald-300 hover:bg-emerald-50 transition-all gap-1"
+                        className="w-16 h-16 flex-shrink-0 rounded-lg border-2 border-dashed border-line-subtle flex flex-col items-center justify-center text-ink-muted hover:text-emerald-200 hover:border-emerald-300 hover:bg-emerald-500/[0.08] transition-all gap-1"
                       >
                           <Plus className="w-5 h-5" />
                           <span className="text-[10px] font-bold">추가</span>
@@ -1393,7 +1393,7 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
                    <button
                      onClick={handleDownloadEditedVideo}
                      disabled={isDownloadingEditedVideo}
-                     className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-semibold transition-colors disabled:opacity-50"
+                     className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg bg-white/[0.05] hover:bg-white/[0.08] text-ink-medium text-xs font-semibold transition-colors disabled:opacity-50"
                    >
                      {isDownloadingEditedVideo
                        ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -1436,13 +1436,13 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
                      </div>
                      {isGeneratingCompare && (
                        <div className="px-4">
-                         <div className="w-full bg-gray-200 rounded-full h-2">
+                         <div className="w-full bg-white/[0.08] rounded-full h-2">
                            <div
                              className="bg-purple-600 h-2 rounded-full transition-all duration-300"
                              style={{ width: `${compareProgress}%` }}
                            />
                          </div>
-                         <p className="text-center text-xs text-gray-500 mt-1">{compareProgress}%</p>
+                         <p className="text-center text-xs text-ink-muted mt-1">{compareProgress}%</p>
                        </div>
                      )}
                    </div>
@@ -1451,9 +1451,9 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
 
                {/* Compare Video Preview */}
                {lesson.compareVideoUrl && (resolvedCompareUrl || !lesson.compareVideoUrl.startsWith(IDB_PREFIX)) && (
-                 <div className="bg-white rounded-xl shadow-sm border border-purple-100 p-4 mt-2">
+                 <div className="bg-white/[0.04] rounded-xl shadow-sm shadow-black/20 border border-purple-500/30 p-4 mt-2">
                    <div className="flex justify-between items-center mb-3">
-                     <h3 className="font-bold text-gray-900 flex items-center gap-2 text-sm">
+                     <h3 className="font-bold text-ink-high flex items-center gap-2 text-sm">
                        <Film className="w-4 h-4 text-purple-600" />
                        {t('lesson_compare_preview_title')}
                      </h3>
@@ -1487,7 +1487,7 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
                             <button
                                 key={phase}
                                 onClick={(e) => handleCaptureFrame(phase, e)}
-                                className="px-2 py-1 bg-white border border-gray-200 rounded text-[10px] font-medium text-gray-600 hover:bg-emerald-50 hover:text-emerald-600 hover:border-emerald-200 transition-colors flex items-center gap-1"
+                                className="px-2 py-1 bg-white/[0.05] border border-line-subtle rounded text-[10px] font-medium text-ink-medium hover:bg-emerald-500/[0.08] hover:text-emerald-300 hover:border-emerald-500/30 transition-colors flex items-center gap-1"
                             >
                                 <Camera className="w-3 h-3" /> {phase}
                             </button>
@@ -1497,26 +1497,26 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
 
               {/* Swing Sequence Strip - Only show if relevant (not Score record) */}
               {isSwingRecord && (
-                  <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mt-0">
+                  <div className="bg-white/[0.04] rounded-xl shadow-sm shadow-black/20 border border-line-subtle p-4 mt-0">
                        <div className="flex justify-between items-center mb-4">
-                           <h3 className="font-bold text-gray-900 flex items-center gap-2">
-                               <Film className="w-4 h-4 text-gray-500" /> 스윙 시퀀스
+                           <h3 className="font-bold text-ink-high flex items-center gap-2">
+                               <Film className="w-4 h-4 text-ink-muted" /> 스윙 시퀀스
                            </h3>
                        </div>
                        
                        {(!lesson.swingSequence || lesson.swingSequence.length === 0) ? (
-                           <div className="text-center py-6 bg-gray-50 rounded-lg border border-dashed border-gray-200 text-gray-400 text-sm">
+                           <div className="text-center py-6 bg-white/[0.03] rounded-lg border border-dashed border-line-subtle text-ink-muted text-sm">
                                추출된 스윙 동작이 없습니다.
                            </div>
                        ) : (
                            <div className="grid grid-cols-4 sm:grid-cols-8 gap-2">
                                {lesson.swingSequence.map((item) => (
                                    <div key={item.id} className="relative group cursor-pointer" onClick={() => handleViewSequenceImage(item.imageUrl)}>
-                                       <div className="aspect-[3/4] rounded-lg overflow-hidden border border-gray-200 bg-gray-100">
+                                       <div className="aspect-[3/4] rounded-lg overflow-hidden border border-line-subtle bg-white/[0.05]">
                                            <img src={item.imageUrl} className="w-full h-full object-cover" alt={item.label} />
                                        </div>
                                        <div className="mt-1 text-center">
-                                           <span className="text-[10px] font-bold text-gray-600 block truncate">{item.label}</span>
+                                           <span className="text-[10px] font-bold text-ink-medium block truncate">{item.label}</span>
                                        </div>
                                        {canEdit && (
                                            <button 
@@ -1545,7 +1545,7 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
              this at query time.
           */}
           {lesson.reviewSections && lesson.approvalStatus === 'approved' && (
-            <div className="rounded-2xl border border-emerald-100 bg-white shadow-sm overflow-hidden">
+            <div className="rounded-2xl border border-emerald-500/30 bg-white/[0.04] shadow-sm shadow-black/20 overflow-hidden">
               <div className="bg-gradient-to-r from-emerald-600 via-emerald-500 to-emerald-600 px-4 py-3 flex items-center gap-2 text-white">
                 <CheckCircle className="w-4 h-4" />
                 <span className="text-sm font-bold">코치 정리</span>
@@ -1555,10 +1555,10 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
                   </span>
                 )}
               </div>
-              <div className="px-4 py-4 space-y-4 text-gray-800">
+              <div className="px-4 py-4 space-y-4 text-ink-high">
                 {lesson.reviewSections.todayCovered && (
                   <div>
-                    <div className="text-[11px] font-mono uppercase tracking-wider text-emerald-700 mb-1">
+                    <div className="text-[11px] font-mono uppercase tracking-wider text-emerald-200 mb-1">
                       오늘 다룬 것
                     </div>
                     <p className="text-sm leading-relaxed whitespace-pre-line">
@@ -1568,7 +1568,7 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
                 )}
                 {lesson.reviewSections.feedback && (
                   <div>
-                    <div className="text-[11px] font-mono uppercase tracking-wider text-emerald-700 mb-1">
+                    <div className="text-[11px] font-mono uppercase tracking-wider text-emerald-200 mb-1">
                       피드백
                     </div>
                     <p className="text-sm leading-relaxed whitespace-pre-line">
@@ -1577,13 +1577,13 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
                   </div>
                 )}
                 {(lesson.reviewSections.nextActions?.length ?? 0) > 0 && (
-                  <div className="rounded-xl border border-emerald-100 bg-emerald-50/60 px-3 py-3">
-                    <div className="text-[11px] font-mono uppercase tracking-wider text-emerald-700 mb-2">
+                  <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/[0.08]/60 px-3 py-3">
+                    <div className="text-[11px] font-mono uppercase tracking-wider text-emerald-200 mb-2">
                       다음 액션
                     </div>
                     <ul className="space-y-1.5">
                       {lesson.reviewSections.nextActions?.map((a, i) => (
-                        <li key={i} className="flex items-start gap-2 text-sm text-gray-800">
+                        <li key={i} className="flex items-start gap-2 text-sm text-ink-high">
                           <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-emerald-500 flex-shrink-0" />
                           <span className="leading-relaxed">{a}</span>
                         </li>
@@ -1596,11 +1596,11 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
                    hide the memo from the student explicitly so a future
                    server-side leak doesn't accidentally surface it. */}
                 {!isClientView && lesson.reviewSections.freeMemo && (
-                  <div className="border-t border-emerald-100 pt-3">
-                    <div className="text-[11px] font-mono uppercase tracking-wider text-slate-500 mb-1">
+                  <div className="border-t border-emerald-500/20 pt-3">
+                    <div className="text-[11px] font-mono uppercase tracking-wider text-ink-muted mb-1">
                       자유 메모 · 코치 비공개
                     </div>
-                    <p className="text-sm leading-relaxed text-slate-600 whitespace-pre-line">
+                    <p className="text-sm leading-relaxed text-ink-medium whitespace-pre-line">
                       {lesson.reviewSections.freeMemo}
                     </p>
                   </div>
@@ -1612,13 +1612,13 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
           {/* ... (Rest of content: Assigned Homework, Scorecard, AI Analysis, etc.) ... */}
           {/* Assigned Homework Section */}
           {lesson.assignedHomework && lesson.assignedHomework.length > 0 && (
-              <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-4 shadow-sm">
+              <div className="bg-emerald-500/[0.08] border border-emerald-500/20 rounded-xl p-4 shadow-sm">
                   <h3 className="text-sm font-bold text-emerald-900 mb-3 flex items-center gap-2">
-                      <ListChecks className="w-4 h-4 text-emerald-600" /> 이번 레슨의 과제 (Homework)
+                      <ListChecks className="w-4 h-4 text-emerald-300" /> 이번 레슨의 과제 (Homework)
                   </h3>
                   <ul className="space-y-2">
                       {lesson.assignedHomework.map((hw, idx) => (
-                          <li key={idx} className="bg-white p-3 rounded-lg border border-emerald-50 text-sm flex items-start gap-2 text-gray-700 shadow-sm">
+                          <li key={idx} className="bg-white/[0.04] p-3 rounded-lg border border-emerald-500/20 text-sm flex items-start gap-2 text-ink-medium shadow-sm">
                               <CheckCircle className="w-4 h-4 text-emerald-400 mt-0.5 flex-shrink-0" />
                               {hw}
                           </li>
@@ -1629,7 +1629,7 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
 
           {/* Detailed Scorecard View */}
           {lesson.scorecardDetail && (
-              <div className="bg-white rounded-xl shadow-lg border border-blue-100/50 overflow-hidden">
+              <div className="bg-white/[0.04] rounded-xl shadow-lg shadow-black/20 border border-sky-500/30 overflow-hidden">
                    <div className="bg-gradient-to-r from-blue-600 via-blue-700 to-blue-600 px-4 py-3 flex justify-between items-center text-white shadow-xl">
                         <div className="flex items-center gap-2">
                             <MapPin className="w-5 h-5 text-yellow-300" />
@@ -1674,7 +1674,7 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
                    
                    <div className="overflow-x-auto">
                         <table className="w-full text-center text-xs">
-                             <thead className="bg-gray-50 text-gray-500">
+                             <thead className="bg-white/[0.03] text-ink-muted">
                                  <tr>
                                      <th className="py-2 px-1">Hole</th>
                                      {(isEditingScorecardDetail ? editingHoles : lesson.scorecardDetail.holes).slice(0, 9).map(h => <th key={h.holeNumber} className="py-2 px-1 w-8">{h.holeNumber}</th>)}
@@ -1682,7 +1682,7 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
                              </thead>
                              <tbody className="divide-y divide-gray-100">
                                  <tr>
-                                     <td className="font-bold bg-gray-50 text-gray-600 py-2">Par</td>
+                                     <td className="font-bold bg-white/[0.03] text-ink-medium py-2">Par</td>
                                      {(isEditingScorecardDetail ? editingHoles : lesson.scorecardDetail.holes).slice(0, 9).map(h => (
                                          isEditingScorecardDetail ? (
                                              <td key={h.holeNumber} className="py-2">
@@ -1695,7 +1695,7 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
                                                              hole.holeNumber === h.holeNumber ? {...hole, par: val} : hole
                                                          ));
                                                      }}
-                                                     className="w-10 text-center bg-white border border-gray-300 rounded px-1 py-0.5 focus:ring-2 focus:ring-blue-500 outline-none"
+                                                     className="w-10 text-center bg-white/[0.05] border border-line-subtle rounded px-1 py-0.5 focus:ring-2 focus:ring-blue-500 outline-none"
                                                      min="3"
                                                      max="5"
                                                  />
@@ -1706,7 +1706,7 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
                                      ))}
                                  </tr>
                                  <tr>
-                                     <td className="font-bold bg-gray-50 text-gray-600 py-2">Score</td>
+                                     <td className="font-bold bg-white/[0.03] text-ink-medium py-2">Score</td>
                                      {(isEditingScorecardDetail ? editingHoles : lesson.scorecardDetail.holes).slice(0, 9).map(h => (
                                          isEditingScorecardDetail ? (
                                              <td key={h.holeNumber} className="py-2">
@@ -1719,7 +1719,7 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
                                                              hole.holeNumber === h.holeNumber ? {...hole, score: val} : hole
                                                          ));
                                                      }}
-                                                     className="w-10 text-center bg-white border-2 border-blue-300 rounded px-1 py-0.5 font-bold focus:ring-2 focus:ring-blue-500 outline-none"
+                                                     className="w-10 text-center bg-white/[0.05] border-2 border-sky-500/40 rounded px-1 py-0.5 font-bold focus:ring-2 focus:ring-blue-500 outline-none"
                                                      min="1"
                                                      max="15"
                                                  />
@@ -1733,7 +1733,7 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
                                  </tr>
                                  {isEditingScorecardDetail && (
                                      <tr>
-                                         <td className="font-bold bg-gray-50 text-gray-600 py-2">Putts</td>
+                                         <td className="font-bold bg-white/[0.03] text-ink-medium py-2">Putts</td>
                                          {editingHoles.slice(0, 9).map(h => (
                                              <td key={h.holeNumber} className="py-2">
                                                  <input
@@ -1745,7 +1745,7 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
                                                              hole.holeNumber === h.holeNumber ? {...hole, putts: val} : hole
                                                          ));
                                                      }}
-                                                     className="w-10 text-center bg-white border border-emerald-300 rounded px-1 py-0.5 focus:ring-2 focus:ring-emerald-700 outline-none"
+                                                     className="w-10 text-center bg-white/[0.05] border border-emerald-500/40 rounded px-1 py-0.5 focus:ring-2 focus:ring-emerald-700 outline-none"
                                                      min="0"
                                                      max="10"
                                                  />
@@ -1755,7 +1755,7 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
                                  )}
                              </tbody>
                              
-                             <thead className="bg-gray-50 text-gray-500 border-t border-gray-200">
+                             <thead className="bg-white/[0.03] text-ink-muted border-t border-line-subtle">
                                  <tr>
                                      <th className="py-2 px-1">Hole</th>
                                      {(isEditingScorecardDetail ? editingHoles : lesson.scorecardDetail.holes).slice(9, 18).map(h => <th key={h.holeNumber} className="py-2 px-1 w-8">{h.holeNumber}</th>)}
@@ -1763,7 +1763,7 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
                              </thead>
                              <tbody className="divide-y divide-gray-100">
                                  <tr>
-                                     <td className="font-bold bg-gray-50 text-gray-600 py-2">Par</td>
+                                     <td className="font-bold bg-white/[0.03] text-ink-medium py-2">Par</td>
                                      {(isEditingScorecardDetail ? editingHoles : lesson.scorecardDetail.holes).slice(9, 18).map(h => (
                                          isEditingScorecardDetail ? (
                                              <td key={h.holeNumber} className="py-2">
@@ -1776,7 +1776,7 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
                                                              hole.holeNumber === h.holeNumber ? {...hole, par: val} : hole
                                                          ));
                                                      }}
-                                                     className="w-10 text-center bg-white border border-gray-300 rounded px-1 py-0.5 focus:ring-2 focus:ring-blue-500 outline-none"
+                                                     className="w-10 text-center bg-white/[0.05] border border-line-subtle rounded px-1 py-0.5 focus:ring-2 focus:ring-blue-500 outline-none"
                                                      min="3"
                                                      max="5"
                                                  />
@@ -1787,7 +1787,7 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
                                      ))}
                                  </tr>
                                  <tr>
-                                     <td className="font-bold bg-gray-50 text-gray-600 py-2">Score</td>
+                                     <td className="font-bold bg-white/[0.03] text-ink-medium py-2">Score</td>
                                      {(isEditingScorecardDetail ? editingHoles : lesson.scorecardDetail.holes).slice(9, 18).map(h => (
                                          isEditingScorecardDetail ? (
                                              <td key={h.holeNumber} className="py-2">
@@ -1800,7 +1800,7 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
                                                              hole.holeNumber === h.holeNumber ? {...hole, score: val} : hole
                                                          ));
                                                      }}
-                                                     className="w-10 text-center bg-white border-2 border-blue-300 rounded px-1 py-0.5 font-bold focus:ring-2 focus:ring-blue-500 outline-none"
+                                                     className="w-10 text-center bg-white/[0.05] border-2 border-sky-500/40 rounded px-1 py-0.5 font-bold focus:ring-2 focus:ring-blue-500 outline-none"
                                                      min="1"
                                                      max="15"
                                                  />
@@ -1814,7 +1814,7 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
                                  </tr>
                                  {isEditingScorecardDetail && (
                                      <tr>
-                                         <td className="font-bold bg-gray-50 text-gray-600 py-2">Putts</td>
+                                         <td className="font-bold bg-white/[0.03] text-ink-medium py-2">Putts</td>
                                          {editingHoles.slice(9, 18).map(h => (
                                              <td key={h.holeNumber} className="py-2">
                                                  <input
@@ -1826,7 +1826,7 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
                                                              hole.holeNumber === h.holeNumber ? {...hole, putts: val} : hole
                                                          ));
                                                      }}
-                                                     className="w-10 text-center bg-white border border-emerald-300 rounded px-1 py-0.5 focus:ring-2 focus:ring-emerald-700 outline-none"
+                                                     className="w-10 text-center bg-white/[0.05] border border-emerald-500/40 rounded px-1 py-0.5 focus:ring-2 focus:ring-emerald-700 outline-none"
                                                      min="0"
                                                      max="10"
                                                  />
@@ -1840,7 +1840,7 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
                    
                    {/* Edit Mode Action Buttons */}
                    {isEditingScorecardDetail && (
-                       <div className="p-4 border-t border-gray-200 bg-gray-50 flex gap-2">
+                       <div className="p-4 border-t border-line-subtle bg-white/[0.03] flex gap-2">
                            <button
                                onClick={() => {
                                    setIsEditingScorecardDetail(false);
@@ -1850,7 +1850,7 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
                                        setEditingHoles(JSON.parse(JSON.stringify(lesson.scorecardDetail.holes)));
                                    }
                                }}
-                               className="flex-1 py-2.5 rounded-lg bg-white border border-gray-300 text-gray-700 font-bold hover:bg-gray-50 transition-colors"
+                               className="flex-1 py-2.5 rounded-lg bg-white/[0.05] border border-line-subtle text-ink-medium font-bold hover:bg-white/[0.03] transition-colors"
                            >
                                취소
                            </button>
@@ -1864,16 +1864,16 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
                    )}
                    
                    {/* Hole Details with AI Summary and Extracted Metrics */}
-                   <div className="p-4 border-t border-gray-100">
-                        <h4 className="text-sm font-bold text-gray-800 mb-3 flex items-center gap-2">
+                   <div className="p-4 border-t border-line-subtle">
+                        <h4 className="text-sm font-bold text-ink-high mb-3 flex items-center gap-2">
                              <MessageCircle className="w-4 h-4 text-blue-500" /> 홀별 상세 기록 (음성 분석)
                         </h4>
                         <div className="space-y-3">
                             {lesson.scorecardDetail.holes.filter(h => h.aiSummary || getHoleVoiceUrls(h).length > 0).length === 0 ? (
-                                <p className="text-xs text-gray-400 text-center py-2">상세 기록이 없습니다.</p>
+                                <p className="text-xs text-ink-muted text-center py-2">상세 기록이 없습니다.</p>
                             ) : (
                                 lesson.scorecardDetail.holes.filter(h => h.aiSummary || getHoleVoiceUrls(h).length > 0).map(h => (
-                                    <div key={h.holeNumber} className="bg-gray-50 p-3 rounded-lg border border-gray-100">
+                                    <div key={h.holeNumber} className="bg-white/[0.03] p-3 rounded-lg border border-line-subtle">
                                         <div className="flex justify-between items-center mb-2">
                                             <span className="font-bold text-xs bg-gray-900 text-white px-2 py-0.5 rounded-full">{h.holeNumber}H</span>
                                             {getHoleVoiceUrls(h).length > 0 && (
@@ -1896,24 +1896,24 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
                                             </div>
                                         )}
                                         {h.aiSummary && (
-                                            <p className="text-xs text-gray-700 leading-relaxed bg-white p-2 rounded border border-gray-200 mb-2">
+                                            <p className="text-xs text-ink-medium leading-relaxed bg-white/[0.04] p-2 rounded border border-line-subtle mb-2">
                                                 {h.aiSummary}
                                             </p>
                                         )}
                                         {/* Extracted Shot Metrics Display */}
                                         {h.shotMetrics && (
-                                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[10px] bg-white p-2 rounded border border-gray-200">
+                                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[10px] bg-white/[0.04] p-2 rounded border border-line-subtle">
                                                 {h.shotMetrics.teeDistance && (
-                                                    <div className="text-gray-600">티샷: <span className="font-bold text-blue-600">{h.shotMetrics.teeDistance}m</span></div>
+                                                    <div className="text-ink-medium">티샷: <span className="font-bold text-blue-600">{h.shotMetrics.teeDistance}m</span></div>
                                                 )}
                                                 {h.shotMetrics.secondShotDistance && (
-                                                    <div className="text-gray-600">세컨: <span className="font-bold text-emerald-600">{h.shotMetrics.secondShotDistance}m</span></div>
+                                                    <div className="text-ink-medium">세컨: <span className="font-bold text-emerald-300">{h.shotMetrics.secondShotDistance}m</span></div>
                                                 )}
                                                 {h.shotMetrics.firstPuttDistance && (
-                                                    <div className="text-gray-600">퍼팅: <span className="font-bold text-emerald-600">{h.shotMetrics.firstPuttDistance}m</span></div>
+                                                    <div className="text-ink-medium">퍼팅: <span className="font-bold text-emerald-300">{h.shotMetrics.firstPuttDistance}m</span></div>
                                                 )}
                                                 {h.shotMetrics.approachDistance && (
-                                                    <div className="text-gray-600">어프로치: <span className="font-bold text-orange-600">{h.shotMetrics.approachDistance}m</span></div>
+                                                    <div className="text-ink-medium">어프로치: <span className="font-bold text-orange-600">{h.shotMetrics.approachDistance}m</span></div>
                                                 )}
                                             </div>
                                         )}
@@ -1927,7 +1927,7 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
 
           {/* Round Summary Card (Scorecard Mode - Fallback or General) */}
           {lesson.recordType === 'SCORE' && !lesson.scorecardDetail && (
-              <div className="bg-white rounded-xl shadow-sm border border-blue-100 overflow-hidden">
+              <div className="bg-white/[0.04] rounded-xl shadow-sm shadow-black/20 border border-sky-500/30 overflow-hidden">
                    <div className="bg-blue-600 px-4 py-3 flex justify-between items-center text-white">
                          <h3 className="font-bold flex items-center gap-2">
                             <Trophy className="w-5 h-5 text-yellow-300" /> Round Summary
@@ -1940,11 +1940,11 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
                    </div>
                    <div className="p-5">
                        {lesson.aiAnalysis ? (
-                           <div className="prose prose-sm prose-blue text-gray-600 leading-relaxed">
+                           <div className="prose prose-sm prose-blue text-ink-medium leading-relaxed">
                                 <ReactMarkdown>{lesson.aiAnalysis}</ReactMarkdown>
                            </div>
                        ) : (
-                           <div className="text-center py-6 text-gray-400 text-sm">
+                           <div className="text-center py-6 text-ink-muted text-sm">
                                 라운드 요약 내용이 없습니다.
                             </div>
                         )}
@@ -1954,7 +1954,7 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
           
           {/* Round Report Summary Card (Detailed Scorecard Mode) */}
           {lesson.scorecardDetail && (lesson.aiAnalysis || hasScorecardVoice) && (
-              <div className="bg-white rounded-xl shadow-sm border border-blue-100 overflow-hidden">
+              <div className="bg-white/[0.04] rounded-xl shadow-sm shadow-black/20 border border-sky-500/30 overflow-hidden">
                    <div className="bg-blue-50 px-4 py-3 border-b border-blue-100 flex justify-between items-center">
                         <h3 className="font-bold text-blue-800 flex items-center gap-2">
                             <Sparkles className="w-5 h-5 text-blue-500" />
@@ -1963,13 +1963,13 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
                    </div>
                    <div className="p-5">
                        {lesson.aiAnalysis ? (
-                           <div className="prose prose-sm prose-blue text-gray-600 leading-relaxed max-w-none">
+                           <div className="prose prose-sm prose-blue text-ink-medium leading-relaxed max-w-none">
                                <ReactMarkdown>{lesson.aiAnalysis}</ReactMarkdown>
                            </div>
                        ) : (
                            <div className="text-center py-8">
                                <Sparkles className="w-12 h-12 text-gray-200 mx-auto mb-3" />
-                               <p className="text-gray-500 text-sm mb-4">홀별 음성 기록을 바탕으로 AI 요약 리포트를 생성할 수 있습니다.</p>
+                               <p className="text-ink-muted text-sm mb-4">홀별 음성 기록을 바탕으로 AI 요약 리포트를 생성할 수 있습니다.</p>
                                {canEdit && (
                                    <Button
                                        onClick={handleGenerateAIAnalysis}
@@ -1988,10 +1988,10 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
 
           {/* Lesson Report Summary Card (Lesson/Practice Mode) */}
           {showAiAnalysis && lesson.recordType !== 'SCORE' && (
-            <div className="bg-white rounded-xl shadow-sm border border-emerald-100 overflow-hidden">
-                <div className="bg-emerald-50 px-4 py-3 border-b border-emerald-100 flex justify-between items-center">
+            <div className="bg-white/[0.04] rounded-xl shadow-sm shadow-black/20 border border-emerald-500/20 overflow-hidden">
+                <div className="bg-emerald-500/[0.08] px-4 py-3 border-b border-emerald-500/20 flex justify-between items-center">
                     <h3 className="font-bold text-emerald-800 flex items-center gap-2">
-                        <Sparkles className="w-5 h-5 text-emerald-700" /> 
+                        <Sparkles className="w-5 h-5 text-emerald-200" /> 
                         레슨 리포트 요약
                     </h3>
                     <div className="flex gap-2">
@@ -2000,14 +2000,14 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
                             <>
                                 <button 
                                     onClick={isSpeaking ? handleStopSpeak : handleSpeakAnalysis}
-                                    className={`p-1.5 rounded-full transition-colors ${isSpeaking ? 'bg-emerald-200 text-emerald-700 animate-pulse' : 'hover:bg-emerald-200 text-emerald-600'}`}
+                                    className={`p-1.5 rounded-full transition-colors ${isSpeaking ? 'bg-emerald-200 text-emerald-200 animate-pulse' : 'hover:bg-emerald-200 text-emerald-300'}`}
                                     title={isSpeaking ? "읽기 중지" : "요약 내용 듣기"}
                                 >
                                     {isSpeaking ? <StopCircle className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
                                 </button>
                                 <button 
                                     onClick={handleCopyAnalysis}
-                                    className="p-1.5 hover:bg-emerald-200 rounded-full text-emerald-600 transition-colors"
+                                    className="p-1.5 hover:bg-emerald-200 rounded-full text-emerald-300 transition-colors"
                                     title="내용 복사"
                                 >
                                     {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
@@ -2018,13 +2018,13 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
                 </div>
                 <div className="p-5">
                     {lesson.aiAnalysis ? (
-                        <div className="prose prose-sm prose-emerald text-gray-600 leading-relaxed max-w-none">
+                        <div className="prose prose-sm prose-emerald text-ink-medium leading-relaxed max-w-none">
                              <ReactMarkdown>{lesson.aiAnalysis}</ReactMarkdown>
                         </div>
                     ) : (
                         <div className="text-center py-8">
                             <Sparkles className="w-12 h-12 text-gray-200 mx-auto mb-3" />
-                            <p className="text-gray-500 text-sm mb-4">아직 레슨 요약 리포트가 없습니다.</p>
+                            <p className="text-ink-muted text-sm mb-4">아직 레슨 요약 리포트가 없습니다.</p>
                             {canEdit && (
                                 <Button 
                                     onClick={handleGenerateAIAnalysis} 
@@ -2074,14 +2074,14 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
             const getCellColor = (val: number | undefined) => {
               if (val === undefined || val === null) return 'text-gray-300';
               const abs = Math.abs(val);
-              if (abs === 0) return 'text-gray-400';
-              if (abs <= 2) return 'text-emerald-600 font-medium';
+              if (abs === 0) return 'text-ink-muted';
+              if (abs <= 2) return 'text-emerald-300 font-medium';
               if (abs <= 4) return 'text-amber-600 font-semibold';
               return 'text-red-600 font-bold';
             };
 
             return (
-              <div className="bg-white rounded-xl shadow-sm border border-purple-100 overflow-hidden">
+              <div className="bg-white/[0.04] rounded-xl shadow-sm shadow-black/20 border border-purple-500/30 overflow-hidden">
                 <div className="bg-purple-50 px-4 py-3 border-b border-purple-100 flex justify-between items-center">
                   <h3 className="font-bold text-purple-900 flex items-center gap-2">
                     <TrendingUp className="w-5 h-5 text-purple-600" />
@@ -2120,8 +2120,8 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
                           </thead>
                           <tbody>
                             {metricLabels.map(({ key, label }) => (
-                              <tr key={key} className="border-b border-gray-50 hover:bg-gray-50">
-                                <td className="py-2 px-3 text-gray-600 font-medium">{label}</td>
+                              <tr key={key} className="border-b border-line-subtle hover:bg-white/[0.03]">
+                                <td className="py-2 px-3 text-ink-medium font-medium">{label}</td>
                                 {motionData.measurements.map((m, i) => {
                                   const val = m[key] as number | undefined;
                                   return (
@@ -2134,24 +2134,24 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
                             ))}
                           </tbody>
                         </table>
-                        <p className="text-[10px] text-gray-400 mt-1 px-1">
-                          색상: <span className="text-emerald-600">●정상(≤2cm)</span> <span className="text-amber-600">●주의(≤4cm)</span> <span className="text-red-600">●교정필요(&gt;4cm)</span>
+                        <p className="text-[10px] text-ink-muted mt-1 px-1">
+                          색상: <span className="text-emerald-300">●정상(≤2cm)</span> <span className="text-amber-600">●주의(≤4cm)</span> <span className="text-red-600">●교정필요(&gt;4cm)</span>
                         </p>
                       </div>
                     )}
 
                     {/* AI Analysis Text */}
-                    <div className="prose prose-sm prose-purple text-gray-600 leading-relaxed max-w-none pt-2 border-t border-gray-100">
+                    <div className="prose prose-sm prose-purple text-ink-medium leading-relaxed max-w-none pt-2 border-t border-line-subtle">
                       <ReactMarkdown>{motionData.aiAnalysis}</ReactMarkdown>
                     </div>
                   </div>
                 ) : (
                   <div className="text-center py-8">
                     <TrendingUp className="w-12 h-12 text-gray-200 mx-auto mb-3" />
-                    <p className="text-gray-500 text-sm mb-2">
+                    <p className="text-ink-muted text-sm mb-2">
                       {motionImages.length}장의 모션 캡처 이미지가 감지되었습니다.
                     </p>
-                    <p className="text-gray-400 text-xs mb-4">
+                    <p className="text-ink-muted text-xs mb-4">
                       K-Motion 등 3D 모션 분석 시스템 화면을 AI가 읽어 측정값과 코칭 피드백을 제공합니다.
                     </p>
                     {canEdit && (
@@ -2171,27 +2171,27 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
           })()}
 
           {/* Coach Notes */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-              <h3 className="font-bold text-gray-900 mb-3 flex items-center gap-2">
-                  <PenTool className="w-4 h-4 text-gray-500" /> 
+          <div className="bg-white/[0.04] rounded-xl shadow-sm shadow-black/20 border border-line-subtle p-5">
+              <h3 className="font-bold text-ink-high mb-3 flex items-center gap-2">
+                  <PenTool className="w-4 h-4 text-ink-muted" /> 
                   {lesson.createdBy === 'COACH' ? '코치 메모' : '나의 메모'}
               </h3>
-              <p className="text-gray-600 text-sm whitespace-pre-wrap leading-relaxed">
+              <p className="text-ink-medium text-sm whitespace-pre-wrap leading-relaxed">
                   {lesson.coachNotes || (
-                      <span className="text-gray-400 italic">메모 내용이 없습니다.</span>
+                      <span className="text-ink-muted italic">메모 내용이 없습니다.</span>
                   )}
               </p>
           </div>
 
           {/* Client Feedback Section */}
-          <div className={`bg-white rounded-xl shadow-sm border p-5 ${lesson.feedbackStatus === 'COMPLETED' ? 'border-emerald-200 bg-emerald-50/30' : 'border-gray-100'}`}>
+          <div className={`bg-white/[0.04] rounded-xl shadow-sm shadow-black/20 border p-5 ${lesson.feedbackStatus === 'COMPLETED' ? 'border-emerald-500/30 bg-emerald-500/[0.08]/30' : 'border-line-subtle'}`}>
               <div className="flex justify-between items-start mb-4">
-                  <h3 className="font-bold text-gray-900 flex items-center gap-2">
+                  <h3 className="font-bold text-ink-high flex items-center gap-2">
                       <MessageCircle className="w-4 h-4 text-orange-500" />
                       회원 피드백 & 질문
                   </h3>
                   {lesson.feedbackStatus === 'COMPLETED' && (
-                      <span className="text-[10px] font-bold text-emerald-600 bg-emerald-100 px-2 py-0.5 rounded-full flex items-center gap-1">
+                      <span className="text-[10px] font-bold text-emerald-300 bg-emerald-500/20 px-2 py-0.5 rounded-full flex items-center gap-1">
                           <CheckCircle className="w-3 h-3" /> 작성 완료
                       </span>
                   )}
@@ -2205,7 +2205,7 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
                           onChange={(e) => setClientNoteText(e.target.value)}
                           placeholder="레슨 후 궁금한 점이나 느낀 점을 코치님께 남겨보세요."
                           rows={3}
-                          className="w-full p-3 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-700 outline-none resize-none"
+                          className="w-full p-3 border border-line-subtle rounded-xl text-sm focus:ring-2 focus:ring-emerald-700 outline-none resize-none"
                       />
                       
                       {/* Voice Feedback Recorder */}
@@ -2220,7 +2220,7 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
                           ) : (
                               <button 
                                 onClick={() => startRecordingAudio(true)}
-                                className="flex-1 bg-gray-100 text-gray-600 hover:bg-gray-200 py-2 rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-colors"
+                                className="flex-1 bg-white/[0.05] text-ink-medium hover:bg-white/[0.08] py-2 rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-colors"
                               >
                                   <Mic className="w-4 h-4" /> 음성 질문 녹음
                               </button>
@@ -2228,10 +2228,10 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
                       </div>
 
                       {clientVoicePreviewUrl && (
-                          <div className="bg-gray-50 p-2 rounded-lg flex items-center gap-2">
-                              <Mic className="w-4 h-4 text-emerald-600" />
+                          <div className="bg-white/[0.03] p-2 rounded-lg flex items-center gap-2">
+                              <Mic className="w-4 h-4 text-emerald-300" />
                               <audio src={clientVoicePreviewUrl} controls className="h-8 w-full" />
-                              <button onClick={() => setClientVoicePreviewUrl(null)} className="text-gray-400 hover:text-red-500">
+                              <button onClick={() => setClientVoicePreviewUrl(null)} className="text-ink-muted hover:text-red-500">
                                   <X className="w-4 h-4" />
                               </button>
                           </div>
@@ -2249,25 +2249,25 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
                       {lesson.clientFeedback ? (
                           <>
                               {lesson.clientFeedback.text && (
-                                  <p className="text-sm text-gray-700 bg-gray-50 p-3 rounded-lg border border-gray-100">
+                                  <p className="text-sm text-ink-medium bg-white/[0.03] p-3 rounded-lg border border-line-subtle">
                                       "{lesson.clientFeedback.text}"
                                   </p>
                               )}
                               {lesson.clientFeedback.voiceUrl && (
-                                  <div className="bg-gray-50 p-3 rounded-lg border border-gray-100">
-                                      <p className="text-xs text-gray-500 mb-2 flex items-center gap-1"><Mic className="w-3 h-3" /> 음성 질문</p>
+                                  <div className="bg-white/[0.03] p-3 rounded-lg border border-line-subtle">
+                                      <p className="text-xs text-ink-muted mb-2 flex items-center gap-1"><Mic className="w-3 h-3" /> 음성 질문</p>
                                       <audio src={lesson.clientFeedback.voiceUrl} controls className="w-full h-8" />
                                   </div>
                               )}
-                              <p className="text-xs text-gray-400 text-right">
+                              <p className="text-xs text-ink-muted text-right">
                                   작성일: {new Date(lesson.clientFeedback.updatedAt).toLocaleDateString()}
                               </p>
                           </>
                       ) : (
-                          <div className="text-center py-4 text-gray-400 text-sm bg-gray-50 rounded-lg border border-dashed border-gray-200">
+                          <div className="text-center py-4 text-ink-muted text-sm bg-white/[0.03] rounded-lg border border-dashed border-line-subtle">
                               아직 작성된 피드백이 없습니다.
                               <div className="mt-2">
-                                  <button onClick={handleRequestFeedback} className="text-emerald-600 text-xs font-bold hover:underline">
+                                  <button onClick={handleRequestFeedback} className="text-emerald-300 text-xs font-bold hover:underline">
                                       피드백 요청 보내기
                                   </button>
                               </div>
@@ -2291,7 +2291,7 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
               <Button
                 onClick={onBack}
                 variant="secondary"
-                className="w-full py-3 text-gray-600 bg-white border border-gray-200 hover:bg-gray-50 shadow-sm"
+                className="w-full py-3 text-ink-medium bg-white border border-line-subtle hover:bg-white/[0.03] shadow-sm"
               >
                   <ArrowLeft className="w-4 h-4 mr-2" /> 목록으로 돌아가기
               </Button>
@@ -2300,7 +2300,7 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
               {onEdit && canEditOrDelete && (
                   <button 
                     onClick={() => onEdit(lesson)}
-                    className="w-full py-3 text-emerald-600 bg-emerald-50 rounded-lg text-sm font-bold hover:bg-emerald-100 transition-colors flex items-center justify-center gap-2"
+                    className="w-full py-3 text-emerald-300 bg-emerald-500/[0.08] rounded-lg text-sm font-bold hover:bg-emerald-500/20 transition-colors flex items-center justify-center gap-2"
                   >
                       <Edit2 className="w-4 h-4" /> 레슨 기록 수정하기
                   </button>
@@ -2338,7 +2338,7 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
                       <button
                           onClick={handleCopyLink}
                           data-testid="copy-link-button"
-                          className="w-full py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-2 bg-white border border-amber-300 text-amber-700 hover:bg-amber-100 transition-colors"
+                          className="w-full py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-2 bg-white/[0.04] border border-amber-500/40 text-amber-200 hover:bg-amber-500/20 transition-colors"
                       >
                           {linkCopied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
                           {linkCopied ? '링크 복사됨!' : '레슨 링크 복사하기'}
@@ -2352,7 +2352,7 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
               )}
           </div>
           
-          <div className="text-center text-xs text-gray-400 pt-4 pb-8">
+          <div className="text-center text-xs text-ink-muted pt-4 pb-8">
               Lesson ID: {lesson.id} • {new Date(lesson.createdAt).toLocaleString()}
           </div>
         </div>
@@ -2413,7 +2413,7 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
                              {!isRecording ? (
                                  <>
                                      <button onClick={takePhoto} className="w-16 h-16 bg-white rounded-full border-4 border-gray-300 flex items-center justify-center shadow-lg hover:bg-gray-100">
-                                         <Camera className="w-8 h-8 text-gray-800" />
+                                         <Camera className="w-8 h-8 text-ink-high" />
                                      </button>
                                      <button onClick={startRecordingVideo} className="w-20 h-20 bg-red-600 rounded-full border-4 border-white shadow-lg hover:scale-105 transition-transform" />
                                  </>
@@ -2445,7 +2445,7 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
                           <div className="flex justify-center gap-4">
                               {!isRecording ? (
                                   <>
-                                      <button onClick={takePhoto} className="bg-white text-gray-900 hover:bg-gray-100 px-6 py-3 rounded-full text-lg font-bold flex items-center gap-2 border-2 border-gray-300">
+                                      <button onClick={takePhoto} className="bg-white text-ink-high hover:bg-gray-100 px-6 py-3 rounded-full text-lg font-bold flex items-center gap-2 border-2 border-gray-300">
                                           <Camera className="w-5 h-5" />
                                           사진 캡처
                                       </button>
