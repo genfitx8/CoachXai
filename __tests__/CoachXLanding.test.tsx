@@ -42,8 +42,9 @@ describe('CoachXLanding', () => {
 
     render(<CoachXLanding onLogin={onLogin} />);
 
-    expect(screen.getByText('CoachX AI')).toBeInTheDocument();
+    expect(screen.queryByText('CoachX AI')).not.toBeInTheDocument();
     expect(screen.getByText('Hello, coach.')).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: 'CoachX' })).toBeInTheDocument();
     expect(screen.getByTestId('coachx-ai-orb')).toHaveClass('animate-coachx-orb-drift');
 
     fireEvent.click(screen.getByRole('button', { name: 'Log in' }));

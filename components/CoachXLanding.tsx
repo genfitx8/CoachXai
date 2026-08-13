@@ -187,15 +187,7 @@ export const CoachXLanding: React.FC<CoachXLandingProps> = ({
         >
           <CoachXMark size={64} tone="dark" />
         </div>
-        <h1
-          className="text-3xl sm:text-4xl md:text-5xl tracking-normal sm:tracking-wide font-semibold"
-          style={{
-            textShadow: '0 0 40px rgba(56,189,248,0.35), 0 0 80px rgba(56,189,248,0.15)',
-          }}
-        >
-          CoachX AI
-        </h1>
-        <p className="mt-4 text-white/70 text-base md:text-lg">Hello, coach.</p>
+        <p className="text-white/70 text-base md:text-lg">Hello, coach.</p>
       </div>
 
       <div className="absolute bottom-8 left-0 right-0 z-10 flex flex-col items-center justify-center gap-4">
