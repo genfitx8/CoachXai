@@ -698,16 +698,16 @@ export const ClientStats: React.FC<ClientStatsProps> = ({ lessons, onBack, clien
     <div className="space-y-4 animate-fade-in pb-10">
       <div className="flex items-center justify-between">
         <BackButton onClick={onBack} tone="dark" label="목록" ariaLabel="목록으로 돌아가기" />
-        <h2 className="text-lg font-bold text-gray-900">분석 리포트</h2>
+        <h2 className="text-lg font-bold text-ink-high">분석 리포트</h2>
       </div>
 
       {/* Date Range Filter */}
-      <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm space-y-3">
+      <div className="bg-white/[0.04] p-4 rounded-xl border border-line-subtle shadow-sm space-y-3">
           <div className="flex items-center justify-between">
-              <h3 className="text-sm font-bold text-gray-800 flex items-center gap-2">
+              <h3 className="text-sm font-bold text-ink-high flex items-center gap-2">
                   <CalendarDays className="w-4 h-4 text-emerald-600" /> 분석 기간 설정
               </h3>
-              <span className="text-xs text-gray-500 font-mono">
+              <span className="text-xs text-ink-muted font-mono">
                   {startDate} ~ {endDate}
               </span>
           </div>
@@ -719,8 +719,8 @@ export const ClientStats: React.FC<ClientStatsProps> = ({ lessons, onBack, clien
                     onClick={() => handlePeriodChange(opt)}
                     className={`px-3 py-1.5 rounded-full text-xs font-bold transition-colors whitespace-nowrap ${
                         period === opt 
-                        ? 'bg-gray-800 text-white' 
-                        : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                        ? 'bg-white/[0.10] text-white' 
+                        : 'bg-white/[0.06] text-ink-muted hover:bg-white/[0.10]'
                     }`}
                   >
                       {opt === '1M' ? '1개월' : opt === '3M' ? '3개월' : opt === '6M' ? '6개월' : opt === '1Y' ? '1년' : '전체'}
@@ -728,39 +728,39 @@ export const ClientStats: React.FC<ClientStatsProps> = ({ lessons, onBack, clien
               ))}
           </div>
 
-          <div className="grid grid-cols-2 gap-3 pt-2 border-t border-gray-100">
+          <div className="grid grid-cols-2 gap-3 pt-2 border-t border-line-subtle">
               <div className="relative">
-                  <span className="absolute left-2 top-2 text-[10px] text-gray-400">시작일</span>
+                  <span className="absolute left-2 top-2 text-[10px] text-ink-muted">시작일</span>
                   <input 
                     type="date" 
                     value={startDate}
                     onChange={(e) => { setStartDate(e.target.value); setPeriod('ALL'); }}
-                    className="w-full pl-2 pt-5 pb-1 text-xs font-bold border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-700 outline-none"
+                    className="w-full pl-2 pt-5 pb-1 text-xs font-bold border border-line-subtle rounded-lg focus:ring-2 focus:ring-emerald-700 outline-none"
                   />
               </div>
               <div className="relative">
-                   <span className="absolute left-2 top-2 text-[10px] text-gray-400">종료일</span>
+                   <span className="absolute left-2 top-2 text-[10px] text-ink-muted">종료일</span>
                    <input 
                     type="date" 
                     value={endDate}
                     onChange={(e) => { setEndDate(e.target.value); setPeriod('ALL'); }}
-                    className="w-full pl-2 pt-5 pb-1 text-xs font-bold border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-700 outline-none"
+                    className="w-full pl-2 pt-5 pb-1 text-xs font-bold border border-line-subtle rounded-lg focus:ring-2 focus:ring-emerald-700 outline-none"
                   />
               </div>
           </div>
       </div>
 
       {/* Tab Switcher */}
-      <div className="bg-gray-100 p-1 rounded-xl flex items-center">
+      <div className="bg-white/[0.06] p-1 rounded-xl flex items-center">
           <button 
             onClick={() => setActiveTab('SHOT')}
-            className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-lg text-sm font-bold transition-all ${activeTab === 'SHOT' ? 'bg-white text-emerald-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+            className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-lg text-sm font-bold transition-all ${activeTab === 'SHOT' ? 'bg-white/[0.04] text-emerald-600 shadow-sm' : 'text-ink-muted hover:text-ink-medium'}`}
           >
               <Crosshair className="w-4 h-4" /> 샷 데이터
           </button>
           <button 
             onClick={() => setActiveTab('SCORE')}
-            className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-lg text-sm font-bold transition-all ${activeTab === 'SCORE' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+            className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-lg text-sm font-bold transition-all ${activeTab === 'SCORE' ? 'bg-white/[0.04] text-blue-600 shadow-sm' : 'text-ink-muted hover:text-ink-medium'}`}
           >
               <Trophy className="w-4 h-4" /> 라운드
           </button>
@@ -774,19 +774,19 @@ export const ClientStats: React.FC<ClientStatsProps> = ({ lessons, onBack, clien
                 Rendered regardless of club data availability — the button
                 inside handles the "데이터 부족" state itself. */}
             {clientProfile && (
-                <div className="bg-white rounded-xl shadow-lg border border-purple-100/60 overflow-hidden">
+                <div className="bg-white/[0.04] rounded-xl shadow-lg border border-purple-100/60 overflow-hidden">
                     <div className="bg-gradient-to-r from-purple-600 to-emerald-600 px-4 py-3 border-b border-emerald-500 flex justify-between items-center">
                         <h3 className="font-bold text-white text-sm flex items-center gap-2">
                             <Sparkles className="w-4 h-4" /> AI 종합 분석 리포트
                         </h3>
-                        <span className="text-[10px] bg-white/90 text-purple-700 px-2.5 py-1 rounded-full font-bold">
+                        <span className="text-[10px] bg-white/[0.10] text-purple-700 px-2.5 py-1 rounded-full font-bold">
                             코치 방법론 반영
                         </span>
                     </div>
                     <div className="p-4 space-y-3">
                         {!aiReport && !isGeneratingReport && !reportError && (
                             <>
-                                <p className="text-xs text-gray-600 leading-relaxed">
+                                <p className="text-xs text-ink-medium leading-relaxed">
                                     {clientProfile.name}님의 볼·클럽·모션·신체 데이터를 종합해
                                     <strong className="text-purple-700"> 코스 공략, 런치·스핀 최적화, 클럽/모션 원인 진단, 키네마틱 시퀀스</strong>까지
                                     마크다운 리포트로 생성합니다. IQR 기반으로 미스샷은 자동 제외됩니다.
@@ -823,7 +823,7 @@ export const ClientStats: React.FC<ClientStatsProps> = ({ lessons, onBack, clien
                         )}
                         {aiReport && (
                             <div className="space-y-3">
-                                <div className="flex items-center justify-between text-[11px] text-gray-500 gap-2">
+                                <div className="flex items-center justify-between text-[11px] text-ink-muted gap-2">
                                     <span className="flex items-center gap-1.5">
                                         {isGeneratingReport ? (
                                             <>
@@ -847,7 +847,7 @@ export const ClientStats: React.FC<ClientStatsProps> = ({ lessons, onBack, clien
                                                 onClick={handleStartEditing}
                                                 disabled={isGeneratingReport || isSavingExemplar}
                                                 title="AI 리포트를 직접 편집해 코치 스타일 학습 재료로 저장 (tier 2)"
-                                                className="inline-flex items-center gap-1 font-bold text-gray-500 hover:text-purple-700 disabled:opacity-50"
+                                                className="inline-flex items-center gap-1 font-bold text-ink-muted hover:text-purple-700 disabled:opacity-50"
                                             >
                                                 <Pencil className="w-3.5 h-3.5" />
                                                 편집 후 저장
@@ -871,7 +871,7 @@ export const ClientStats: React.FC<ClientStatsProps> = ({ lessons, onBack, clien
                                             className={`inline-flex items-center gap-1 font-bold disabled:opacity-50 ${
                                                 savedExemplarId
                                                     ? 'text-amber-500 hover:text-amber-600'
-                                                    : 'text-gray-400 hover:text-amber-500'
+                                                    : 'text-ink-muted hover:text-amber-500'
                                             }`}
                                         >
                                             <Star
@@ -892,13 +892,13 @@ export const ClientStats: React.FC<ClientStatsProps> = ({ lessons, onBack, clien
                                 </div>
                                 {editingReport ? (
                                     <div className="space-y-2">
-                                        <p className="text-[11px] text-gray-500 leading-relaxed">
+                                        <p className="text-[11px] text-ink-muted leading-relaxed">
                                             AI 리포트를 직접 편집해 주세요. 저장하면 <strong>tier 2 exemplar</strong>로 기록되어 이후 이 회원 유형에 대한 리포트 생성 시 코치님의 스타일이 few-shot으로 주입됩니다.
                                         </p>
                                         <textarea
                                             value={editDraft}
                                             onChange={(e) => setEditDraft(e.target.value)}
-                                            className="w-full min-h-[280px] rounded-lg border border-gray-300 bg-white p-3 text-sm font-mono leading-relaxed text-gray-800 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-200"
+                                            className="w-full min-h-[280px] rounded-lg border border-line-subtle bg-white/[0.04] p-3 text-sm font-mono leading-relaxed text-ink-high focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-200"
                                             spellCheck={false}
                                         />
                                         <div className="flex items-center justify-end gap-2">
@@ -906,7 +906,7 @@ export const ClientStats: React.FC<ClientStatsProps> = ({ lessons, onBack, clien
                                                 type="button"
                                                 onClick={handleCancelEditing}
                                                 disabled={isSavingExemplar}
-                                                className="rounded-md px-3 py-1.5 text-xs font-bold text-gray-600 hover:bg-gray-100 disabled:opacity-50"
+                                                className="rounded-md px-3 py-1.5 text-xs font-bold text-ink-medium hover:bg-white/[0.06] disabled:opacity-50"
                                             >
                                                 취소
                                             </button>
@@ -922,7 +922,7 @@ export const ClientStats: React.FC<ClientStatsProps> = ({ lessons, onBack, clien
                                         </div>
                                     </div>
                                 ) : (
-                                    <div className="prose prose-sm max-w-none prose-headings:text-gray-800 prose-headings:font-bold prose-p:text-gray-700 prose-p:leading-relaxed prose-li:text-gray-700 prose-strong:text-purple-700">
+                                    <div className="prose prose-sm max-w-none prose-headings:text-ink-high prose-headings:font-bold prose-p:text-ink-medium prose-p:leading-relaxed prose-li:text-ink-medium prose-strong:text-purple-700">
                                         {renderMarkdown(aiReport.markdown)}
                                     </div>
                                 )}
@@ -944,7 +944,7 @@ export const ClientStats: React.FC<ClientStatsProps> = ({ lessons, onBack, clien
                                     className={`whitespace-nowrap px-4 py-2 rounded-full text-sm font-bold transition-all border ${
                                         selectedClubKey === opt.key
                                         ? 'bg-emerald-800 text-white border-emerald-600 shadow-md'
-                                        : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+                                        : 'bg-white/[0.04] text-ink-medium border-line-subtle hover:bg-white/[0.03]'
                                     }`}
                                 >
                                     {opt.label}
@@ -954,13 +954,13 @@ export const ClientStats: React.FC<ClientStatsProps> = ({ lessons, onBack, clien
                     </div>
 
                     {/* Tour Average Comparison Gender Toggle */}
-                    <div className="flex items-center justify-between bg-white px-3 py-2 rounded-xl border border-gray-200 shadow-sm">
-                        <span className="text-xs font-bold text-gray-500">투어 평균 비교 기준</span>
-                        <div className="flex bg-gray-100 p-1 rounded-full">
+                    <div className="flex items-center justify-between bg-white/[0.04] px-3 py-2 rounded-xl border border-line-subtle shadow-sm">
+                        <span className="text-xs font-bold text-ink-muted">투어 평균 비교 기준</span>
+                        <div className="flex bg-white/[0.06] p-1 rounded-full">
                             <button
                                 onClick={() => setTourGender('MALE')}
                                 className={`px-3 py-1 rounded-full text-xs font-bold transition-all ${
-                                    tourGender === 'MALE' ? 'bg-emerald-800 text-white shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                                    tourGender === 'MALE' ? 'bg-emerald-800 text-white shadow-sm' : 'text-ink-muted hover:text-ink-medium'
                                 }`}
                             >
                                 남성 (PGA)
@@ -968,7 +968,7 @@ export const ClientStats: React.FC<ClientStatsProps> = ({ lessons, onBack, clien
                             <button
                                 onClick={() => setTourGender('FEMALE')}
                                 className={`px-3 py-1 rounded-full text-xs font-bold transition-all ${
-                                    tourGender === 'FEMALE' ? 'bg-pink-600 text-white shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                                    tourGender === 'FEMALE' ? 'bg-pink-600 text-white shadow-sm' : 'text-ink-muted hover:text-ink-medium'
                                 }`}
                             >
                                 여성 (LPGA)
@@ -979,23 +979,23 @@ export const ClientStats: React.FC<ClientStatsProps> = ({ lessons, onBack, clien
                     {shotSummary && (
                         <div className="space-y-4">
                             {/* Report Header Card */}
-                            <div className="bg-white rounded-xl shadow-lg border border-emerald-100/50 overflow-hidden">
+                            <div className="bg-white/[0.04] rounded-xl shadow-lg border border-emerald-100/50 overflow-hidden">
                                 <div className="bg-gradient-to-r from-emerald-700 to-emerald-800 px-4 py-3 border-b border-emerald-600 flex justify-between items-center">
                                     <h3 className="font-bold text-white text-sm flex items-center gap-2">
                                         <Activity className="w-4 h-4" /> 샷 퍼포먼스 리포트
                                     </h3>
-                                    <span className="text-[10px] bg-white/90 backdrop-blur-sm text-emerald-700 px-2.5 py-1 rounded-full border border-white/20 font-bold shadow-sm">
+                                    <span className="text-[10px] bg-white/[0.10] backdrop-blur-sm text-emerald-700 px-2.5 py-1 rounded-full border border-white/20 font-bold shadow-sm">
                                         {selectedClubOption?.label ?? ''}
                                     </span>
                                 </div>
                                 <div className="p-4 grid grid-cols-2 gap-4">
                                     <div className="text-center p-2">
-                                        <p className="text-xs text-gray-500 mb-1">데이터 수</p>
-                                        <p className="text-xl font-bold text-gray-900">{shotSummary.count}회</p>
+                                        <p className="text-xs text-ink-muted mb-1">데이터 수</p>
+                                        <p className="text-xl font-bold text-ink-high">{shotSummary.count}회</p>
                                     </div>
-                                    <div className="text-center p-2 border-l border-gray-100">
-                                        <p className="text-xs text-gray-500 mb-1">거리 향상</p>
-                                        <p className={`text-xl font-bold ${shotSummary.improvement > 0 ? 'text-red-500' : 'text-gray-700'}`}>
+                                    <div className="text-center p-2 border-l border-line-subtle">
+                                        <p className="text-xs text-ink-muted mb-1">거리 향상</p>
+                                        <p className={`text-xl font-bold ${shotSummary.improvement > 0 ? 'text-red-500' : 'text-ink-medium'}`}>
                                             {shotSummary.improvement > 0 ? `+${shotSummary.improvement}m` : `${shotSummary.improvement}m`}
                                         </p>
                                     </div>
@@ -1026,22 +1026,22 @@ export const ClientStats: React.FC<ClientStatsProps> = ({ lessons, onBack, clien
                                             </div>
                                             {tourAverageDiff !== null && (
                                                 <div className="flex items-center justify-end gap-1 mt-1 text-xs">
-                                                    <span className="text-gray-500">내 평균 대비</span>
+                                                    <span className="text-ink-muted">내 평균 대비</span>
                                                     <span className={`flex items-center gap-0.5 font-bold ${tourAverageDiff >= 0 ? 'text-emerald-700' : 'text-red-600'}`}>
                                                         {tourAverageDiff >= 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
                                                         {tourAverageDiff >= 0 ? `+${tourAverageDiff}` : tourAverageDiff}m
                                                     </span>
                                                 </div>
                                             )}
-                                            <p className="text-[10px] text-gray-400 mt-1">* 공개된 투어 통계 기반 참고용 평균치입니다.</p>
+                                            <p className="text-[10px] text-ink-muted mt-1">* 공개된 투어 통계 기반 참고용 평균치입니다.</p>
                                         </div>
                                     )}
                                 </div>
                             </div>
 
                             {/* Charts */}
-                            <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-md hover:shadow-lg transition-shadow">
-                                <h3 className="font-bold text-gray-900 mb-4 text-sm flex items-center gap-2">
+                            <div className="bg-white/[0.04] p-4 rounded-xl border border-line-subtle shadow-md hover:shadow-lg transition-shadow">
+                                <h3 className="font-bold text-ink-high mb-4 text-sm flex items-center gap-2">
                                     <span className="w-1.5 h-5 bg-gradient-to-b from-emerald-700 to-emerald-800 rounded-full shadow-sm"></span>
                                     비거리 변화 (Total & Carry)
                                 </h3>
@@ -1079,8 +1079,8 @@ export const ClientStats: React.FC<ClientStatsProps> = ({ lessons, onBack, clien
                                 </div>
                             </div>
 
-                            <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-md hover:shadow-lg transition-shadow">
-                                <h3 className="font-bold text-gray-900 mb-4 text-sm flex items-center gap-2">
+                            <div className="bg-white/[0.04] p-4 rounded-xl border border-line-subtle shadow-md hover:shadow-lg transition-shadow">
+                                <h3 className="font-bold text-ink-high mb-4 text-sm flex items-center gap-2">
                                     <span className="w-1.5 h-5 bg-gradient-to-b from-slate-600 to-slate-700 rounded-full shadow-sm"></span>
                                     스피드 변화 (Ball & Head)
                                 </h3>
@@ -1102,8 +1102,8 @@ export const ClientStats: React.FC<ClientStatsProps> = ({ lessons, onBack, clien
                             </div>
 
                              {/* Directionality Chart (Side Spin) */}
-                             <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-md hover:shadow-lg transition-shadow">
-                                <h3 className="font-bold text-gray-900 mb-4 text-sm flex items-center gap-2">
+                             <div className="bg-white/[0.04] p-4 rounded-xl border border-line-subtle shadow-md hover:shadow-lg transition-shadow">
+                                <h3 className="font-bold text-ink-high mb-4 text-sm flex items-center gap-2">
                                     <span className="w-1.5 h-5 bg-gradient-to-b from-orange-500 to-orange-600 rounded-full shadow-sm"></span>
                                     방향성 (Side Spin)
                                 </h3>
@@ -1130,7 +1130,7 @@ export const ClientStats: React.FC<ClientStatsProps> = ({ lessons, onBack, clien
                                         </BarChart>
                                     </ResponsiveContainer>
                                 </div>
-                                <div className="flex justify-center gap-4 mt-2 text-xs text-gray-500">
+                                <div className="flex justify-center gap-4 mt-2 text-xs text-ink-muted">
                                     <div className="flex items-center gap-1"><div className="w-2 h-2 bg-blue-500 rounded-full"></div> 우측(Slice/Fade)</div>
                                     <div className="flex items-center gap-1"><div className="w-2 h-2 bg-red-500 rounded-full"></div> 좌측(Hook/Draw)</div>
                                 </div>
@@ -1138,13 +1138,13 @@ export const ClientStats: React.FC<ClientStatsProps> = ({ lessons, onBack, clien
 
                             {/* 핀으로부터 거리 (샷 분산도) Chart */}
                             {pinDistanceStats && (
-                                <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-md hover:shadow-lg transition-shadow">
+                                <div className="bg-white/[0.04] p-4 rounded-xl border border-line-subtle shadow-md hover:shadow-lg transition-shadow">
                                     <div className="flex items-center justify-between mb-3">
-                                        <h3 className="font-bold text-gray-900 text-sm flex items-center gap-2">
+                                        <h3 className="font-bold text-ink-high text-sm flex items-center gap-2">
                                             <span className="w-1.5 h-5 bg-gradient-to-b from-emerald-600 to-purple-700 rounded-full shadow-sm"></span>
                                             핀으로부터 거리
                                         </h3>
-                                        <span className="text-[10px] text-gray-400 flex items-center gap-1">
+                                        <span className="text-[10px] text-ink-muted flex items-center gap-1">
                                             <Crosshair className="w-3 h-3" /> 타겟 {pinDistanceStats.targetCarry}m 기준
                                         </span>
                                     </div>
@@ -1167,7 +1167,7 @@ export const ClientStats: React.FC<ClientStatsProps> = ({ lessons, onBack, clien
                                                         ? 'bg-emerald-400/25 text-emerald-50'
                                                         : pinDistanceStats.improvement > 0
                                                             ? 'bg-rose-400/25 text-rose-50'
-                                                            : 'bg-white/20 text-white/90'
+                                                            : 'bg-white/[0.04]/20 text-white/90'
                                                 }`}>
                                                     {pinDistanceStats.improvement < 0
                                                         ? <><TrendingDown className="w-3 h-3" /> {Math.abs(pinDistanceStats.improvement)}m 향상</>
@@ -1259,7 +1259,7 @@ export const ClientStats: React.FC<ClientStatsProps> = ({ lessons, onBack, clien
                                         </ResponsiveContainer>
                                     </div>
 
-                                    <p className="text-[10px] text-gray-400 mt-2 leading-relaxed">
+                                    <p className="text-[10px] text-ink-muted mt-2 leading-relaxed">
                                         * 클럽 평균 캐리({pinDistanceStats.targetCarry}m)를 타겟으로 삼아 좌우 편차(사이드 토탈)와 거리 편차를 결합한 샷 분산도입니다. 값이 작을수록 정확도가 높습니다.
                                     </p>
                                 </div>
@@ -1268,10 +1268,10 @@ export const ClientStats: React.FC<ClientStatsProps> = ({ lessons, onBack, clien
                     )}
                 </>
             ) : (
-                <div className="bg-white rounded-xl p-8 text-center border border-gray-200 shadow-sm mt-4">
-                    <TrendingUp className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                    <h3 className="text-lg font-bold text-gray-900">해당 기간 데이터 없음</h3>
-                    <p className="text-gray-500 text-sm mt-2">
+                <div className="bg-white/[0.04] rounded-xl p-8 text-center border border-line-subtle shadow-sm mt-4">
+                    <TrendingUp className="w-12 h-12 text-ink-muted mx-auto mb-3" />
+                    <h3 className="text-lg font-bold text-ink-high">해당 기간 데이터 없음</h3>
+                    <p className="text-ink-muted text-sm mt-2">
                         선택하신 기간 동안의 샷 데이터가 없습니다.<br/>
                         기간을 변경하거나 데이터를 추가해주세요.
                     </p>
@@ -1286,41 +1286,41 @@ export const ClientStats: React.FC<ClientStatsProps> = ({ lessons, onBack, clien
               {scoreStatsData.length > 0 && scoreSummary ? (
                   <>
                     {/* Report Header Card */}
-                    <div className="bg-white rounded-xl shadow-lg border border-blue-100/50 overflow-hidden">
+                    <div className="bg-white/[0.04] rounded-xl shadow-lg border border-blue-100/50 overflow-hidden">
                         <div className="bg-gradient-to-r from-blue-500 to-blue-600 px-4 py-3 border-b border-blue-600 flex justify-between items-center">
                             <h3 className="font-bold text-white text-sm flex items-center gap-2">
                                 <Activity className="w-4 h-4" /> 라운드 퍼포먼스 리포트
                             </h3>
-                            <span className="text-[10px] bg-white/90 backdrop-blur-sm text-blue-700 px-2.5 py-1 rounded-full border border-white/20 font-bold shadow-sm">
+                            <span className="text-[10px] bg-white/[0.10] backdrop-blur-sm text-blue-700 px-2.5 py-1 rounded-full border border-white/20 font-bold shadow-sm">
                                 Total {scoreSummary.totalRounds} Games
                             </span>
                         </div>
                         <div className="p-4">
                             <div className="grid grid-cols-2 gap-3 mb-4">
-                                <div className="bg-white p-3 rounded-xl border border-gray-100 shadow-sm flex flex-col items-center justify-center">
-                                    <span className="text-xs text-gray-500 font-bold mb-1">평균 스코어</span>
-                                    <div className="text-2xl font-black text-gray-900">{scoreSummary.avgScore} <span className="text-xs font-normal text-gray-400">타</span></div>
+                                <div className="bg-white/[0.04] p-3 rounded-xl border border-line-subtle shadow-sm flex flex-col items-center justify-center">
+                                    <span className="text-xs text-ink-muted font-bold mb-1">평균 스코어</span>
+                                    <div className="text-2xl font-black text-ink-high">{scoreSummary.avgScore} <span className="text-xs font-normal text-ink-muted">타</span></div>
                                 </div>
-                                <div className="bg-white p-3 rounded-xl border border-gray-100 shadow-sm flex flex-col items-center justify-center">
-                                    <span className="text-xs text-gray-500 font-bold mb-1">기간 내 라베</span>
-                                    <div className="text-2xl font-black text-blue-600">{scoreSummary.bestScore} <span className="text-xs font-normal text-gray-400">타</span></div>
+                                <div className="bg-white/[0.04] p-3 rounded-xl border border-line-subtle shadow-sm flex flex-col items-center justify-center">
+                                    <span className="text-xs text-ink-muted font-bold mb-1">기간 내 라베</span>
+                                    <div className="text-2xl font-black text-blue-600">{scoreSummary.bestScore} <span className="text-xs font-normal text-ink-muted">타</span></div>
                                 </div>
                             </div>
                             
                             {/* Advanced Metrics (Only if detailed data exists) */}
                             {scoreSummary.hasDetailedStats && (
                                 <div className="grid grid-cols-3 gap-2 mb-4">
-                                    <div className="bg-gray-50 p-2 rounded-lg text-center">
-                                        <span className="text-[10px] text-gray-500 block mb-1">Par 3 평균</span>
-                                        <span className="text-sm font-bold text-gray-800">{scoreSummary.avgPar3}</span>
+                                    <div className="bg-white/[0.03] p-2 rounded-lg text-center">
+                                        <span className="text-[10px] text-ink-muted block mb-1">Par 3 평균</span>
+                                        <span className="text-sm font-bold text-ink-high">{scoreSummary.avgPar3}</span>
                                     </div>
-                                    <div className="bg-gray-50 p-2 rounded-lg text-center">
-                                        <span className="text-[10px] text-gray-500 block mb-1">Par 4 평균</span>
-                                        <span className="text-sm font-bold text-gray-800">{scoreSummary.avgPar4}</span>
+                                    <div className="bg-white/[0.03] p-2 rounded-lg text-center">
+                                        <span className="text-[10px] text-ink-muted block mb-1">Par 4 평균</span>
+                                        <span className="text-sm font-bold text-ink-high">{scoreSummary.avgPar4}</span>
                                     </div>
-                                    <div className="bg-gray-50 p-2 rounded-lg text-center">
-                                        <span className="text-[10px] text-gray-500 block mb-1">Par 5 평균</span>
-                                        <span className="text-sm font-bold text-gray-800">{scoreSummary.avgPar5}</span>
+                                    <div className="bg-white/[0.03] p-2 rounded-lg text-center">
+                                        <span className="text-[10px] text-ink-muted block mb-1">Par 5 평균</span>
+                                        <span className="text-sm font-bold text-ink-high">{scoreSummary.avgPar5}</span>
                                     </div>
                                     
                                     <div className="bg-emerald-50 p-2 rounded-lg text-center border border-emerald-100">
@@ -1340,8 +1340,8 @@ export const ClientStats: React.FC<ClientStatsProps> = ({ lessons, onBack, clien
 
                             {/* AI Voice Metrics Analysis (New Section) */}
                             {scoreSummary.hasVoiceStats && (
-                                <div className="mb-4 pt-3 border-t border-gray-100 animate-fade-in">
-                                    <h4 className="text-xs font-bold text-gray-500 mb-2 flex items-center gap-1">
+                                <div className="mb-4 pt-3 border-t border-line-subtle animate-fade-in">
+                                    <h4 className="text-xs font-bold text-ink-muted mb-2 flex items-center gap-1">
                                         <Mic className="w-3 h-3" /> 정밀 샷 분석 (AI Voice)
                                     </h4>
                                     <div className="grid grid-cols-3 gap-2">
@@ -1361,14 +1361,14 @@ export const ClientStats: React.FC<ClientStatsProps> = ({ lessons, onBack, clien
                                 </div>
                             )}
 
-                            <div className="grid grid-cols-2 text-center text-xs text-gray-500 divide-x divide-gray-100 pt-2 border-t border-gray-100">
+                            <div className="grid grid-cols-2 text-center text-xs text-ink-muted divide-x divide-gray-100 pt-2 border-t border-line-subtle">
                                 <div>
                                     <p className="mb-1">최근 5경기 평균</p>
-                                    <p className="font-bold text-gray-900 text-sm">{scoreSummary.recentAvg}타</p>
+                                    <p className="font-bold text-ink-high text-sm">{scoreSummary.recentAvg}타</p>
                                 </div>
                                 <div>
                                     <p className="mb-1">기간 스코어 변화</p>
-                                    <p className={`font-bold text-sm ${scoreSummary.scoreChange > 0 ? 'text-red-500' : 'text-gray-500'}`}>
+                                    <p className={`font-bold text-sm ${scoreSummary.scoreChange > 0 ? 'text-red-500' : 'text-ink-muted'}`}>
                                         {scoreSummary.scoreChange > 0 ? `${scoreSummary.scoreChange}타 줄임` : '변화 없음/증가'}
                                     </p>
                                 </div>
@@ -1376,8 +1376,8 @@ export const ClientStats: React.FC<ClientStatsProps> = ({ lessons, onBack, clien
                         </div>
                     </div>
 
-                    <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-md hover:shadow-lg transition-shadow">
-                        <h3 className="font-bold text-gray-900 mb-4 text-sm flex items-center gap-2">
+                    <div className="bg-white/[0.04] p-4 rounded-xl border border-line-subtle shadow-md hover:shadow-lg transition-shadow">
+                        <h3 className="font-bold text-ink-high mb-4 text-sm flex items-center gap-2">
                             <span className="w-1.5 h-5 bg-gradient-to-b from-blue-500 to-blue-600 rounded-full shadow-sm"></span>
                             라운드 스코어 변화 추이
                         </h3>
@@ -1399,9 +1399,9 @@ export const ClientStats: React.FC<ClientStatsProps> = ({ lessons, onBack, clien
                     </div>
 
                     {/* Round Comparison Section */}
-                    <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-md hover:shadow-lg transition-shadow">
+                    <div className="bg-white/[0.04] p-4 rounded-xl border border-line-subtle shadow-md hover:shadow-lg transition-shadow">
                         <div className="flex items-center justify-between mb-4">
-                            <h3 className="font-bold text-gray-900 text-sm flex items-center gap-2">
+                            <h3 className="font-bold text-ink-high text-sm flex items-center gap-2">
                                 <span className="w-1.5 h-5 bg-gradient-to-b from-slate-600 to-slate-700 rounded-full shadow-sm"></span>
                                 라운드 비교 분석
                             </h3>
@@ -1409,8 +1409,8 @@ export const ClientStats: React.FC<ClientStatsProps> = ({ lessons, onBack, clien
                                 onClick={() => setIsComparisonMode(!isComparisonMode)}
                                 className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1 ${
                                     isComparisonMode 
-                                    ? 'bg-slate-700 text-white shadow-md' 
-                                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                    ? 'bg-emerald-500/20 text-emerald-100 shadow-md' 
+                                    : 'bg-white/[0.06] text-ink-medium hover:bg-white/[0.10]'
                                 }`}
                             >
                                 <GitCompareArrows className="w-3 h-3" />
@@ -1422,19 +1422,19 @@ export const ClientStats: React.FC<ClientStatsProps> = ({ lessons, onBack, clien
                             <>
                                 {roundsForComparison.length < 2 ? (
                                     <div className="text-center py-8">
-                                        <p className="text-gray-500 text-sm">비교할 라운드가 부족합니다.</p>
-                                        <p className="text-gray-400 text-xs mt-1">최소 2개 이상의 라운드가 필요합니다.</p>
+                                        <p className="text-ink-muted text-sm">비교할 라운드가 부족합니다.</p>
+                                        <p className="text-ink-muted text-xs mt-1">최소 2개 이상의 라운드가 필요합니다.</p>
                                     </div>
                                 ) : (
                                     <div className="space-y-4">
                                         {/* Round Selectors */}
                                         <div className="grid grid-cols-2 gap-3">
                                             <div>
-                                                <label className="text-xs text-gray-500 font-bold mb-1.5 block">Round 1</label>
+                                                <label className="text-xs text-ink-muted font-bold mb-1.5 block">Round 1</label>
                                                 <select
                                                     value={selectedRound1 || ''}
                                                     onChange={(e) => setSelectedRound1(e.target.value)}
-                                                    className="w-full px-3 py-2 text-xs border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none bg-white"
+                                                    className="w-full px-3 py-2 text-xs border border-line-subtle rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none bg-white/[0.04]"
                                                 >
                                                     {roundsForComparison.map(round => (
                                                         <option key={round.id} value={round.id} disabled={round.id === selectedRound2}>
@@ -1444,11 +1444,11 @@ export const ClientStats: React.FC<ClientStatsProps> = ({ lessons, onBack, clien
                                                 </select>
                                             </div>
                                             <div>
-                                                <label className="text-xs text-gray-500 font-bold mb-1.5 block">Round 2</label>
+                                                <label className="text-xs text-ink-muted font-bold mb-1.5 block">Round 2</label>
                                                 <select
                                                     value={selectedRound2 || ''}
                                                     onChange={(e) => setSelectedRound2(e.target.value)}
-                                                    className="w-full px-3 py-2 text-xs border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none bg-white"
+                                                    className="w-full px-3 py-2 text-xs border border-line-subtle rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none bg-white/[0.04]"
                                                 >
                                                     {roundsForComparison.map(round => (
                                                         <option key={round.id} value={round.id} disabled={round.id === selectedRound1}>
@@ -1469,14 +1469,14 @@ export const ClientStats: React.FC<ClientStatsProps> = ({ lessons, onBack, clien
                                                     
                                                     {/* Round Info */}
                                                     <div className="grid grid-cols-2 gap-2 mb-3 text-xs">
-                                                        <div className="bg-white rounded-lg p-2 shadow-sm">
-                                                            <span className="text-gray-500 block mb-1">Round 1</span>
-                                                            <span className="font-bold text-gray-900">{comparisonData.round1.lesson.date} - {comparisonData.round1.lesson.title}</span>
+                                                        <div className="bg-white/[0.04] rounded-lg p-2 shadow-sm">
+                                                            <span className="text-ink-muted block mb-1">Round 1</span>
+                                                            <span className="font-bold text-ink-high">{comparisonData.round1.lesson.date} - {comparisonData.round1.lesson.title}</span>
                                                             <span className="text-blue-600 font-bold ml-1">({comparisonData.round1.stats.totalScore}타)</span>
                                                         </div>
-                                                        <div className="bg-white rounded-lg p-2 shadow-sm">
-                                                            <span className="text-gray-500 block mb-1">Round 2</span>
-                                                            <span className="font-bold text-gray-900">{comparisonData.round2.lesson.date} - {comparisonData.round2.lesson.title}</span>
+                                                        <div className="bg-white/[0.04] rounded-lg p-2 shadow-sm">
+                                                            <span className="text-ink-muted block mb-1">Round 2</span>
+                                                            <span className="font-bold text-ink-high">{comparisonData.round2.lesson.date} - {comparisonData.round2.lesson.title}</span>
                                                             <span className="text-blue-600 font-bold ml-1">({comparisonData.round2.stats.totalScore}타)</span>
                                                         </div>
                                                     </div>
@@ -1504,13 +1504,13 @@ export const ClientStats: React.FC<ClientStatsProps> = ({ lessons, onBack, clien
                                                                 
                                                                 return (
                                                                     <div key={label} className={`flex items-center justify-between p-2 rounded-lg text-xs ${
-                                                                        isEqual ? 'bg-gray-50' : isImprovement ? 'bg-emerald-50' : 'bg-red-50'
+                                                                        isEqual ? 'bg-white/[0.03]' : isImprovement ? 'bg-emerald-50' : 'bg-red-50'
                                                                     }`}>
-                                                                        <span className="font-bold text-gray-700">{label}</span>
+                                                                        <span className="font-bold text-ink-medium">{label}</span>
                                                                         <div className="flex items-center gap-2">
-                                                                            <span className="text-gray-600">{value1}{unit}</span>
-                                                                            <span className="text-gray-400">→</span>
-                                                                            <span className="text-gray-900 font-bold">{value2}{unit}</span>
+                                                                            <span className="text-ink-medium">{value1}{unit}</span>
+                                                                            <span className="text-ink-muted">→</span>
+                                                                            <span className="text-ink-high font-bold">{value2}{unit}</span>
                                                                             {!isEqual && (
                                                                                 <span className={`flex items-center gap-0.5 font-bold ${
                                                                                     isImprovement ? 'text-emerald-700' : 'text-red-700'
@@ -1519,7 +1519,7 @@ export const ClientStats: React.FC<ClientStatsProps> = ({ lessons, onBack, clien
                                                                                     {diff > 0 ? '+' : ''}{diffDisplay}{unit}
                                                                                 </span>
                                                                             )}
-                                                                            {isEqual && <Minus className="w-3 h-3 text-gray-400" />}
+                                                                            {isEqual && <Minus className="w-3 h-3 text-ink-muted" />}
                                                                         </div>
                                                                     </div>
                                                                 );
@@ -1544,8 +1544,8 @@ export const ClientStats: React.FC<ClientStatsProps> = ({ lessons, onBack, clien
                                                 </div>
 
                                                 {/* Hole-by-Hole Comparison Chart */}
-                                                <div className="bg-white rounded-xl border border-gray-100 p-4">
-                                                    <h4 className="font-bold text-sm text-gray-800 mb-3 flex items-center gap-2">
+                                                <div className="bg-white/[0.04] rounded-xl border border-line-subtle p-4">
+                                                    <h4 className="font-bold text-sm text-ink-high mb-3 flex items-center gap-2">
                                                         <span className="w-1 h-4 bg-purple-500 rounded-full"></span>
                                                         홀별 스코어 비교
                                                     </h4>
@@ -1583,7 +1583,7 @@ export const ClientStats: React.FC<ClientStatsProps> = ({ lessons, onBack, clien
                                                             </BarChart>
                                                         </ResponsiveContainer>
                                                     </div>
-                                                    <div className="flex justify-center gap-4 mt-3 text-xs text-gray-500">
+                                                    <div className="flex justify-center gap-4 mt-3 text-xs text-ink-muted">
                                                         <div className="flex items-center gap-1"><div className="w-3 h-3 bg-blue-500 rounded"></div> Round 1</div>
                                                         <div className="flex items-center gap-1"><div className="w-3 h-3 bg-emerald-700 rounded"></div> Round 2</div>
                                                     </div>
@@ -1596,23 +1596,23 @@ export const ClientStats: React.FC<ClientStatsProps> = ({ lessons, onBack, clien
                         )}
                     </div>
 
-                    <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-                        <div className="bg-gray-50 px-4 py-3 border-b border-gray-100 font-bold text-sm text-gray-700">
+                    <div className="bg-white/[0.04] rounded-xl border border-line-subtle shadow-sm overflow-hidden">
+                        <div className="bg-white/[0.03] px-4 py-3 border-b border-line-subtle font-bold text-sm text-ink-medium">
                             라운드 기록 일지
                         </div>
                         <div className="divide-y divide-gray-100">
                             {[...scoreStatsData].reverse().map((item) => (
-                                <div key={item.id} className="flex justify-between items-center px-4 py-3 text-sm hover:bg-gray-50 transition-colors">
+                                <div key={item.id} className="flex justify-between items-center px-4 py-3 text-sm hover:bg-white/[0.03] transition-colors">
                                     <div>
-                                        <p className="font-bold text-gray-900 truncate max-w-[180px]">{item.title}</p>
-                                        <div className="text-gray-500 text-xs flex items-center gap-1 mt-0.5">
-                                            <Calendar className="w-3 h-3 text-gray-400" />
+                                        <p className="font-bold text-ink-high truncate max-w-[180px]">{item.title}</p>
+                                        <div className="text-ink-muted text-xs flex items-center gap-1 mt-0.5">
+                                            <Calendar className="w-3 h-3 text-ink-muted" />
                                             {item.fullDate}
                                         </div>
                                     </div>
                                     <div className="text-right">
-                                        <span className={`text-lg font-bold ${item.score <= 72 ? 'text-red-500' : 'text-gray-900'}`}>{item.score}</span>
-                                        <span className="text-xs text-gray-400 ml-0.5">타</span>
+                                        <span className={`text-lg font-bold ${item.score <= 72 ? 'text-red-500' : 'text-ink-high'}`}>{item.score}</span>
+                                        <span className="text-xs text-ink-muted ml-0.5">타</span>
                                     </div>
                                 </div>
                             ))}
@@ -1620,10 +1620,10 @@ export const ClientStats: React.FC<ClientStatsProps> = ({ lessons, onBack, clien
                     </div>
                   </>
               ) : (
-                  <div className="bg-white rounded-xl p-8 text-center border border-gray-200 shadow-sm mt-4">
-                    <Flag className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                    <h3 className="text-lg font-bold text-gray-900">해당 기간 기록 없음</h3>
-                    <p className="text-gray-500 text-sm mt-2">
+                  <div className="bg-white/[0.04] rounded-xl p-8 text-center border border-line-subtle shadow-sm mt-4">
+                    <Flag className="w-12 h-12 text-ink-muted mx-auto mb-3" />
+                    <h3 className="text-lg font-bold text-ink-high">해당 기간 기록 없음</h3>
+                    <p className="text-ink-muted text-sm mt-2">
                         선택하신 기간 내의 라운드 기록이 없습니다.<br/>
                         기간을 변경하거나 라운드 기록을 추가해주세요.
                     </p>
