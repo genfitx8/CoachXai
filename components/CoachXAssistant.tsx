@@ -513,7 +513,7 @@ export const CoachXAssistant: React.FC<CoachXAssistantProps> = ({
     if (!booking.step || booking.step === 'done') return null;
 
     return (
-      <div className="mx-4 mb-3 bg-gray-800/90 border border-emerald-500/30 rounded-2xl overflow-hidden">
+      <div className="mx-4 mb-3 bg-white/[0.05] border border-emerald-500/30 rounded-2xl overflow-hidden">
         {/* Card header */}
         <div className="flex items-center justify-between px-4 py-2.5 bg-emerald-900/30 border-b border-emerald-500/20">
           <div className="flex items-center gap-2">
@@ -530,7 +530,7 @@ export const CoachXAssistant: React.FC<CoachXAssistantProps> = ({
           </div>
           <button
             onClick={cancelBooking}
-            className="p-1 rounded-full hover:bg-white/10 text-gray-400 hover:text-white transition-colors"
+            className="p-1 rounded-full hover:bg-white/10 text-ink-muted hover:text-white transition-colors"
             aria-label="예약 취소"
           >
             <X className="w-3.5 h-3.5" />
@@ -545,7 +545,7 @@ export const CoachXAssistant: React.FC<CoachXAssistantProps> = ({
                 <button
                   key={date}
                   onClick={() => handleDateSelect(date)}
-                  className="py-2.5 px-3 text-sm rounded-xl bg-gray-700/80 hover:bg-emerald-700/60 border border-white/10 hover:border-emerald-500/50 text-gray-200 hover:text-white transition-colors text-left"
+                  className="py-2.5 px-3 text-sm rounded-xl bg-white/[0.06] hover:bg-emerald-700/60 border border-white/10 hover:border-emerald-500/50 text-ink-high hover:text-white transition-colors text-left"
                 >
                   {formatDateKo(date)}
                 </button>
@@ -562,7 +562,7 @@ export const CoachXAssistant: React.FC<CoachXAssistantProps> = ({
                 <button
                   key={h}
                   onClick={() => handleTimeSelect(h)}
-                  className="py-2.5 text-sm rounded-xl bg-gray-700/80 hover:bg-emerald-700/60 border border-white/10 hover:border-emerald-500/50 text-gray-200 hover:text-white transition-colors"
+                  className="py-2.5 text-sm rounded-xl bg-white/[0.06] hover:bg-emerald-700/60 border border-white/10 hover:border-emerald-500/50 text-ink-high hover:text-white transition-colors"
                 >
                   {pad(h)}:00
                 </button>
@@ -575,11 +575,11 @@ export const CoachXAssistant: React.FC<CoachXAssistantProps> = ({
         {booking.step === 'client' && (
           <div className="p-3 space-y-2">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-muted" />
               {clientSearch && (
                 <button
                   onClick={() => setClientSearch('')}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-white/10 text-gray-400 hover:text-white transition-colors"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-white/10 text-ink-muted hover:text-white transition-colors"
                   aria-label="검색어 지우기"
                 >
                   <X className="w-3.5 h-3.5" />
@@ -591,18 +591,18 @@ export const CoachXAssistant: React.FC<CoachXAssistantProps> = ({
                 onChange={(e) => setClientSearch(e.target.value)}
                 placeholder="회원 이름 또는 전화번호 검색"
                 aria-label="회원 검색"
-                className="w-full pl-9 pr-8 py-2 text-sm rounded-xl bg-gray-900/60 border border-white/10 text-gray-100 placeholder-gray-500 focus:outline-none focus:border-emerald-500/60"
+                className="w-full pl-9 pr-8 py-2 text-sm rounded-xl bg-white/[0.03] border border-white/10 text-ink-high placeholder-gray-500 focus:outline-none focus:border-emerald-500/60"
               />
             </div>
             <div className="space-y-1.5 max-h-52 overflow-y-auto">
               <button
                 onClick={() => handleClientSelect(null, null)}
-                className="w-full py-2.5 px-3 text-sm rounded-xl bg-gray-700/60 hover:bg-gray-600/60 border border-white/10 text-gray-400 hover:text-gray-200 transition-colors text-left"
+                className="w-full py-2.5 px-3 text-sm rounded-xl bg-white/[0.06] hover:bg-white/[0.08] border border-white/10 text-ink-muted hover:text-ink-high transition-colors text-left"
               >
                 건너뛰기 (회원 없음)
               </button>
               {filteredClients.length === 0 ? (
-                <p className="py-4 text-center text-xs text-gray-500">
+                <p className="py-4 text-center text-xs text-ink-muted">
                   {coachClients.length === 0
                     ? '등록된 회원이 없어요.'
                     : `"${clientSearch}"에 해당하는 회원이 없어요.`}
@@ -612,12 +612,12 @@ export const CoachXAssistant: React.FC<CoachXAssistantProps> = ({
                   <button
                     key={c.phone}
                     onClick={() => handleClientSelect(c.phone, c.name)}
-                    className="w-full py-2.5 px-3 text-sm rounded-xl bg-gray-700/80 hover:bg-emerald-700/60 border border-white/10 hover:border-emerald-500/50 text-gray-200 hover:text-white transition-colors text-left"
+                    className="w-full py-2.5 px-3 text-sm rounded-xl bg-white/[0.06] hover:bg-emerald-700/60 border border-white/10 hover:border-emerald-500/50 text-ink-high hover:text-white transition-colors text-left"
                   >
                     <div className="flex items-center justify-between gap-2">
                       <span className="font-medium">{c.name}</span>
                       {c.phone && (
-                        <span className="text-xs text-gray-400 truncate">{c.phone}</span>
+                        <span className="text-xs text-ink-muted truncate">{c.phone}</span>
                       )}
                     </div>
                   </button>
@@ -631,16 +631,16 @@ export const CoachXAssistant: React.FC<CoachXAssistantProps> = ({
         {booking.step === 'confirm' && booking.date && booking.hour !== null && (
           <div className="p-4">
             <div className="space-y-2 mb-4">
-              <div className="flex items-center gap-2 text-sm text-gray-300">
+              <div className="flex items-center gap-2 text-sm text-ink-medium">
                 <Calendar className="w-4 h-4 text-emerald-400 flex-shrink-0" />
                 <span>{formatDateKo(booking.date)}</span>
               </div>
-              <div className="flex items-center gap-2 text-sm text-gray-300">
+              <div className="flex items-center gap-2 text-sm text-ink-medium">
                 <Clock className="w-4 h-4 text-emerald-400 flex-shrink-0" />
                 <span>{pad(booking.hour)}:00 ~ {pad(booking.hour + 1)}:00</span>
               </div>
               {booking.clientName && (
-                <div className="flex items-center gap-2 text-sm text-gray-300">
+                <div className="flex items-center gap-2 text-sm text-ink-medium">
                   <User className="w-4 h-4 text-emerald-400 flex-shrink-0" />
                   <span>{booking.clientName}</span>
                 </div>
@@ -649,7 +649,7 @@ export const CoachXAssistant: React.FC<CoachXAssistantProps> = ({
             <div className="flex gap-2">
               <button
                 onClick={cancelBooking}
-                className="flex-1 py-2.5 text-sm rounded-xl bg-gray-700/60 hover:bg-gray-600/60 border border-white/10 text-gray-300 hover:text-white transition-colors"
+                className="flex-1 py-2.5 text-sm rounded-xl bg-white/[0.06] hover:bg-white/[0.08] border border-white/10 text-ink-medium hover:text-white transition-colors"
               >
                 취소
               </button>
@@ -674,7 +674,7 @@ export const CoachXAssistant: React.FC<CoachXAssistantProps> = ({
   // ── Main render ───────────────────────────────────────────────────────────
 
   return (
-    <div className="flex flex-col bg-gray-950 text-white" style={{ height: '100dvh' }}>
+    <div className="flex flex-col bg-base text-white" style={{ height: '100dvh' }}>
       <PermissionDeniedModal
         open={micPermissionDenied}
         kind="microphone"
@@ -685,7 +685,7 @@ export const CoachXAssistant: React.FC<CoachXAssistantProps> = ({
         }}
       />
       {/* Header */}
-      <div className="flex items-center gap-3 px-4 py-3 border-b border-white/10 bg-gray-900/90 backdrop-blur-sm sticky top-0 z-10">
+      <div className="flex items-center gap-3 px-4 py-3 border-b border-white/10 bg-base/95 backdrop-blur-sm sticky top-0 z-10">
         <button
           onClick={onBack}
           className="p-2.5 rounded-full hover:bg-white/10 transition-colors min-w-[40px] min-h-[40px] flex items-center justify-center"
@@ -705,11 +705,11 @@ export const CoachXAssistant: React.FC<CoachXAssistantProps> = ({
         </div>
 
         {/* Mode toggle */}
-        <div className="flex items-center gap-1 bg-gray-800 rounded-xl p-1 border border-white/10">
+        <div className="flex items-center gap-1 bg-white/[0.05] rounded-xl p-1 border border-white/10">
           <button
             onClick={() => { setMode('chat'); stopSpeaking(); stopListening(); }}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-              mode === 'chat' ? 'bg-emerald-600 text-white' : 'text-gray-400 hover:text-gray-200'
+              mode === 'chat' ? 'bg-emerald-600 text-white' : 'text-ink-muted hover:text-ink-high'
             }`}
           >
             <MessageSquare className="w-3.5 h-3.5" />
@@ -718,7 +718,7 @@ export const CoachXAssistant: React.FC<CoachXAssistantProps> = ({
           <button
             onClick={() => setMode('voice')}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-              mode === 'voice' ? 'bg-emerald-600 text-white' : 'text-gray-400 hover:text-gray-200'
+              mode === 'voice' ? 'bg-emerald-600 text-white' : 'text-ink-muted hover:text-ink-high'
             }`}
           >
             <Mic className="w-3.5 h-3.5" />
@@ -743,8 +743,8 @@ export const CoachXAssistant: React.FC<CoachXAssistantProps> = ({
               )}
               <div className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
                 msg.role === 'user'
-                  ? 'bg-slate-700 text-white rounded-br-sm'
-                  : 'bg-gray-800 text-gray-100 rounded-bl-sm'
+                  ? 'bg-emerald-500/20 text-white rounded-br-sm'
+                  : 'bg-white/[0.05] text-ink-high rounded-bl-sm'
               }`}>
                 {renderMarkdown(displayContent)}
                 {isRevealing && (
@@ -760,7 +760,7 @@ export const CoachXAssistant: React.FC<CoachXAssistantProps> = ({
             <div className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-600 to-slate-700 flex items-center justify-center flex-shrink-0">
               <Bot className="w-4 h-4 text-white" />
             </div>
-            <div className="bg-gray-800 rounded-2xl rounded-bl-sm px-4 py-3">
+            <div className="bg-white/[0.05] rounded-2xl rounded-bl-sm px-4 py-3">
               <div className="flex gap-1.5 items-center h-4">
                 {[0, 1, 2].map(i => (
                   <div
@@ -777,7 +777,7 @@ export const CoachXAssistant: React.FC<CoachXAssistantProps> = ({
         {/* Quick action chips */}
         {messages.length <= 1 && !booking.step && (
           <div className="flex flex-col gap-2 pt-2">
-            <p className="text-xs text-gray-500 px-1">빠른 실행</p>
+            <p className="text-xs text-ink-muted px-1">빠른 실행</p>
             <div className="grid grid-cols-2 gap-2">
               {[
                 { key: 'lesson', icon: <CalendarCheck className="w-4 h-4" />, label: '레슨 예약', color: 'border-emerald-500/40 text-emerald-300' },
@@ -788,7 +788,7 @@ export const CoachXAssistant: React.FC<CoachXAssistantProps> = ({
                 <button
                   key={key}
                   onClick={() => handleQuickAction(key)}
-                  className={`flex items-center gap-2 px-3 py-3 rounded-xl bg-gray-800/80 border hover:bg-gray-700/80 transition-colors text-sm font-medium ${color}`}
+                  className={`flex items-center gap-2 px-3 py-3 rounded-xl bg-white/[0.05] border hover:bg-white/[0.06] transition-colors text-sm font-medium ${color}`}
                 >
                   {icon}
                   {label}
@@ -813,7 +813,7 @@ export const CoachXAssistant: React.FC<CoachXAssistantProps> = ({
       {renderBookingCard()}
 
       {/* Input bar */}
-      <div className="px-4 pb-safe pb-4 border-t border-white/10 bg-gray-900/90 backdrop-blur-sm pt-3">
+      <div className="px-4 pb-safe pb-4 border-t border-white/10 bg-base/95 backdrop-blur-sm pt-3">
         {mode === 'chat' ? (
           <div className="flex gap-2 items-end">
             <input
@@ -824,7 +824,7 @@ export const CoachXAssistant: React.FC<CoachXAssistantProps> = ({
               onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void handleSend(); } }}
               placeholder="메시지를 입력하세요..."
               disabled={isTyping}
-              className="flex-1 bg-gray-800 border border-white/10 rounded-2xl px-4 py-3 text-sm text-white placeholder-gray-400 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-colors disabled:opacity-50"
+              className="flex-1 bg-white/[0.05] border border-white/10 rounded-2xl px-4 py-3 text-sm text-white placeholder-gray-400 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-colors disabled:opacity-50"
             />
             <button
               onClick={() => void handleSend()}
@@ -848,7 +848,7 @@ export const CoachXAssistant: React.FC<CoachXAssistantProps> = ({
             >
               {isListening ? <MicOff className="w-7 h-7 text-white" /> : <Mic className="w-7 h-7 text-white" />}
             </button>
-            <p className="text-xs text-gray-400">
+            <p className="text-xs text-ink-muted">
               {isListening ? '🔴 듣고 있어요... (탭하여 중지)' : '마이크 버튼을 눌러 말하세요'}
             </p>
             {isListening && (

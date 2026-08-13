@@ -164,9 +164,9 @@ export const CoachXChat: React.FC<CoachXChatProps> = ({
   };
 
   return (
-    <div className="flex flex-col h-full bg-gray-950 text-white" style={{ minHeight: '100dvh' }}>
+    <div className="flex flex-col h-full bg-base text-white" style={{ minHeight: '100dvh' }}>
       {/* Header */}
-      <div className="flex items-center gap-3 px-4 py-3 border-b border-white/10 bg-gray-900/90 backdrop-blur-sm sticky top-0 z-10">
+      <div className="flex items-center gap-3 px-4 py-3 border-b border-white/10 bg-base/95 backdrop-blur-sm sticky top-0 z-10">
         <button
           onClick={onBack}
           className="p-3 rounded-full hover:bg-white/10 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
@@ -186,12 +186,12 @@ export const CoachXChat: React.FC<CoachXChatProps> = ({
         </div>
 
         {/* Chat / Voice toggle */}
-        <div className="flex items-center gap-1 bg-gray-800 rounded-full p-0.5">
+        <div className="flex items-center gap-1 bg-white/[0.05] rounded-full p-0.5">
           <button
             type="button"
             onClick={() => handleToggleVoiceMode(false)}
             className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-              !voiceMode ? 'bg-emerald-600 text-white' : 'text-gray-400 hover:text-white'
+              !voiceMode ? 'bg-emerald-600 text-white' : 'text-ink-muted hover:text-white'
             }`}
           >
             {language === 'en' ? 'Chat' : language === 'ja' ? 'チャット' : '채팅'}
@@ -200,7 +200,7 @@ export const CoachXChat: React.FC<CoachXChatProps> = ({
             type="button"
             onClick={() => handleToggleVoiceMode(true)}
             className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-              voiceMode ? 'bg-emerald-600 text-white' : 'text-gray-400 hover:text-white'
+              voiceMode ? 'bg-emerald-600 text-white' : 'text-ink-muted hover:text-white'
             }`}
           >
             {language === 'en' ? 'Voice' : language === 'ja' ? '音声' : '음성'}
@@ -230,8 +230,8 @@ export const CoachXChat: React.FC<CoachXChatProps> = ({
               <div
                 className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
                   msg.role === 'user'
-                    ? 'bg-slate-700 text-white rounded-br-sm'
-                    : 'bg-gray-800 text-gray-100 rounded-bl-sm'
+                    ? 'bg-emerald-500/20 text-white rounded-br-sm'
+                    : 'bg-white/[0.05] text-ink-high rounded-bl-sm'
                 }`}
               >
                 {renderMarkdown(displayContent)}
@@ -248,7 +248,7 @@ export const CoachXChat: React.FC<CoachXChatProps> = ({
             <div className="w-8 h-8 rounded-full bg-gradient-to-br from-slate-600 to-slate-700 flex items-center justify-center flex-shrink-0">
               <Bot className="w-4 h-4 text-white" />
             </div>
-            <div className="bg-gray-800 rounded-2xl rounded-bl-sm px-4 py-3">
+            <div className="bg-white/[0.05] rounded-2xl rounded-bl-sm px-4 py-3">
               <div className="flex gap-1.5 items-center h-4">
                 {[0, 1, 2].map(i => (
                   <div
@@ -268,13 +268,13 @@ export const CoachXChat: React.FC<CoachXChatProps> = ({
       {/* Suggested prompts (text mode only) */}
       {!voiceMode && messages.length <= 1 && (
         <div className="px-4 pb-2">
-          <p className="text-xs text-gray-500 mb-2">{t('coachx_suggested_prompts')}</p>
+          <p className="text-xs text-ink-muted mb-2">{t('coachx_suggested_prompts')}</p>
           <div className="flex flex-wrap gap-2">
             {suggestedPrompts.map((prompt, i) => (
               <button
                 key={i}
                 onClick={() => void handleSend(prompt)}
-                className="text-xs bg-gray-800 hover:bg-gray-700 border border-white/10 text-gray-300 hover:text-white rounded-full px-3 py-1.5 transition-colors"
+                className="text-xs bg-white/[0.05] hover:bg-white/[0.06] border border-white/10 text-ink-medium hover:text-white rounded-full px-3 py-1.5 transition-colors"
               >
                 {prompt}
               </button>
@@ -286,7 +286,7 @@ export const CoachXChat: React.FC<CoachXChatProps> = ({
       {/* Input area */}
       {voiceMode ? (
         /* Voice mode — mic button */
-        <div className="px-4 pb-safe pb-8 pt-4 flex flex-col items-center gap-3 border-t border-white/10 bg-gray-900/90 backdrop-blur-sm">
+        <div className="px-4 pb-safe pb-8 pt-4 flex flex-col items-center gap-3 border-t border-white/10 bg-base/95 backdrop-blur-sm">
           {isSpeaking && (
             <div className="flex items-center gap-2 text-xs text-emerald-300">
               <Volume2 className="w-3.5 h-3.5" />
@@ -312,7 +312,7 @@ export const CoachXChat: React.FC<CoachXChatProps> = ({
               : <Mic className="w-8 h-8 text-white" />
             }
           </button>
-          <p className="text-xs text-gray-500">
+          <p className="text-xs text-ink-muted">
             {isListening
               ? (language === 'en' ? 'Listening… tap to stop' : language === 'ja' ? '聞いています…タップで停止' : '듣는 중… 탭해서 중지')
               : (language === 'en' ? 'Tap to speak' : language === 'ja' ? 'タップして話す' : '탭해서 말하기')}
@@ -320,7 +320,7 @@ export const CoachXChat: React.FC<CoachXChatProps> = ({
         </div>
       ) : (
         /* Text mode — input bar */
-        <div className="px-4 pb-safe pb-4 border-t border-white/10 bg-gray-900/90 backdrop-blur-sm pt-3">
+        <div className="px-4 pb-safe pb-4 border-t border-white/10 bg-base/95 backdrop-blur-sm pt-3">
           <div className="flex gap-2 items-end">
             <input
               type="text"
@@ -328,13 +328,13 @@ export const CoachXChat: React.FC<CoachXChatProps> = ({
               onChange={e => setInput(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void handleSend(); } }}
               placeholder={t('coachx_chat_placeholder')}
-              className="flex-1 bg-gray-800 border border-white/10 rounded-2xl px-4 py-3 text-sm text-white placeholder-gray-400 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-colors resize-none"
+              className="flex-1 bg-white/[0.05] border border-white/10 rounded-2xl px-4 py-3 text-sm text-white placeholder-gray-400 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-colors resize-none"
             />
             <button
               onClick={() => void handleSend()}
               disabled={!input.trim() || isTyping || revealedChars !== null}
               aria-label="Send"
-              className="w-11 h-11 rounded-full bg-slate-700 hover:bg-slate-600 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center transition-colors flex-shrink-0"
+              className="w-11 h-11 rounded-full bg-emerald-500/20 hover:bg-emerald-500/30 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center transition-colors flex-shrink-0"
             >
               <Send className="w-4 h-4 text-white" />
             </button>
