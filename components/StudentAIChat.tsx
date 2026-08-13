@@ -385,7 +385,7 @@ export const StudentAIChat: React.FC<StudentAIChatProps> = ({
   // ── Booking UI panels ──────────────────────────────────────────────────────
 
   const renderSlotSelection = () => (
-    <div className="mx-4 mb-3 bg-gray-800 border border-emerald-500/30 rounded-2xl overflow-hidden">
+    <div className="mx-4 mb-3 bg-white/[0.10] border border-emerald-500/30 rounded-2xl overflow-hidden">
       <div className="flex items-center justify-between px-4 py-3 bg-emerald-900/40 border-b border-emerald-500/20">
         <div className="flex items-center gap-2">
           <Calendar className="w-4 h-4 text-emerald-300" />
@@ -398,7 +398,7 @@ export const StudentAIChat: React.FC<StudentAIChatProps> = ({
         </div>
         <button
           onClick={handleBookingCancel}
-          className="text-gray-400 hover:text-white transition-colors"
+          className="text-ink-muted hover:text-white transition-colors"
           aria-label="닫기"
         >
           <XCircle className="w-4 h-4" />
@@ -409,7 +409,7 @@ export const StudentAIChat: React.FC<StudentAIChatProps> = ({
           <button
             key={slot.id}
             onClick={() => handleSlotSelect(slot)}
-            className="w-full flex items-center gap-3 px-4 py-3 bg-gray-750 hover:bg-emerald-900/40 border border-white/10 hover:border-emerald-400/40 rounded-xl transition-all text-left group"
+            className="w-full flex items-center gap-3 px-4 py-3 bg-white/[0.05] hover:bg-emerald-900/40 border border-white/10 hover:border-emerald-400/40 rounded-xl transition-all text-left group"
           >
             <div className="w-8 h-8 rounded-lg bg-emerald-600/20 flex items-center justify-center flex-shrink-0 group-hover:bg-emerald-600/40 transition-colors">
               <Clock className="w-4 h-4 text-emerald-300" />
@@ -419,7 +419,7 @@ export const StudentAIChat: React.FC<StudentAIChatProps> = ({
                 {formatSlotRange(slot.startTime, slot.endTime, lang)}
               </p>
               {slot.lessonType && (
-                <p className="text-xs text-gray-400 mt-0.5">{slot.lessonType}</p>
+                <p className="text-xs text-ink-muted mt-0.5">{slot.lessonType}</p>
               )}
             </div>
             <ChevronLeft className="w-4 h-4 text-emerald-400 rotate-180 opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -432,7 +432,7 @@ export const StudentAIChat: React.FC<StudentAIChatProps> = ({
   const renderConfirmation = () => {
     if (!selectedSlot) return null;
     return (
-      <div className="mx-4 mb-3 bg-gray-800 border border-emerald-500/30 rounded-2xl overflow-hidden">
+      <div className="mx-4 mb-3 bg-white/[0.10] border border-emerald-500/30 rounded-2xl overflow-hidden">
         <div className="flex items-center gap-2 px-4 py-3 bg-emerald-900/30 border-b border-emerald-500/20">
           <CheckCircle className="w-4 h-4 text-emerald-400" />
           <span className="text-sm font-bold text-emerald-200">
@@ -440,33 +440,33 @@ export const StudentAIChat: React.FC<StudentAIChatProps> = ({
           </span>
         </div>
         <div className="p-4 space-y-3">
-          <div className="bg-gray-900/60 rounded-xl p-3 space-y-2">
+          <div className="bg-base/60 rounded-xl p-3 space-y-2">
             <div className="flex items-center gap-2 text-sm">
               <Calendar className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" />
-              <span className="text-gray-300 font-medium">
+              <span className="text-ink-muted font-medium">
                 {formatSlotRange(selectedSlot.startTime, selectedSlot.endTime, lang)}
               </span>
             </div>
             {coachProfile && (
               <div className="flex items-center gap-2 text-sm">
-                <span className="text-gray-400 text-xs">
+                <span className="text-ink-muted text-xs">
                   {lang === 'en' ? 'Coach' : lang === 'ja' ? 'コーチ' : '코치'}:
                 </span>
-                <span className="text-gray-200 font-medium">{coachProfile.name}</span>
+                <span className="text-ink-high font-medium">{coachProfile.name}</span>
               </div>
             )}
             {selectedSlot.lessonType && (
               <div className="flex items-center gap-2 text-sm">
-                <span className="text-gray-400 text-xs">
+                <span className="text-ink-muted text-xs">
                   {lang === 'en' ? 'Type' : lang === 'ja' ? '種類' : '종류'}:
                 </span>
-                <span className="text-gray-200">{selectedSlot.lessonType}</span>
+                <span className="text-ink-high">{selectedSlot.lessonType}</span>
               </div>
             )}
           </div>
 
           <div>
-            <label className="text-xs text-gray-400 mb-1.5 block">
+            <label className="text-xs text-ink-muted mb-1.5 block">
               {lang === 'en' ? 'Message to coach (optional)' : lang === 'ja' ? 'コーチへのメッセージ（任意）' : '코치님께 전달할 메시지 (선택)'}
             </label>
             <textarea
@@ -474,14 +474,14 @@ export const StudentAIChat: React.FC<StudentAIChatProps> = ({
               onChange={e => setBookingNotes(e.target.value)}
               placeholder={lang === 'en' ? 'e.g. First lesson, working on driver...' : lang === 'ja' ? '例: 初レッスンです、ドライバーを練習したい...' : '예: 처음 레슨이에요, 드라이버 연습하고 싶어요...'}
               rows={2}
-              className="w-full bg-gray-900 border border-white/10 rounded-xl px-3 py-2 text-sm text-white placeholder-gray-500 outline-none focus:border-emerald-500 resize-none"
+              className="w-full bg-base border border-white/10 rounded-xl px-3 py-2 text-sm text-white placeholder-gray-500 outline-none focus:border-emerald-500 resize-none"
             />
           </div>
 
           <div className="flex gap-2">
             <button
               onClick={handleBookingCancel}
-              className="flex-1 py-2.5 rounded-xl border border-white/10 text-gray-300 text-sm font-medium hover:bg-white/5 transition-colors"
+              className="flex-1 py-2.5 rounded-xl border border-white/10 text-ink-muted text-sm font-medium hover:bg-white/[0.04]/5 transition-colors"
             >
               {lang === 'en' ? 'Back' : lang === 'ja' ? '戻る' : '다시 선택'}
             </button>
@@ -498,7 +498,7 @@ export const StudentAIChat: React.FC<StudentAIChatProps> = ({
   };
 
   const renderBookingLoading = () => (
-    <div className="mx-4 mb-3 flex items-center justify-center gap-3 py-4 bg-gray-800 border border-white/10 rounded-2xl">
+    <div className="mx-4 mb-3 flex items-center justify-center gap-3 py-4 bg-white/[0.10] border border-white/10 rounded-2xl">
       <Loader2 className="w-5 h-5 text-emerald-400 animate-spin" />
       <span className="text-sm text-emerald-300 font-medium">
         {lang === 'en' ? 'Processing your booking...' : lang === 'ja' ? '予約処理中...' : '예약 처리 중...'}
@@ -534,7 +534,7 @@ export const StudentAIChat: React.FC<StudentAIChatProps> = ({
     : '질문을 입력하고 답변을 읽기';
 
   return (
-    <div className="flex flex-col bg-gray-950 text-white" style={{ minHeight: '100dvh' }}>
+    <div className="flex flex-col bg-base text-white" style={{ minHeight: '100dvh' }}>
       <PermissionDeniedModal
         open={micPermissionDenied}
         kind="microphone"
@@ -545,7 +545,7 @@ export const StudentAIChat: React.FC<StudentAIChatProps> = ({
         }}
       />
       {/* Header */}
-      <div className="flex items-center gap-3 px-4 py-3 border-b border-white/10 bg-gray-900/90 backdrop-blur-sm sticky top-0 z-10">
+      <div className="flex items-center gap-3 px-4 py-3 border-b border-white/10 bg-base/90 backdrop-blur-sm sticky top-0 z-10">
         {headerLeftSlot ?? (!hideBackButton && (
           <BackButton
             onClick={onBack}
@@ -571,11 +571,11 @@ export const StudentAIChat: React.FC<StudentAIChatProps> = ({
 
         {/* Mode toggle — hidden on the selection screen */}
         {!showModeSelector && (
-          <div className="flex items-center gap-1 bg-gray-800 rounded-xl p-1 border border-white/10">
+          <div className="flex items-center gap-1 bg-white/[0.10] rounded-xl p-1 border border-white/10">
             <button
               onClick={() => switchMode('voice')}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                mode === 'voice' ? 'bg-emerald-600 text-white' : 'text-gray-400 hover:text-gray-200'
+                mode === 'voice' ? 'bg-emerald-600 text-white' : 'text-ink-muted hover:text-ink-high'
               }`}
               aria-label={language === 'en' ? 'Voice mode' : '음성 모드'}
             >
@@ -585,7 +585,7 @@ export const StudentAIChat: React.FC<StudentAIChatProps> = ({
             <button
               onClick={() => switchMode('chat')}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                mode === 'chat' ? 'bg-emerald-600 text-white' : 'text-gray-400 hover:text-gray-200'
+                mode === 'chat' ? 'bg-emerald-600 text-white' : 'text-ink-muted hover:text-ink-high'
               }`}
               aria-label={language === 'en' ? 'Chat mode' : '채팅 모드'}
             >
@@ -599,12 +599,12 @@ export const StudentAIChat: React.FC<StudentAIChatProps> = ({
         {!showModeSelector && mode === 'voice' && (
           <button
             onClick={() => { setTtsEnabled(p => !p); if (ttsEnabled) stopSpeaking(); }}
-            className="p-2 rounded-full hover:bg-white/10 transition-colors"
+            className="p-2 rounded-full hover:bg-white/[0.04]/10 transition-colors"
             aria-label={ttsEnabled ? '음성 출력 끄기' : '음성 출력 켜기'}
           >
             {ttsEnabled
               ? <Volume2 className="w-4 h-4 text-emerald-300" />
-              : <VolumeX className="w-4 h-4 text-gray-500" />
+              : <VolumeX className="w-4 h-4 text-ink-muted" />
             }
           </button>
         )}
@@ -628,13 +628,13 @@ export const StudentAIChat: React.FC<StudentAIChatProps> = ({
                 <Sparkles className="relative z-10 w-7 h-7 text-white" />
               </div>
               <h2 className="text-lg font-bold text-white mb-2">{modeSelectorTitle}</h2>
-              <p className="text-sm text-gray-400">{modeSelectorSubtitle}</p>
+              <p className="text-sm text-ink-muted">{modeSelectorSubtitle}</p>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <button
                 onClick={() => handleModeSelect('voice')}
-                className="flex flex-col items-center gap-3 p-5 bg-gray-800 hover:bg-emerald-900/40 border border-white/10 hover:border-emerald-400/50 rounded-2xl transition-all active:scale-[0.98] group"
+                className="flex flex-col items-center gap-3 p-5 bg-white/[0.10] hover:bg-emerald-900/40 border border-white/10 hover:border-emerald-400/50 rounded-2xl transition-all active:scale-[0.98] group"
                 aria-label={language === 'en' ? 'Choose voice mode' : language === 'ja' ? '音声モードを選択' : '음성 모드 선택'}
               >
                 <div className="w-14 h-14 rounded-full bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center shadow-lg shadow-emerald-500/30 group-hover:scale-110 transition-transform">
@@ -642,13 +642,13 @@ export const StudentAIChat: React.FC<StudentAIChatProps> = ({
                 </div>
                 <div className="text-center">
                   <p className="text-base font-bold text-white">{voiceCardLabel}</p>
-                  <p className="text-xs text-gray-400 mt-1 leading-snug">{voiceCardDesc}</p>
+                  <p className="text-xs text-ink-muted mt-1 leading-snug">{voiceCardDesc}</p>
                 </div>
               </button>
 
               <button
                 onClick={() => handleModeSelect('chat')}
-                className="flex flex-col items-center gap-3 p-5 bg-gray-800 hover:bg-emerald-900/40 border border-white/10 hover:border-emerald-400/50 rounded-2xl transition-all active:scale-[0.98] group"
+                className="flex flex-col items-center gap-3 p-5 bg-white/[0.10] hover:bg-emerald-900/40 border border-white/10 hover:border-emerald-400/50 rounded-2xl transition-all active:scale-[0.98] group"
                 aria-label={language === 'en' ? 'Choose chat mode' : language === 'ja' ? 'チャットモードを選択' : '채팅 모드 선택'}
               >
                 <div className="w-14 h-14 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center shadow-lg shadow-blue-500/30 group-hover:scale-110 transition-transform">
@@ -656,7 +656,7 @@ export const StudentAIChat: React.FC<StudentAIChatProps> = ({
                 </div>
                 <div className="text-center">
                   <p className="text-base font-bold text-white">{chatCardLabel}</p>
-                  <p className="text-xs text-gray-400 mt-1 leading-snug">{chatCardDesc}</p>
+                  <p className="text-xs text-ink-muted mt-1 leading-snug">{chatCardDesc}</p>
                 </div>
               </button>
             </div>
@@ -687,7 +687,7 @@ export const StudentAIChat: React.FC<StudentAIChatProps> = ({
                 className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
                   msg.role === 'user'
                     ? 'bg-emerald-600 text-white rounded-br-sm'
-                    : 'bg-gray-800 text-gray-100 rounded-bl-sm'
+                    : 'bg-white/[0.10] text-ink-high rounded-bl-sm'
                 }`}
               >
                 {renderMarkdown(displayContent)}
@@ -709,7 +709,7 @@ export const StudentAIChat: React.FC<StudentAIChatProps> = ({
             <div className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center flex-shrink-0">
               <Bot className="w-4 h-4 text-white" />
             </div>
-            <div className="bg-gray-800 rounded-2xl rounded-bl-sm px-4 py-3">
+            <div className="bg-white/[0.10] rounded-2xl rounded-bl-sm px-4 py-3">
               <div className="flex gap-1.5 items-center h-4">
                 {[0, 1, 2].map(i => (
                   <div
@@ -726,7 +726,7 @@ export const StudentAIChat: React.FC<StudentAIChatProps> = ({
         {/* Suggested prompts — shown only initially */}
         {messages.length <= 1 && bookingStep === 'idle' && (
           <div className="pt-2">
-            <p className="text-xs text-gray-500 mb-2">
+            <p className="text-xs text-ink-muted mb-2">
               {language === 'en' ? 'Try asking...' : language === 'ja' ? 'こんな質問はいかがですか？' : '이런 것도 물어볼 수 있어요'}
             </p>
             <div className="grid grid-cols-2 gap-2">
@@ -736,7 +736,7 @@ export const StudentAIChat: React.FC<StudentAIChatProps> = ({
                   <button
                     key={i}
                     onClick={() => void handleSend(prompt.text)}
-                    className="flex items-center gap-2 text-xs bg-gray-800 hover:bg-gray-700 border border-white/10 text-gray-300 hover:text-white rounded-xl px-3 py-2.5 transition-colors text-left"
+                    className="flex items-center gap-2 text-xs bg-white/[0.10] hover:bg-white/[0.08] border border-white/10 text-ink-muted hover:text-white rounded-xl px-3 py-2.5 transition-colors text-left"
                   >
                     <Icon className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" />
                     <span>{prompt.text}</span>
@@ -774,7 +774,7 @@ export const StudentAIChat: React.FC<StudentAIChatProps> = ({
       )}
 
       {/* Input bar */}
-      <div className="px-4 pb-safe pb-4 border-t border-white/10 bg-gray-900/90 backdrop-blur-sm pt-3">
+      <div className="px-4 pb-safe pb-4 border-t border-white/10 bg-base/90 backdrop-blur-sm pt-3">
         {mode === 'chat' ? (
           <div className="flex gap-2 items-end">
             <input
@@ -784,7 +784,7 @@ export const StudentAIChat: React.FC<StudentAIChatProps> = ({
               onChange={e => setInput(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void handleSend(); } }}
               placeholder={placeholderText}
-              className="flex-1 bg-gray-800 border border-white/10 rounded-2xl px-4 py-3 text-sm text-white placeholder-gray-400 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-colors"
+              className="flex-1 bg-white/[0.10] border border-white/10 rounded-2xl px-4 py-3 text-sm text-white placeholder-gray-400 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-colors"
             />
             <button
               onClick={() => void handleSend()}
@@ -836,7 +836,7 @@ export const StudentAIChat: React.FC<StudentAIChatProps> = ({
                 isListening
                   ? 'bg-red-500 hover:bg-red-400 shadow-red-500/40 scale-110'
                   : isTyping
-                  ? 'bg-gray-700 cursor-not-allowed opacity-50'
+                  ? 'bg-white/[0.06] cursor-not-allowed opacity-50'
                   : 'bg-emerald-600 hover:bg-emerald-500 shadow-emerald-500/30 active:scale-95'
               }`}
               aria-label={isListening ? '음성 인식 중지' : '음성 인식 시작'}
@@ -848,7 +848,7 @@ export const StudentAIChat: React.FC<StudentAIChatProps> = ({
             </button>
 
             {/* Status text */}
-            <p className="text-xs text-gray-400 text-center">
+            <p className="text-xs text-ink-muted text-center">
               {isTyping
                 ? (language === 'en' ? 'CoachX AI is thinking...'
                     : language === 'ja' ? 'CoachX AIが考えています...'
