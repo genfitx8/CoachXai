@@ -33,6 +33,7 @@ import { pointService } from '../services/pointService';
 import { NotificationToast } from './NotificationToast';
 import { useLanguage } from './LanguageContext';
 import { BackButton } from './ui/BackButton';
+import { readBooleanPref } from '../utils/safeStorage';
 
 interface ClientAppProps {
   clientProfile: ClientProfile;
@@ -109,11 +110,14 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
   const [showToneModal, setShowToneModal] = useState(false);
   const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(null);
   
-  // Media visibility toggle
-  const [showMedia, setShowMedia] = useState<boolean>(() => {
-    const saved = localStorage.getItem('client_showMedia');
-    return saved ? JSON.parse(saved) : false; // Default to hidden (false)
-  });
+  // Media visibility toggle.
+  // readBooleanPref self-heals a poisoned "client_showMedia" slot so a
+  // corrupted preference can't crash ClientApp on mount — the student
+  // side of the same "logged in and then bounced" regression that
+  // cc0ca89 fixed for the coach auth slots.
+  const [showMedia, setShowMedia] = useState<boolean>(() =>
+    readBooleanPref('client_showMedia', false)
+  );
   
   // Date Filtering State
   const [searchStartDate, setSearchStartDate] = useState('');
