@@ -111,6 +111,7 @@ import {
   IS_STUDENT_APP,
   isRoleAllowedInThisApp,
 } from './utils/appVariant';
+import { readBooleanPref } from './utils/safeStorage';
 
 const isClientSessionProfile = (
   role: 'COACH' | 'CLIENT' | 'ADMIN' | 'BRANCH_ADMIN' | null,
@@ -233,11 +234,14 @@ const AppContent: React.FC = () => {
   // CoachX chat initial query (set when opening chat from a member card)
   const [coachXChatInitialQuery, setCoachXChatInitialQuery] = useState<string | undefined>(undefined);
   
-  // Media visibility toggle for Coach
-  const [showMedia, setShowMedia] = useState<boolean>(() => {
-    const saved = localStorage.getItem('coach_showMedia');
-    return saved ? JSON.parse(saved) : false; // Default to hidden (false)
-  });
+  // Media visibility toggle for Coach.
+  // readBooleanPref self-heals a poisoned "coach_showMedia" slot
+  // (e.g. literal "undefined") so a corrupted preference can't crash
+  // this component's render — a variant of the login-crash regression
+  // cc0ca89 patched for the auth token / coach profile slots.
+  const [showMedia, setShowMedia] = useState<boolean>(() =>
+    readBooleanPref('coach_showMedia', false)
+  );
 
   // ── Lesson-start suggestion ─────────────────────────────────────────────────
   /** Active lesson-start suggestion to show in the prompt modal. */

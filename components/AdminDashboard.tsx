@@ -14,6 +14,7 @@ import { AdminCoachActivity } from './AdminCoachActivity';
 import { AdminAiObservability } from './AdminAiObservability';
 import { AdminOverview, type AdminJumpTarget } from './AdminOverview';
 import { useLanguage } from './LanguageContext';
+import { readBooleanPref } from '../utils/safeStorage';
 
 interface AdminDashboardProps {
   clients: ClientProfile[];
@@ -51,11 +52,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [activeTab, setActiveTab] = useState<'OVERVIEW' | 'CLIENTS' | 'LESSONS' | 'SYSTEM' | 'TEMPLATES' | 'MESSAGES' | 'COURSES' | 'BRANCHES' | 'BRANCH_STAFF' | 'AI_PROMPTS' | 'AI_OBSERVABILITY' | 'COACH_ACTIVITY' | 'CURRICULUM_TEMPLATES'>('OVERVIEW');
   const [memberType, setMemberType] = useState<'GENERAL' | 'COACH'>('GENERAL'); 
   
-  // Media visibility toggle
-  const [showMedia, setShowMedia] = useState<boolean>(() => {
-    const saved = localStorage.getItem('admin_showMedia');
-    return saved ? JSON.parse(saved) : false; // Default to hidden (false)
-  });
+  // Media visibility toggle.
+  // readBooleanPref self-heals a poisoned "admin_showMedia" slot so a
+  // corrupted preference can't crash AdminDashboard on mount — mirrors
+  // the same defense applied to coach_showMedia / client_showMedia.
+  const [showMedia, setShowMedia] = useState<boolean>(() =>
+    readBooleanPref('admin_showMedia', false)
+  );
   
   // Firebase Config State
   const [fbConfig, setFbConfig] = useState<string>('');
