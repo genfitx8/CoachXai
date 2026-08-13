@@ -73,7 +73,7 @@ export const CurriculumViewer: React.FC<CurriculumViewerProps> = ({
     const p = getPartProgress(partKey);
     if (p?.status === 'completed') return <CheckCircle className="w-4 h-4 text-emerald-400 shrink-0" />;
     if (p?.status === 'in_progress') return <Clock className="w-4 h-4 text-yellow-400 shrink-0" />;
-    return <div className="w-4 h-4 rounded-full border border-slate-600 shrink-0" />;
+    return <div className="w-4 h-4 rounded-full border border-line-subtle shrink-0" />;
   }
 
   async function handleSetStatus(status: PartStatus) {
@@ -93,7 +93,7 @@ export const CurriculumViewer: React.FC<CurriculumViewerProps> = ({
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <div className="text-slate-400 text-sm">커리큘럼 불러오는 중...</div>
+        <div className="text-ink-muted text-sm">커리큘럼 불러오는 중...</div>
       </div>
     );
   }
@@ -101,8 +101,8 @@ export const CurriculumViewer: React.FC<CurriculumViewerProps> = ({
   if (!curriculum) {
     return (
       <div className="flex flex-col items-center justify-center py-20 gap-3">
-        <BookOpen className="w-8 h-8 text-slate-600" />
-        <p className="text-slate-400 text-sm">커리큘럼을 불러올 수 없습니다.</p>
+        <BookOpen className="w-8 h-8 text-ink-muted" />
+        <p className="text-ink-muted text-sm">커리큘럼을 불러올 수 없습니다.</p>
         <button onClick={onClose} className="text-emerald-400 text-sm hover:underline">돌아가기</button>
       </div>
     );
@@ -119,26 +119,26 @@ export const CurriculumViewer: React.FC<CurriculumViewerProps> = ({
   return (
     <div className="flex flex-col md:flex-row gap-4 min-h-[600px]">
       {/* Sidebar — part list */}
-      <div className="w-full md:w-72 shrink-0 bg-slate-900/70 border border-slate-800 rounded-2xl p-4 space-y-4">
+      <div className="w-full md:w-72 shrink-0 bg-white/[0.03] border border-line-subtle rounded-2xl p-4 space-y-4">
         {/* Curriculum header */}
         <div>
-          <button onClick={onClose} className="flex items-center gap-1 text-xs text-slate-500 hover:text-slate-300 mb-3 transition-colors">
+          <button onClick={onClose} className="flex items-center gap-1 text-xs text-ink-muted hover:text-ink-medium mb-3 transition-colors">
             <ChevronLeft className="w-3.5 h-3.5" />
             목록으로
           </button>
-          <h2 className="text-sm font-bold text-slate-100 leading-snug">{curriculum.title}</h2>
+          <h2 className="text-sm font-bold text-ink-high leading-snug">{curriculum.title}</h2>
           <div className="mt-2 space-y-1">
-            <div className="flex justify-between text-xs text-slate-500">
+            <div className="flex justify-between text-xs text-ink-muted">
               <span>전체 진도</span>
               <span className="text-emerald-300 font-semibold">{overallProgress}%</span>
             </div>
-            <div className="h-1.5 bg-slate-800 rounded-full overflow-hidden">
+            <div className="h-1.5 bg-white/[0.05] rounded-full overflow-hidden">
               <div
                 className="h-full bg-emerald-500 rounded-full transition-all"
                 style={{ width: `${overallProgress}%` }}
               />
             </div>
-            <div className="text-xs text-slate-500">{completedCount}/{parts.length} 파트 완료</div>
+            <div className="text-xs text-ink-muted">{completedCount}/{parts.length} 파트 완료</div>
           </div>
         </div>
 
@@ -153,7 +153,7 @@ export const CurriculumViewer: React.FC<CurriculumViewerProps> = ({
                 className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-left text-xs font-medium transition-all ${
                   isSelected
                     ? 'bg-emerald-600/20 border border-emerald-500/40 text-emerald-200'
-                    : 'hover:bg-slate-800 text-slate-400 hover:text-slate-200 border border-transparent'
+                    : 'hover:bg-white/[0.06] text-ink-muted hover:text-ink-high border border-transparent'
                 }`}
               >
                 {getStatusIcon(part.partKey)}
@@ -169,13 +169,13 @@ export const CurriculumViewer: React.FC<CurriculumViewerProps> = ({
         {selectedPart ? (
           <>
             {/* Part header */}
-            <div className="bg-slate-900/70 border border-slate-800 rounded-2xl p-5">
+            <div className="bg-white/[0.03] border border-line-subtle rounded-2xl p-5">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <div className="text-xs text-emerald-400/80 font-semibold uppercase tracking-wider mb-1">
                     PART {selectedPart.order}
                   </div>
-                  <h3 className="text-lg font-bold text-slate-100 leading-snug">{selectedPart.title}</h3>
+                  <h3 className="text-lg font-bold text-ink-high leading-snug">{selectedPart.title}</h3>
                 </div>
                 {isCompleted && (
                   <div className="flex items-center gap-1.5 bg-emerald-500/10 border border-emerald-500/30 rounded-xl px-3 py-1.5 shrink-0">
@@ -198,7 +198,7 @@ export const CurriculumViewer: React.FC<CurriculumViewerProps> = ({
                       className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
                         partView === key
                           ? 'bg-emerald-600 text-white'
-                          : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+                          : 'text-ink-muted hover:text-ink-high hover:bg-white/[0.06]'
                       }`}
                     >
                       {icon}
@@ -213,7 +213,7 @@ export const CurriculumViewer: React.FC<CurriculumViewerProps> = ({
                     disabled={updatingStatus}
                     className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all disabled:opacity-50 ${
                       isCompleted
-                        ? 'bg-slate-800 border border-slate-700 text-slate-300 hover:bg-slate-700'
+                        ? 'bg-white/[0.05] border border-line-subtle text-ink-medium hover:bg-white/[0.08]'
                         : 'bg-emerald-600/20 border border-emerald-500/40 text-emerald-300 hover:bg-emerald-600/30'
                     }`}
                   >
@@ -226,10 +226,10 @@ export const CurriculumViewer: React.FC<CurriculumViewerProps> = ({
 
             {/* Content */}
             {partView === 'content' && (
-              <div className="bg-slate-900/70 border border-slate-800 rounded-2xl p-5 space-y-5">
+              <div className="bg-white/[0.03] border border-line-subtle rounded-2xl p-5 space-y-5">
                 {/* Markdown-rendered content */}
                 <div
-                  className="prose prose-invert prose-sm max-w-none prose-headings:text-slate-100 prose-p:text-slate-300 prose-li:text-slate-300 prose-strong:text-slate-100 prose-blockquote:border-emerald-500 prose-blockquote:text-slate-400"
+                  className="prose prose-invert prose-sm max-w-none prose-headings:text-ink-high prose-p:text-ink-medium prose-li:text-ink-medium prose-strong:text-ink-high prose-blockquote:border-emerald-500 prose-blockquote:text-ink-muted"
                   dangerouslySetInnerHTML={{
                     __html: renderMarkdown(selectedPart.content ?? ''),
                   }}
@@ -237,14 +237,14 @@ export const CurriculumViewer: React.FC<CurriculumViewerProps> = ({
 
                 {/* Key points checklist */}
                 {(selectedPart.keyPoints ?? []).length > 0 && (
-                  <div className="border-t border-slate-800 pt-5 space-y-3">
+                  <div className="border-t border-line-subtle pt-5 space-y-3">
                     <div className="flex items-center gap-2">
                       <ClipboardList className="w-4 h-4 text-emerald-400" />
-                      <h4 className="text-sm font-bold text-slate-200">핵심 포인트</h4>
+                      <h4 className="text-sm font-bold text-ink-high">핵심 포인트</h4>
                     </div>
                     <ul className="space-y-2">
                       {(selectedPart.keyPoints ?? []).map((point, i) => (
-                        <li key={i} className="flex items-start gap-2.5 text-sm text-slate-300">
+                        <li key={i} className="flex items-start gap-2.5 text-sm text-ink-medium">
                           <span className="mt-0.5 w-5 h-5 rounded-full bg-emerald-600/20 text-emerald-300 flex items-center justify-center text-[10px] font-bold shrink-0">
                             {i + 1}
                           </span>
@@ -256,11 +256,11 @@ export const CurriculumViewer: React.FC<CurriculumViewerProps> = ({
                 )}
 
                 {/* Nav buttons */}
-                <div className="border-t border-slate-800 pt-4 flex justify-between">
+                <div className="border-t border-line-subtle pt-4 flex justify-between">
                   {currentIndex > 0 ? (
                     <button
                       onClick={() => { setSelectedPart(parts[currentIndex - 1]); setPartView('content'); }}
-                      className="flex items-center gap-1.5 text-sm text-slate-400 hover:text-slate-200 transition-colors"
+                      className="flex items-center gap-1.5 text-sm text-ink-muted hover:text-ink-high transition-colors"
                     >
                       <ChevronLeft className="w-4 h-4" />
                       이전 파트
@@ -269,7 +269,7 @@ export const CurriculumViewer: React.FC<CurriculumViewerProps> = ({
                   {currentIndex < parts.length - 1 && (
                     <button
                       onClick={() => { setSelectedPart(parts[currentIndex + 1]); setPartView('content'); }}
-                      className="flex items-center gap-1.5 text-sm text-slate-400 hover:text-slate-200 transition-colors"
+                      className="flex items-center gap-1.5 text-sm text-ink-muted hover:text-ink-high transition-colors"
                     >
                       다음 파트
                       <ChevronRight className="w-4 h-4" />
@@ -297,21 +297,21 @@ export const CurriculumViewer: React.FC<CurriculumViewerProps> = ({
                 />
 
                 {lessonRecords.length > 1 && (
-                  <div className="bg-slate-900/70 border border-slate-800 rounded-2xl p-4 space-y-3">
-                    <h4 className="text-sm font-bold text-slate-300 flex items-center gap-2">
-                      <FileText className="w-4 h-4 text-slate-500" />
+                  <div className="bg-white/[0.03] border border-line-subtle rounded-2xl p-4 space-y-3">
+                    <h4 className="text-sm font-bold text-ink-medium flex items-center gap-2">
+                      <FileText className="w-4 h-4 text-ink-muted" />
                       이전 레슨 기록 ({lessonRecords.length - 1}개)
                     </h4>
                     {lessonRecords.slice(1).map((record) => (
-                      <div key={record.id} className="bg-slate-800/50 rounded-xl p-3 space-y-2">
+                      <div key={record.id} className="bg-white/[0.04] rounded-xl p-3 space-y-2">
                         <div className="flex items-center justify-between">
-                          <span className="text-xs text-slate-400">{record.lessonDate}</span>
+                          <span className="text-xs text-ink-muted">{record.lessonDate}</span>
                           <span className="text-xs text-emerald-400">
                             {record.checklist.filter((c) => c.checked).length}/{record.checklist.length} 체크
                           </span>
                         </div>
                         {record.textMemo && (
-                          <p className="text-xs text-slate-300 line-clamp-2">{record.textMemo}</p>
+                          <p className="text-xs text-ink-medium line-clamp-2">{record.textMemo}</p>
                         )}
                       </div>
                     ))}
@@ -321,10 +321,10 @@ export const CurriculumViewer: React.FC<CurriculumViewerProps> = ({
             )}
           </>
         ) : (
-          <div className="flex items-center justify-center py-20 bg-slate-900/70 border border-slate-800 rounded-2xl">
+          <div className="flex items-center justify-center py-20 bg-white/[0.03] border border-line-subtle rounded-2xl">
             <div className="text-center space-y-2">
-              <BookOpen className="w-8 h-8 text-slate-600 mx-auto" />
-              <p className="text-slate-400 text-sm">파트를 선택하세요</p>
+              <BookOpen className="w-8 h-8 text-ink-muted mx-auto" />
+              <p className="text-ink-muted text-sm">파트를 선택하세요</p>
             </div>
           </div>
         )}
@@ -336,14 +336,14 @@ export const CurriculumViewer: React.FC<CurriculumViewerProps> = ({
 // Simple markdown renderer for the content
 function renderMarkdown(text: string): string {
   return text
-    .replace(/^### (.+)$/gm, '<h3 class="text-base font-bold text-slate-100 mt-4 mb-2">$1</h3>')
-    .replace(/^## (.+)$/gm, '<h2 class="text-lg font-bold text-slate-100 mt-5 mb-3">$1</h2>')
-    .replace(/^# (.+)$/gm, '<h1 class="text-xl font-bold text-slate-100 mt-6 mb-3">$1</h1>')
-    .replace(/\*\*(.+?)\*\*/g, '<strong class="text-slate-100 font-semibold">$1</strong>')
-    .replace(/^> (.+)$/gm, '<blockquote class="border-l-4 border-emerald-500 pl-4 py-1 my-3 text-slate-400 italic bg-emerald-950/30 rounded-r-lg">$1</blockquote>')
-    .replace(/^- \[ \] (.+)$/gm, '<li class="flex items-start gap-2 text-slate-300 my-1"><span class="mt-1 w-4 h-4 border border-slate-600 rounded flex-shrink-0 inline-block"></span><span>$1</span></li>')
-    .replace(/^- (.+)$/gm, '<li class="text-slate-300 my-0.5 pl-4 list-disc">$1</li>')
-    .replace(/^\d+\. (.+)$/gm, '<li class="text-slate-300 my-0.5 pl-4 list-decimal">$1</li>')
-    .replace(/\n\n/g, '</p><p class="text-slate-300 my-2">')
+    .replace(/^### (.+)$/gm, '<h3 class="text-base font-bold text-ink-high mt-4 mb-2">$1</h3>')
+    .replace(/^## (.+)$/gm, '<h2 class="text-lg font-bold text-ink-high mt-5 mb-3">$1</h2>')
+    .replace(/^# (.+)$/gm, '<h1 class="text-xl font-bold text-ink-high mt-6 mb-3">$1</h1>')
+    .replace(/\*\*(.+?)\*\*/g, '<strong class="text-ink-high font-semibold">$1</strong>')
+    .replace(/^> (.+)$/gm, '<blockquote class="border-l-4 border-emerald-500 pl-4 py-1 my-3 text-ink-muted italic bg-emerald-950/30 rounded-r-lg">$1</blockquote>')
+    .replace(/^- \[ \] (.+)$/gm, '<li class="flex items-start gap-2 text-ink-medium my-1"><span class="mt-1 w-4 h-4 border border-line-subtle rounded flex-shrink-0 inline-block"></span><span>$1</span></li>')
+    .replace(/^- (.+)$/gm, '<li class="text-ink-medium my-0.5 pl-4 list-disc">$1</li>')
+    .replace(/^\d+\. (.+)$/gm, '<li class="text-ink-medium my-0.5 pl-4 list-decimal">$1</li>')
+    .replace(/\n\n/g, '</p><p class="text-ink-medium my-2">')
     .replace(/\n/g, '<br />');
 }
