@@ -50,7 +50,7 @@ export const PermissionDeniedModal: React.FC<PermissionDeniedModalProps> = ({
       aria-labelledby="permission-modal-title"
       className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/60 p-0 sm:p-4"
     >
-      <div className="w-full sm:max-w-md bg-white text-gray-900 rounded-t-2xl sm:rounded-2xl shadow-2xl overflow-hidden">
+      <div className="w-full sm:max-w-md bg-white/[0.04] text-ink-high rounded-t-2xl sm:rounded-2xl shadow-2xl overflow-hidden">
         <div className="flex items-start justify-between px-5 pt-5">
           <div className="flex items-start gap-3">
             <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
@@ -63,14 +63,14 @@ export const PermissionDeniedModal: React.FC<PermissionDeniedModalProps> = ({
               >
                 {copy.title}
               </h2>
-              <p className="text-sm text-gray-600 mt-1">{copy.intro}</p>
+              <p className="text-sm text-ink-medium mt-1">{copy.intro}</p>
             </div>
           </div>
           <button
             type="button"
             onClick={onClose}
             aria-label={copy.closeLabel}
-            className="p-1 -mr-1 text-gray-400 hover:text-gray-700 transition-colors"
+            className="p-1 -mr-1 text-ink-muted hover:text-ink-medium transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
@@ -83,7 +83,7 @@ export const PermissionDeniedModal: React.FC<PermissionDeniedModalProps> = ({
                 <span className="flex-shrink-0 w-6 h-6 rounded-full bg-emerald-600 text-white text-xs font-bold flex items-center justify-center mt-0.5">
                   {i + 1}
                 </span>
-                <span className="text-sm text-gray-800 leading-relaxed">
+                <span className="text-sm text-ink-high leading-relaxed">
                   {step}
                 </span>
               </li>
@@ -106,7 +106,7 @@ export const PermissionDeniedModal: React.FC<PermissionDeniedModalProps> = ({
             <button
               type="button"
               onClick={onRetry}
-              className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-800 font-semibold transition-colors"
+              className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-white/[0.06] hover:bg-white/[0.10] text-ink-high font-semibold transition-colors"
             >
               <RefreshCw className="w-4 h-4" />
               {copy.retryLabel}
@@ -116,7 +116,7 @@ export const PermissionDeniedModal: React.FC<PermissionDeniedModalProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="w-full py-3 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-800 font-semibold transition-colors"
+              className="w-full py-3 rounded-xl bg-white/[0.06] hover:bg-white/[0.10] text-ink-high font-semibold transition-colors"
             >
               {copy.closeLabel}
             </button>

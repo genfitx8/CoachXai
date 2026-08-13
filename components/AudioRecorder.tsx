@@ -118,11 +118,11 @@ export const AudioRecorder: React.FC<AudioRecorderProps> = ({
           startRecording();
         }}
       />
-      <div className="bg-gray-50 p-6 rounded-lg text-center">
+      <div className="bg-white/[0.03] p-6 rounded-lg text-center">
         {!hasPermission && !isRecording && !recordedAudio && (
           <div className="space-y-4">
-            <Mic className="w-16 h-16 mx-auto text-gray-400" />
-            <p className="text-gray-600">
+            <Mic className="w-16 h-16 mx-auto text-ink-muted" />
+            <p className="text-ink-medium">
               영상에 음성 해설을 녹음하세요
             </p>
             <Button onClick={startRecording} className="flex items-center gap-2 mx-auto">
@@ -144,7 +144,7 @@ export const AudioRecorder: React.FC<AudioRecorderProps> = ({
             <div className="text-2xl font-mono font-bold text-red-500">
               {formatTime(recordingTime)}
             </div>
-            <p className="text-gray-600">녹음 중...</p>
+            <p className="text-ink-medium">녹음 중...</p>
             <Button onClick={stopRecording} variant="secondary" className="flex items-center gap-2 mx-auto">
               <Square className="w-4 h-4" />
               녹음 중지

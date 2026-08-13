@@ -165,21 +165,21 @@ export const CoachInterviewModal: React.FC<CoachInterviewModalProps> = ({
       aria-modal="true"
       aria-labelledby="coach-interview-title"
     >
-      <div className="bg-white rounded-2xl shadow-xl max-w-2xl w-full max-h-[90vh] flex flex-col overflow-hidden">
+      <div className="bg-white/[0.04] rounded-2xl shadow-xl max-w-2xl w-full max-h-[90vh] flex flex-col overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-line-subtle">
           <div className="flex items-center gap-2">
             <MessageCircle className="w-5 h-5 text-emerald-500" />
-            <h2 id="coach-interview-title" className="font-bold text-gray-800 text-base">
+            <h2 id="coach-interview-title" className="font-bold text-ink-high text-base">
               인터뷰로 프롬프트 생성{' '}
-              <span className="text-gray-400 font-normal">— target: {target}</span>
+              <span className="text-ink-muted font-normal">— target: {target}</span>
             </h2>
           </div>
           <button
             type="button"
             onClick={onClose}
             disabled={isFinalising}
-            className="p-1.5 text-gray-400 hover:text-gray-700 rounded-lg disabled:opacity-50"
+            className="p-1.5 text-ink-muted hover:text-ink-medium rounded-lg disabled:opacity-50"
             aria-label="닫기"
           >
             <X className="w-4 h-4" />
@@ -197,7 +197,7 @@ export const CoachInterviewModal: React.FC<CoachInterviewModalProps> = ({
             </div>
           )}
           {transcript.length === 0 && !currentQuestion && !isLoadingQuestion && (
-            <p className="text-xs text-gray-400 text-center py-8">
+            <p className="text-xs text-ink-muted text-center py-8">
               곧 첫 질문이 준비됩니다…
             </p>
           )}
@@ -207,17 +207,17 @@ export const CoachInterviewModal: React.FC<CoachInterviewModalProps> = ({
                 <p className="text-[11px] font-bold text-emerald-500 mb-1">
                   Q{i + 1}
                 </p>
-                <p className="text-sm text-gray-800 whitespace-pre-wrap">
+                <p className="text-sm text-ink-high whitespace-pre-wrap">
                   {turn.question}
                 </p>
               </div>
-              <div className="bg-gray-50 rounded-lg p-3">
-                <p className="text-[11px] font-bold text-gray-400 mb-1">
+              <div className="bg-white/[0.03] rounded-lg p-3">
+                <p className="text-[11px] font-bold text-ink-muted mb-1">
                   A{i + 1}
                 </p>
-                <p className="text-sm text-gray-700 whitespace-pre-wrap">
+                <p className="text-sm text-ink-medium whitespace-pre-wrap">
                   {turn.answer.trim() || (
-                    <span className="italic text-gray-400">(스킵)</span>
+                    <span className="italic text-ink-muted">(스킵)</span>
                   )}
                 </p>
               </div>
@@ -229,11 +229,11 @@ export const CoachInterviewModal: React.FC<CoachInterviewModalProps> = ({
                 Q{transcript.length + 1}
               </p>
               {isLoadingQuestion ? (
-                <p className="text-sm text-gray-500 italic">
+                <p className="text-sm text-ink-muted italic">
                   다음 질문을 생각하고 있어요…
                 </p>
               ) : (
-                <p className="text-sm text-gray-800 whitespace-pre-wrap">
+                <p className="text-sm text-ink-high whitespace-pre-wrap">
                   {currentQuestion}
                 </p>
               )}
@@ -247,7 +247,7 @@ export const CoachInterviewModal: React.FC<CoachInterviewModalProps> = ({
         </div>
 
         {/* Answer input */}
-        <div className="border-t border-gray-100 px-5 py-4 space-y-3">
+        <div className="border-t border-line-subtle px-5 py-4 space-y-3">
           <textarea
             value={currentAnswer}
             onChange={(e) => setCurrentAnswer(e.target.value)}
@@ -258,18 +258,18 @@ export const CoachInterviewModal: React.FC<CoachInterviewModalProps> = ({
             }
             rows={3}
             disabled={isLoadingQuestion || isFinalising || !currentQuestion}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none resize-y text-sm disabled:bg-gray-50 disabled:cursor-not-allowed"
+            className="w-full px-3 py-2 border border-line-subtle rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none resize-y text-sm disabled:bg-white/[0.03] disabled:cursor-not-allowed"
           />
           <div className="flex flex-wrap items-center gap-2 justify-between">
-            <div className="text-xs text-gray-400">
-              지금까지 답변한 질문: <span className="font-bold text-gray-600">{transcript.length}</span>건
+            <div className="text-xs text-ink-muted">
+              지금까지 답변한 질문: <span className="font-bold text-ink-medium">{transcript.length}</span>건
             </div>
             <div className="flex items-center gap-2">
               <button
                 type="button"
                 onClick={handleSkip}
                 disabled={isLoadingQuestion || isFinalising || !currentQuestion}
-                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold text-gray-600 bg-gray-100 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold text-ink-medium bg-white/[0.06] hover:bg-white/[0.10] disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <SkipForward className="w-3.5 h-3.5" /> 스킵
               </button>

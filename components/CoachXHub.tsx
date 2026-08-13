@@ -97,7 +97,7 @@ const InsightCard: React.FC<{ insight: CoachXInsight }> = ({ insight }) => {
     stagnation: 'from-red-500 to-rose-600',
   };
   const bgMap: Record<CoachXInsight['type'], string> = {
-    pattern: 'bg-white/[0.04] border-line-subtle',
+    pattern: 'bg-white/[0.04]/[0.04] border-line-subtle',
     attention: 'bg-amber-50 border-amber-100',
     curriculum: 'bg-emerald-500/[0.08] border-emerald-500/20',
     coach_growth: 'bg-sky-50 border-sky-100',
@@ -230,7 +230,7 @@ const MemberReportCard: React.FC<{
     <Activity className="w-3.5 h-3.5 text-sky-500" />;
 
   return (
-    <div className="bg-white/[0.04] rounded-xl border border-line-subtle shadow-sm shadow-black/20 overflow-hidden">
+    <div className="bg-white/[0.04]/[0.04] rounded-xl border border-line-subtle shadow-sm shadow-black/20 overflow-hidden">
       {/* Header */}
       <button
         className="w-full flex items-center gap-3 p-4 hover:bg-white/[0.06] transition-colors text-left"
@@ -276,7 +276,7 @@ const MemberReportCard: React.FC<{
                 onClick={() => setActiveSection(section)}
                 className={`flex-1 py-2 text-xs font-semibold transition-colors ${
                   activeSection === section
-                    ? 'text-ink-medium border-b-2 border-slate-600'
+                    ? 'text-ink-medium border-b-2 border-line-subtle'
                     : 'text-ink-muted hover:text-ink-medium'
                 }`}
               >
@@ -430,7 +430,7 @@ const MemberReportCard: React.FC<{
           )}
 
           {/* Ask CoachX shortcut + Full Report button */}
-          <div className="border-t border-gray-50 px-4 py-3 flex gap-2">
+          <div className="border-t border-line-subtle px-4 py-3 flex gap-2">
             <button
               onClick={() => onViewFullReport(report)}
               className="flex-1 flex items-center justify-center gap-1.5 text-xs font-semibold text-ink-medium bg-white/[0.05] hover:bg-white/[0.08] active:bg-white/[0.10] rounded-lg py-2.5 transition-colors"
@@ -457,7 +457,7 @@ const CurriculumPlanCard: React.FC<{ report: MemberGrowthReport }> = ({ report }
   const { t } = useLanguage();
   const [expanded, setExpanded] = useState(false);
   return (
-    <div className="bg-white/[0.04] rounded-xl border border-line-subtle shadow-sm shadow-black/20 overflow-hidden">
+    <div className="bg-white/[0.04]/[0.04] rounded-xl border border-line-subtle shadow-sm shadow-black/20 overflow-hidden">
       <button
         className="w-full flex items-center gap-3 p-4 hover:bg-white/[0.06] transition-colors text-left"
         onClick={() => setExpanded(!expanded)}
@@ -473,7 +473,7 @@ const CurriculumPlanCard: React.FC<{ report: MemberGrowthReport }> = ({ report }
         <ChevronRight className={`w-4 h-4 text-ink-muted transition-transform ml-1 ${expanded ? 'rotate-90' : ''}`} />
       </button>
       {expanded && (
-        <div className="border-t border-gray-50 px-4 pb-4 pt-3">
+        <div className="border-t border-line-subtle px-4 pb-4 pt-3">
           <p className="text-xs font-semibold text-ink-muted uppercase tracking-wide mb-2.5">
             {t('coachx_curriculum_5_sessions')}
           </p>
@@ -488,7 +488,7 @@ const CurriculumPlanCard: React.FC<{ report: MemberGrowthReport }> = ({ report }
             ))}
           </ol>
           {report.drillSuggestions.length > 0 && (
-            <div className="mt-3 pt-3 border-t border-gray-50">
+            <div className="mt-3 pt-3 border-t border-line-subtle">
               <p className="text-xs font-semibold text-ink-muted uppercase tracking-wide mb-2 flex items-center gap-1">
                 <Dumbbell className="w-3 h-3 text-ink-muted" /> {t('coachx_suggested_drills_short')}
               </p>
@@ -552,7 +552,7 @@ const CoachGrowthTab: React.FC<{ profile: CoachGrowthProfile; loading?: boolean 
               label: t('coachx_growth_this_month'),
               unit: t('coachx_growth_lessons_unit'),
               color: 'text-ink-medium',
-              bg: 'bg-white/[0.04]',
+              bg: 'bg-white/[0.04]/[0.04]',
               delta: profile.lessonsLastMonth > 0
                 ? Math.round(((profile.lessonsThisMonth - profile.lessonsLastMonth) / profile.lessonsLastMonth) * 100)
                 : null,
@@ -562,7 +562,7 @@ const CoachGrowthTab: React.FC<{ profile: CoachGrowthProfile; loading?: boolean 
               label: t('coachx_growth_last_month'),
               unit: t('coachx_growth_lessons_unit'),
               color: 'text-ink-medium',
-              bg: 'bg-white/[0.04]',
+              bg: 'bg-white/[0.04]/[0.04]',
               delta: null,
             },
             {
@@ -578,7 +578,7 @@ const CoachGrowthTab: React.FC<{ profile: CoachGrowthProfile; loading?: boolean 
               label: t('coachx_growth_avg_sessions'),
               unit: t('coachx_growth_sessions_unit'),
               color: 'text-ink-medium',
-              bg: 'bg-white/[0.04]',
+              bg: 'bg-white/[0.04]/[0.04]',
               delta: null,
             },
           ].map((stat, i) => (
@@ -600,7 +600,7 @@ const CoachGrowthTab: React.FC<{ profile: CoachGrowthProfile; loading?: boolean 
 
       {/* ── Topic Breakdown ────────────────────────────────────────────────── */}
       {profile.topicBreakdown.length > 0 && (
-        <div className="bg-white/[0.04] rounded-xl border border-line-subtle shadow-sm shadow-black/20 p-4">
+        <div className="bg-white/[0.04]/[0.04] rounded-xl border border-line-subtle shadow-sm shadow-black/20 p-4">
           <p className="text-xs font-semibold text-ink-muted uppercase tracking-wide flex items-center gap-1.5 mb-3">
             <BarChart3 className="w-3.5 h-3.5 text-ink-muted" />
             {t('coachx_growth_topic_breakdown')}
@@ -668,7 +668,7 @@ const CoachGrowthTab: React.FC<{ profile: CoachGrowthProfile; loading?: boolean 
       </div>
 
       {/* ── Member Progress Snapshot ───────────────────────────────────────── */}
-      <div className="bg-white/[0.04] rounded-xl border border-line-subtle shadow-sm shadow-black/20 p-4">
+      <div className="bg-white/[0.04]/[0.04] rounded-xl border border-line-subtle shadow-sm shadow-black/20 p-4">
         <p className="text-xs font-semibold text-ink-muted uppercase tracking-wide flex items-center gap-1.5 mb-3">
           <Users className="w-3.5 h-3.5 text-ink-muted" />
           {t('coachx_growth_member_snapshot')}
@@ -698,7 +698,7 @@ const CoachGrowthTab: React.FC<{ profile: CoachGrowthProfile; loading?: boolean 
 
       {/* ── Recommended Actions ────────────────────────────────────────────── */}
       {profile.recommendedActions.length > 0 && (
-        <div className="bg-white/[0.04] rounded-xl border border-line-subtle p-4">
+        <div className="bg-white/[0.04]/[0.04] rounded-xl border border-line-subtle p-4">
           <p className="text-xs font-semibold text-ink-medium uppercase tracking-wide flex items-center gap-1.5 mb-3">
             <Zap className="w-3.5 h-3.5" />
             {t('coachx_growth_recommended_actions')}
@@ -716,12 +716,12 @@ const CoachGrowthTab: React.FC<{ profile: CoachGrowthProfile; loading?: boolean 
 
       {/* ── Gemini AI Summary ──────────────────────────────────────────────── */}
       {loading ? (
-        <div className="bg-white/[0.04] rounded-xl border border-line-subtle p-4 flex items-center gap-2">
+        <div className="bg-white/[0.04]/[0.04] rounded-xl border border-line-subtle p-4 flex items-center gap-2">
           <Sparkles className="w-4 h-4 text-emerald-400 animate-pulse flex-shrink-0" />
           <p className="text-xs text-ink-muted italic">{t('coachx_growth_ai_summary_loading')}</p>
         </div>
       ) : profile.geminiSummary ? (
-        <div className="bg-white/[0.04] rounded-xl border border-line-subtle p-4">
+        <div className="bg-white/[0.04]/[0.04] rounded-xl border border-line-subtle p-4">
           <p className="text-xs font-semibold text-ink-medium uppercase tracking-wide flex items-center gap-1.5 mb-2">
             <Sparkles className="w-3.5 h-3.5" />
             {t('coachx_growth_ai_summary_title')}
@@ -782,8 +782,8 @@ const CoachXLiveTab: React.FC<CoachXLiveTabProps> = ({ allLessons, memberReports
     <div className="space-y-4">
 
       {/* ── Today's Sessions ────────────────────────────────────────────── */}
-      <div className="bg-white/[0.04] rounded-xl border border-line-subtle shadow-sm shadow-black/20 overflow-hidden">
-        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-50">
+      <div className="bg-white/[0.04]/[0.04] rounded-xl border border-line-subtle shadow-sm shadow-black/20 overflow-hidden">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-line-subtle">
           <p className="text-xs font-semibold text-ink-muted uppercase tracking-wider flex items-center gap-1.5">
             <Calendar className="w-3.5 h-3.5 text-ink-muted" />
             {t('coachx_live_today_sessions')}
@@ -815,7 +815,7 @@ const CoachXLiveTab: React.FC<CoachXLiveTabProps> = ({ allLessons, memberReports
 
       {/* ── Member Status ──────────────────────────────────────────────── */}
       {memberReports.length > 0 && (
-        <div className="bg-white/[0.04] rounded-xl border border-line-subtle shadow-sm shadow-black/20 p-4">
+        <div className="bg-white/[0.04]/[0.04] rounded-xl border border-line-subtle shadow-sm shadow-black/20 p-4">
           <p className="text-xs font-semibold text-ink-muted uppercase tracking-wider flex items-center gap-1.5 mb-3">
             <Users className="w-3.5 h-3.5 text-ink-muted" />
             {t('coachx_live_member_status')}
@@ -854,8 +854,8 @@ const CoachXLiveTab: React.FC<CoachXLiveTabProps> = ({ allLessons, memberReports
       )}
 
       {/* ── Immediate Actions ──────────────────────────────────────────── */}
-      <div className="bg-white/[0.04] rounded-xl border border-line-subtle shadow-sm shadow-black/20 overflow-hidden">
-        <div className="px-4 py-3 border-b border-gray-50">
+      <div className="bg-white/[0.04]/[0.04] rounded-xl border border-line-subtle shadow-sm shadow-black/20 overflow-hidden">
+        <div className="px-4 py-3 border-b border-line-subtle">
           <p className="text-xs font-semibold text-ink-muted uppercase tracking-wider flex items-center gap-1.5">
             <Zap className="w-3.5 h-3.5 text-amber-500" />
             {t('coachx_live_action_items')}
@@ -899,8 +899,8 @@ const CoachXLiveTab: React.FC<CoachXLiveTabProps> = ({ allLessons, memberReports
 
       {/* ── Recent Activity Feed ───────────────────────────────────────── */}
       {recentLessons.length > 0 && (
-        <div className="bg-white/[0.04] rounded-xl border border-line-subtle shadow-sm shadow-black/20 overflow-hidden">
-          <div className="px-4 py-3 border-b border-gray-50">
+        <div className="bg-white/[0.04]/[0.04] rounded-xl border border-line-subtle shadow-sm shadow-black/20 overflow-hidden">
+          <div className="px-4 py-3 border-b border-line-subtle">
             <p className="text-xs font-semibold text-ink-muted uppercase tracking-wider flex items-center gap-1.5">
               <Activity className="w-3.5 h-3.5 text-emerald-400" />
               {t('coachx_live_recent_activity')}
@@ -1060,8 +1060,8 @@ export const CoachXHub: React.FC<CoachXHubProps> = ({
       {/* ── Hero Header ──────────────────────────────────────────────────── */}
       <div className="bg-gradient-to-br from-gray-900 via-emerald-950 to-emerald-950 px-4 pt-6 pb-8 relative overflow-hidden">
         {/* Decorative blobs */}
-        <div className="absolute top-0 right-0 w-48 h-48 bg-slate-600/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute bottom-0 left-0 w-32 h-32 bg-slate-600/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute top-0 right-0 w-48 h-48 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute bottom-0 left-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
 
         <button
           onClick={onBack}
@@ -1088,21 +1088,21 @@ export const CoachXHub: React.FC<CoachXHubProps> = ({
 
         {/* Quick stats */}
         <div className="relative z-10 grid grid-cols-2 gap-2 sm:grid-cols-4">
-          <div className="bg-white/10 backdrop-blur-sm rounded-xl p-3 text-center">
+          <div className="bg-white/[0.04]/10 backdrop-blur-sm rounded-xl p-3 text-center">
             <p className="text-xl font-bold text-white">{allLessons.length}</p>
             <p className="text-xs text-white/60">{t('coachx_stat_lessons')}</p>
           </div>
-          <div className="bg-white/10 backdrop-blur-sm rounded-xl p-3 text-center">
+          <div className="bg-white/[0.04]/10 backdrop-blur-sm rounded-xl p-3 text-center">
             <p className="text-xl font-bold text-white">{memberReports.length}</p>
             <p className="text-xs text-white/60">{t('coachx_stat_members')}</p>
           </div>
-          <div className="bg-white/10 backdrop-blur-sm rounded-xl p-3 text-center">
+          <div className="bg-white/[0.04]/10 backdrop-blur-sm rounded-xl p-3 text-center">
             <p className="text-xl font-bold text-emerald-300">
               {memberReports.filter(r => r.trendIndicator === 'improving').length}
             </p>
             <p className="text-xs text-white/60">{t('coachx_stat_improving')}</p>
           </div>
-          <div className="bg-white/10 backdrop-blur-sm rounded-xl p-3 text-center">
+          <div className="bg-white/[0.04]/10 backdrop-blur-sm rounded-xl p-3 text-center">
             <p className="text-xl font-bold text-amber-300">{stagnatingMembers.length}</p>
             <p className="text-xs text-white/60">{t('coachx_stat_attention')}</p>
           </div>
@@ -1115,7 +1115,7 @@ export const CoachXHub: React.FC<CoachXHubProps> = ({
           onClick={() => onOpenChat()}
           className="w-full bg-gradient-to-r from-slate-700 to-slate-800 hover:from-slate-600 hover:to-slate-700 text-white rounded-2xl p-4 flex items-center gap-3 shadow-lg shadow-slate-900/15 transition-all"
         >
-          <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0">
+          <div className="w-10 h-10 bg-white/[0.04]/20 rounded-xl flex items-center justify-center flex-shrink-0">
             <MessageSquare className="w-5 h-5 text-white" />
           </div>
           <div className="flex-1 text-left">
@@ -1134,7 +1134,7 @@ export const CoachXHub: React.FC<CoachXHubProps> = ({
           rel="noopener noreferrer"
           className="w-full bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-500 hover:to-emerald-600 text-white rounded-2xl p-4 flex items-center gap-3 shadow-lg shadow-emerald-900/25 transition-all"
         >
-          <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0">
+          <div className="w-10 h-10 bg-white/[0.04]/20 rounded-xl flex items-center justify-center flex-shrink-0">
             <Target className="w-5 h-5 text-white" />
           </div>
           <div className="flex-1 text-left">
@@ -1146,7 +1146,7 @@ export const CoachXHub: React.FC<CoachXHubProps> = ({
                     ? 'スイング動画解析'
                     : '스윙 영상 분석'}
               </p>
-              <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-white/20 text-white border border-white/30">
+              <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-white/[0.04]/20 text-white border border-white/30">
                 BETA
               </span>
             </div>
@@ -1164,7 +1164,7 @@ export const CoachXHub: React.FC<CoachXHubProps> = ({
 
       {/* ── Tabs ─────────────────────────────────────────────────────────── */}
       <div className="px-4 mt-5">
-        <div className="flex bg-white/[0.04] rounded-xl shadow-sm shadow-black/20 border border-line-subtle p-1">
+        <div className="flex bg-white/[0.04]/[0.04] rounded-xl shadow-sm shadow-black/20 border border-line-subtle p-1">
           {tabs.map(tab => (
             <button
               key={tab.id}
@@ -1253,7 +1253,7 @@ export const CoachXHub: React.FC<CoachXHubProps> = ({
                   value={memberSearch}
                   onChange={e => setMemberSearch(e.target.value)}
                   placeholder={t('coachx_member_search_placeholder')}
-                  className="w-full pl-9 pr-4 py-2.5 text-sm bg-white border border-line-subtle rounded-xl outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 transition-all"
+                  className="w-full pl-9 pr-4 py-2.5 text-sm bg-white/[0.04] border border-line-subtle rounded-xl outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 transition-all"
                 />
               </div>
             )}

@@ -60,11 +60,11 @@ export const MembershipPurchase: React.FC<MembershipPurchaseProps> = ({
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 to-blue-50">
-      <div className="bg-white/80 backdrop-blur-sm border-b border-gray-100 px-4 py-4 flex items-center gap-3 sticky top-0 z-10">
+      <div className="bg-white/[0.08] backdrop-blur-sm border-b border-line-subtle px-4 py-4 flex items-center gap-3 sticky top-0 z-10">
         <BackButton onClick={onBack} tone="light" />
         <div>
-          <h1 className="text-lg font-bold text-gray-900">PRO 멤버십 결제</h1>
-          <p className="text-xs text-gray-500">1분 안에 업그레이드 가능</p>
+          <h1 className="text-lg font-bold text-ink-high">PRO 멤버십 결제</h1>
+          <p className="text-xs text-ink-muted">1분 안에 업그레이드 가능</p>
         </div>
       </div>
 
@@ -75,16 +75,16 @@ export const MembershipPurchase: React.FC<MembershipPurchaseProps> = ({
               <p className="text-xs text-emerald-100 font-semibold">추천 플랜</p>
               <h2 className="text-2xl font-black mt-1">🔵 PRO 멤버십</h2>
             </div>
-            <div className="bg-white/20 p-3 rounded-xl">
+            <div className="bg-white/[0.04]/20 p-3 rounded-xl">
               <Crown className="w-6 h-6" />
             </div>
           </div>
           <p className="text-3xl font-black mt-4">₩{price.toLocaleString()}<span className="text-base font-medium"> / 월</span></p>
         </div>
 
-        <div className="bg-white rounded-2xl border border-emerald-100 p-4 space-y-3">
+        <div className="bg-white/[0.04] rounded-2xl border border-emerald-100 p-4 space-y-3">
           {['기록 무제한', 'AI 분석 무제한', '성장 그래프 · 훈련 추천', '상세 분석 리포트'].map((item) => (
-            <div key={item} className="flex items-center gap-2 text-sm text-gray-700">
+            <div key={item} className="flex items-center gap-2 text-sm text-ink-medium">
               <CheckCircle2 className="w-4 h-4 text-emerald-600" />
               <span>{item}</span>
             </div>
@@ -115,7 +115,7 @@ export const MembershipPurchase: React.FC<MembershipPurchaseProps> = ({
           )}
         </button>
 
-        <p className="text-center text-xs text-gray-400 pb-4 flex items-center justify-center gap-1">
+        <p className="text-center text-xs text-ink-muted pb-4 flex items-center justify-center gap-1">
           <Sparkles className="w-3 h-3" /> PayApp으로 안전하게 결제됩니다
         </p>
       </div>
