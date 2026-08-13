@@ -437,10 +437,10 @@ export const ClientProfileSettings: React.FC<ClientProfileSettingsProps> = ({ pr
   };
 
   return (
-    <div className="space-y-6 animate-fade-in pb-10 rounded-2xl border border-slate-700/70 bg-gradient-to-b from-slate-900/80 to-slate-950/80 p-4 sm:p-5">
+    <div className="space-y-6 animate-fade-in pb-10 rounded-2xl border border-line-subtle bg-white/[0.03] p-4 sm:p-5">
       <div className="flex items-center justify-between">
         <BackButton onClick={onBack} tone="dark" label={t('back')} />
-        <h2 className="text-lg font-bold text-slate-100">{t('my_profile_title')}</h2>
+        <h2 className="text-lg font-bold text-ink-high">{t('my_profile_title')}</h2>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">

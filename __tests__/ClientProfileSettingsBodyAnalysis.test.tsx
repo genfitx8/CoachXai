@@ -35,10 +35,10 @@ describe('ClientProfileSettings – body analysis in My Info', () => {
 
     const root = container.firstElementChild as HTMLDivElement;
     expect(root.className).toContain('rounded-2xl');
-    expect(root.className).toContain('border-slate-700/70');
-    expect(root.className).toContain('bg-gradient-to-b');
-    expect(root.className).toContain('from-slate-900/80');
-    expect(root.className).toContain('to-slate-950/80');
+    // Tokenized: legacy slate gradient replaced with semantic tokens
+    // (border-line-subtle + bg-white/[0.03]) to match the coach shell sweep.
+    expect(root.className).toContain('border-line-subtle');
+    expect(root.className).toContain('bg-white/[0.03]');
   });
 
   it('prefills body analysis from existing lessons and saves it to client profile', async () => {
