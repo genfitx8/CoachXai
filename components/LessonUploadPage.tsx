@@ -50,7 +50,7 @@ const VideoDropZone: React.FC<VideoDropZoneProps> = ({
     ? 'border-emerald-400'
     : file
     ? 'border-emerald-500/60'
-    : 'border-slate-600/60';
+    : 'border-line-subtle';
 
   return (
     <div className="flex flex-col gap-2">
@@ -59,7 +59,7 @@ const VideoDropZone: React.FC<VideoDropZoneProps> = ({
       </span>
 
       <div
-        className={`relative rounded-2xl border-2 border-dashed ${borderColor} bg-slate-900/60 transition-colors`}
+        className={`relative rounded-2xl border-2 border-dashed ${borderColor} bg-white/[0.03] transition-colors`}
         onDragOver={(e) => {
           e.preventDefault();
           setIsDragging(true);
@@ -96,10 +96,10 @@ const VideoDropZone: React.FC<VideoDropZoneProps> = ({
           <button
             type="button"
             onClick={() => inputRef.current?.click()}
-            className="w-full flex flex-col items-center justify-center gap-3 p-8 text-slate-400 hover:text-slate-200 transition-colors"
+            className="w-full flex flex-col items-center justify-center gap-3 p-8 text-ink-muted hover:text-ink-high transition-colors"
             data-testid={`select-${label.toLowerCase()}`}
           >
-            <div className="w-14 h-14 rounded-full bg-slate-800 flex items-center justify-center">
+            <div className="w-14 h-14 rounded-full bg-white/[0.05] flex items-center justify-center">
               {isDragging ? (
                 <Upload className="w-6 h-6 text-emerald-400" />
               ) : (
@@ -109,7 +109,7 @@ const VideoDropZone: React.FC<VideoDropZoneProps> = ({
             <span className="text-sm">
               {isDragging ? 'Drop to upload' : 'Tap or drag a video here'}
             </span>
-            <span className="text-xs text-slate-500">MP4, MOV, WebM · max 30 s</span>
+            <span className="text-xs text-ink-high0">MP4, MOV, WebM · max 30 s</span>
           </button>
         )}
       </div>
@@ -211,7 +211,7 @@ export const LessonUploadPage: React.FC<LessonUploadPageProps> = ({
         <button
           type="button"
           onClick={onBack}
-          className="p-3 rounded-xl text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
+          className="p-3 rounded-xl text-ink-muted hover:text-ink-high hover:bg-white/[0.06] transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
           aria-label="Back"
           data-testid="upload-back-btn"
         >
@@ -221,15 +221,15 @@ export const LessonUploadPage: React.FC<LessonUploadPageProps> = ({
           <p className="text-[11px] uppercase tracking-[0.16em] text-emerald-300/80 font-semibold">
             Step 1 of 2
           </p>
-          <h2 className="text-xl font-bold text-slate-50">자동 영상 편집</h2>
+          <h2 className="text-xl font-bold text-ink-high">자동 영상 편집</h2>
         </div>
       </div>
 
       {/* Student selector */}
-      <section className="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-4 space-y-3">
+      <section className="bg-white/[0.03] border border-line-subtle rounded-2xl p-4 space-y-3">
         <label
           htmlFor="student-select"
-          className="block text-sm font-semibold text-slate-300"
+          className="block text-sm font-semibold text-ink-medium"
         >
           Student
         </label>
@@ -238,7 +238,7 @@ export const LessonUploadPage: React.FC<LessonUploadPageProps> = ({
             id="student-select"
             value={selectedStudentId}
             onChange={(e) => setSelectedStudentId(e.target.value)}
-            className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            className="w-full bg-white/[0.05] border border-line-subtle rounded-xl px-3 py-2.5 text-ink-high text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
             data-testid="student-select"
           >
             <option value="">— Select a student —</option>
@@ -250,7 +250,7 @@ export const LessonUploadPage: React.FC<LessonUploadPageProps> = ({
           </select>
         ) : (
           <div className="flex flex-col gap-3" data-testid="student-empty-message">
-            <p className="text-slate-400 text-sm">
+            <p className="text-ink-muted text-sm">
               등록된 학생이 없습니다. 먼저 회원을 등록해 주세요.
             </p>
             {onGoToStudents && (
@@ -268,8 +268,8 @@ export const LessonUploadPage: React.FC<LessonUploadPageProps> = ({
       </section>
 
       {/* Video upload zones */}
-      <section className="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-4 space-y-4">
-        <h3 className="text-sm font-semibold text-slate-300">편집할 전/후 영상</h3>
+      <section className="bg-white/[0.03] border border-line-subtle rounded-2xl p-4 space-y-4">
+        <h3 className="text-sm font-semibold text-ink-medium">편집할 전/후 영상</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <VideoDropZone
             label="BEFORE"

@@ -118,19 +118,19 @@ export const AIToneSettings: React.FC<AIToneSettingsProps> = ({
         onClick={onClose}
         aria-hidden
       />
-      <div className="relative w-full sm:max-w-md bg-[#0A0F1A] border border-slate-800 rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden">
-        <header className="px-5 py-4 border-b border-slate-800 flex items-center gap-3">
+      <div className="relative w-full sm:max-w-md bg-base border border-line-subtle rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden">
+        <header className="px-5 py-4 border-b border-line-subtle flex items-center gap-3">
           <div className="w-9 h-9 rounded-full bg-emerald-500/20 border border-emerald-300/30 flex items-center justify-center">
             <Sparkles className="w-4 h-4 text-emerald-300" />
           </div>
           <div className="flex-1 min-w-0">
-            <h2 className="font-bold text-slate-100">{heading}</h2>
-            <p className="text-xs text-slate-400">{subheading}</p>
+            <h2 className="font-bold text-ink-high">{heading}</h2>
+            <p className="text-xs text-ink-muted">{subheading}</p>
           </div>
           <button
             onClick={onClose}
             aria-label="Close"
-            className="p-2 text-slate-400 hover:text-slate-100 hover:bg-slate-800 rounded-lg transition-colors"
+            className="p-2 text-ink-muted hover:text-ink-high hover:bg-white/[0.06] rounded-lg transition-colors"
           >
             <X className="w-4 h-4" />
           </button>
@@ -149,24 +149,24 @@ export const AIToneSettings: React.FC<AIToneSettingsProps> = ({
                 className={`w-full text-left rounded-2xl p-4 border transition-colors ${
                   isSelected
                     ? 'bg-emerald-600/20 border-emerald-400/60'
-                    : 'bg-slate-900/70 border-slate-800 hover:bg-slate-800/70'
+                    : 'bg-white/[0.03] border-line-subtle hover:bg-white/[0.05]'
                 }`}
               >
                 <div className="flex items-center gap-3">
                   <div className={`w-9 h-9 rounded-lg flex items-center justify-center border ${
-                    isSelected ? 'bg-emerald-500/30 border-emerald-400/50' : 'bg-slate-800 border-slate-700'
+                    isSelected ? 'bg-emerald-500/30 border-emerald-400/50' : 'bg-white/[0.05] border-line-subtle'
                   }`}>
-                    <Icon className={`w-4 h-4 ${isSelected ? 'text-emerald-100' : 'text-slate-300'}`} />
+                    <Icon className={`w-4 h-4 ${isSelected ? 'text-emerald-100' : 'text-ink-medium'}`} />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-bold text-slate-100">{t.label}</p>
-                    <p className="text-xs text-slate-400">{t.desc}</p>
+                    <p className="text-sm font-bold text-ink-high">{t.label}</p>
+                    <p className="text-xs text-ink-muted">{t.desc}</p>
                   </div>
                   {isSelected && (
                     <Check className="w-4 h-4 text-emerald-200 flex-shrink-0" />
                   )}
                 </div>
-                <p className="mt-3 text-xs text-slate-300 italic leading-relaxed">{t.sample}</p>
+                <p className="mt-3 text-xs text-ink-medium italic leading-relaxed">{t.sample}</p>
               </button>
             );
           })}
@@ -175,7 +175,7 @@ export const AIToneSettings: React.FC<AIToneSettingsProps> = ({
         <footer className="px-4 pb-6 pt-2 flex gap-2">
           <button
             onClick={onClose}
-            className="flex-1 py-3 rounded-xl border border-slate-700 text-slate-200 text-sm font-semibold hover:bg-slate-800 transition-colors"
+            className="flex-1 py-3 rounded-xl border border-line-subtle text-ink-high text-sm font-semibold hover:bg-white/[0.06] transition-colors"
           >
             {cancelLabel}
           </button>
