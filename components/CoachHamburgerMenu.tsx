@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import {
-  X, User, Sparkles, Dumbbell, BookOpen, Film,
+  X, User, Dumbbell, BookOpen, Film,
   Target, ClipboardList, Globe, LogOut, ChevronRight, FileText,
 } from 'lucide-react';
 import { CoachProfile } from '../types';
@@ -8,7 +8,6 @@ import { useLanguage } from './LanguageContext';
 
 export type CoachHamburgerAction =
   | 'PROFILE'
-  | 'COACHX_ASSISTANT'
   | 'DIAGNOSIS_PROGRAM'
   | 'CURRICULUM'
   | 'LESSON_LIST'
@@ -31,7 +30,6 @@ const labels = {
   ko: {
     lessonList: '전체 레슨 기록',
     profile: '내 프로필',
-    coachxAssistant: 'CoachX AI',
     diagnosis: '정밀진단 프로그램',
     curriculum: '교육 커리큘럼',
     lessonUpload: '자동 영상 편집',
@@ -39,14 +37,13 @@ const labels = {
     myBay: '내 타석 예약',
     language: '언어',
     logout: '로그아웃',
-    ai: 'AI · 진단',
+    ai: '진단',
     services: '서비스',
     settings: '설정',
   },
   en: {
     lessonList: 'All lesson records',
     profile: 'My profile',
-    coachxAssistant: 'CoachX AI',
     diagnosis: 'Precision diagnosis',
     curriculum: 'Curriculum',
     lessonUpload: 'Automated video editing',
@@ -54,14 +51,13 @@ const labels = {
     myBay: 'My bay reservations',
     language: 'Language',
     logout: 'Log out',
-    ai: 'AI · Diagnosis',
+    ai: 'Diagnosis',
     services: 'Services',
     settings: 'Settings',
   },
   ja: {
     lessonList: 'レッスン記録一覧',
     profile: 'マイプロフィール',
-    coachxAssistant: 'CoachX AI',
     diagnosis: '精密診断プログラム',
     curriculum: 'カリキュラム管理',
     lessonUpload: '動画自動編集',
@@ -69,7 +65,7 @@ const labels = {
     myBay: '打席予約履歴',
     language: '言語',
     logout: 'ログアウト',
-    ai: 'AI・診断',
+    ai: '診断',
     services: 'サービス',
     settings: '設定',
   },
@@ -136,7 +132,6 @@ export const CoachHamburgerMenu: React.FC<CoachHamburgerMenuProps> = ({
         {/* Sections */}
         <nav className="flex-1 overflow-y-auto py-4">
           <Section title={L.ai}>
-            <Row icon={Sparkles} label={L.coachxAssistant} onClick={() => handle('COACHX_ASSISTANT')} accent="violet" />
             <Row icon={Dumbbell} label={L.diagnosis} onClick={() => handle('DIAGNOSIS_PROGRAM')} accent="indigo" />
           </Section>
 
