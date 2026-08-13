@@ -226,7 +226,7 @@ export const ReservationManager: React.FC<ReservationManagerProps> = ({
 
   const getStatusColor = (status: ReservationStatus) => {
     switch (status) {
-      case 'AVAILABLE':  return 'bg-gray-100 text-gray-700 border-gray-300';
+      case 'AVAILABLE':  return 'bg-white/[0.06] text-ink-medium border-line-subtle';
       case 'BLOCKED':    return 'bg-red-100 text-red-700 border-red-300';
       case 'PENDING':    return 'bg-yellow-100 text-yellow-700 border-yellow-300';
       case 'REQUESTED':  return 'bg-yellow-100 text-yellow-700 border-yellow-300';
@@ -238,7 +238,7 @@ export const ReservationManager: React.FC<ReservationManagerProps> = ({
       case 'CANCELLED':  return 'bg-red-100 text-red-700 border-red-300';
       case 'REJECTED':   return 'bg-red-100 text-red-700 border-red-300';
       case 'COMPLETED':  return 'bg-blue-100 text-blue-700 border-blue-300';
-      default:           return 'bg-gray-100 text-gray-700 border-gray-300';
+      default:           return 'bg-white/[0.06] text-ink-medium border-line-subtle';
     }
   };
 
@@ -300,31 +300,31 @@ export const ReservationManager: React.FC<ReservationManagerProps> = ({
   const hourRange = Array.from({ length: DISPLAY_END - DISPLAY_START }, (_, i) => DISPLAY_START + i);
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-base text-ink-high">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-4 py-4 sticky top-0 z-10">
+      <div className="bg-white/[0.04] border-b border-line-subtle px-4 py-4 sticky top-0 z-10">
         <div className="max-w-4xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
             <button
               onClick={onBack}
-              className="p-2 hover:bg-gray-100 rounded-lg transition"
+              className="p-2 hover:bg-white/[0.06] rounded-lg transition"
               aria-label="뒤로"
             >
               <ArrowLeft className="w-5 h-5" />
             </button>
             <div>
-              <h1 className="text-xl font-bold text-gray-900">{t('reservation_management')}</h1>
-              <p className="text-sm text-gray-500">{coachProfile.name} 코치</p>
+              <h1 className="text-xl font-bold text-ink-high">{t('reservation_management')}</h1>
+              <p className="text-sm text-ink-muted">{coachProfile.name} 코치</p>
             </div>
           </div>
           {/* Tab switcher */}
-          <div className="flex rounded-lg border border-gray-200 overflow-hidden">
+          <div className="flex rounded-lg border border-line-subtle overflow-hidden">
             <button
               onClick={() => setActiveTab('SLOTS')}
               className={`px-4 py-2 text-sm font-medium transition ${
                 activeTab === 'SLOTS'
                   ? 'bg-blue-600 text-white'
-                  : 'bg-white text-gray-600 hover:bg-gray-50'
+                  : 'bg-white/[0.04] text-ink-medium hover:bg-white/[0.03]'
               }`}
             >
               <Calendar className="w-4 h-4 inline mr-1" />
@@ -336,7 +336,7 @@ export const ReservationManager: React.FC<ReservationManagerProps> = ({
               className={`px-4 py-2 text-sm font-medium transition ${
                 activeTab === 'CALENDAR'
                   ? 'bg-blue-600 text-white'
-                  : 'bg-white text-gray-600 hover:bg-gray-50'
+                  : 'bg-white/[0.04] text-ink-medium hover:bg-white/[0.03]'
               }`}
             >
               <CalendarDays className="w-4 h-4 inline mr-1" />
@@ -347,7 +347,7 @@ export const ReservationManager: React.FC<ReservationManagerProps> = ({
               className={`px-4 py-2 text-sm font-medium transition ${
                 activeTab === 'SETTINGS'
                   ? 'bg-blue-600 text-white'
-                  : 'bg-white text-gray-600 hover:bg-gray-50'
+                  : 'bg-white/[0.04] text-ink-medium hover:bg-white/[0.03]'
               }`}
             >
               <Settings className="w-4 h-4 inline mr-1" />
@@ -364,9 +364,9 @@ export const ReservationManager: React.FC<ReservationManagerProps> = ({
           <>
             {/* Stats */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <div className="bg-white rounded-xl p-3 sm:p-4 shadow-sm border border-gray-100 min-w-0">
-                <p className="text-xs text-gray-500 mb-1 truncate">{t('reservation_count_all')}</p>
-                <p className="text-xl sm:text-2xl font-bold text-gray-900 truncate">{reservations.length}</p>
+              <div className="bg-white/[0.04] rounded-xl p-3 sm:p-4 shadow-sm border border-line-subtle min-w-0">
+                <p className="text-xs text-ink-muted mb-1 truncate">{t('reservation_count_all')}</p>
+                <p className="text-xl sm:text-2xl font-bold text-ink-high truncate">{reservations.length}</p>
               </div>
               <div className="bg-yellow-50 rounded-xl p-3 sm:p-4 shadow-sm border border-yellow-100 min-w-0">
                 <p className="text-xs text-yellow-600 mb-1 truncate">{t('res_status_pending')}</p>
@@ -383,8 +383,8 @@ export const ReservationManager: React.FC<ReservationManagerProps> = ({
             </div>
 
             {/* 1-hour slot manager */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-              <h2 className="text-base font-semibold text-gray-800 mb-4 flex items-center gap-2">
+            <div className="bg-white/[0.04] rounded-xl shadow-sm border border-line-subtle p-5">
+              <h2 className="text-base font-semibold text-ink-high mb-4 flex items-center gap-2">
                 <Clock className="w-4 h-4 text-blue-600" />
                 {t('slot_time_management')}
               </h2>
@@ -393,24 +393,24 @@ export const ReservationManager: React.FC<ReservationManagerProps> = ({
               <div className="flex items-center gap-3 mb-5">
                 <button
                   onClick={() => setSlotDate(addDays(slotDate, -1))}
-                  className="p-2 rounded-lg hover:bg-gray-100 transition"
+                  className="p-2 rounded-lg hover:bg-white/[0.06] transition"
                   aria-label="이전 날"
                 >
-                  <ChevronLeft className="w-5 h-5 text-gray-600" />
+                  <ChevronLeft className="w-5 h-5 text-ink-medium" />
                 </button>
                 <input
                   type="date"
                   value={slotDate}
                   onChange={(e) => setSlotDate(e.target.value)}
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-center font-medium"
+                  className="flex-1 px-4 py-2 border border-line-subtle rounded-lg focus:ring-2 focus:ring-blue-500 text-center font-medium"
                   aria-label="날짜 선택"
                 />
                 <button
                   onClick={() => setSlotDate(addDays(slotDate, 1))}
-                  className="p-2 rounded-lg hover:bg-gray-100 transition"
+                  className="p-2 rounded-lg hover:bg-white/[0.06] transition"
                   aria-label="다음 날"
                 >
-                  <ChevronRight className="w-5 h-5 text-gray-600" />
+                  <ChevronRight className="w-5 h-5 text-ink-medium" />
                 </button>
               </div>
 
@@ -421,12 +421,12 @@ export const ReservationManager: React.FC<ReservationManagerProps> = ({
               ) : (
                 <>
                   {workStart !== null && workEnd !== null && (
-                    <p className="text-xs text-gray-500 mb-3">
+                    <p className="text-xs text-ink-muted mb-3">
                       {String(workStart).padStart(2, '0')}:00 – {String(workEnd).padStart(2, '0')}:00
                       {' '}· {t('working_hours_outside_hint')}
                     </p>
                   )}
-                  <div className="flex flex-wrap gap-1.5 items-center mb-3 text-[11px] text-gray-500">
+                  <div className="flex flex-wrap gap-1.5 items-center mb-3 text-[11px] text-ink-muted">
                     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-emerald-50 border border-emerald-300 text-emerald-700">
                       <PlusCircle size={10} />{t('register_label')}
                     </span>
@@ -514,7 +514,7 @@ export const ReservationManager: React.FC<ReservationManagerProps> = ({
                               }}
                               title={`${String(hour).padStart(2, '0')}:00 예약 불가 설정`}
                               aria-label={`${String(hour).padStart(2, '0')}:00 예약 불가 설정`}
-                              className="absolute top-0.5 right-0.5 p-0.5 text-gray-300 hover:text-red-500 transition disabled:opacity-40"
+                              className="absolute top-0.5 right-0.5 p-0.5 text-ink-muted hover:text-red-500 transition disabled:opacity-40"
                             >
                               <Ban size={10} />
                             </button>
@@ -528,10 +528,10 @@ export const ReservationManager: React.FC<ReservationManagerProps> = ({
             </div>
 
             {/* Reservation list */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100">
+            <div className="bg-white/[0.04] rounded-xl shadow-sm border border-line-subtle">
               {/* Filter bar */}
-              <div className="px-5 py-3 border-b border-gray-100 flex items-center gap-2 overflow-x-auto">
-                <Filter className="w-4 h-4 text-gray-400 flex-shrink-0" />
+              <div className="px-5 py-3 border-b border-line-subtle flex items-center gap-2 overflow-x-auto">
+                <Filter className="w-4 h-4 text-ink-muted flex-shrink-0" />
                 {(['ALL', 'REQUESTED', 'ADMIN_BLOCK_PENDING', 'CONFIRMED', 'AVAILABLE', 'BLOCKED'] as const).map((s) => (
                   <button
                     key={s}
@@ -543,8 +543,8 @@ export const ReservationManager: React.FC<ReservationManagerProps> = ({
                         : s === 'ADMIN_BLOCK_PENDING' ? 'bg-emerald-500 text-white'
                         : s === 'CONFIRMED' ? 'bg-green-600 text-white'
                         : s === 'BLOCKED'   ? 'bg-red-500 text-white'
-                        :                     'bg-gray-600 text-white'
-                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                        :                     'bg-white/[0.10] text-ink-high'
+                        : 'bg-white/[0.06] text-ink-medium hover:bg-white/[0.10]'
                     }`}
                   >
                     {s === 'ALL'       ? `${t('reservation_count_all')} (${reservations.length})`
@@ -561,12 +561,12 @@ export const ReservationManager: React.FC<ReservationManagerProps> = ({
                 {loading ? (
                   <div className="py-12 text-center">
                     <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-500 mx-auto" />
-                    <p className="text-gray-500 mt-3 text-sm">{t('loading')}</p>
+                    <p className="text-ink-muted mt-3 text-sm">{t('loading')}</p>
                   </div>
                 ) : filteredReservations.length === 0 ? (
                   <div className="py-12 text-center">
-                    <Calendar className="w-12 h-12 text-gray-200 mx-auto mb-3" />
-                    <p className="text-gray-400 text-sm">
+                    <Calendar className="w-12 h-12 text-ink-high mx-auto mb-3" />
+                    <p className="text-ink-muted text-sm">
                       {filterStatus === 'ALL' ? t('no_reservations_label') : `${getStatusText(filterStatus as ReservationStatus)} — ${t('no_reservations_label')}`}
                     </p>
                   </div>
@@ -592,8 +592,8 @@ export const ReservationManager: React.FC<ReservationManagerProps> = ({
                             </span>
                           )}
                         </div>
-                        <div className="flex items-center gap-1.5 text-gray-700 text-sm">
-                          <Clock className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+                        <div className="flex items-center gap-1.5 text-ink-medium text-sm">
+                          <Clock className="w-3.5 h-3.5 text-ink-muted flex-shrink-0" />
                           <span>
                             {formatDateTime(reservation.startTime)}
                             {' – '}
@@ -602,18 +602,18 @@ export const ReservationManager: React.FC<ReservationManagerProps> = ({
                         </div>
                         {reservation.clientName && (
                           <div className="flex flex-wrap items-center gap-3 mt-1">
-                            <span className="flex items-center gap-1 text-xs text-gray-500">
+                            <span className="flex items-center gap-1 text-xs text-ink-muted">
                               <User className="w-3 h-3" />{reservation.clientName}
                             </span>
                             {reservation.clientPhone && (
-                              <span className="flex items-center gap-1 text-xs text-gray-500">
+                              <span className="flex items-center gap-1 text-xs text-ink-muted">
                                 <Phone className="w-3 h-3" />{reservation.clientPhone}
                               </span>
                             )}
                           </div>
                         )}
                         {reservation.notes && (
-                          <p className="text-xs text-gray-500 mt-1 italic">{reservation.notes}</p>
+                          <p className="text-xs text-ink-muted mt-1 italic">{reservation.notes}</p>
                         )}
                       </div>
 
@@ -653,7 +653,7 @@ export const ReservationManager: React.FC<ReservationManagerProps> = ({
 
         {/* ── CALENDAR TAB ──────────────────────────────────── */}
         {activeTab === 'CALENDAR' && (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4" data-testid="reservation-calendar-view">
+          <div className="bg-white/[0.04] rounded-xl shadow-sm border border-line-subtle p-4" data-testid="reservation-calendar-view">
             <CalendarView
               coachProfile={coachProfile}
               onDateClickRegister={(date) => {
@@ -671,9 +671,9 @@ export const ReservationManager: React.FC<ReservationManagerProps> = ({
 
         {/* ── SETTINGS TAB ──────────────────────────────────── */}
         {activeTab === 'SETTINGS' && (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-            <h2 className="text-base font-semibold text-gray-800 mb-1">{t('working_schedule_settings')}</h2>
-            <p className="text-xs text-gray-500 mb-6">
+          <div className="bg-white/[0.04] rounded-xl shadow-sm border border-line-subtle p-6">
+            <h2 className="text-base font-semibold text-ink-high mb-1">{t('working_schedule_settings')}</h2>
+            <p className="text-xs text-ink-muted mb-6">
               {t('working_hours_outside_hint')}
             </p>
 
@@ -685,7 +685,7 @@ export const ReservationManager: React.FC<ReservationManagerProps> = ({
                   <div
                     key={key}
                     className={`flex flex-col sm:flex-row sm:items-center gap-3 p-4 rounded-xl border transition ${
-                      isActive ? 'border-blue-200 bg-blue-50' : 'border-gray-100 bg-gray-50'
+                      isActive ? 'border-blue-200 bg-blue-50' : 'border-line-subtle bg-white/[0.03]'
                     }`}
                   >
                     {/* Day toggle */}
@@ -694,19 +694,19 @@ export const ReservationManager: React.FC<ReservationManagerProps> = ({
                         type="button"
                         onClick={() => toggleDay(key)}
                         className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
-                          isActive ? 'bg-blue-600' : 'bg-gray-300'
+                          isActive ? 'bg-blue-600' : 'bg-white/[0.15]'
                         }`}
                         role="switch"
                         aria-checked={isActive}
                         aria-label={label}
                       >
                         <span
-                          className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${
+                          className={`inline-block h-5 w-5 transform rounded-full bg-white/[0.04] shadow transition-transform ${
                             isActive ? 'translate-x-5' : 'translate-x-0.5'
                           }`}
                         />
                       </button>
-                      <span className={`text-sm font-semibold ${isActive ? 'text-blue-700' : 'text-gray-400'}`}>
+                      <span className={`text-sm font-semibold ${isActive ? 'text-blue-700' : 'text-ink-muted'}`}>
                         {label}
                       </span>
                     </div>
@@ -718,20 +718,20 @@ export const ReservationManager: React.FC<ReservationManagerProps> = ({
                           type="time"
                           value={entry?.open ?? '09:00'}
                           onChange={(e) => setDayHours(key, 'open', e.target.value)}
-                          className="flex-1 px-3 py-2 border border-blue-200 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm bg-white"
+                          className="flex-1 px-3 py-2 border border-blue-200 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm bg-white/[0.04]"
                           aria-label={label}
                         />
-                        <span className="text-gray-400 text-sm">~</span>
+                        <span className="text-ink-muted text-sm">~</span>
                         <input
                           type="time"
                           value={entry?.close ?? '18:00'}
                           onChange={(e) => setDayHours(key, 'close', e.target.value)}
-                          className="flex-1 px-3 py-2 border border-blue-200 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm bg-white"
+                          className="flex-1 px-3 py-2 border border-blue-200 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm bg-white/[0.04]"
                           aria-label={label}
                         />
                       </div>
                     ) : (
-                      <span className="text-xs text-gray-400 italic">{t('closed_day_label')}</span>
+                      <span className="text-xs text-ink-muted italic">{t('closed_day_label')}</span>
                     )}
                   </div>
                 );
