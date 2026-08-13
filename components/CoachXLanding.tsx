@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { CoachXMark } from './ui';
 
 interface CoachXLandingProps {
   onLogin: () => void;
@@ -178,7 +179,14 @@ export const CoachXLanding: React.FC<CoachXLandingProps> = ({
         )}
       </div>
 
-      <div className="relative z-10 text-center">
+      <div className="relative z-10 flex flex-col items-center text-center">
+        <div
+          className={`mb-6 flex h-24 w-24 items-center justify-center rounded-3xl border border-white/10 bg-white/[0.04] backdrop-blur-md shadow-[0_0_50px_rgba(16,185,129,0.2)] transition-transform duration-700 ${
+            isGreeting ? 'scale-105' : 'scale-100'
+          }`}
+        >
+          <CoachXMark size={64} tone="dark" />
+        </div>
         <h1
           className="text-3xl sm:text-4xl md:text-5xl tracking-normal sm:tracking-wide font-semibold"
           style={{
