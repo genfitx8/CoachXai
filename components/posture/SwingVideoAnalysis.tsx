@@ -2073,19 +2073,24 @@ export const SwingVideoAnalysis: React.FC<SwingVideoAnalysisProps> = ({
     setSaveBusy(true);
     setSaveStatus(null);
     try {
-      // 1. Materialise blob URL → upload to R2 to get a permanent URL.
-      // Reuses the edited-video upload lane (same storage layout as coach
-      // edits) — the server generates the R2 key internally.
+      // 1. Materialise blob URL → upload to R2 as a lessons/{uuid}/main.mp4
+      // key so the server's presign gate (which only accepts that shape)
+      // signs the URL. Mint the UUID up front and reuse it as the lesson
+      // row id below so the storage key and the lesson row line up — same
+      // pattern as PracticeUploadFlow.
       let permanentVideoUrl = videoUrl;
+      let lessonId = '';
+      let videoKey: string | undefined;
       if (videoUrl.startsWith('blob:')) {
         const res = await fetch(videoUrl);
         const blob = await res.blob();
-        const tempLessonId = `swing_${Date.now()}`;
-        permanentVideoUrl = await apiService.uploadEditedVideo(
-          blob,
-          tempLessonId,
-          coachId ?? client.phone,
-        );
+        lessonId =
+          typeof crypto !== 'undefined' && 'randomUUID' in crypto
+            ? crypto.randomUUID()
+            : `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+        const ext = (blob.type.split('/')[1] || 'mp4').toLowerCase();
+        videoKey = `lessons/${lessonId}/main.${ext}`;
+        permanentVideoUrl = await apiService.uploadPracticeVideo(blob, lessonId);
       }
       // 2. Compose motionCaptureData from our analysis so the lesson stores
       //    the coaching-relevant numbers, not just the video.
@@ -2121,11 +2126,15 @@ export const SwingVideoAnalysis: React.FC<SwingVideoAnalysisProps> = ({
         ].filter(Boolean).join(' '),
         analyzedAt: Date.now(),
       };
-      // 3. Build the Lesson payload.
+      // 3. Build the Lesson payload. Reuse the R2 key's UUID as lesson.id
+      // so the storage row and the DB row share an identity.
       const now = new Date();
       const today = now.toISOString().slice(0, 10);
       const lesson: Lesson = {
-        id: '', // server assigns
+        id: lessonId || (typeof crypto !== 'undefined' && 'randomUUID' in crypto
+          ? crypto.randomUUID()
+          : `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`),
+        clientId: client.id ?? `${client.name}_${client.phone}`,
         clientName: client.name,
         clientPhone: client.phone,
         coachId,
@@ -2135,6 +2144,7 @@ export const SwingVideoAnalysis: React.FC<SwingVideoAnalysisProps> = ({
         title: `스윙 분석 (${analysis.summary.cameraView === 'face_on' ? '정면' : '측면'})`,
         swingAngle: analysis.summary.cameraView === 'face_on' ? 'FRONT' : 'SIDE',
         videoUrl: permanentVideoUrl,
+        videoKey,
         mediaType: 'video',
         coachNotes: saveNote,
         tags: ['스윙분석', 'AI자동'],
