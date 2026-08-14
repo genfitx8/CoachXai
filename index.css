@@ -68,6 +68,27 @@ body,
 .safe-left   { padding-left:   env(safe-area-inset-left,   0px); }
 .safe-right  { padding-right:  env(safe-area-inset-right,  0px); }
 
+/* Aliases used throughout the codebase (pb-safe / pt-safe). These make
+   fixed bottom navs and sticky top headers respect the device's home
+   indicator / gesture bar (Android + iOS) and status bar / notch. Without
+   these definitions the classes silently do nothing and the UI overlaps
+   the system buttons. */
+.pb-safe { padding-bottom: env(safe-area-inset-bottom, 0px); }
+.pt-safe { padding-top:    env(safe-area-inset-top,    0px); }
+.pl-safe { padding-left:   env(safe-area-inset-left,   0px); }
+.pr-safe { padding-right:  env(safe-area-inset-right,  0px); }
+
+/* Same idea but on the margin — useful when the parent already owns padding
+   (e.g. a scrollable content area whose bottom stop should sit above the
+   home indicator rather than under it). */
+.mb-safe { margin-bottom: env(safe-area-inset-bottom, 0px); }
+.mt-safe { margin-top:    env(safe-area-inset-top,    0px); }
+
+/* Alternate names actually used by a few components (safe-area-top /
+   safe-area-bottom in LessonDetail). Keep them working. */
+.safe-area-top    { padding-top:    env(safe-area-inset-top,    0px); }
+.safe-area-bottom { padding-bottom: env(safe-area-inset-bottom, 0px); }
+
 /* Apply safe area to the root element when running natively */
 :root {
   --safe-area-top:    env(safe-area-inset-top,    0px);

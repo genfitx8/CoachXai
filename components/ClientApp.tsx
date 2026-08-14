@@ -484,7 +484,7 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
   // Small shell used by non-HOME tabs to provide a top bar with the hamburger
   // button. HOME tab reuses StudentAIChat's own header via headerLeftSlot.
   const TabHeader: React.FC<{ title: string; right?: React.ReactNode }> = ({ title, right }) => (
-    <header className="bg-base/95 border-b border-line-subtle sticky top-0 z-30 backdrop-blur-xl">
+    <header className="bg-base/95 border-b border-line-subtle sticky top-0 z-30 backdrop-blur-xl pt-safe">
       <div className="max-w-md mx-auto px-3 h-14 flex items-center gap-2">
         <button
           type="button"

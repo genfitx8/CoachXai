@@ -545,7 +545,7 @@ export const StudentAIChat: React.FC<StudentAIChatProps> = ({
         }}
       />
       {/* Header */}
-      <div className="flex items-center gap-3 px-4 py-3 border-b border-white/10 bg-base/90 backdrop-blur-sm sticky top-0 z-10">
+      <div className="flex items-center gap-3 px-4 py-3 border-b border-white/10 bg-base/90 backdrop-blur-sm sticky top-0 z-10 pt-safe">
         {headerLeftSlot ?? (!hideBackButton && (
           <BackButton
             onClick={onBack}
