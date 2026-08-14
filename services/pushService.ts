@@ -14,6 +14,16 @@
  *
  * The whole thing is wrapped in try/catch: push registration failing must
  * never break the app boot.
+ *
+ * Android FCM caveat: `PushNotifications.register()` on Android calls into
+ * `FirebaseMessaging.getInstance().getToken()`. When the APK ships without
+ * a `google-services.json` (i.e. FCM was never provisioned for this build),
+ * that call throws `IllegalStateException: Default FirebaseApp is not
+ * initialized` on the native main thread — a JS `try/catch` cannot catch it
+ * and the WebView process is torn down, which surfaces to the user as the
+ * app closing itself right after login. `initializePush` therefore requires
+ * an explicit `VITE_PUSH_ENABLED=true` opt-in at build time; without it we
+ * skip registration entirely so an unconfigured build stays stable.
  */
 
 import { Capacitor } from '@capacitor/core';
@@ -24,6 +34,15 @@ import { createLogger } from '../utils/logger';
 const log = createLogger('push');
 const TOKEN_KEY = 'swingnote_api_token';
 const REGISTERED_TOKEN_KEY = 'coachxai_last_push_token';
+
+function isPushEnabledAtBuild(): boolean {
+  const raw = (
+    import.meta as unknown as { env?: { VITE_PUSH_ENABLED?: string } }
+  ).env?.VITE_PUSH_ENABLED;
+  if (typeof raw !== 'string') return false;
+  const v = raw.trim().toLowerCase();
+  return v === 'true' || v === '1' || v === 'yes';
+}
 
 type ForegroundHandler = (payload: {
   title: string;
@@ -77,6 +96,18 @@ export async function initializePush(): Promise<void> {
   if (initialized) return;
   if (!isNativePlatform()) {
     log.info('web platform — push disabled');
+    return;
+  }
+  // FCM/APNs must be provisioned at build time (google-services.json /
+  // GoogleService-Info.plist bundled into the native project). If the
+  // build owner hasn't set VITE_PUSH_ENABLED=true we must NOT call
+  // `PushNotifications.register()` — on Android an unprovisioned Firebase
+  // throws on the native main thread and kills the WebView, so the user
+  // sees the app close itself right after login. Stay silent until push
+  // is turned on explicitly.
+  if (!isPushEnabledAtBuild()) {
+    log.info('push not enabled at build (VITE_PUSH_ENABLED unset) — skipping register()');
+    initialized = true;
     return;
   }
   initialized = true;
