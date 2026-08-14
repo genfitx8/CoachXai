@@ -88,7 +88,7 @@ export const CoachBottomNav: React.FC<CoachBottomNavProps> = ({
 
   return (
     <nav
-      className="fixed bottom-0 inset-x-0 z-40 bg-base border-t border-line-subtle backdrop-blur-xl pb-safe"
+      className="fixed bottom-0 inset-x-0 z-50 bg-base border-t border-line-subtle backdrop-blur-xl pb-safe"
       role="navigation"
       aria-label="Coach navigation"
     >
