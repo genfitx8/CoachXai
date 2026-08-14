@@ -551,13 +551,18 @@ export const CoachClientManager: React.FC<CoachClientManagerProps> = ({
           aria-modal="true"
           aria-labelledby="coach-client-modal-title"
           onClick={() => setIsModalOpen(false)}
-          className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-md p-0 sm:p-4 animate-fade-in overscroll-contain"
+          // height: 100dvh keeps items-end anchored to the *visible* viewport
+          // bottom instead of the layout viewport (which on Android Capacitor
+          // WebView can extend below the OS gesture bar, hiding the sticky
+          // save button underneath).
+          style={{ height: '100dvh' }}
+          className="fixed inset-x-0 top-0 z-[70] flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-md p-0 sm:p-4 animate-fade-in overscroll-contain"
         >
           <div
             onClick={(e) => e.stopPropagation()}
             style={{
               maxHeight:
-                'min(calc(100vh - env(safe-area-inset-top, 0px) - 1rem), calc(100dvh - env(safe-area-inset-top, 0px) - 1rem))',
+                'calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 1rem)',
             }}
             className="bg-bg-overlay text-ink-high w-full max-w-md sm:rounded-3xl rounded-t-3xl overflow-hidden shadow-elev-4 border border-line-strong flex flex-col animate-slide-in-up"
           >
