@@ -2698,6 +2698,7 @@ const AppContent: React.FC = () => {
         <CoachBottomNav
           activeTab={activeCoachTab}
           onTabChange={handleCoachTabChange}
+          onNewRecord={handleCoachNewRecord}
         />
       )}
     </div>
