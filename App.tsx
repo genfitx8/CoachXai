@@ -2302,7 +2302,7 @@ const AppContent: React.FC = () => {
               }
               setCoachView('LESSON_LIST');
             }}
-            showAddButton={false}
+            showAddButton
             autoOpenAddModal={autoOpenAddMemberFromLessonStart}
             onAutoOpenAddModalHandled={() => setAutoOpenAddMemberFromLessonStart(false)}
             coachId={
