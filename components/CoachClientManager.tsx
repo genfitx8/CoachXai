@@ -551,11 +551,15 @@ export const CoachClientManager: React.FC<CoachClientManagerProps> = ({
           aria-modal="true"
           aria-labelledby="coach-client-modal-title"
           onClick={() => setIsModalOpen(false)}
-          className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-md p-0 sm:p-4 animate-fade-in"
+          className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-md p-0 sm:p-4 animate-fade-in overscroll-contain"
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="bg-bg-overlay text-ink-high w-full max-w-md sm:rounded-3xl rounded-t-3xl overflow-hidden shadow-elev-4 border border-line-strong flex flex-col max-h-[92vh] animate-slide-in-up"
+            style={{
+              maxHeight:
+                'min(calc(100vh - env(safe-area-inset-top, 0px) - 1rem), calc(100dvh - env(safe-area-inset-top, 0px) - 1rem))',
+            }}
+            className="bg-bg-overlay text-ink-high w-full max-w-md sm:rounded-3xl rounded-t-3xl overflow-hidden shadow-elev-4 border border-line-strong flex flex-col animate-slide-in-up"
           >
             {/* Header — solid emerald so the surface is unmistakably present */}
             <div className="bg-gradient-to-r from-emerald-700 via-emerald-600 to-emerald-700 px-6 py-5 flex justify-between items-center text-white">
@@ -641,7 +645,7 @@ export const CoachClientManager: React.FC<CoachClientManagerProps> = ({
                     <textarea
                       value={memo}
                       onChange={(e) => setMemo(e.target.value)}
-                      className={`${clientFormInputClass} pl-10 min-h-[96px] resize-y`}
+                      className={`${clientFormInputClass} pl-10 min-h-[88px] max-h-[140px] resize-none`}
                       placeholder={t('coach_client_memo_placeholder')}
                       rows={3}
                     />
@@ -649,8 +653,11 @@ export const CoachClientManager: React.FC<CoachClientManagerProps> = ({
                 </div>
               </div>
 
-              {/* Sticky action bar — big primary CTA so the coach never hunts for Save */}
-              <div className="px-6 py-4 border-t border-line-strong bg-bg-overlay/80 backdrop-blur flex gap-3">
+              {/* Sticky action bar — safe-area aware so Save never hides under the home indicator or keyboard */}
+              <div
+                className="flex-shrink-0 px-4 sm:px-6 pt-4 pb-4 border-t border-line-strong bg-bg-overlay flex gap-3 shadow-[0_-8px_24px_-8px_rgba(0,0,0,0.5)]"
+                style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom, 0px))' }}
+              >
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
