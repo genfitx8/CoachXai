@@ -1,8 +1,8 @@
 import React from 'react';
-import { MessageSquare, Users, Calendar } from 'lucide-react';
+import { MessageSquare, Users, Calendar, PenSquare } from 'lucide-react';
 import { useLanguage } from './LanguageContext';
 
-export type CoachTab = 'LESSON' | 'CLIENTS' | 'RESERVATIONS';
+export type CoachTab = 'LESSON' | 'CLIENTS' | 'RESERVATIONS' | 'RECORD';
 
 interface CoachBottomNavProps {
   activeTab: CoachTab;
@@ -15,12 +15,14 @@ interface CoachBottomNavProps {
 
 // LESSON keeps its enum name for API compatibility, but the surfaced label
 // is now "대화" — the redesign folds the old lesson list into the coach's
-// agent conversation.
+// agent conversation. RECORD is the new-lesson entry point folded into the
+// tab row (was previously a raised center CTA — reverted per direction).
 const labelFor = (tab: CoachTab, lang: 'ko' | 'en' | 'ja'): string => {
   const table: Record<CoachTab, Record<'ko' | 'en' | 'ja', string>> = {
     LESSON: { ko: '대화', en: 'Chat', ja: 'チャット' },
     CLIENTS: { ko: '학생', en: 'Students', ja: '生徒' },
     RESERVATIONS: { ko: '예약', en: 'Bookings', ja: '予約' },
+    RECORD: { ko: '기록', en: 'Record', ja: '記録' },
   };
   return table[tab][lang];
 };
@@ -33,6 +35,8 @@ const iconFor = (tab: CoachTab) => {
       return Users;
     case 'RESERVATIONS':
       return Calendar;
+    case 'RECORD':
+      return PenSquare;
   }
 };
 
@@ -85,9 +89,10 @@ export const CoachBottomNav: React.FC<CoachBottomNavProps> = ({
       role="navigation"
       aria-label="Coach navigation"
     >
-      <div className="max-w-md mx-auto grid grid-cols-3">
+      <div className="max-w-md mx-auto grid grid-cols-4">
         {renderTabButton('LESSON')}
         {renderTabButton('CLIENTS', clientsBadge)}
+        {renderTabButton('RECORD')}
         {renderTabButton('RESERVATIONS', reservationBadge)}
       </div>
     </nav>

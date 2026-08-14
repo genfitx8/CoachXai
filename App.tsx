@@ -1555,14 +1555,20 @@ const AppContent: React.FC = () => {
     coachView === 'COACHX' || coachView === 'LESSON_LIST' ? 'LESSON'
     : coachView === 'CLIENTS' ? 'CLIENTS'
     : coachView === 'RESERVATIONS' ? 'RESERVATIONS'
+    : coachView === 'NEW' ? 'RECORD'
     : null;
 
   const handleCoachTabChange = (next: CoachTab) => {
     setSelectedLesson(null);
     // Primary "대화" tab lands on the conversational home; the legacy lesson
-    // list stays reachable from the dashboard link inside CoachAIHome.
+    // list stays reachable from the dashboard link inside CoachAIHome. The
+    // RECORD tab drops the coach directly into the new-lesson flow.
     if (next === 'LESSON') setCoachView('COACHX');
     else if (next === 'CLIENTS') setCoachView('CLIENTS');
+    else if (next === 'RECORD') {
+      setIsEditingLesson(false);
+      setCoachView('NEW');
+    }
     else setCoachView('RESERVATIONS');
   };
 
