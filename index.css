@@ -115,6 +115,15 @@ body,
   padding-top: max(1rem, env(safe-area-inset-top, 0px));
 }
 
+/* Coach app's bottom tab bar (CoachBottomNav) sits at bottom-0 z-50.
+   Full-screen coach sheets (레슨 기록 등) that are also z-50 need to
+   reserve this much space at the bottom so their sticky footers /
+   trailing buttons don't hide behind the nav. Keep in sync with
+   CoachBottomNav's content height (icon + label + py-3). */
+.above-coach-bottom-nav {
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 64px);
+}
+
 /* Mobile-optimized FullCalendar styles */
 @media (max-width: 767px) {
   /* Compact calendar header for mobile */
