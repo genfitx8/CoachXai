@@ -1984,8 +1984,9 @@ const AppContent: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-base text-ink-high flex flex-col font-sans">
-      {/* Header — hamburger opens the drawer, brand shows coach name */}
-      <header className="bg-base/95 border-b border-line-subtle shadow-lg shadow-black/30 sticky top-0 z-40 backdrop-blur-xl">
+      {/* Header — hamburger opens the drawer, brand shows coach name.
+          pt-safe keeps the bar clear of the phone's status bar / notch. */}
+      <header className="bg-base/95 border-b border-line-subtle shadow-lg shadow-black/30 sticky top-0 z-40 backdrop-blur-xl pt-safe">
         <div className="max-w-7xl mx-auto px-3 h-14 flex items-center gap-2">
           <button
             type="button"
