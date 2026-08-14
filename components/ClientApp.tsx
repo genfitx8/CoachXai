@@ -915,7 +915,7 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
         </div>
       )}
 
-      {/* ── Bottom tab nav (record CTA is the raised center button) ───────── */}
+      {/* ── Bottom tab nav (record tab opens NewLessonForm as a sub-view) ─── */}
       {showBottomNav && (
         <StudentBottomNav
           activeTab={tab}

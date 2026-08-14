@@ -1,5 +1,5 @@
 import React from 'react';
-import { MessageSquare, Calendar, TrendingUp, Plus } from 'lucide-react';
+import { MessageSquare, Calendar, TrendingUp, ClipboardList } from 'lucide-react';
 import { useLanguage } from './LanguageContext';
 
 export type StudentTab = 'HOME' | 'RESERVATION' | 'GROWTH';
@@ -8,8 +8,10 @@ interface StudentBottomNavProps {
   activeTab: StudentTab;
   onTabChange: (tab: StudentTab) => void;
   /**
-   * Raised center "+" CTA opens the new-lesson record form. Omit to hide the
-   * button entirely (e.g. when the caller has no save handler wired up).
+   * Tapping the "기록" tab opens the new-lesson record form. Kept as an
+   * action (not a StudentTab) because records live as a full-screen
+   * sub-view over whichever tab the student was on. Omit to hide the
+   * tab entirely (e.g. when the caller has no save handler wired up).
    */
   onNewRecord?: () => void;
   /** When set, badges appear over the tab. */
@@ -89,26 +91,23 @@ export const StudentBottomNav: React.FC<StudentBottomNavProps> = ({
     );
   };
 
-  // The raised center CTA. Rendered as a floating button that overlaps the
-  // top edge of the nav so it reads as the primary action, not a tab.
-  const renderRecordButton = () => {
-    if (!onNewRecord) return null;
-    return (
-      <div className="pointer-events-none absolute left-1/2 -top-6 -translate-x-1/2 flex flex-col items-center">
-        <button
-          type="button"
-          onClick={onNewRecord}
-          aria-label={recordLabelFor(lang)}
-          className="pointer-events-auto w-14 h-14 rounded-full bg-emerald-500 text-white shadow-lg shadow-emerald-500/30 ring-4 ring-base flex items-center justify-center transition-transform hover:scale-105 active:scale-95"
-        >
-          <Plus className="w-6 h-6" strokeWidth={2.5} />
-        </button>
-        <span className="pointer-events-none mt-0.5 text-[10px] font-semibold text-ink-medium">
-          {recordLabelFor(lang)}
-        </span>
-      </div>
-    );
-  };
+  // "기록" — action tab, not a StudentTab. Fires the record CTA but never
+  // shows an active/current state because it opens a sub-view over the
+  // current tab rather than switching tabs.
+  const renderRecordTab = () => (
+    <button
+      type="button"
+      onClick={onNewRecord}
+      aria-label={recordLabelFor(lang)}
+      className="relative flex flex-col items-center justify-center gap-1 py-3 text-ink-muted hover:text-ink-medium transition-colors"
+    >
+      <ClipboardList className="w-5 h-5" />
+      <span className="text-[11px] font-semibold">{recordLabelFor(lang)}</span>
+    </button>
+  );
+
+  const showRecordTab = !!onNewRecord;
+  const gridColsClass = showRecordTab ? 'grid-cols-4' : 'grid-cols-3';
 
   return (
     <nav
@@ -116,13 +115,11 @@ export const StudentBottomNav: React.FC<StudentBottomNavProps> = ({
       role="navigation"
       aria-label="Student navigation"
     >
-      <div className="relative max-w-md mx-auto">
-        {renderRecordButton()}
-        <div className="grid grid-cols-3">
-          {renderTabButton('HOME')}
-          {renderTabButton('RESERVATION', reservationBadge)}
-          {renderTabButton('GROWTH', growthBadge)}
-        </div>
+      <div className={`max-w-md mx-auto grid ${gridColsClass}`}>
+        {renderTabButton('HOME')}
+        {renderTabButton('RESERVATION', reservationBadge)}
+        {showRecordTab && renderRecordTab()}
+        {renderTabButton('GROWTH', growthBadge)}
       </div>
     </nav>
   );

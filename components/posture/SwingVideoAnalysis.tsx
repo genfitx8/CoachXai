@@ -1982,6 +1982,13 @@ export const SwingVideoAnalysis: React.FC<SwingVideoAnalysisProps> = ({
   const [busy, setBusy] = useState(false);
   const [editing, setEditing] = useState(false);
   const [cameraView, setCameraView] = useState<CameraView>('face_on');
+  // Member picker — coaches select the student BEFORE uploading so the AI
+  // report cross-references only that student's own shot / lesson history
+  // (instead of everyone's), and the save-to-lesson flow is one click at
+  // the end. `undefined` = no selection yet; `null` = "no client mode"
+  // for the standalone / student view where `clients` isn't provided.
+  const [selectedClientId, setSelectedClientId] = useState<string | undefined>();
+  const [clientPickerFilter, setClientPickerFilter] = useState('');
   // Save-to-lesson flow state (coach-only, shown when `clients` is provided).
   const [saveOpen, setSaveOpen] = useState(false);
   const [saveClientId, setSaveClientId] = useState<string>('');
@@ -1989,6 +1996,34 @@ export const SwingVideoAnalysis: React.FC<SwingVideoAnalysisProps> = ({
   const [saveNote, setSaveNote] = useState('');
   const [saveBusy, setSaveBusy] = useState(false);
   const [saveStatus, setSaveStatus] = useState<null | { ok: true; lesson: Lesson } | { ok: false; error: string }>(null);
+
+  // Resolve the selected member from the roster + the id-composite convention
+  // shared with Lesson.clientId (`${name}_${phone}`).
+  const selectedClient = useMemo(() => {
+    if (!clients || !selectedClientId) return undefined;
+    return clients.find((c) => (c.id ?? `${c.name}_${c.phone}`) === selectedClientId);
+  }, [clients, selectedClientId]);
+
+  // AI cross-reference should quote THIS student's shots, not the coach's
+  // whole book. When a member is selected, filter `studentLessons` down;
+  // otherwise pass through (standalone / student self-view).
+  const scopedStudentLessons = useMemo(() => {
+    if (!studentLessons) return undefined;
+    if (!selectedClient) return studentLessons;
+    const composite = selectedClient.id ?? `${selectedClient.name}_${selectedClient.phone}`;
+    return studentLessons.filter((l) => {
+      if (l.clientId && l.clientId === composite) return true;
+      // Older lessons predate clientId being set consistently; fall back to
+      // name + phone match so those still cross-reference.
+      return l.clientName === selectedClient.name && l.clientPhone === selectedClient.phone;
+    });
+  }, [studentLessons, selectedClient]);
+
+  // Once a member is chosen at the top, pre-fill the save picker so the
+  // coach doesn't re-pick the same student at save time.
+  useEffect(() => {
+    if (selectedClientId) setSaveClientId(selectedClientId);
+  }, [selectedClientId]);
 
   useEffect(() => {
     return () => {
@@ -2038,19 +2073,24 @@ export const SwingVideoAnalysis: React.FC<SwingVideoAnalysisProps> = ({
     setSaveBusy(true);
     setSaveStatus(null);
     try {
-      // 1. Materialise blob URL → upload to R2 to get a permanent URL.
-      // Reuses the edited-video upload lane (same storage layout as coach
-      // edits) — the server generates the R2 key internally.
+      // 1. Materialise blob URL → upload to R2 as a lessons/{uuid}/main.mp4
+      // key so the server's presign gate (which only accepts that shape)
+      // signs the URL. Mint the UUID up front and reuse it as the lesson
+      // row id below so the storage key and the lesson row line up — same
+      // pattern as PracticeUploadFlow.
       let permanentVideoUrl = videoUrl;
+      let lessonId = '';
+      let videoKey: string | undefined;
       if (videoUrl.startsWith('blob:')) {
         const res = await fetch(videoUrl);
         const blob = await res.blob();
-        const tempLessonId = `swing_${Date.now()}`;
-        permanentVideoUrl = await apiService.uploadEditedVideo(
-          blob,
-          tempLessonId,
-          coachId ?? client.phone,
-        );
+        lessonId =
+          typeof crypto !== 'undefined' && 'randomUUID' in crypto
+            ? crypto.randomUUID()
+            : `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+        const ext = (blob.type.split('/')[1] || 'mp4').toLowerCase();
+        videoKey = `lessons/${lessonId}/main.${ext}`;
+        permanentVideoUrl = await apiService.uploadPracticeVideo(blob, lessonId);
       }
       // 2. Compose motionCaptureData from our analysis so the lesson stores
       //    the coaching-relevant numbers, not just the video.
@@ -2086,11 +2126,15 @@ export const SwingVideoAnalysis: React.FC<SwingVideoAnalysisProps> = ({
         ].filter(Boolean).join(' '),
         analyzedAt: Date.now(),
       };
-      // 3. Build the Lesson payload.
+      // 3. Build the Lesson payload. Reuse the R2 key's UUID as lesson.id
+      // so the storage row and the DB row share an identity.
       const now = new Date();
       const today = now.toISOString().slice(0, 10);
       const lesson: Lesson = {
-        id: '', // server assigns
+        id: lessonId || (typeof crypto !== 'undefined' && 'randomUUID' in crypto
+          ? crypto.randomUUID()
+          : `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`),
+        clientId: client.id ?? `${client.name}_${client.phone}`,
         clientName: client.name,
         clientPhone: client.phone,
         coachId,
@@ -2100,6 +2144,7 @@ export const SwingVideoAnalysis: React.FC<SwingVideoAnalysisProps> = ({
         title: `스윙 분석 (${analysis.summary.cameraView === 'face_on' ? '정면' : '측면'})`,
         swingAngle: analysis.summary.cameraView === 'face_on' ? 'FRONT' : 'SIDE',
         videoUrl: permanentVideoUrl,
+        videoKey,
         mediaType: 'video',
         coachNotes: saveNote,
         tags: ['스윙분석', 'AI자동'],
@@ -2125,6 +2170,19 @@ export const SwingVideoAnalysis: React.FC<SwingVideoAnalysisProps> = ({
       .filter((c) => c.name.toLowerCase().includes(q) || c.phone.includes(q))
       .slice(0, 20);
   }, [clients, saveClientFilter]);
+
+  // Same convention as filteredClients — bumped to 30 for the pre-upload
+  // picker so a coach with a wider book still sees more without typing.
+  const pickerClients = useMemo(() => {
+    if (!clients) return [];
+    const q = clientPickerFilter.trim().toLowerCase();
+    if (!q) return clients.slice(0, 30);
+    return clients
+      .filter((c) => c.name.toLowerCase().includes(q) || c.phone.includes(q))
+      .slice(0, 30);
+  }, [clients, clientPickerFilter]);
+
+  const gateOnMemberPicker = !!clients && !selectedClient;
 
   const runAnalysis = async (window?: { startTime: number; endTime: number }) => {
     if (!videoUrl) return;
@@ -2181,9 +2239,83 @@ export const SwingVideoAnalysis: React.FC<SwingVideoAnalysisProps> = ({
       </div>
 
       <div className="p-4 space-y-4">
+        {/* Member picker — coaches select the student BEFORE uploading so
+            the AI report cross-references only that student's own shot /
+            lesson history and the save step is one click at the end. */}
+        {clients && !analysis && (
+          selectedClient ? (
+            <div className="rounded-lg border border-emerald-800/60 bg-emerald-950/30 p-3 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2 min-w-0">
+                <div className="h-8 w-8 rounded-full bg-emerald-800/60 flex items-center justify-center text-xs font-bold text-emerald-100 flex-shrink-0">
+                  {selectedClient.name.slice(0, 1)}
+                </div>
+                <div className="min-w-0">
+                  <div className="text-sm font-semibold text-emerald-100 truncate">
+                    {selectedClient.name} 회원
+                  </div>
+                  <div className="text-[11px] text-emerald-300/80 font-mono">
+                    {selectedClient.phone}
+                    {scopedStudentLessons && (
+                      <span className="ml-2 text-emerald-400/80">
+                        · 이력 {scopedStudentLessons.length}건 자동 참조
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedClientId(undefined);
+                  setClientPickerFilter('');
+                }}
+                className="text-[11px] px-2 py-1 rounded border border-emerald-700 text-emerald-200 hover:bg-emerald-900/40 flex-shrink-0"
+              >
+                회원 변경
+              </button>
+            </div>
+          ) : (
+            <div className="rounded-lg border border-emerald-800/60 bg-slate-900 p-3 space-y-2">
+              <div className="flex items-center gap-2">
+                <div className="text-xs font-semibold text-emerald-200">
+                  ① 분석할 회원을 먼저 선택하세요
+                </div>
+                <span className="text-[10px] text-slate-400">
+                  선택 후 업로드 · AI 리포트가 이 회원의 이력을 참고합니다
+                </span>
+              </div>
+              <input
+                type="text"
+                value={clientPickerFilter}
+                onChange={(e) => setClientPickerFilter(e.target.value)}
+                placeholder="회원 이름 또는 전화번호 검색"
+                className="w-full rounded-md border border-slate-700 bg-slate-950 px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-emerald-500"
+              />
+              <div className="max-h-56 overflow-y-auto space-y-1">
+                {pickerClients.length === 0 && (
+                  <div className="text-[11px] text-slate-500 py-2">검색 결과 없음</div>
+                )}
+                {pickerClients.map((c) => {
+                  const id = c.id ?? `${c.name}_${c.phone}`;
+                  return (
+                    <button
+                      key={id}
+                      type="button"
+                      onClick={() => setSelectedClientId(id)}
+                      className="w-full text-left px-2.5 py-1.5 rounded-md text-xs bg-slate-950 border border-slate-800 text-slate-200 hover:bg-emerald-900/20 hover:border-emerald-700 transition-colors"
+                    >
+                      <span className="font-semibold">{c.name}</span>
+                      <span className="ml-2 text-slate-400 font-mono">{c.phone}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )
+        )}
         {/* Camera view picker — required before analysis so the pipeline
             knows which metrics are physically meaningful for this clip. */}
-        {!analysis && (
+        {!analysis && !gateOnMemberPicker && (
           <div className="rounded-lg border border-slate-800 bg-slate-900 p-3">
             <div className="text-xs font-semibold text-slate-300 mb-2">촬영 각도</div>
             <div className="grid grid-cols-2 gap-2">
@@ -2219,7 +2351,7 @@ export const SwingVideoAnalysis: React.FC<SwingVideoAnalysisProps> = ({
           </div>
         )}
         {/* Input */}
-        {!analysis && (
+        {!analysis && !gateOnMemberPicker && (
           <div className="flex flex-col sm:flex-row gap-3 items-stretch">
             <label className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg border border-dashed border-slate-700 bg-slate-900 hover:bg-slate-800 cursor-pointer transition-colors">
               <Upload size={16} className="text-slate-400" />
@@ -2254,7 +2386,7 @@ export const SwingVideoAnalysis: React.FC<SwingVideoAnalysisProps> = ({
         )}
 
         {/* Preview */}
-        {videoUrl && !analysis && !busy && (
+        {videoUrl && !analysis && !busy && !gateOnMemberPicker && (
           <video
             src={videoUrl}
             controls
@@ -2348,37 +2480,51 @@ export const SwingVideoAnalysis: React.FC<SwingVideoAnalysisProps> = ({
                     <X size={14} />
                   </button>
                 </div>
-                <input
-                  type="text"
-                  value={saveClientFilter}
-                  onChange={(e) => setSaveClientFilter(e.target.value)}
-                  placeholder="회원 이름 또는 전화번호 검색"
-                  className="w-full rounded-md border border-slate-700 bg-slate-950 px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-emerald-500"
-                />
-                <div className="max-h-48 overflow-y-auto space-y-1">
-                  {filteredClients.length === 0 && (
-                    <div className="text-[11px] text-slate-500 py-2">검색 결과 없음</div>
-                  )}
-                  {filteredClients.map((c) => {
-                    const id = c.id ?? `${c.name}_${c.phone}`;
-                    const selected = saveClientId === id;
-                    return (
-                      <button
-                        key={id}
-                        type="button"
-                        onClick={() => setSaveClientId(id)}
-                        className={`w-full text-left px-2.5 py-1.5 rounded-md text-xs transition-colors ${
-                          selected
-                            ? 'bg-emerald-900/40 border border-emerald-700 text-emerald-100'
-                            : 'bg-slate-950 border border-slate-800 text-slate-200 hover:bg-slate-800'
-                        }`}
-                      >
-                        <span className="font-semibold">{c.name}</span>
-                        <span className="ml-2 text-slate-400 font-mono">{c.phone}</span>
-                      </button>
-                    );
-                  })}
-                </div>
+                {selectedClient ? (
+                  // Client already picked up-front — show the locked selection
+                  // instead of re-listing the roster.
+                  <div className="rounded-md border border-emerald-700 bg-emerald-900/30 px-2.5 py-2 text-xs text-emerald-100 flex items-center justify-between">
+                    <span>
+                      <span className="font-semibold">{selectedClient.name}</span>
+                      <span className="ml-2 text-emerald-300/80 font-mono">{selectedClient.phone}</span>
+                    </span>
+                    <span className="text-[10px] text-emerald-300/80">상단에서 선택한 회원</span>
+                  </div>
+                ) : (
+                  <>
+                    <input
+                      type="text"
+                      value={saveClientFilter}
+                      onChange={(e) => setSaveClientFilter(e.target.value)}
+                      placeholder="회원 이름 또는 전화번호 검색"
+                      className="w-full rounded-md border border-slate-700 bg-slate-950 px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-emerald-500"
+                    />
+                    <div className="max-h-48 overflow-y-auto space-y-1">
+                      {filteredClients.length === 0 && (
+                        <div className="text-[11px] text-slate-500 py-2">검색 결과 없음</div>
+                      )}
+                      {filteredClients.map((c) => {
+                        const id = c.id ?? `${c.name}_${c.phone}`;
+                        const selected = saveClientId === id;
+                        return (
+                          <button
+                            key={id}
+                            type="button"
+                            onClick={() => setSaveClientId(id)}
+                            className={`w-full text-left px-2.5 py-1.5 rounded-md text-xs transition-colors ${
+                              selected
+                                ? 'bg-emerald-900/40 border border-emerald-700 text-emerald-100'
+                                : 'bg-slate-950 border border-slate-800 text-slate-200 hover:bg-slate-800'
+                            }`}
+                          >
+                            <span className="font-semibold">{c.name}</span>
+                            <span className="ml-2 text-slate-400 font-mono">{c.phone}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </>
+                )}
                 <textarea
                   value={saveNote}
                   onChange={(e) => setSaveNote(e.target.value)}
@@ -2517,7 +2663,7 @@ export const SwingVideoAnalysis: React.FC<SwingVideoAnalysisProps> = ({
             <AICoachingReportSection
               analysis={analysis}
               faults={detectFaults(analysis)}
-              studentLessons={studentLessons}
+              studentLessons={scopedStudentLessons}
               coachId={coachId}
             />
             <p className="text-[11px] text-slate-500 leading-relaxed">

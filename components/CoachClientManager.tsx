@@ -18,6 +18,7 @@ import {
   FileBarChart,
   AlertCircle,
   BookOpen,
+  Plus,
 } from 'lucide-react';
 import { MemberGrowthReport, MemberTrend } from '../services/coachXService';
 import { useLanguage } from './LanguageContext';
@@ -58,9 +59,29 @@ interface CoachClientManagerProps {
 
 const clientManagerPanelClass = 'bg-white/[0.03] border border-line-subtle rounded-2xl shadow-lg shadow-black/20';
 const clientFormInputClass =
-  'w-full px-4 py-2.5 border border-line-subtle rounded-xl bg-base text-ink-high placeholder:text-ink-muted focus:ring-2 focus:ring-emerald-500 outline-none';
+  'w-full px-4 py-3.5 text-base border border-line-strong rounded-xl bg-bg-inset text-ink-high placeholder:text-ink-faint focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500/60 outline-none transition-colors';
 const clientCardActionButtonClass =
   'w-full flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl transition-colors text-sm font-semibold';
+
+/**
+ * Format a Korean mobile number as the coach types.
+ * Strips non-digits, caps at 11 digits, and inserts hyphens so the
+ * value renders as 010-1234-5678. Also handles Seoul-style 02-XXX-XXXX
+ * when the input starts with 02 so land-line entries still look right.
+ */
+const formatKoreanPhone = (raw: string): string => {
+  const digits = raw.replace(/\D/g, '').slice(0, 11);
+  if (digits.length === 0) return '';
+  if (digits.startsWith('02')) {
+    if (digits.length <= 2) return digits;
+    if (digits.length <= 5) return `${digits.slice(0, 2)}-${digits.slice(2)}`;
+    if (digits.length <= 9) return `${digits.slice(0, 2)}-${digits.slice(2, 5)}-${digits.slice(5)}`;
+    return `${digits.slice(0, 2)}-${digits.slice(2, 6)}-${digits.slice(6, 10)}`;
+  }
+  if (digits.length <= 3) return digits;
+  if (digits.length <= 7) return `${digits.slice(0, 3)}-${digits.slice(3)}`;
+  return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`;
+};
 
 export const CoachClientManager: React.FC<CoachClientManagerProps> = ({
   clients,
@@ -284,25 +305,27 @@ export const CoachClientManager: React.FC<CoachClientManagerProps> = ({
       </div>
 
       {/* Toolbar */}
-      <div className={`flex flex-col sm:flex-row gap-4 justify-between items-center p-4 ${clientManagerPanelClass}`}>
-        <div className="relative w-full sm:w-auto flex-1">
-          <Search className="absolute left-3 top-3 w-5 h-5 text-ink-muted" />
+      <div className={`flex flex-col sm:flex-row gap-3 justify-between items-stretch sm:items-center p-4 ${clientManagerPanelClass}`}>
+        <div className="relative w-full sm:flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-ink-muted pointer-events-none" />
           <input
             type="text"
             placeholder={t('coach_client_search')}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className={`${clientFormInputClass} pl-10`}
+            className={`${clientFormInputClass} pl-10 py-3`}
           />
         </div>
         {showAddButton && (
-          <Button
+          <button
+            type="button"
             onClick={openAddModal}
             data-testid="coach-client-add-btn"
-            className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-500 rounded-xl"
+            className="inline-flex items-center justify-center gap-2 w-full sm:w-auto px-5 h-12 rounded-xl bg-gradient-to-b from-emerald-500 to-emerald-600 text-white font-semibold shadow-elev-2 hover:from-emerald-400 hover:to-emerald-500 hover:shadow-glow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/70 transition-all active:scale-[0.98]"
           >
-            <UserPlus className="w-5 h-5 mr-2" /> {t('coach_client_add_btn')}
-          </Button>
+            <UserPlus className="w-5 h-5" />
+            <span>{t('coach_client_add_btn')}</span>
+          </button>
         )}
       </div>
 
@@ -507,71 +530,149 @@ export const CoachClientManager: React.FC<CoachClientManagerProps> = ({
         )}
       </div>
 
+      {/* Floating add button — always reachable while scrolling the roster */}
+      {showAddButton && !isModalOpen && (
+        <button
+          type="button"
+          onClick={openAddModal}
+          data-testid="coach-client-add-fab"
+          aria-label={t('coach_client_add_btn')}
+          className="fixed bottom-24 right-5 z-40 w-14 h-14 rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 text-white shadow-glow-lg flex items-center justify-center hover:scale-105 active:scale-95 transition-transform focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300"
+        >
+          <Plus className="w-7 h-7" strokeWidth={2.5} />
+        </button>
+      )}
+
       {/* Add/Edit Modal */}
       {isModalOpen && (
         <div
           data-testid="coach-client-add-modal"
-          className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="coach-client-modal-title"
+          onClick={() => setIsModalOpen(false)}
+          className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-md p-0 sm:p-4 animate-fade-in overscroll-contain"
         >
-          <div className="bg-base text-ink-high rounded-2xl w-full max-w-sm overflow-hidden shadow-2xl border border-line-subtle">
-            <div className="bg-white/[0.05] px-6 py-4 flex justify-between items-center text-white border-b border-line-subtle">
-              <h3 className="font-bold text-lg">
-                {editingClient ? t('coach_client_form_title_edit') : t('coach_client_form_title_new')}
-              </h3>
-              <button onClick={() => setIsModalOpen(false)}>
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              maxHeight:
+                'min(calc(100vh - env(safe-area-inset-top, 0px) - 1rem), calc(100dvh - env(safe-area-inset-top, 0px) - 1rem))',
+            }}
+            className="bg-bg-overlay text-ink-high w-full max-w-md sm:rounded-3xl rounded-t-3xl overflow-hidden shadow-elev-4 border border-line-strong flex flex-col animate-slide-in-up"
+          >
+            {/* Header — solid emerald so the surface is unmistakably present */}
+            <div className="bg-gradient-to-r from-emerald-700 via-emerald-600 to-emerald-700 px-6 py-5 flex justify-between items-center text-white">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-white/15 flex items-center justify-center shadow-inner">
+                  <UserPlus className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 id="coach-client-modal-title" className="font-bold text-lg leading-tight">
+                    {editingClient ? t('coach_client_form_title_edit') : t('coach_client_form_title_new')}
+                  </h3>
+                  {!editingClient && (
+                    <p className="text-xs text-emerald-100/90 mt-0.5">
+                      {t('coach_client_form_hint')}
+                    </p>
+                  )}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsModalOpen(false)}
+                aria-label={t('coach_client_back')}
+                className="p-2 rounded-full hover:bg-white/10 transition-colors"
+              >
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <form onSubmit={handleSubmit} className="p-6 space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-ink-muted mb-1">
-                  {t('coach_client_name_label')} <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className={clientFormInputClass}
-                  placeholder={t('coach_client_name_placeholder')}
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-ink-muted mb-1">
-                  {t('coach_client_phone_label')} <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="tel"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  className={clientFormInputClass}
-                  placeholder="010-0000-0000"
-                  required
-                />
-                <p className="text-[10px] text-ink-muted mt-1">
-                  {t('coach_client_phone_note')}
-                </p>
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-ink-muted mb-1">
-                  {t('coach_client_memo_label')}
-                </label>
-                <textarea
-                  value={memo}
-                  onChange={(e) => setMemo(e.target.value)}
-                  className={clientFormInputClass}
-                  placeholder={t('coach_client_memo_placeholder')}
-                  rows={3}
-                />
+
+            <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
+              <div className="px-6 py-5 space-y-5 overflow-y-auto flex-1">
+                <div>
+                  <label className="block text-sm font-semibold text-ink-high mb-1.5">
+                    {t('coach_client_name_label')} <span className="text-emerald-400">*</span>
+                  </label>
+                  <div className="relative">
+                    <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-muted pointer-events-none" />
+                    <input
+                      type="text"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      className={`${clientFormInputClass} pl-10`}
+                      placeholder={t('coach_client_name_placeholder')}
+                      required
+                      autoFocus
+                      inputMode="text"
+                      autoComplete="name"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-ink-high mb-1.5">
+                    {t('coach_client_phone_label')} <span className="text-emerald-400">*</span>
+                  </label>
+                  <div className="relative">
+                    <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-muted pointer-events-none" />
+                    <input
+                      type="tel"
+                      value={phone}
+                      onChange={(e) => setPhone(formatKoreanPhone(e.target.value))}
+                      className={`${clientFormInputClass} pl-10 tracking-wide`}
+                      placeholder="010-0000-0000"
+                      required
+                      inputMode="tel"
+                      autoComplete="tel"
+                      maxLength={13}
+                    />
+                  </div>
+                  <p className="text-[11px] text-ink-muted mt-1.5 leading-snug">
+                    {t('coach_client_phone_note')}
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-ink-high mb-1.5">
+                    {t('coach_client_memo_label')}
+                    <span className="ml-2 text-[11px] font-normal text-ink-muted">
+                      {t('coach_client_form_optional')}
+                    </span>
+                  </label>
+                  <div className="relative">
+                    <MessageSquare className="absolute left-3.5 top-3.5 w-4 h-4 text-ink-muted pointer-events-none" />
+                    <textarea
+                      value={memo}
+                      onChange={(e) => setMemo(e.target.value)}
+                      className={`${clientFormInputClass} pl-10 min-h-[88px] max-h-[140px] resize-none`}
+                      placeholder={t('coach_client_memo_placeholder')}
+                      rows={3}
+                    />
+                  </div>
+                </div>
               </div>
 
-              <div className="pt-2">
-                <Button
-                  type="submit"
-                  className="w-full bg-emerald-600 hover:bg-emerald-500"
+              {/* Sticky action bar — safe-area aware so Save never hides under the home indicator or keyboard */}
+              <div
+                className="flex-shrink-0 px-4 sm:px-6 pt-4 pb-4 border-t border-line-strong bg-bg-overlay flex gap-3 shadow-[0_-8px_24px_-8px_rgba(0,0,0,0.5)]"
+                style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom, 0px))' }}
+              >
+                <button
+                  type="button"
+                  onClick={() => setIsModalOpen(false)}
+                  className="px-5 h-12 rounded-xl bg-white/[0.06] text-ink-high border border-line-default hover:bg-white/[0.1] transition-colors font-medium"
                 >
-                  <Save className="w-4 h-4 mr-2" /> {t('coach_client_save_btn')}
-                </Button>
+                  {t('coach_client_cancel_btn')}
+                </button>
+                <button
+                  type="submit"
+                  disabled={!name.trim() || !phone.trim()}
+                  className="flex-1 inline-flex items-center justify-center gap-2 h-12 rounded-xl bg-gradient-to-b from-emerald-500 to-emerald-600 text-white font-semibold shadow-elev-2 hover:from-emerald-400 hover:to-emerald-500 hover:shadow-glow disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:from-emerald-500 disabled:hover:to-emerald-600 transition-all active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300"
+                >
+                  <Save className="w-4 h-4" />
+                  {t('coach_client_save_btn')}
+                </button>
               </div>
             </form>
           </div>
