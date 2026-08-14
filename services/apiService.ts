@@ -402,6 +402,22 @@ export const apiService = {
     }
   },
 
+  /**
+   * Return the coach profile identified by the current auth token.
+   *
+   * Session restore MUST use this instead of fetching /api/coaches and
+   * matching by local-storage email — the local email can be stale from a
+   * previous login on the same device (this is why PC and mobile were
+   * showing different member lists for the same account: each device
+   * derived `currentUser.id` from its own local email, and the client-side
+   * `client.coachId === currentUser.id` filter then hid the server-scoped
+   * member list on whichever device had the wrong local email).
+   */
+  async getMyCoachProfile(): Promise<CoachProfile> {
+    const data = await req<{ coach: CoachProfile }>('GET', '/api/coaches/me');
+    return data.coach;
+  },
+
   async saveCoach(coach: CoachProfile): Promise<void> {
     await req('PUT', '/api/coaches/me', coach);
   },
