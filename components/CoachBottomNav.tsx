@@ -1,8 +1,8 @@
 import React from 'react';
-import { MessageSquare, Users, Calendar, PenSquare } from 'lucide-react';
+import { MessageSquare, Users, Calendar, PenSquare, ClipboardList } from 'lucide-react';
 import { useLanguage } from './LanguageContext';
 
-export type CoachTab = 'LESSON' | 'CLIENTS' | 'RESERVATIONS' | 'RECORD';
+export type CoachTab = 'LESSON' | 'CLIENTS' | 'RECORD' | 'LESSON_LIST' | 'RESERVATIONS';
 
 interface CoachBottomNavProps {
   activeTab: CoachTab;
@@ -14,15 +14,16 @@ interface CoachBottomNavProps {
 }
 
 // LESSON keeps its enum name for API compatibility, but the surfaced label
-// is now "대화" — the redesign folds the old lesson list into the coach's
-// agent conversation. RECORD is the new-lesson entry point folded into the
-// tab row (was previously a raised center CTA — reverted per direction).
+// is now "대화" — the redesign folds the old chat list into the coach's
+// agent conversation. RECORD opens the new-lesson flow; LESSON_LIST opens
+// the historical lesson list ("레슨 기록").
 const labelFor = (tab: CoachTab, lang: 'ko' | 'en' | 'ja'): string => {
   const table: Record<CoachTab, Record<'ko' | 'en' | 'ja', string>> = {
     LESSON: { ko: '대화', en: 'Chat', ja: 'チャット' },
     CLIENTS: { ko: '학생', en: 'Students', ja: '生徒' },
-    RESERVATIONS: { ko: '예약', en: 'Bookings', ja: '予約' },
     RECORD: { ko: '기록', en: 'Record', ja: '記録' },
+    LESSON_LIST: { ko: '레슨 기록', en: 'Lessons', ja: 'レッスン' },
+    RESERVATIONS: { ko: '예약', en: 'Bookings', ja: '予約' },
   };
   return table[tab][lang];
 };
@@ -33,10 +34,12 @@ const iconFor = (tab: CoachTab) => {
       return MessageSquare;
     case 'CLIENTS':
       return Users;
-    case 'RESERVATIONS':
-      return Calendar;
     case 'RECORD':
       return PenSquare;
+    case 'LESSON_LIST':
+      return ClipboardList;
+    case 'RESERVATIONS':
+      return Calendar;
   }
 };
 
@@ -89,10 +92,11 @@ export const CoachBottomNav: React.FC<CoachBottomNavProps> = ({
       role="navigation"
       aria-label="Coach navigation"
     >
-      <div className="max-w-md mx-auto grid grid-cols-4">
+      <div className="max-w-md mx-auto grid grid-cols-5">
         {renderTabButton('LESSON')}
         {renderTabButton('CLIENTS', clientsBadge)}
         {renderTabButton('RECORD')}
+        {renderTabButton('LESSON_LIST')}
         {renderTabButton('RESERVATIONS', reservationBadge)}
       </div>
     </nav>

@@ -1552,23 +1552,25 @@ const AppContent: React.FC = () => {
    * so the nav renders as an overlay backdrop without highlighting anything.
    */
   const activeCoachTab: CoachTab | null =
-    coachView === 'COACHX' || coachView === 'LESSON_LIST' ? 'LESSON'
+    coachView === 'COACHX' ? 'LESSON'
     : coachView === 'CLIENTS' ? 'CLIENTS'
-    : coachView === 'RESERVATIONS' ? 'RESERVATIONS'
     : coachView === 'NEW' ? 'RECORD'
+    : coachView === 'LESSON_LIST' ? 'LESSON_LIST'
+    : coachView === 'RESERVATIONS' ? 'RESERVATIONS'
     : null;
 
   const handleCoachTabChange = (next: CoachTab) => {
     setSelectedLesson(null);
-    // Primary "대화" tab lands on the conversational home; the legacy lesson
-    // list stays reachable from the dashboard link inside CoachAIHome. The
-    // RECORD tab drops the coach directly into the new-lesson flow.
+    // Primary "대화" tab lands on the conversational home. RECORD drops the
+    // coach into the new-lesson flow; LESSON_LIST opens the historical
+    // lesson list ("레슨 기록"); the other two go to their same-named views.
     if (next === 'LESSON') setCoachView('COACHX');
     else if (next === 'CLIENTS') setCoachView('CLIENTS');
     else if (next === 'RECORD') {
       setIsEditingLesson(false);
       setCoachView('NEW');
     }
+    else if (next === 'LESSON_LIST') setCoachView('LESSON_LIST');
     else setCoachView('RESERVATIONS');
   };
 
