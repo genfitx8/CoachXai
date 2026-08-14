@@ -187,7 +187,14 @@ export const CoachAIHome: React.FC<CoachAIHomeProps> = ({
   );
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-base text-white">
+    <div
+      className="fixed inset-x-0 top-0 z-30 flex flex-col bg-base text-white"
+      // Stop above the bottom nav (~4rem + iOS safe area) so the tab bar
+      // remains visible on the coach home. Nav sits at z-50; the home shell
+      // stays under it as a defense-in-depth (nav still wins even if this
+      // stops flush at bottom-0 in some transition).
+      style={{ bottom: 'calc(4rem + env(safe-area-inset-bottom))' }}
+    >
       {/* Ambient background */}
       <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(56,189,248,0.05),transparent_50%)]" />
