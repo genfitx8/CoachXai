@@ -234,6 +234,10 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
   onInitialClipsConsumed,
 }) => {
   const { t } = useLanguage();
+  // Coach shell sits at the same z-index as the fixed coach bottom tab bar,
+  // so reserve room for the nav; the client shell renders over its lower-z
+  // student nav and needs no extra padding.
+  const bottomNavPadClass = userRole === 'COACH' ? ' above-coach-bottom-nav' : '';
   // Wizard State: COACH starts at CLIENT_SELECT, CLIENT starts at TYPE_SELECT
   // When prefilledClient is provided, skip CLIENT_SELECT and jump to TYPE_SELECT
   const [step, setStep] = useState<'CLIENT_SELECT' | 'PACKAGE_SELECT' | 'TYPE_SELECT' | 'FORM'>(
@@ -1647,7 +1651,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
     };
 
     return (
-      <div className={LESSON_FLOW_SHELL_CLASS}>
+      <div className={`${LESSON_FLOW_SHELL_CLASS}${bottomNavPadClass}`}>
         {/* Header */}
         <div className={LESSON_FLOW_HEADER_CLASS}>
           <div className="flex items-center gap-2">
@@ -1794,7 +1798,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
   // STEP: COACH CLIENT SELECT (Redesigned)
   if (step === 'CLIENT_SELECT') {
     return (
-      <div className={LESSON_FLOW_SHELL_CLASS}>
+      <div className={`${LESSON_FLOW_SHELL_CLASS}${bottomNavPadClass}`}>
         <div className={LESSON_FLOW_HEADER_CLASS}>
           <h2 className="text-lg font-bold flex items-center gap-2">
             <UserCheck className="w-5 h-5" /> 레슨 대상 입력
@@ -1928,7 +1932,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
   // STEP: CLIENT TYPE SELECTION
   if (step === 'TYPE_SELECT') {
     return (
-      <div className="fixed inset-0 z-50 bg-[#070b12] text-ink-high flex flex-col overflow-hidden">
+      <div className={`fixed inset-0 z-50 bg-[#070b12] text-ink-high flex flex-col overflow-hidden${bottomNavPadClass}`}>
         <div className="bg-gradient-to-r from-emerald-900 via-emerald-800 to-emerald-900 px-5 py-4 flex justify-between items-center text-white flex-shrink-0">
           <h2 className="text-lg font-bold flex items-center gap-2"><Target className="w-5 h-5" /> 기록 유형 선택</h2>
           <button
@@ -2000,7 +2004,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
 
   // STEP: FORM
   return (
-    <div className="fixed inset-0 z-50 bg-[#070b12] text-ink-high flex flex-col overflow-hidden">
+    <div className={`fixed inset-0 z-50 bg-[#070b12] text-ink-high flex flex-col overflow-hidden${bottomNavPadClass}`}>
       <PermissionDeniedModal
         open={!!permissionRequest}
         kind={permissionRequest?.kind ?? 'microphone'}
