@@ -130,6 +130,39 @@ describe('apiService getCoaches', () => {
     expect(body).toEqual({ coachId: 'coach-a', designatedCoach: '홍길동' });
   });
 
+  it('getMyCoachProfile hits /api/coaches/me and returns the coach identified by the token', async () => {
+    // Regression guard for the PC/mobile member-list mismatch: session
+    // restore must resolve the current coach from the token, not by
+    // matching a stale localStorage email against /api/coaches.
+    const meCoach = {
+      id: 'coach-me',
+      name: '나코치',
+      email: 'me@example.com',
+    };
+
+    const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
+      if (
+        url === `${MOCK_BASE_URL}/api/coaches/me` &&
+        (!init?.method || init.method === 'GET')
+      ) {
+        return new Response(JSON.stringify({ coach: meCoach }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      throw new Error(`Unexpected request: ${init?.method ?? 'GET'} ${url}`);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { apiService } = await import('../services/apiService');
+    const result = await apiService.getMyCoachProfile();
+
+    expect(result).toEqual(meCoach);
+    // Must NOT fall back to /api/coaches (which was the source of the drift).
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls[0][0]).toBe(`${MOCK_BASE_URL}/api/coaches/me`);
+  });
+
   it('falls back to /api/coaches/me when /api/coaches is unavailable', async () => {
     const meCoach = { id: 'coach-me', name: '나코치', email: 'me@example.com' };
 

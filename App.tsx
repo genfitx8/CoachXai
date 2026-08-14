@@ -353,26 +353,30 @@ const AppContent: React.FC = () => {
           }
           setCurrentUser(foundClient || session.clientData);
         } else if (session.role === 'COACH') {
-          // Try to get coach profile from Firebase first, then localStorage
+          // Resolve the coach profile from the auth token (GET /api/coaches/me),
+          // not from a fetch-all + local-email match. The token is what the
+          // server uses to scope /api/clients — so if we derived currentUser.id
+          // any other way (e.g. matching by a stale local email, or picking the
+          // "only" coach in the DB), the client-side
+          // `client.coachId === currentUser.id` filter in CoachClientManager
+          // would hide the server-scoped member list. That drift was the root
+          // cause of PC vs mobile showing different members for the same
+          // account: each device has its own localStorage, so a stale email on
+          // one but not the other led to two different currentUser.id values.
           let profile: CoachProfile | null = null;
           if (canUseProtectedApi) {
             try {
-              const allCoaches = await apiService.getCoaches();
-              // Try to find coach by email from localStorage first
-              const localProfile = authService.getCoachProfile();
-              if (localProfile?.email) {
-                profile =
-                  allCoaches.find((c) => c.email === localProfile.email) || null;
-              }
-              // If not found by email, try to get the first coach (if only one exists)
-              if (!profile && allCoaches.length === 1) {
-                profile = allCoaches[0];
-              }
+              profile = await apiService.getMyCoachProfile();
+              // Keep the local cache in sync so downstream reads
+              // (loadData, getCoachNameById, ...) see the same coach the
+              // token identifies.
+              authService.saveCoachProfile(profile);
             } catch (e) {
-              console.warn('[App] Failed to restore coach profile from API:', e);
+              console.warn('[App] Failed to restore coach profile from /api/coaches/me:', e);
             }
           }
-          // Fallback to localStorage
+          // Fallback to localStorage (offline / API unavailable). The API
+          // path is the source of truth whenever it succeeds.
           if (!profile) {
             profile = authService.getCoachProfile();
           }

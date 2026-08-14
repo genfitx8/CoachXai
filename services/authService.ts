@@ -426,4 +426,13 @@ export const authService = {
   getCoachProfile: (): CoachProfile | null => {
     return readJson<CoachProfile>(localStorage, STORAGE_KEYS.COACH_PROFILE);
   },
+
+  // Refresh the cached coach profile from a trusted source (e.g. the
+  // /api/coaches/me response after session restore). Keeps subsequent
+  // getCoachProfile() reads — used in loadData(), getCoachNameById(), etc.
+  // — aligned with the auth token so client-side coach filters don't drift
+  // between devices.
+  saveCoachProfile: (coach: CoachProfile): void => {
+    writeJson(localStorage, STORAGE_KEYS.COACH_PROFILE, coach);
+  },
 };
