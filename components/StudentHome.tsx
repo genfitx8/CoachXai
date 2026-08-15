@@ -92,7 +92,7 @@ export const StudentHome: React.FC<StudentHomeProps> = ({
   }, [clientProfile, ctx, clientId, sortedLessons, homeworkList, lang]);
 
   const menuButton = (
-    <div className="flex items-center gap-1">
+    <div className="flex items-center gap-1 flex-shrink-0">
       <button
         type="button"
         onClick={onOpenMenu}

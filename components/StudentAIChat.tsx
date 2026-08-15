@@ -545,7 +545,11 @@ export const StudentAIChat: React.FC<StudentAIChatProps> = ({
         }}
       />
       {/* Header */}
-      <div className="flex items-center gap-3 px-4 py-3 border-b border-white/10 bg-base/90 backdrop-blur-sm sticky top-0 z-10 pt-safe">
+      {/* gap-2 + the flex-shrink-0 / truncate below keep this row on a single
+          line at 360px. Without them "CoachX AI" wrapped one character per
+          line, ballooning the header to ~190px and pushing the hamburger
+          button far down the screen. */}
+      <div className="flex items-center gap-2 px-4 py-3 border-b border-white/10 bg-base/90 backdrop-blur-sm sticky top-0 z-10 pt-safe">
         {headerLeftSlot ?? (!hideBackButton && (
           <BackButton
             onClick={onBack}
@@ -561,7 +565,7 @@ export const StudentAIChat: React.FC<StudentAIChatProps> = ({
         </div>
 
         <div className="min-w-0 flex-1">
-          <p className="font-bold text-sm text-white">CoachX AI</p>
+          <p className="font-bold text-sm text-white truncate">CoachX AI</p>
           <p className="text-xs text-emerald-300 truncate">
             {language === 'en' ? 'Your Personal Golf Assistant'
               : language === 'ja' ? 'パーソナルゴルフアシスタント'
@@ -571,7 +575,7 @@ export const StudentAIChat: React.FC<StudentAIChatProps> = ({
 
         {/* Mode toggle — hidden on the selection screen */}
         {!showModeSelector && (
-          <div className="flex items-center gap-1 bg-white/[0.10] rounded-xl p-1 border border-white/10">
+          <div className="flex items-center gap-1 bg-white/[0.10] rounded-xl p-1 border border-white/10 flex-shrink-0">
             <button
               onClick={() => switchMode('voice')}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
@@ -580,7 +584,11 @@ export const StudentAIChat: React.FC<StudentAIChatProps> = ({
               aria-label={language === 'en' ? 'Voice mode' : '음성 모드'}
             >
               <Mic className="w-3.5 h-3.5" />
-              {language === 'en' ? 'Voice' : language === 'ja' ? '音声' : '음성'}
+              {/* Icon-only under 420px so the header title keeps room to breathe.
+                  aria-label above still names the button for screen readers. */}
+              <span className="hidden min-[420px]:inline">
+                {language === 'en' ? 'Voice' : language === 'ja' ? '音声' : '음성'}
+              </span>
             </button>
             <button
               onClick={() => switchMode('chat')}
@@ -590,7 +598,9 @@ export const StudentAIChat: React.FC<StudentAIChatProps> = ({
               aria-label={language === 'en' ? 'Chat mode' : '채팅 모드'}
             >
               <MessageSquare className="w-3.5 h-3.5" />
-              {language === 'en' ? 'Chat' : language === 'ja' ? 'チャット' : '채팅'}
+              <span className="hidden min-[420px]:inline">
+                {language === 'en' ? 'Chat' : language === 'ja' ? 'チャット' : '채팅'}
+              </span>
             </button>
           </div>
         )}
@@ -609,10 +619,11 @@ export const StudentAIChat: React.FC<StudentAIChatProps> = ({
           </button>
         )}
 
-        {/* Online indicator */}
-        <div className="flex items-center gap-1.5 ml-auto">
+        {/* Online indicator — the label is dropped on narrow phones so the
+            header row still fits; the dot alone carries the state there. */}
+        <div className="flex items-center gap-1.5 ml-auto flex-shrink-0">
           <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
-          <span className="text-xs text-green-400 font-medium">
+          <span className="hidden min-[420px]:inline text-xs text-green-400 font-medium">
             {language === 'en' ? 'Online' : language === 'ja' ? 'オンライン' : '온라인'}
           </span>
         </div>
