@@ -66,7 +66,6 @@ import { Button } from './components/Button';
 import { CoachXHub } from './components/CoachXHub';
 import { CoachAIHome, type TodayLessonSummary } from './components/CoachAIHome';
 import { LessonReviewScreen } from './components/LessonReviewScreen';
-import { CoachXMark } from './components/ui';
 import { buildMemberGrowthReports } from './services/coachXService';
 import { DIAGNOSIS_FACTORS, DIAGNOSIS_PROCESS } from './constants/diagnosis';
 import { diagnosisService } from './services/diagnosisService';
@@ -1958,12 +1957,17 @@ const AppContent: React.FC = () => {
   }, [clients, coachProfile?.id, currentUser, userRole]);
   const latestLesson = dashboardData?.recentLessons?.[0];
 
+  // 부팅 게이트에서는 브랜드 마크를 쓰지 않습니다. 네이티브 스플래시(교차 마크)와
+  // 로그인 화면 헤더 로고 사이에 마크가 한 번 더 끼어들면 X 로고가 연달아 두 번
+  // 노출되기 때문에, 여기서는 로고 없는 스피너만 보여줍니다.
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-base">
-        <div className="animate-pulse-soft" style={{ filter: 'drop-shadow(0 0 12px rgba(16,185,129,0.55))' }}>
-          <CoachXMark size={64} tone="dark" />
-        </div>
+        <div
+          className="h-10 w-10 rounded-full border-2 border-primary-500/30 border-t-primary-400 animate-spin"
+          role="status"
+          aria-label="Loading"
+        />
       </div>
     );
   }
