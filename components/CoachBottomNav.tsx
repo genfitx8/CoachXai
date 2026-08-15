@@ -1,8 +1,8 @@
 import React from 'react';
-import { MessageSquare, Users, Calendar, PenSquare } from 'lucide-react';
+import { MessageSquare, Users, Calendar, PenSquare, Mic } from 'lucide-react';
 import { useLanguage } from './LanguageContext';
 
-export type CoachTab = 'LESSON' | 'CLIENTS' | 'RECORD' | 'RESERVATIONS';
+export type CoachTab = 'LESSON' | 'CLIENTS' | 'RECORD' | 'LIVE' | 'RESERVATIONS';
 
 interface CoachBottomNavProps {
   activeTab: CoachTab;
@@ -15,14 +15,16 @@ interface CoachBottomNavProps {
 
 // LESSON keeps its enum name for API compatibility, but the surfaced label
 // is now "대화" — the redesign folds the old chat list into the coach's
-// agent conversation. RECORD opens the new-lesson flow. The historical
-// lesson list ("레슨 기록") no longer has its own tab; it stays reachable
-// from the hamburger menu.
+// agent conversation. RECORD opens the new-lesson flow; LIVE opens the
+// during-lesson companion ("레슨 중 동반"), which used to be buried behind
+// the lesson list's client filter. The historical lesson list ("레슨 기록")
+// no longer has its own tab; it stays reachable from the hamburger menu.
 const labelFor = (tab: CoachTab, lang: 'ko' | 'en' | 'ja'): string => {
   const table: Record<CoachTab, Record<'ko' | 'en' | 'ja', string>> = {
     LESSON: { ko: '대화', en: 'Chat', ja: 'チャット' },
     CLIENTS: { ko: '학생', en: 'Students', ja: '生徒' },
     RECORD: { ko: '기록', en: 'Record', ja: '記録' },
+    LIVE: { ko: '동반', en: 'Live', ja: '同伴' },
     RESERVATIONS: { ko: '예약', en: 'Bookings', ja: '予約' },
   };
   return table[tab][lang];
@@ -36,6 +38,8 @@ const iconFor = (tab: CoachTab) => {
       return Users;
     case 'RECORD':
       return PenSquare;
+    case 'LIVE':
+      return Mic;
     case 'RESERVATIONS':
       return Calendar;
   }
@@ -73,7 +77,7 @@ export const CoachBottomNav: React.FC<CoachBottomNavProps> = ({
             </span>
           )}
         </div>
-        <span className="text-[11px] font-semibold">{labelFor(key, lang)}</span>
+        <span className="text-[11px] font-semibold whitespace-nowrap">{labelFor(key, lang)}</span>
         {isActive && (
           <span
             className="absolute top-0 inset-x-8 h-0.5 bg-gradient-to-r from-emerald-500 to-emerald-500 rounded-full"
@@ -90,10 +94,11 @@ export const CoachBottomNav: React.FC<CoachBottomNavProps> = ({
       role="navigation"
       aria-label="Coach navigation"
     >
-      <div className="max-w-md mx-auto grid grid-cols-4">
+      <div className="max-w-md mx-auto grid grid-cols-5">
         {renderTabButton('LESSON')}
         {renderTabButton('CLIENTS', clientsBadge)}
         {renderTabButton('RECORD')}
+        {renderTabButton('LIVE')}
         {renderTabButton('RESERVATIONS', reservationBadge)}
       </div>
     </nav>

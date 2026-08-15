@@ -1,6 +1,6 @@
 /**
  * Tests for the coach bottom navigation:
- * 1. It renders exactly the four primary tabs (대화 / 학생 / 기록 / 예약).
+ * 1. It renders exactly the five primary tabs (대화 / 학생 / 기록 / 동반 / 예약).
  * 2. The "레슨 기록" tab is gone — that list is reached from the hamburger menu.
  * 3. Tapping a tab reports the tab key to the parent.
  */
@@ -17,16 +17,17 @@ vi.mock('../components/LanguageContext', () => ({
 }));
 
 describe('CoachBottomNav', () => {
-  it('renders the four primary tabs and no 레슨 기록 tab', () => {
+  it('renders the five primary tabs and no 레슨 기록 tab', () => {
     render(<CoachBottomNav activeTab="LESSON" onTabChange={vi.fn()} />);
 
     const nav = screen.getByRole('navigation', { name: /coach navigation/i });
     const tabs = nav.querySelectorAll('button');
-    expect(tabs).toHaveLength(4);
+    expect(tabs).toHaveLength(5);
 
     expect(screen.getByText('대화')).toBeInTheDocument();
     expect(screen.getByText('학생')).toBeInTheDocument();
     expect(screen.getByText('기록')).toBeInTheDocument();
+    expect(screen.getByText('동반')).toBeInTheDocument();
     expect(screen.getByText('예약')).toBeInTheDocument();
 
     expect(screen.queryByText('레슨 기록')).toBeNull();

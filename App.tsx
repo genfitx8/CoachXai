@@ -188,6 +188,13 @@ const AppContent: React.FC = () => {
   const [hamburgerOpen, setHamburgerOpen] = useState(false);
   const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(null);
   const [selectedClientFilter, setSelectedClientFilter] = useState<string>(''); // '' or clientName
+  /**
+   * Student the 레슨 중 동반 tab is running for. Kept separate from
+   * `selectedClientFilter` so picking a student for the live companion
+   * never rewrites the 레슨 기록 list's filter (and vice versa). Empty
+   * string means "no student picked yet" → the tab shows its picker.
+   */
+  const [liveLessonStudent, setLiveLessonStudent] = useState<string>('');
   const [isEditingLesson, setIsEditingLesson] = useState(false); // Track editing mode
   const [calendarSelectedDate, setCalendarSelectedDate] = useState<string | undefined>(undefined); // Pre-fill date from calendar click
   const [coachLessonModalDate, setCoachLessonModalDate] = useState<string | undefined>(undefined);
@@ -218,6 +225,13 @@ const AppContent: React.FC = () => {
     () => clients.find((client) => client.name === selectedClientFilter) ?? null,
     [clients, selectedClientFilter]
   );
+  /** Clients belonging to the signed-in coach, name-sorted for pickers. */
+  const coachOwnClients = useMemo(() => {
+    const coachId = currentUser && 'id' in currentUser ? currentUser.id : undefined;
+    return clients
+      .filter((client) => client.coachId === coachId)
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [clients, currentUser]);
   const initialDiagnosisGolferProfile = useMemo<Partial<GolferProfile> | undefined>(() => {
     if (!selectedDiagnosisClient) return undefined;
     return {
@@ -1559,20 +1573,24 @@ const AppContent: React.FC = () => {
     coachView === 'COACHX' || coachView === 'LESSON_LIST' ? 'LESSON'
     : coachView === 'CLIENTS' ? 'CLIENTS'
     : coachView === 'NEW' ? 'RECORD'
+    : coachView === 'LIVE_LESSON' ? 'LIVE'
     : coachView === 'RESERVATIONS' ? 'RESERVATIONS'
     : null;
 
   const handleCoachTabChange = (next: CoachTab) => {
     setSelectedLesson(null);
-    // Primary "대화" tab lands on the conversational home; the historical
-    // lesson list ("레슨 기록") no longer has its own tab and is reached from
-    // the hamburger menu. RECORD drops the coach into the new-lesson flow.
+    // Primary "대화" tab lands on the conversational home. RECORD drops the
+    // coach into the new-lesson flow; LIVE opens the during-lesson companion
+    // ("레슨 중 동반"), picking a student first when none is chosen. The
+    // historical lesson list ("레슨 기록") no longer has its own tab and is
+    // reached from the hamburger menu.
     if (next === 'LESSON') setCoachView('COACHX');
     else if (next === 'CLIENTS') setCoachView('CLIENTS');
     else if (next === 'RECORD') {
       setIsEditingLesson(false);
       setCoachView('NEW');
     }
+    else if (next === 'LIVE') setCoachView('LIVE_LESSON');
     else setCoachView('RESERVATIONS');
   };
 
@@ -2058,16 +2076,9 @@ const AppContent: React.FC = () => {
                     </button>
                   )}
 
-                  {selectedClientFilter && (
-                    <button
-                      onClick={() => setCoachView('LIVE_LESSON')}
-                      className="px-3 sm:px-4 py-2.5 bg-emerald-500/15 text-emerald-200 border border-emerald-400/40 rounded-xl hover:bg-emerald-500/25 transition-colors flex items-center gap-2 font-medium whitespace-nowrap flex-shrink-0"
-                      title="레슨 중 동반 모드"
-                    >
-                      <Mic className="w-4 h-4" />
-                      레슨 중 동반
-                    </button>
-                  )}
+                  {/* 레슨 중 동반은 하단탭(동반)으로 이동했다. 레슨 기록은
+                      지난 레슨을 훑어보는 화면이므로 진행 중인 레슨 도구는
+                      여기서 노출하지 않는다. */}
 
                   {selectedClientFilter && (
                     <button
@@ -2207,19 +2218,65 @@ const AppContent: React.FC = () => {
           />
         )}
 
-        {coachView === 'LIVE_LESSON' && selectedClientFilter && (
+        {/* 레슨 중 동반 — 하단탭 진입점. 학생을 고르기 전에는 선택 화면을
+            보여주고, 고른 뒤에 동반 화면을 띄운다. */}
+        {coachView === 'LIVE_LESSON' && !liveLessonStudent && (
+          <div className="space-y-6 animate-fade-in" data-testid="live-lesson-picker">
+            <div className="flex items-center gap-2 min-w-0">
+              <h2 className="text-lg sm:text-xl font-bold text-ink-high flex items-center gap-2 tracking-tight min-w-0">
+                <Mic className="w-5 h-5 text-emerald-300 flex-shrink-0" />
+                <span className="truncate">레슨 중 동반</span>
+              </h2>
+            </div>
+            <p className="text-sm text-ink-medium">
+              동반을 시작할 학생을 선택하세요. 레슨 중 음성 메모와 스윙 사진·영상을
+              모아 두었다가, 종료하면 레슨 기록 작성으로 이어집니다.
+            </p>
+
+            {coachOwnClients.length === 0 ? (
+              <div className="text-center py-16 bg-white/[0.03] rounded-2xl border border-dashed border-line-subtle">
+                <div className="w-16 h-16 bg-white/[0.05] rounded-full flex items-center justify-center mx-auto mb-4">
+                  <User className="w-8 h-8 text-ink-muted" />
+                </div>
+                <h3 className="text-lg font-bold text-ink-high">등록된 학생이 없습니다</h3>
+                <p className="text-sm text-ink-medium mt-1">
+                  학생 탭에서 회원을 먼저 등록해 주세요.
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {coachOwnClients.map((client) => (
+                  <button
+                    key={`${client.name}_${client.phone}`}
+                    type="button"
+                    onClick={() => setLiveLessonStudent(client.name)}
+                    className="flex items-center gap-3 p-4 bg-white/[0.03] border border-line-subtle rounded-2xl hover:bg-emerald-500/10 hover:border-emerald-400/40 transition-colors text-left"
+                  >
+                    <div className="bg-emerald-500/20 p-2 rounded-full text-emerald-300 flex-shrink-0">
+                      <User className="w-4 h-4" />
+                    </div>
+                    <span className="font-bold text-ink-high truncate">{client.name}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {coachView === 'LIVE_LESSON' && liveLessonStudent && (
           <LiveLessonCompanion
-            studentName={selectedClientFilter}
+            studentName={liveLessonStudent}
             lessonDate={new Date().toISOString().slice(0, 10)}
-            onCancel={() => setCoachView('LESSON_LIST')}
+            // 취소하면 학생 선택으로 돌아간다 — 탭 자체는 그대로 유지.
+            onCancel={() => setLiveLessonStudent('')}
             onFinish={(clips) => {
               // 3c 후속: 캡처된 clip을 pending 버킷에 넣어 NewLessonForm이
               // 마운트되며 첨부로 자동 승격하게 하고, 매칭된 학생을 prefill한
               // 채로 NEW 뷰로 넘긴다. 폼이 clip을 소비하면
               // onInitialClipsConsumed로 버킷을 비워 중복 첨부를 막는다.
               const matchedClient =
-                clients.find((c) => c.name === selectedClientFilter) ?? {
-                  name: selectedClientFilter,
+                clients.find((c) => c.name === liveLessonStudent) ?? {
+                  name: liveLessonStudent,
                   phone: '',
                   coachId:
                     currentUser && 'id' in currentUser
@@ -2230,6 +2287,7 @@ const AppContent: React.FC = () => {
               setIsEditingLesson(false);
               setSelectedLesson(null);
               setPrefilledSuggestionClient(matchedClient);
+              setLiveLessonStudent('');
               setCoachView('NEW');
             }}
           />
