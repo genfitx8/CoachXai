@@ -54,11 +54,11 @@ describe('NewLessonForm – manual shot data entry', () => {
     // Enter PRACTICE record flow
     fireEvent.click(screen.getByRole('button', { name: /연습 기록/i }));
 
-    // Open the manual shot data entry panel
-    const toggleButton = await screen.findByRole('button', {
-      name: /샷 데이터 직접 입력/i,
+    // Open the shot data media-upload tab
+    const shotDataTab = await screen.findByRole('button', {
+      name: '샷 데이터',
     });
-    fireEvent.click(toggleButton);
+    fireEvent.click(shotDataTab);
 
     // Fill in a few fields (order matches the field grid in the form)
     const carryInput = screen.getByPlaceholderText('예: 180');
@@ -119,9 +119,7 @@ describe('NewLessonForm – manual shot data entry', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /연습 기록/i }));
 
-    fireEvent.click(
-      await screen.findByRole('button', { name: /샷 데이터 직접 입력/i })
-    );
+    fireEvent.click(await screen.findByRole('button', { name: '샷 데이터' }));
 
     // Upload a shot-data photo
     const photoFile = new File(['shot'], 'launch-monitor.png', {

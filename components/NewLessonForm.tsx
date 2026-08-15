@@ -36,8 +36,6 @@ import {
   Clock,
   MapPin,
   FlagTriangleRight,
-  ChevronDown,
-  ChevronUp,
   StopCircle,
   RefreshCcw,
   ArrowLeft,
@@ -256,9 +254,9 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
 
   // UI State
   const [isAddingMore, setIsAddingMore] = useState(false);
-  const [inputMethod, setInputMethod] = useState<'upload' | 'camera' | 'voice' | 'screen'>(
-    'upload'
-  );
+  const [inputMethod, setInputMethod] = useState<
+    'upload' | 'camera' | 'voice' | 'screen' | 'shotdata'
+  >('upload');
 
   // Form State
   const [clientName, setClientName] = useState('');
@@ -295,7 +293,6 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
 
   // Manual Shot Data Entry (structured GolfData inputs)
   const [manualGolfData, setManualGolfData] = useState<Partial<GolfData>>({});
-  const [showManualShotData, setShowManualShotData] = useState(false);
 
   const updateManualGolfField = (
     key: keyof GolfData,
@@ -394,7 +391,13 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
   const mediaUrlsRef = useRef<string[]>([]);
   const savedUrlsRef = useRef<Set<string>>(new Set());
 
-  const showAddInterface = mediaItems.length === 0 || isAddingMore;
+  // Shot data is a media-upload method of its own (non-score records only).
+  const isShotDataTab = recordType !== 'SCORE' && inputMethod === 'shotdata';
+
+  // The shot data panel attaches its photo to mediaItems, so keep the upload
+  // interface open while that tab is active instead of flipping to the preview list.
+  const showAddInterface =
+    mediaItems.length === 0 || isAddingMore || isShotDataTab;
 
   // 3c handoff: convert clips captured by LiveLessonCompanion into
   // PendingMedia entries once, on the first render that receives them.
@@ -475,7 +478,6 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
 
       if (initialData.golfData) {
         setManualGolfData({ ...initialData.golfData });
-        setShowManualShotData(true);
       }
 
       if (initialData.recordType === 'SCORE') {
@@ -2381,6 +2383,22 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
                     >
                       {t('new_lesson_screen_capture')}
                     </button>
+                    {recordType !== 'SCORE' && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          stopMediaStream();
+                          setInputMethod('shotdata');
+                        }}
+                        className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all ${
+                          inputMethod === 'shotdata'
+                            ? 'bg-emerald-500/20 text-emerald-200 shadow-md'
+                            : 'text-ink-muted hover:text-ink-high'
+                        }`}
+                      >
+                        샷 데이터
+                      </button>
+                    )}
                   </div>
 
                   {inputMethod === 'upload' && (
@@ -2576,6 +2594,168 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
                       </div>
                     </div>
                   )}
+
+                  {isShotDataTab && (
+                    <div className="space-y-4 text-left">
+                      <div className="flex items-center gap-3">
+                        <div
+                          className={`p-2 rounded-full ${
+                            hasManualGolfData
+                              ? 'bg-emerald-500 text-white'
+                              : 'bg-white/[0.06] text-ink-medium'
+                          }`}
+                        >
+                          <BarChart3 className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-ink-high text-sm">
+                            샷 데이터
+                            {hasManualGolfData && (
+                              <span className="ml-2 text-emerald-300 text-xs">
+                                · 입력됨
+                              </span>
+                            )}
+                          </h4>
+                          <p className="text-xs text-ink-muted">
+                            런치모니터 수치를 직접 기록으로 남깁니다.
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Shot data photo upload (launch-monitor screenshot) */}
+                      <div className="rounded-lg border border-line-subtle bg-white/[0.03] p-3 space-y-2">
+                        <div className="flex items-center justify-between gap-2">
+                          <label className="text-xs font-bold text-ink-medium flex items-center gap-1.5">
+                            <Camera className="w-3.5 h-3.5" /> 샷 데이터 사진 (선택)
+                          </label>
+                          {shotDataPhoto ? (
+                            <button
+                              type="button"
+                              onClick={removeShotDataPhoto}
+                              className="text-[11px] text-ink-muted hover:text-red-400 flex items-center gap-1"
+                            >
+                              <X className="w-3 h-3" /> 사진 제거
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                shotDataPhotoInputRef.current?.click()
+                              }
+                              className="text-[11px] text-emerald-300 hover:text-emerald-200 flex items-center gap-1 font-bold"
+                            >
+                              <Upload className="w-3 h-3" /> 사진 업로드
+                            </button>
+                          )}
+                          <input
+                            ref={shotDataPhotoInputRef}
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={handleShotDataPhotoSelect}
+                            data-testid="shot-data-photo-input"
+                          />
+                        </div>
+
+                        {shotDataPhoto ? (
+                          <div className="flex items-start gap-3">
+                            <img
+                              src={shotDataPhoto.previewUrl}
+                              alt="샷 데이터 사진"
+                              className="w-24 h-24 object-cover rounded-lg border border-line-subtle flex-shrink-0"
+                            />
+                            <div className="flex-1 space-y-2">
+                              <p className="text-[11px] text-ink-muted leading-relaxed">
+                                런치모니터 화면 사진을 첨부했습니다. AI로 수치를
+                                자동 채울 수 있습니다.
+                              </p>
+                              <button
+                                type="button"
+                                onClick={handleAutoFillFromPhoto}
+                                disabled={isAutoFilling}
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-blue-600 hover:bg-blue-500 disabled:opacity-60 disabled:cursor-not-allowed text-white text-xs font-bold"
+                              >
+                                <Sparkles className="w-3 h-3" />
+                                {isAutoFilling ? '분석 중...' : 'AI로 자동 채우기'}
+                              </button>
+                              {autoFillError && (
+                                <p className="text-[11px] text-red-400">
+                                  {autoFillError}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        ) : (
+                          <p className="text-[11px] text-ink-muted leading-relaxed">
+                            GDR/트랙맨 등의 화면 사진을 첨부하면 기록에 함께
+                            저장되고 AI로 수치를 자동 채울 수 있습니다.
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                        {[
+                          { key: 'carryDistance', label: '캐리 (m)', placeholder: '예: 180' },
+                          { key: 'totalDistance', label: '총 거리 (m)', placeholder: '예: 195' },
+                          { key: 'ballSpeed', label: '볼 스피드 (m/s)', placeholder: '예: 62' },
+                          { key: 'clubHeadSpeed', label: '헤드 스피드 (m/s)', placeholder: '예: 43' },
+                          { key: 'launchAngle', label: '발사각 (°)', placeholder: '예: 15' },
+                          { key: 'smashFactor', label: '정타율', placeholder: '예: 1.44' },
+                          { key: 'backSpin', label: '백스핀 (rpm)', placeholder: '예: 2500' },
+                          { key: 'sideSpin', label: '사이드스핀 (rpm)', placeholder: '예: 200' },
+                          { key: 'clubPath', label: '클럽 패스 (°)', placeholder: '예: -1.5' },
+                          { key: 'faceAngle', label: '페이스 앵글 (°)', placeholder: '예: 0.5' },
+                          { key: 'attackAngle', label: '어택 앵글 (°)', placeholder: '예: -2' },
+                          { key: 'sideTotal', label: '사이드 토탈 (m)', placeholder: '예: -3' },
+                        ].map((field) => {
+                          const value = manualGolfData[field.key as keyof GolfData];
+                          return (
+                            <div key={field.key}>
+                              <label className="block text-[11px] font-bold text-ink-muted mb-1">
+                                {field.label}
+                              </label>
+                              <input
+                                type="number"
+                                inputMode="decimal"
+                                step="any"
+                                value={value === undefined ? '' : value}
+                                onChange={(e) =>
+                                  updateManualGolfField(
+                                    field.key as keyof GolfData,
+                                    e.target.value
+                                  )
+                                }
+                                placeholder={field.placeholder}
+                                className="w-full px-3 py-2 border border-line-subtle rounded-lg bg-white/[0.04]/[0.04] text-ink-high placeholder:text-ink-muted focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none text-sm"
+                              />
+                            </div>
+                          );
+                        })}
+                      </div>
+                      <div className="flex items-center justify-between gap-3">
+                        {hasManualGolfData ? (
+                          <button
+                            type="button"
+                            onClick={() => setManualGolfData({})}
+                            className="text-xs text-ink-muted hover:text-ink-high flex items-center gap-1"
+                          >
+                            <Trash2 className="w-3 h-3" /> 입력값 지우기
+                          </button>
+                        ) : (
+                          <span />
+                        )}
+                        {mediaItems.length > 0 && !isAddingMore && (
+                          <button
+                            type="button"
+                            onClick={() => setInputMethod('upload')}
+                            className="text-xs font-bold text-emerald-300 hover:text-emerald-200"
+                          >
+                            미디어 목록으로
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="space-y-4">
@@ -2660,6 +2840,25 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
                       <Plus className="w-6 h-6" />
                       <span className="text-xs font-bold">추가</span>
                     </button>
+
+                    {/* Shot Data Entry Button (Non-Score Record) */}
+                    {recordType !== 'SCORE' && (
+                      <button
+                        type="button"
+                        onClick={() => setInputMethod('shotdata')}
+                        className={`aspect-square rounded-xl border-2 border-dashed flex flex-col items-center justify-center transition-all gap-1 ${
+                          hasManualGolfData
+                            ? 'border-emerald-500 text-emerald-200 bg-emerald-500/[0.08]'
+                            : 'border-line-subtle text-ink-muted hover:text-emerald-200 hover:border-emerald-300 hover:bg-emerald-500/[0.08]'
+                        }`}
+                      >
+                        <BarChart3 className="w-6 h-6" />
+                        <span className="text-xs font-bold">샷 데이터</span>
+                        {hasManualGolfData && (
+                          <span className="text-[10px]">입력됨</span>
+                        )}
+                      </button>
+                    )}
                   </div>
 
                   {/* Active Item Preview (Larger) */}
@@ -2854,174 +3053,6 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
               )}
             </div>
           )}
-
-        {/* Manual Shot Data Entry (Non-Score Record) */}
-        {recordType !== 'SCORE' && (
-          <div
-            className={`rounded-xl border-2 transition-all ${
-              showManualShotData || hasManualGolfData
-                ? 'border-emerald-500 bg-emerald-900/20'
-                : 'border-line-subtle bg-white/[0.05]/40'
-            }`}
-          >
-            <button
-              type="button"
-              onClick={() => setShowManualShotData((v) => !v)}
-              className="w-full p-4 flex items-center gap-4 text-left"
-              aria-expanded={showManualShotData}
-            >
-              <div
-                className={`p-2 rounded-full ${
-                  showManualShotData || hasManualGolfData
-                    ? 'bg-emerald-500 text-white'
-                    : 'bg-white/[0.06] text-ink-medium'
-                }`}
-              >
-                <BarChart3 className="w-5 h-5" />
-              </div>
-              <div className="flex-1">
-                <h4 className="font-bold text-ink-high text-sm">
-                  샷 데이터 직접 입력
-                </h4>
-                <p className="text-xs text-ink-muted">
-                  런치모니터 수치를 직접 기록으로 남깁니다.
-                  {hasManualGolfData && (
-                    <span className="ml-2 text-emerald-300 font-bold">
-                      · 입력됨
-                    </span>
-                  )}
-                </p>
-              </div>
-              {showManualShotData ? (
-                <ChevronUp className="w-4 h-4 text-ink-muted" />
-              ) : (
-                <ChevronDown className="w-4 h-4 text-ink-muted" />
-              )}
-            </button>
-
-            {showManualShotData && (
-              <div className="px-4 pb-4 space-y-4 animate-fade-in">
-                {/* Shot data photo upload (launch-monitor screenshot) */}
-                <div className="rounded-lg border border-line-subtle bg-white/[0.03] p-3 space-y-2">
-                  <div className="flex items-center justify-between gap-2">
-                    <label className="text-xs font-bold text-ink-medium flex items-center gap-1.5">
-                      <Camera className="w-3.5 h-3.5" /> 샷 데이터 사진 (선택)
-                    </label>
-                    {shotDataPhoto ? (
-                      <button
-                        type="button"
-                        onClick={removeShotDataPhoto}
-                        className="text-[11px] text-ink-muted hover:text-red-400 flex items-center gap-1"
-                      >
-                        <X className="w-3 h-3" /> 사진 제거
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => shotDataPhotoInputRef.current?.click()}
-                        className="text-[11px] text-emerald-300 hover:text-emerald-200 flex items-center gap-1 font-bold"
-                      >
-                        <Upload className="w-3 h-3" /> 사진 업로드
-                      </button>
-                    )}
-                    <input
-                      ref={shotDataPhotoInputRef}
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={handleShotDataPhotoSelect}
-                      data-testid="shot-data-photo-input"
-                    />
-                  </div>
-
-                  {shotDataPhoto ? (
-                    <div className="flex items-start gap-3">
-                      <img
-                        src={shotDataPhoto.previewUrl}
-                        alt="샷 데이터 사진"
-                        className="w-24 h-24 object-cover rounded-lg border border-line-subtle flex-shrink-0"
-                      />
-                      <div className="flex-1 space-y-2">
-                        <p className="text-[11px] text-ink-muted leading-relaxed">
-                          런치모니터 화면 사진을 첨부했습니다. AI로 수치를
-                          자동 채울 수 있습니다.
-                        </p>
-                        <button
-                          type="button"
-                          onClick={handleAutoFillFromPhoto}
-                          disabled={isAutoFilling}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-blue-600 hover:bg-blue-500 disabled:opacity-60 disabled:cursor-not-allowed text-white text-xs font-bold"
-                        >
-                          <Sparkles className="w-3 h-3" />
-                          {isAutoFilling ? '분석 중...' : 'AI로 자동 채우기'}
-                        </button>
-                        {autoFillError && (
-                          <p className="text-[11px] text-red-400">
-                            {autoFillError}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  ) : (
-                    <p className="text-[11px] text-ink-muted leading-relaxed">
-                      GDR/트랙맨 등의 화면 사진을 첨부하면 기록에 함께 저장되고
-                      AI로 수치를 자동 채울 수 있습니다.
-                    </p>
-                  )}
-                </div>
-
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                  {[
-                    { key: 'carryDistance', label: '캐리 (m)', placeholder: '예: 180' },
-                    { key: 'totalDistance', label: '총 거리 (m)', placeholder: '예: 195' },
-                    { key: 'ballSpeed', label: '볼 스피드 (m/s)', placeholder: '예: 62' },
-                    { key: 'clubHeadSpeed', label: '헤드 스피드 (m/s)', placeholder: '예: 43' },
-                    { key: 'launchAngle', label: '발사각 (°)', placeholder: '예: 15' },
-                    { key: 'smashFactor', label: '정타율', placeholder: '예: 1.44' },
-                    { key: 'backSpin', label: '백스핀 (rpm)', placeholder: '예: 2500' },
-                    { key: 'sideSpin', label: '사이드스핀 (rpm)', placeholder: '예: 200' },
-                    { key: 'clubPath', label: '클럽 패스 (°)', placeholder: '예: -1.5' },
-                    { key: 'faceAngle', label: '페이스 앵글 (°)', placeholder: '예: 0.5' },
-                    { key: 'attackAngle', label: '어택 앵글 (°)', placeholder: '예: -2' },
-                    { key: 'sideTotal', label: '사이드 토탈 (m)', placeholder: '예: -3' },
-                  ].map((field) => {
-                    const value = manualGolfData[field.key as keyof GolfData];
-                    return (
-                      <div key={field.key}>
-                        <label className="block text-[11px] font-bold text-ink-muted mb-1">
-                          {field.label}
-                        </label>
-                        <input
-                          type="number"
-                          inputMode="decimal"
-                          step="any"
-                          value={value === undefined ? '' : value}
-                          onChange={(e) =>
-                            updateManualGolfField(
-                              field.key as keyof GolfData,
-                              e.target.value
-                            )
-                          }
-                          placeholder={field.placeholder}
-                          className="w-full px-3 py-2 border border-line-subtle rounded-lg bg-white/[0.04]/[0.04] text-ink-high placeholder:text-ink-muted focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none text-sm"
-                        />
-                      </div>
-                    );
-                  })}
-                </div>
-                {hasManualGolfData && (
-                  <button
-                    type="button"
-                    onClick={() => setManualGolfData({})}
-                    className="text-xs text-ink-muted hover:text-ink-high flex items-center gap-1"
-                  >
-                    <Trash2 className="w-3 h-3" /> 입력값 지우기
-                  </button>
-                )}
-              </div>
-            )}
-          </div>
-        )}
 
         {/* Coach Notes */}
         <div>
