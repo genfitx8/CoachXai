@@ -1,6 +1,7 @@
 import React from 'react';
-import { MessageSquare, Users, Calendar, PenSquare, Mic } from 'lucide-react';
+import { Users, Calendar, PenSquare, Mic } from 'lucide-react';
 import { useLanguage } from './LanguageContext';
+import { CoachXMark } from './ui/CoachXLogo';
 
 export type CoachTab = 'LESSON' | 'CLIENTS' | 'RECORD' | 'LIVE' | 'RESERVATIONS';
 
@@ -30,10 +31,26 @@ const labelFor = (tab: CoachTab, lang: 'ko' | 'en' | 'ja'): string => {
   return table[tab][lang];
 };
 
-const iconFor = (tab: CoachTab) => {
+// 대화 탭은 범용 말풍선이 아니라 코치의 AI 에이전트로 들어가는 입구라서
+// 브랜드 교차 마크를 씁니다. ink 획은 currentColor 를 따라 다른 탭과 똑같이
+// 활성/비활성 상태를 반영하고, 에메랄드 획은 항상 살아 있어 "여기가 AI" 라는
+// 신호를 줍니다. 20px 은 마크 단독 최소 크기(24px) 아래라 stroke 가 자동으로
+// 굵어지는 구간 — CoachXMark 가 알아서 보정합니다.
+const CoachXTabIcon: React.FC<{ className?: string }> = ({ className }) => (
+  <CoachXMark
+    size={20}
+    tone="mono"
+    className={className}
+    role={undefined}
+    aria-label={undefined}
+    aria-hidden
+  />
+);
+
+const iconFor = (tab: CoachTab): React.FC<{ className?: string }> => {
   switch (tab) {
     case 'LESSON':
-      return MessageSquare;
+      return CoachXTabIcon;
     case 'CLIENTS':
       return Users;
     case 'RECORD':
