@@ -89,6 +89,142 @@ export function findUpcomingLesson(
   return null;
 }
 
+// ─── Nearby lessons (레슨 중 동반 학생 추천) ───────────────────────────────────
+
+/** How far ahead the companion picker looks for the next lesson (ms). */
+export const NEARBY_LOOKAHEAD_MS = 3 * 60 * 60 * 1000; // 3 hours
+
+/** How long after a lesson ends it stays suggestable (ms). */
+export const NEARBY_LOOKBACK_MS = 30 * 60 * 1000; // 30 minutes
+
+/** Fallback lesson length when a reservation has no usable `endTime`. */
+const DEFAULT_LESSON_MS = 60 * 60 * 1000; // 1 hour
+
+/**
+ * Statuses that mean "this lesson is really on the books". REQUESTED and
+ * CANCEL_REQUESTED are deliberately excluded — the coach hasn't committed
+ * to the first, and the student is trying to back out of the second.
+ */
+const BOOKED_STATUSES = new Set(['CONFIRMED', 'COACH_APPROVED']);
+
+/** Where a reservation sits relative to now. */
+export type NearbyLessonPhase = 'IN_PROGRESS' | 'UPCOMING' | 'JUST_ENDED';
+
+export interface NearbyLesson {
+  reservation: LessonReservation;
+  phase: NearbyLessonPhase;
+  /** Positive = hasn't started yet; negative = already started. */
+  minutesUntilStart: number;
+  /** Korean status line, e.g. "진행 중", "15분 후 시작", "10분 전 종료". */
+  label: string;
+  /** Reservation time range, e.g. "14:00 – 15:00". */
+  timeRangeLabel: string;
+}
+
+/** Local HH:MM for an ISO timestamp; empty string when unparseable. */
+function timeLabel(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
+
+/** "3시간 20분 후 시작" / "15분 후 시작" / "곧 시작". */
+function upcomingLabel(minutes: number): string {
+  if (minutes < 1) return '곧 시작';
+  if (minutes < 60) return `${minutes}분 후 시작`;
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  return m === 0 ? `${h}시간 후 시작` : `${h}시간 ${m}분 후 시작`;
+}
+
+/**
+ * Ranks a coach's reservations by how close they are to `nowMs`, for the
+ * 레슨 중 동반 student picker: lessons happening right now come first, then
+ * the ones about to start, then the ones that just wrapped up (the coach
+ * often opens the companion a beat late).
+ *
+ * Only one entry per student survives — their closest reservation — so a
+ * student booked twice in the window doesn't crowd out everyone else.
+ *
+ * Unlike `findUpcomingLesson`, this ignores the localStorage dismissal
+ * records: dismissing the "레슨을 시작하시겠습니까?" prompt says nothing about
+ * whether the coach wants that student in the picker.
+ *
+ * @param reservations   Coach's reservations (any status mix is fine).
+ * @param nowMs          Current epoch ms (defaults to `Date.now()`).
+ * @param lookaheadMs    How far ahead to look for upcoming lessons.
+ * @param lookbackMs     How long a finished lesson stays suggestable.
+ */
+export function findNearbyLessons(
+  reservations: LessonReservation[],
+  nowMs: number = Date.now(),
+  lookaheadMs: number = NEARBY_LOOKAHEAD_MS,
+  lookbackMs: number = NEARBY_LOOKBACK_MS,
+): NearbyLesson[] {
+  const candidates: NearbyLesson[] = [];
+
+  for (const res of reservations) {
+    if (!BOOKED_STATUSES.has(res.status)) continue;
+    if (!res.clientName) continue;
+
+    const startMs = new Date(res.startTime).getTime();
+    if (Number.isNaN(startMs)) continue;
+
+    const parsedEnd = res.endTime ? new Date(res.endTime).getTime() : NaN;
+    const endMs =
+      Number.isNaN(parsedEnd) || parsedEnd <= startMs
+        ? startMs + DEFAULT_LESSON_MS
+        : parsedEnd;
+
+    const minutesUntilStart = Math.round((startMs - nowMs) / 60_000);
+    const timeRangeLabel = `${timeLabel(res.startTime)} – ${timeLabel(
+      new Date(endMs).toISOString(),
+    )}`;
+
+    let phase: NearbyLessonPhase;
+    let label: string;
+    if (nowMs >= startMs && nowMs <= endMs) {
+      phase = 'IN_PROGRESS';
+      label = '진행 중';
+    } else if (startMs > nowMs) {
+      if (startMs - nowMs > lookaheadMs) continue;
+      phase = 'UPCOMING';
+      label = upcomingLabel(minutesUntilStart);
+    } else {
+      if (nowMs - endMs > lookbackMs) continue;
+      phase = 'JUST_ENDED';
+      const minutesSinceEnd = Math.round((nowMs - endMs) / 60_000);
+      label = minutesSinceEnd < 1 ? '방금 종료' : `${minutesSinceEnd}분 전 종료`;
+    }
+
+    candidates.push({ reservation: res, phase, minutesUntilStart, label, timeRangeLabel });
+  }
+
+  const phaseRank: Record<NearbyLessonPhase, number> = {
+    IN_PROGRESS: 0,
+    UPCOMING: 1,
+    JUST_ENDED: 2,
+  };
+  candidates.sort((a, b) => {
+    const byPhase = phaseRank[a.phase] - phaseRank[b.phase];
+    if (byPhase !== 0) return byPhase;
+    // Within a phase, closest to now wins.
+    return (
+      Math.abs(new Date(a.reservation.startTime).getTime() - nowMs) -
+      Math.abs(new Date(b.reservation.startTime).getTime() - nowMs)
+    );
+  });
+
+  // Keep each student's best-ranked entry only.
+  const seen = new Set<string>();
+  return candidates.filter((c) => {
+    const key = `${c.reservation.clientName}_${c.reservation.clientPhone ?? ''}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 /**
  * Returns `true` if the reservation has been dismissed today (either via
  * "나중에" - re-check after interval - or "오늘 제외" - full day skip).
