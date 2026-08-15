@@ -1556,25 +1556,23 @@ const AppContent: React.FC = () => {
    * so the nav renders as an overlay backdrop without highlighting anything.
    */
   const activeCoachTab: CoachTab | null =
-    coachView === 'COACHX' ? 'LESSON'
+    coachView === 'COACHX' || coachView === 'LESSON_LIST' ? 'LESSON'
     : coachView === 'CLIENTS' ? 'CLIENTS'
     : coachView === 'NEW' ? 'RECORD'
-    : coachView === 'LESSON_LIST' ? 'LESSON_LIST'
     : coachView === 'RESERVATIONS' ? 'RESERVATIONS'
     : null;
 
   const handleCoachTabChange = (next: CoachTab) => {
     setSelectedLesson(null);
-    // Primary "대화" tab lands on the conversational home. RECORD drops the
-    // coach into the new-lesson flow; LESSON_LIST opens the historical
-    // lesson list ("레슨 기록"); the other two go to their same-named views.
+    // Primary "대화" tab lands on the conversational home; the historical
+    // lesson list ("레슨 기록") no longer has its own tab and is reached from
+    // the hamburger menu. RECORD drops the coach into the new-lesson flow.
     if (next === 'LESSON') setCoachView('COACHX');
     else if (next === 'CLIENTS') setCoachView('CLIENTS');
     else if (next === 'RECORD') {
       setIsEditingLesson(false);
       setCoachView('NEW');
     }
-    else if (next === 'LESSON_LIST') setCoachView('LESSON_LIST');
     else setCoachView('RESERVATIONS');
   };
 
@@ -2017,7 +2015,8 @@ const AppContent: React.FC = () => {
       <main className="flex-1 max-w-7xl mx-auto w-full px-4 py-6 md:py-8 pb-24">
         {coachView === 'LESSON_LIST' && (
           <div className="space-y-6 animate-fade-in">
-            {/* Title — bottom tab already indicates which section we're in */}
+            {/* Title — the list is opened from the hamburger menu, so the
+                heading is what identifies the section. */}
             <div className="flex items-center gap-2 min-w-0">
               <h2 className="text-lg sm:text-xl font-bold text-ink-high flex items-center gap-2 tracking-tight min-w-0">
                 <BookOpen className="w-5 h-5 text-emerald-300 flex-shrink-0" />
