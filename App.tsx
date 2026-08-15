@@ -12,11 +12,13 @@ import {
   LessonUpload,
   ImpactSelection,
   Student,
+  LessonReservation,
 } from './types';
 import { LessonCard } from './components/LessonCard';
 import { LessonDetail } from './components/LessonDetail';
 import { NewLessonForm } from './components/NewLessonForm';
 import { LiveLessonCompanion } from './components/LiveLessonCompanion';
+import { LiveLessonStudentPicker } from './components/LiveLessonStudentPicker';
 import { ClientApp } from './components/ClientApp';
 import { LessonUploadPage } from './components/LessonUploadPage';
 import { ImpactSelectionPage } from './components/ImpactSelectionPage';
@@ -97,7 +99,6 @@ import {
   Dumbbell,
   Home,
   Menu,
-  Mic,
 } from 'lucide-react';
 import { CoachBottomNav, CoachTab } from './components/CoachBottomNav';
 import { CoachHamburgerMenu, CoachHamburgerAction } from './components/CoachHamburgerMenu';
@@ -195,6 +196,13 @@ const AppContent: React.FC = () => {
    * string means "no student picked yet" → the tab shows its picker.
    */
   const [liveLessonStudent, setLiveLessonStudent] = useState<string>('');
+  /**
+   * Coach's reservations, loaded on demand so the 동반 학생 선택 화면 can
+   * surface whoever is on the mat right now. Refetched every time the picker
+   * opens — "가까운 시간" is only useful if the calendar is current.
+   */
+  const [liveLessonReservations, setLiveLessonReservations] = useState<LessonReservation[]>([]);
+  const [liveLessonReservationsLoading, setLiveLessonReservationsLoading] = useState(false);
   const [isEditingLesson, setIsEditingLesson] = useState(false); // Track editing mode
   const [calendarSelectedDate, setCalendarSelectedDate] = useState<string | undefined>(undefined); // Pre-fill date from calendar click
   const [coachLessonModalDate, setCoachLessonModalDate] = useState<string | undefined>(undefined);
@@ -232,6 +240,37 @@ const AppContent: React.FC = () => {
       .filter((client) => client.coachId === coachId)
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [clients, currentUser]);
+
+  /**
+   * Pull the coach's reservations whenever the 동반 학생 선택 화면 opens, so
+   * the picker can rank students by whose lesson is closest to now. Skipped
+   * once a student is chosen — the companion itself doesn't need them.
+   */
+  useEffect(() => {
+    if (coachView !== 'LIVE_LESSON' || liveLessonStudent) return;
+    const coachId = currentUser && 'id' in currentUser ? currentUser.id : undefined;
+    if (!coachId) return;
+
+    let cancelled = false;
+    setLiveLessonReservationsLoading(true);
+    reservationService
+      .getCoachReservations(coachId)
+      .then((res) => {
+        if (!cancelled) setLiveLessonReservations(res);
+      })
+      .catch((e) => {
+        // Non-fatal: the picker still lists the full roster below.
+        console.error('[App] Failed to load reservations for the live lesson picker:', e);
+        if (!cancelled) setLiveLessonReservations([]);
+      })
+      .finally(() => {
+        if (!cancelled) setLiveLessonReservationsLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [coachView, liveLessonStudent, currentUser]);
   const initialDiagnosisGolferProfile = useMemo<Partial<GolferProfile> | undefined>(() => {
     if (!selectedDiagnosisClient) return undefined;
     return {
@@ -2222,46 +2261,12 @@ const AppContent: React.FC = () => {
         {/* 레슨 중 동반 — 하단탭 진입점. 학생을 고르기 전에는 선택 화면을
             보여주고, 고른 뒤에 동반 화면을 띄운다. */}
         {coachView === 'LIVE_LESSON' && !liveLessonStudent && (
-          <div className="space-y-6 animate-fade-in" data-testid="live-lesson-picker">
-            <div className="flex items-center gap-2 min-w-0">
-              <h2 className="text-lg sm:text-xl font-bold text-ink-high flex items-center gap-2 tracking-tight min-w-0">
-                <Mic className="w-5 h-5 text-emerald-300 flex-shrink-0" />
-                <span className="truncate">레슨 중 동반</span>
-              </h2>
-            </div>
-            <p className="text-sm text-ink-medium">
-              동반을 시작할 학생을 선택하세요. 레슨 중 음성 메모와 스윙 사진·영상을
-              모아 두었다가, 종료하면 레슨 기록 작성으로 이어집니다.
-            </p>
-
-            {coachOwnClients.length === 0 ? (
-              <div className="text-center py-16 bg-white/[0.03] rounded-2xl border border-dashed border-line-subtle">
-                <div className="w-16 h-16 bg-white/[0.05] rounded-full flex items-center justify-center mx-auto mb-4">
-                  <User className="w-8 h-8 text-ink-muted" />
-                </div>
-                <h3 className="text-lg font-bold text-ink-high">등록된 학생이 없습니다</h3>
-                <p className="text-sm text-ink-medium mt-1">
-                  학생 탭에서 회원을 먼저 등록해 주세요.
-                </p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {coachOwnClients.map((client) => (
-                  <button
-                    key={`${client.name}_${client.phone}`}
-                    type="button"
-                    onClick={() => setLiveLessonStudent(client.name)}
-                    className="flex items-center gap-3 p-4 bg-white/[0.03] border border-line-subtle rounded-2xl hover:bg-emerald-500/10 hover:border-emerald-400/40 transition-colors text-left"
-                  >
-                    <div className="bg-emerald-500/20 p-2 rounded-full text-emerald-300 flex-shrink-0">
-                      <User className="w-4 h-4" />
-                    </div>
-                    <span className="font-bold text-ink-high truncate">{client.name}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+          <LiveLessonStudentPicker
+            clients={coachOwnClients}
+            reservations={liveLessonReservations}
+            reservationsLoading={liveLessonReservationsLoading}
+            onSelect={setLiveLessonStudent}
+          />
         )}
 
         {coachView === 'LIVE_LESSON' && liveLessonStudent && (
