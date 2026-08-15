@@ -41,6 +41,7 @@ import {
   ArrowLeft,
   CheckCircle,
   Circle,
+  Scissors,
 } from 'lucide-react';
 import {
   analyzeSwingVideo,
@@ -895,11 +896,9 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
       setTitle(`${dateStr} ${typeStr}`);
     }
 
-    // Swing video uploads open the built-in editor so the user can trim,
-    // add commentary, draw, or slow down the swing before it is saved.
-    if (type === 'video') {
-      setEditorTargetId(newItem.id);
-    }
+    // Editing is opt-in: the uploaded clip is kept as-is and the coach opens
+    // the editor from the preview only when they actually want to trim,
+    // add commentary, draw, or slow down the swing.
   };
 
   const handleEditorSave = (
@@ -2816,6 +2815,11 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
                               : '구분'}
                           </button>
                         )}
+                        {item.editMetadata && (
+                          <div className="absolute top-8 left-1 px-1.5 py-0.5 rounded bg-emerald-600 text-white text-[9px] font-bold leading-tight shadow">
+                            편집됨
+                          </div>
+                        )}
                         {index === 0 && !item.role && (
                           <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-[10px] text-center py-0.5">
                             메인 미디어
@@ -2889,14 +2893,29 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
                           </div>
                         )}
                       </div>
-                      <div className="bg-base px-4 py-2 flex justify-between items-center border-t border-line-subtle">
-                        <span className="text-xs text-ink-muted font-mono truncate max-w-[200px]">
+                      <div className="bg-base px-4 py-2 flex justify-between items-center gap-2 border-t border-line-subtle">
+                        <span className="text-xs text-ink-muted font-mono truncate flex-1 min-w-0">
                           {activeMediaItem.file?.name || 'Existing File'}
                         </span>
-                        <span className="text-xs text-ink-muted uppercase">
+                        {activeMediaItem.type === 'video' && !activeMediaItem.isRemote && (
+                          <button
+                            type="button"
+                            onClick={() => setEditorTargetId(activeMediaItem.id)}
+                            className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-500/[0.12] text-emerald-200 border border-emerald-500/40 hover:bg-emerald-500/20 transition-colors flex-shrink-0"
+                          >
+                            <Scissors className="w-3.5 h-3.5" />
+                            {activeMediaItem.editMetadata ? '다시 편집' : '영상 편집'}
+                          </button>
+                        )}
+                        <span className="text-xs text-ink-muted uppercase flex-shrink-0">
                           {activeMediaItem.type}
                         </span>
                       </div>
+                      {activeMediaItem.type === 'video' && !activeMediaItem.isRemote && (
+                        <p className="bg-base px-4 pb-2 text-[11px] text-ink-muted">
+                          편집은 선택 사항입니다. 자르기·슬로모션·음성·선 긋기가 필요할 때만 눌러주세요.
+                        </p>
+                      )}
                     </div>
                   )}
                 </div>
