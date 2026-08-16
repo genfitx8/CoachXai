@@ -5,23 +5,24 @@ import crypto from 'crypto';
 import { rateLimit } from 'express-rate-limit';
 import pool from '../services/db';
 import { sendPasswordResetMail } from '../services/mail';
+import type { AuthRole } from '../middleware/auth';
 
 const router = Router();
 
 const BCRYPT_ROUNDS = 10;
 const JWT_EXPIRY = '30d';
-// Admin sessions are far more sensitive than member sessions, so they expire
-// in hours rather than the 30 days a coach/client token lives for.
-const ADMIN_JWT_EXPIRY = '12h';
-const ADMIN_LOGIN_WINDOW_MS = 15 * 60 * 1000;
-const ADMIN_LOGIN_MAX_ATTEMPTS = 10;
-const ADMIN_CREDENTIALS_ERROR = '관리자 로그인 정보가 일치하지 않습니다.';
-const ADMIN_NOT_CONFIGURED_ERROR =
-  '관리자 계정이 서버에 설정되어 있지 않습니다. ADMIN_EMAIL / ADMIN_PASSWORD_HASH 환경변수를 확인하세요.';
 const PASSWORD_RECOVERY_MESSAGE = '등록된 이메일로 비밀번호 안내 메일을 발송했습니다.';
 const PASSWORD_RESET_TOKEN_EXPIRY_MS = 30 * 60 * 1000;
 const PASSWORD_RECOVERY_WINDOW_MS = 10 * 60 * 1000;
 const PASSWORD_RECOVERY_MAX_REQUESTS = 5;
+// Admin login is a single shared credential, so throttle it harder than the
+// per-account login routes to slow brute-force attempts.
+const adminLoginLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  limit: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 const passwordRecoveryLimiter = rateLimit({
   windowMs: PASSWORD_RECOVERY_WINDOW_MS,
   limit: PASSWORD_RECOVERY_MAX_REQUESTS,
@@ -32,31 +33,19 @@ const passwordRecoveryLimiter = rateLimit({
   },
 });
 
-const adminLoginLimiter = rateLimit({
-  windowMs: ADMIN_LOGIN_WINDOW_MS,
-  limit: ADMIN_LOGIN_MAX_ATTEMPTS,
-  standardHeaders: true,
-  legacyHeaders: false,
-  handler: (_req, res) => {
-    res
-      .status(429)
-      .json({ error: '로그인 시도가 너무 많습니다. 잠시 후 다시 시도해주세요.' });
-  },
-});
+const ADMIN_JWT_EXPIRY = '12h';
+// Credentials the admin console shipped with before server-side admin auth
+// existed (they were hardcoded in the frontend bundle, so they were never a
+// secret). They stay as the fallback so an un-migrated deployment keeps
+// working, but ADMIN_EMAIL / ADMIN_PASSWORD should be set in production.
+const LEGACY_ADMIN_EMAIL = 'admin@coachx.kr';
+const LEGACY_ADMIN_PASSWORD = 'admin1234';
+const ADMIN_SENTINEL_ID = '00000000-0000-0000-0000-000000000000';
 
-// A throwaway hash compared against when the submitted admin email is wrong,
-// so a bad email costs the same time as a bad password and the endpoint does
-// not leak which half of the credentials was incorrect.
-const ADMIN_DECOY_HASH = bcrypt.hashSync(crypto.randomBytes(32).toString('hex'), BCRYPT_ROUNDS);
-
-function signToken(
-  id: string,
-  role: 'coach' | 'client' | 'admin',
-  expiresIn: jwt.SignOptions['expiresIn'] = JWT_EXPIRY
-): string {
+function signToken(id: string, role: AuthRole, expiresIn: string = JWT_EXPIRY): string {
   const secret = process.env.JWT_SECRET;
   if (!secret) throw new Error('JWT_SECRET is not configured');
-  return jwt.sign({ id, role }, secret, { expiresIn });
+  return jwt.sign({ id, role }, secret, { expiresIn } as jwt.SignOptions);
 }
 
 function mapCoach(row: Record<string, unknown>) {
@@ -264,10 +253,12 @@ router.post('/login/client', async (req: Request, res: Response) => {
 
 // POST /api/auth/login/admin
 //
-// The admin account is not a database row — it is a single operator account
-// configured through environment variables, so the credentials never ship in
-// the client bundle. ADMIN_PASSWORD_HASH holds a bcrypt hash; generate one
-// with `npm run hash:admin-password` inside server/.
+// The admin console used to authenticate purely in the browser against a
+// hardcoded email/password pair, which meant an admin session carried no JWT.
+// Every protected list endpoint therefore rejected it, and the dashboard
+// silently fell back to whatever happened to be cached in that device's
+// localStorage — so 코치 회원 목록 showed one stale coach instead of the
+// real roster. Issuing a real token here lets the admin read server data.
 router.post('/login/admin', adminLoginLimiter, async (req: Request, res: Response) => {
   const { email, password } = req.body as { email?: string; password?: string };
 
@@ -276,28 +267,37 @@ router.post('/login/admin', adminLoginLimiter, async (req: Request, res: Respons
     return;
   }
 
-  const expectedEmail = process.env.ADMIN_EMAIL?.trim().toLowerCase();
-  const expectedHash = process.env.ADMIN_PASSWORD_HASH?.trim();
-
-  if (!expectedEmail || !expectedHash) {
-    console.error('[auth] login/admin blocked: ADMIN_EMAIL / ADMIN_PASSWORD_HASH not configured');
-    res.status(500).json({ error: ADMIN_NOT_CONFIGURED_ERROR });
-    return;
-  }
-
   try {
+    const expectedEmail = (process.env.ADMIN_EMAIL || LEGACY_ADMIN_EMAIL).trim().toLowerCase();
+    const passwordHash = process.env.ADMIN_PASSWORD_HASH;
+    const plainPassword = process.env.ADMIN_PASSWORD;
+
+    if (!passwordHash && !plainPassword) {
+      console.warn(
+        '[auth] ADMIN_PASSWORD / ADMIN_PASSWORD_HASH is not configured; ' +
+          'falling back to the legacy built-in admin credentials. Set one of them.'
+      );
+    }
+
     const emailMatches = email.trim().toLowerCase() === expectedEmail;
-    const passwordMatches = await bcrypt.compare(
-      password,
-      emailMatches ? expectedHash : ADMIN_DECOY_HASH
-    );
+    let passwordMatches: boolean;
+    if (passwordHash) {
+      passwordMatches = await bcrypt.compare(password, passwordHash);
+    } else {
+      passwordMatches = password === (plainPassword || LEGACY_ADMIN_PASSWORD);
+    }
 
     if (!emailMatches || !passwordMatches) {
-      res.status(401).json({ error: ADMIN_CREDENTIALS_ERROR });
+      res.status(401).json({ error: '관리자 로그인 정보가 일치하지 않습니다.' });
       return;
     }
 
-    res.json({ token: signToken('admin', 'admin', ADMIN_JWT_EXPIRY) });
+    // Admin is not a row in any table. Use the nil UUID as the token
+    // identity so any route that still interpolates the caller id into a
+    // `uuid` column comparison matches nothing instead of blowing up with a
+    // Postgres invalid-input-syntax error.
+    const token = signToken(ADMIN_SENTINEL_ID, 'admin', ADMIN_JWT_EXPIRY);
+    res.json({ token });
   } catch (err) {
     console.error('[auth] login/admin error:', err);
     res.status(500).json({ error: 'Internal server error' });

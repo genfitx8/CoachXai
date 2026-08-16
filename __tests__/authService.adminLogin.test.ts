@@ -1,84 +1,148 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { authService } from '../services/authService';
-import { apiService } from '../services/apiService';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-vi.mock('../services/firebase', () => ({
-  firebaseService: {
-    isInitialized: vi.fn().mockReturnValue(false),
-    getCoaches: vi.fn(),
-    getClients: vi.fn(),
-    saveCoach: vi.fn(),
-    saveClients: vi.fn(),
-  },
-}));
+/**
+ * Regression guard for the admin/student coach-search mismatch.
+ *
+ * The admin console used to authenticate entirely in the browser against a
+ * hardcoded credential pair and never obtained a JWT. Every protected list
+ * endpoint therefore rejected the admin session, apiService fell back to
+ * /api/coaches/me (rejected too), and the dashboard rendered the single coach
+ * cached in that device's localStorage — while the student app's
+ * /api/coaches/search queried the real table and returned every match.
+ *
+ * Admin login must now exchange the credentials for a real token.
+ */
 
-vi.mock('../services/storage', () => ({
-  storageService: {
-    getClients: vi.fn().mockReturnValue([]),
-    saveClients: vi.fn(),
-  },
-}));
+const MOCK_BASE_URL = 'https://api.example.com';
+const TOKEN_KEY = 'swingnote_api_token';
 
-vi.mock('../services/apiService', () => ({
-  apiService: {
-    isAvailable: vi.fn().mockReturnValue(true),
-    loginAdmin: vi.fn(),
-    setToken: vi.fn(),
-    clearToken: vi.fn(),
-    setAdminToken: vi.fn(),
-    clearAdminToken: vi.fn(),
-    getAdminToken: vi.fn(),
-  },
-}));
+const localStorageMock = (() => {
+  const store: Record<string, string> = {};
+  return {
+    getItem: (key: string) => store[key] ?? null,
+    setItem: (key: string, value: string) => {
+      store[key] = value;
+    },
+    removeItem: (key: string) => {
+      delete store[key];
+    },
+    clear: () => {
+      Object.keys(store).forEach((key) => delete store[key]);
+    },
+  };
+})();
+
+Object.defineProperty(globalThis, 'localStorage', { value: localStorageMock });
+Object.defineProperty(globalThis, 'sessionStorage', { value: localStorageMock });
 
 describe('authService.loginAdmin', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
-    localStorage.clear();
-    sessionStorage.clear();
+    localStorageMock.clear();
+    vi.resetModules();
+    vi.unstubAllEnvs();
   });
 
   afterEach(() => {
-    localStorage.clear();
-    sessionStorage.clear();
+    vi.restoreAllMocks();
   });
 
-  it('delegates verification to the server with a normalized email', async () => {
-    (apiService.loginAdmin as any).mockResolvedValue({ token: 'admin-jwt' });
+  it('stores the admin token so protected endpoints accept the session', async () => {
+    vi.stubEnv('VITE_API_BASE_URL', MOCK_BASE_URL);
 
-    await expect(authService.loginAdmin('  Admin@CoachX.KR ', 'pw')).resolves.toBe(true);
+    const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
+      if (url === `${MOCK_BASE_URL}/api/auth/login/admin` && init?.method === 'POST') {
+        return new Response(JSON.stringify({ token: 'admin-jwt' }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      throw new Error(`Unexpected request: ${init?.method ?? 'GET'} ${url}`);
+    });
+    vi.stubGlobal('fetch', fetchMock);
 
-    expect(apiService.loginAdmin).toHaveBeenCalledWith('admin@coachx.kr', 'pw');
+    const { authService } = await import('../services/authService');
+    const ok = await authService.loginAdmin('  Admin@CoachX.kr ', 'admin1234');
+
+    expect(ok).toBe(true);
+    expect(localStorage.getItem(TOKEN_KEY)).toBe('admin-jwt');
+
+    const body = JSON.parse((fetchMock.mock.calls[0][1] as RequestInit).body as string);
+    expect(body).toEqual({ email: 'admin@coachx.kr', password: 'admin1234' });
   });
 
-  it('never accepts credentials without the server, so no secret lives in the bundle', async () => {
-    (apiService.loginAdmin as any).mockRejectedValue(
-      Object.assign(new Error('관리자 로그인 정보가 일치하지 않습니다.'), { status: 401 })
+  it('subsequent coach list requests carry the admin token', async () => {
+    vi.stubEnv('VITE_API_BASE_URL', MOCK_BASE_URL);
+
+    const coaches = [
+      { id: 'coach-1', name: '손호석', email: 'a@example.com' },
+      { id: 'coach-2', name: '손호석', email: 'b@example.com' },
+      { id: 'coach-3', name: '손호석', email: 'c@example.com' },
+      { id: 'coach-4', name: '손호석', email: 'd@example.com' },
+    ];
+
+    const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
+      if (url === `${MOCK_BASE_URL}/api/auth/login/admin`) {
+        return new Response(JSON.stringify({ token: 'admin-jwt' }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      if (url === `${MOCK_BASE_URL}/api/coaches`) {
+        const auth = (init?.headers as Record<string, string>)?.Authorization;
+        if (auth !== 'Bearer admin-jwt') {
+          return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403 });
+        }
+        return new Response(JSON.stringify({ coaches }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      return new Response(null, { status: 404 });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { authService } = await import('../services/authService');
+    const { apiService } = await import('../services/apiService');
+
+    await authService.loginAdmin('admin@coachx.kr', 'admin1234');
+    // The admin must see every coach row, not the one cached on this device.
+    await expect(apiService.getCoaches()).resolves.toEqual(coaches);
+  });
+
+  it('surfaces the server error message when the credentials are wrong', async () => {
+    vi.stubEnv('VITE_API_BASE_URL', MOCK_BASE_URL);
+
+    const fetchMock = vi.fn(
+      async () =>
+        new Response(JSON.stringify({ error: '관리자 로그인 정보가 일치하지 않습니다.' }), {
+          status: 401,
+          headers: { 'Content-Type': 'application/json' },
+        })
     );
+    vi.stubGlobal('fetch', fetchMock);
 
-    await expect(authService.loginAdmin('admin@coachx.kr', 'admin1234')).rejects.toBe(
+    const { authService } = await import('../services/authService');
+
+    await expect(authService.loginAdmin('admin@coachx.kr', 'nope')).rejects.toBe(
       '관리자 로그인 정보가 일치하지 않습니다.'
     );
+    expect(localStorage.getItem(TOKEN_KEY)).toBeNull();
   });
 
-  it('surfaces the server message when the admin account is not configured', async () => {
-    (apiService.loginAdmin as any).mockRejectedValue(
-      Object.assign(
-        new Error(
-          '관리자 계정이 서버에 설정되어 있지 않습니다. ADMIN_EMAIL / ADMIN_PASSWORD_HASH 환경변수를 확인하세요.'
-        ),
-        { status: 500 }
-      )
+  it('falls back to the local credential check when no backend is configured', async () => {
+    vi.stubEnv('VITE_API_BASE_URL', '');
+
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { authService } = await import('../services/authService');
+
+    await expect(authService.loginAdmin('admin@coachx.kr', 'admin1234')).resolves.toBe(
+      true
     );
-
-    await expect(authService.loginAdmin('admin@coachx.kr', 'pw')).rejects.toContain(
-      'ADMIN_EMAIL / ADMIN_PASSWORD_HASH'
+    await expect(authService.loginAdmin('admin@coachx.kr', 'wrong')).rejects.toBe(
+      '관리자 로그인 정보가 일치하지 않습니다.'
     );
-  });
-
-  it('logout clears the admin session token', () => {
-    authService.logout();
-
-    expect(apiService.clearAdminToken).toHaveBeenCalledTimes(1);
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });

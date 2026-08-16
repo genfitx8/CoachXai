@@ -21,7 +21,7 @@ export function adminAuthMiddleware(req: Request, res: Response, next: NextFunct
       try {
         const payload = jwt.verify(header.slice(7), secret) as AuthPayload;
         if (payload.role === 'admin') {
-          req.admin = { id: payload.id };
+          req.user = { id: payload.id, role: 'admin' };
           next();
           return;
         }

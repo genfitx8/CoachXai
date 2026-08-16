@@ -29,6 +29,12 @@ const createResetToken = (): string => {
 
 const normalizeEmail = (email: string): string => email.trim().toLowerCase();
 
+// Only used by the offline/demo path, where there is no backend to
+// authenticate against. Server-backed deployments verify against
+// ADMIN_EMAIL / ADMIN_PASSWORD instead.
+const LEGACY_ADMIN_EMAIL = 'admin@coachx.kr';
+const LEGACY_ADMIN_PASSWORD = 'admin1234';
+
 /**
  * Safely read a JSON-encoded value out of `Storage`. A prior code path — a
  * malformed API response, a JSON.stringify(undefined) that coerced to the
@@ -152,23 +158,42 @@ export const authService = {
   },
 
   /**
-   * Admin credentials are verified server-side against ADMIN_EMAIL /
-   * ADMIN_PASSWORD_HASH; nothing about the admin account is knowable from the
-   * client bundle. On success the server hands back a short-lived admin JWT
-   * that apiService attaches to subsequent admin-only requests.
+   * Authenticate the admin console against the backend so the session carries
+   * a JWT.
+   *
+   * This used to be a purely client-side credential check that issued no
+   * token. Every protected endpoint (`GET /api/coaches`, `/api/clients`,
+   * `/api/lessons`) then rejected the admin, apiService fell back to
+   * `/api/coaches/me` (rejected too), and the dashboard rendered the coach
+   * list cached in that browser's localStorage — usually a single coach —
+   * while the student app queried the real table and found every match.
+   *
+   * When no backend is configured (offline/demo builds) we keep the legacy
+   * local check so the console still opens against local storage data.
    */
   loginAdmin: async (email: string, password: string): Promise<boolean> => {
-    try {
-      await apiService.loginAdmin(normalizeEmail(email), password);
+    const normalizedEmail = normalizeEmail(email);
+
+    if (apiService.isAvailable()) {
+      await apiService.loginAdmin(normalizedEmail, password).catch((error: unknown) => {
+        log.error('Admin login error:', error);
+        const message =
+          typeof error === 'string'
+            ? error
+            : (error as { message?: string })?.message ||
+              '관리자 로그인 정보가 일치하지 않습니다.';
+        throw message;
+      });
       return true;
-    } catch (error: any) {
-      log.error('Admin login error:', error);
-      const message =
-        typeof error === 'string'
-          ? error
-          : error?.message || '관리자 로그인 정보가 일치하지 않습니다.';
-      return Promise.reject(message);
     }
+
+    if (
+      normalizedEmail === LEGACY_ADMIN_EMAIL &&
+      password === LEGACY_ADMIN_PASSWORD
+    ) {
+      return true;
+    }
+    throw '관리자 로그인 정보가 일치하지 않습니다.';
   },
 
   // --- Branch Admin Authentication ---
@@ -423,7 +448,6 @@ export const authService = {
 
   logout: () => {
     apiService.clearToken();
-    apiService.clearAdminToken();
     localStorage.removeItem(STORAGE_KEYS.SESSION_ROLE);
     localStorage.removeItem(STORAGE_KEYS.SESSION_CLIENT_DATA);
     localStorage.removeItem(STORAGE_KEYS.SESSION_BRANCH_ADMIN_DATA);

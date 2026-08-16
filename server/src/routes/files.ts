@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
-import { authMiddleware } from '../middleware/auth';
+import { authMiddleware, AuthRole } from '../middleware/auth';
 import { generateUploadUrl, generateDownloadUrl } from '../services/r2';
 import { signMediaUrl, verifyMediaToken } from '../services/mediaAccess';
 import pool from '../services/db';
@@ -26,8 +26,13 @@ const UUID_PATTERN =
 async function isKeyOwnedByUser(
   key: string,
   userId: string,
-  userRole: 'coach' | 'client'
+  userRole: AuthRole
 ): Promise<{ ok: true } | { ok: false; reason: string; status: number }> {
+  // The admin token is read-only and owns no lessons, so it can never
+  // presign an upload.
+  if (userRole === 'admin') {
+    return { ok: false, reason: 'Forbidden', status: 403 };
+  }
   const parts = key.split('/');
   if (parts[0] !== 'lessons' || !parts[1]) {
     return { ok: false, reason: 'Only lesson media keys are allowed', status: 400 };

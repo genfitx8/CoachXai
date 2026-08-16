@@ -5,7 +5,7 @@ import type { CurriculumPartTemplate } from '../types/curriculum';
 import {
   listCurriculumTemplates,
   updateCurriculumTemplate,
-  hasAdminCredential,
+  getAdminToken,
   setAdminToken,
   clearAdminToken,
 } from '../services/curriculumTemplateService';
@@ -60,9 +60,7 @@ export const AdminCurriculumTemplateManager: React.FC = () => {
   useEffect(() => {
     (async () => {
       setChecking(true);
-      // An admin who signed in through the admin login screen already holds a
-      // server-issued token, so no manual entry is needed.
-      if (hasAdminCredential()) {
+      if (getAdminToken()) {
         await tryLoad();
       }
       setChecking(false);
@@ -139,8 +137,7 @@ export const AdminCurriculumTemplateManager: React.FC = () => {
           커리큘럼 콘텐츠 관리
         </h2>
         <p className="text-sm text-gray-500">
-          관리자 로그인 세션이 만료되었거나 권한이 없습니다. 관리자 계정으로 다시 로그인하세요.
-          서버 환경변수 <code className="bg-gray-100 px-1 rounded">ADMIN_API_TOKEN</code> 값을 직접 입력해 접근할 수도 있습니다.
+          이 화면은 별도의 관리자 토큰이 필요합니다. 서버 환경변수 <code className="bg-gray-100 px-1 rounded">ADMIN_API_TOKEN</code>과 동일한 값을 입력하세요.
         </p>
         <div className="flex gap-2">
           <input
