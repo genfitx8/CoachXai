@@ -638,7 +638,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="admin@swingnote.com"
+                placeholder="admin@coachx.kr"
                 leading={<Mail className="h-4 w-4" />}
               />
               <PasswordInput

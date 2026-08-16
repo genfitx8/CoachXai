@@ -154,7 +154,7 @@ export const authService = {
   loginAdmin: (email: string, password: string): Promise<boolean> => {
     return new Promise((resolve, reject) => {
       setTimeout(() => {
-        if (email === 'admin@swingnote.com' && password === 'admin1234') {
+        if (email === 'admin@coachx.kr' && password === 'admin1234') {
           resolve(true);
         } else {
           reject('관리자 로그인 정보가 일치하지 않습니다.');
