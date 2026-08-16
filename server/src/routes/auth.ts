@@ -38,7 +38,7 @@ const ADMIN_JWT_EXPIRY = '12h';
 // existed (they were hardcoded in the frontend bundle, so they were never a
 // secret). They stay as the fallback so an un-migrated deployment keeps
 // working, but ADMIN_EMAIL / ADMIN_PASSWORD should be set in production.
-const LEGACY_ADMIN_EMAIL = 'admin@swingnote.com';
+const LEGACY_ADMIN_EMAIL = 'admin@coachx.kr';
 const LEGACY_ADMIN_PASSWORD = 'admin1234';
 const ADMIN_SENTINEL_ID = '00000000-0000-0000-0000-000000000000';
 

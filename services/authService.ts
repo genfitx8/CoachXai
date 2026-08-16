@@ -32,7 +32,7 @@ const normalizeEmail = (email: string): string => email.trim().toLowerCase();
 // Only used by the offline/demo path, where there is no backend to
 // authenticate against. Server-backed deployments verify against
 // ADMIN_EMAIL / ADMIN_PASSWORD instead.
-const LEGACY_ADMIN_EMAIL = 'admin@swingnote.com';
+const LEGACY_ADMIN_EMAIL = 'admin@coachx.kr';
 const LEGACY_ADMIN_PASSWORD = 'admin1234';
 
 /**

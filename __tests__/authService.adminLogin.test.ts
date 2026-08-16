@@ -61,13 +61,13 @@ describe('authService.loginAdmin', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     const { authService } = await import('../services/authService');
-    const ok = await authService.loginAdmin('  Admin@Swingnote.com ', 'admin1234');
+    const ok = await authService.loginAdmin('  Admin@CoachX.kr ', 'admin1234');
 
     expect(ok).toBe(true);
     expect(localStorage.getItem(TOKEN_KEY)).toBe('admin-jwt');
 
     const body = JSON.parse((fetchMock.mock.calls[0][1] as RequestInit).body as string);
-    expect(body).toEqual({ email: 'admin@swingnote.com', password: 'admin1234' });
+    expect(body).toEqual({ email: 'admin@coachx.kr', password: 'admin1234' });
   });
 
   it('subsequent coach list requests carry the admin token', async () => {
@@ -104,7 +104,7 @@ describe('authService.loginAdmin', () => {
     const { authService } = await import('../services/authService');
     const { apiService } = await import('../services/apiService');
 
-    await authService.loginAdmin('admin@swingnote.com', 'admin1234');
+    await authService.loginAdmin('admin@coachx.kr', 'admin1234');
     // The admin must see every coach row, not the one cached on this device.
     await expect(apiService.getCoaches()).resolves.toEqual(coaches);
   });
@@ -123,7 +123,7 @@ describe('authService.loginAdmin', () => {
 
     const { authService } = await import('../services/authService');
 
-    await expect(authService.loginAdmin('admin@swingnote.com', 'nope')).rejects.toBe(
+    await expect(authService.loginAdmin('admin@coachx.kr', 'nope')).rejects.toBe(
       '관리자 로그인 정보가 일치하지 않습니다.'
     );
     expect(localStorage.getItem(TOKEN_KEY)).toBeNull();
@@ -137,10 +137,10 @@ describe('authService.loginAdmin', () => {
 
     const { authService } = await import('../services/authService');
 
-    await expect(authService.loginAdmin('admin@swingnote.com', 'admin1234')).resolves.toBe(
+    await expect(authService.loginAdmin('admin@coachx.kr', 'admin1234')).resolves.toBe(
       true
     );
-    await expect(authService.loginAdmin('admin@swingnote.com', 'wrong')).rejects.toBe(
+    await expect(authService.loginAdmin('admin@coachx.kr', 'wrong')).rejects.toBe(
       '관리자 로그인 정보가 일치하지 않습니다.'
     );
     expect(fetchMock).not.toHaveBeenCalled();
