@@ -9,7 +9,6 @@ import { useTextToSpeech } from '../hooks/useTextToSpeech';
 import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
 import { renderMarkdown } from '../utils/renderMarkdown';
 import { CoachXMark, CoachXMarkLive } from './ui';
-import { CoachOnboardingBanner } from './CoachOnboardingBanner';
 
 export interface TodayLessonSummary {
   id: string;
@@ -25,14 +24,6 @@ interface CoachAIHomeProps {
   clients: ClientProfile[];
   todayLessons: TodayLessonSummary[];
   onNavigateToDashboard: () => void;
-  /** 6c/6e onboarding — jump to the student invite flow. */
-  onInviteStudents?: () => void;
-  /** 6c/6e onboarding — start a new lesson record. */
-  onRecordFirstLesson?: () => void;
-  /** 6c/6e onboarding — open the coach profile editor. */
-  onOpenProfile?: () => void;
-  /** 6c/6e onboarding — open the working-schedule editor. */
-  onOpenSchedule?: () => void;
   /**
    * When provided, auto-sent as the first user message on mount. Used by
    * "ask about this member" entry points from the dashboard, member list,
@@ -58,10 +49,6 @@ export const CoachAIHome: React.FC<CoachAIHomeProps> = ({
   clients,
   todayLessons,
   onNavigateToDashboard,
-  onInviteStudents,
-  onRecordFirstLesson,
-  onOpenProfile,
-  onOpenSchedule,
   initialQuery,
   onInitialQueryConsumed,
 }) => {
@@ -256,22 +243,6 @@ export const CoachAIHome: React.FC<CoachAIHomeProps> = ({
           </button>
         </div>
       </div>
-
-      {/* 6c/6e first-week onboarding — visible only while any item
-          remains and only before the coach has sent a message (so the
-          banner never fights an active conversation). The component
-          self-hides when every item is checked. */}
-      {!userHasSent && onInviteStudents && onRecordFirstLesson && onOpenProfile && (
-        <CoachOnboardingBanner
-          coachProfile={coachProfile}
-          clients={clients}
-          lessons={allLessons}
-          onInviteStudents={onInviteStudents}
-          onRecordFirstLesson={onRecordFirstLesson}
-          onOpenProfile={onOpenProfile}
-          onOpenSchedule={onOpenSchedule}
-        />
-      )}
 
       {/* Today's schedule strip + pending-review chip (only when no user
           messages yet). Both live in the same horizontal band so the
