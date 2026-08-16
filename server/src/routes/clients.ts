@@ -148,11 +148,15 @@ router.put('/me', async (req: Request, res: Response) => {
 // GET /api/clients
 router.get('/', async (req: Request, res: Response) => {
   try {
-    const coachId = req.user!.id;
-    const result = await pool.query(
-      'SELECT * FROM clients WHERE coach_id = $1 ORDER BY created_at DESC',
-      [coachId]
-    );
+    // Admin console reads the whole member table; coaches stay scoped to
+    // the members assigned to them.
+    const result =
+      req.user!.role === 'admin'
+        ? await pool.query('SELECT * FROM clients ORDER BY created_at DESC')
+        : await pool.query(
+            'SELECT * FROM clients WHERE coach_id = $1 ORDER BY created_at DESC',
+            [req.user!.id]
+          );
     res.json({ clients: result.rows.map(mapClient) });
   } catch (err) {
     console.error('[clients] GET / error:', err);

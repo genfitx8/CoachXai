@@ -1,9 +1,11 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 
+export type AuthRole = 'coach' | 'client' | 'admin';
+
 export interface AuthPayload {
   id: string;
-  role: 'coach' | 'client';
+  role: AuthRole;
 }
 
 // Extend Express Request to carry the decoded token payload

@@ -29,6 +29,16 @@ const requireCoachRole = (req: Request, res: Response, next: () => void) => {
   }
   next();
 };
+// The admin console needs the same directory reads a coach gets. Without this
+// an admin session got 403 here, apiService fell back to /api/coaches/me
+// (also 403), and the dashboard rendered the device's cached coach list.
+const requireCoachOrAdminRole = (req: Request, res: Response, next: () => void) => {
+  if (req.user?.role !== 'coach' && req.user?.role !== 'admin') {
+    res.status(403).json({ error: 'Forbidden' });
+    return;
+  }
+  next();
+};
 
 function mapCoach(row: Record<string, unknown>) {
   return {
@@ -48,7 +58,7 @@ function mapCoach(row: Record<string, unknown>) {
 }
 
 // GET /api/coaches
-router.get('/', listCoachesLimiter, authMiddleware, requireCoachRole, async (_req: Request, res: Response) => {
+router.get('/', listCoachesLimiter, authMiddleware, requireCoachOrAdminRole, async (_req: Request, res: Response) => {
   try {
     const result = await pool.query(
       `SELECT ${COACH_COLUMNS} FROM coaches ORDER BY created_at DESC`
@@ -73,9 +83,11 @@ router.get('/search', listCoachesLimiter, authMiddleware, async (req: Request, r
     }
     const like = `%${term.toLowerCase()}%`;
     const result = await pool.query(
+      // created_at breaks ties so a name shared by several coach accounts
+      // comes back in a stable order instead of shuffling between searches.
       `SELECT id, name, phone FROM coaches
         WHERE LOWER(name) LIKE $1
-        ORDER BY name ASC
+        ORDER BY name ASC, created_at ASC
         LIMIT 20`,
       [like]
     );
@@ -129,7 +141,7 @@ router.get('/:id', coachSelfLimiter, authMiddleware, async (req: Request, res: R
 
     const coach = mapCoach(result.rows[0]);
     // Clients only receive public-safe fields
-    if (req.user?.role !== 'coach') {
+    if (req.user?.role !== 'coach' && req.user?.role !== 'admin') {
       res.json({
         coach: {
           id: coach.id,

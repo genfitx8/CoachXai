@@ -15,6 +15,14 @@ services:
           property: connectionString
       - key: JWT_SECRET
         sync: false
+      # Admin console credentials (POST /api/auth/login/admin). Set
+      # ADMIN_PASSWORD_HASH (bcrypt) in preference to ADMIN_PASSWORD. When
+      # neither is set the server falls back to the legacy built-in pair
+      # that used to be hardcoded in the frontend bundle.
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: ADMIN_PASSWORD_HASH
+        sync: false
       - key: R2_ACCOUNT_ID
         sync: false
       - key: R2_ACCESS_KEY_ID
