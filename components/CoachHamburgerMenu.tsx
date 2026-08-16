@@ -107,8 +107,9 @@ export const CoachHamburgerMenu: React.FC<CoachHamburgerMenuProps> = ({
         aria-hidden
       />
 
-      {/* Drawer */}
-      <aside className="absolute left-0 top-0 h-full w-[86%] max-w-sm bg-base border-r border-line-subtle shadow-2xl flex flex-col animate-slide-in-left">
+      {/* Drawer — safe-area padding keeps the profile row clear of the notch
+          and the logout button clear of the home indicator / gesture bar. */}
+      <aside className="absolute left-0 top-0 h-full w-[86%] max-w-sm bg-base border-r border-line-subtle shadow-2xl flex flex-col animate-slide-in-left pt-safe pb-safe pl-safe">
         {/* Header */}
         <div className="px-5 py-5 border-b border-line-subtle flex items-center gap-3">
           <div className="bg-gradient-to-br from-emerald-500/30 to-emerald-500/20 p-2.5 rounded-full text-emerald-100 border border-emerald-300/20">
