@@ -301,8 +301,6 @@ const AppContent: React.FC = () => {
    * `NewLessonForm` so the CLIENT_SELECT step is skipped.
    */
   const [prefilledSuggestionClient, setPrefilledSuggestionClient] = useState<ClientProfile | null>(null);
-  const [autoOpenAddMemberFromLessonStart, setAutoOpenAddMemberFromLessonStart] = useState(false);
-  const [clientsOpenedFromLessonStart, setClientsOpenedFromLessonStart] = useState(false);
 
   // Modals
   const [showHomeworkModal, setShowHomeworkModal] = useState(false);
@@ -476,40 +474,11 @@ const AppContent: React.FC = () => {
         fetchedCoaches = coachesData;
         setCoaches(fetchedCoaches);
 
-        // Sync any clients that exist only in localStorage (e.g. added while offline
-        // or on a device that wasn't connected to the API) up to the server so they
-        // become visible on all devices. Restrict to clients this coach actually owns
-        // — POST /api/clients always assigns the caller as coach, so uploading a
-        // stranger's local record (or leftover mock data) would silently claim them.
-        if (role === 'COACH') {
-          const currentCoachId = authService.getCoachProfile()?.id;
-          if (currentCoachId) {
-            const localClients = storageService.getClients();
-            const unsyncedClients = localClients.filter(
-              (lc) =>
-                lc.coachId === currentCoachId &&
-                !fetchedClients.some(
-                  (ac) => ac.name === lc.name && ac.phone === lc.phone
-                )
-            );
-            if (unsyncedClients.length > 0) {
-              try {
-                // Strip local IDs so the server assigns its own UUIDs.
-                const clientsToCreate: ClientProfile[] = unsyncedClients.map(
-                  ({ id: _id, ...rest }) => rest as ClientProfile
-                );
-                await apiService.saveClients(clientsToCreate);
-                // Reload so we have the server-assigned IDs in state.
-                fetchedClients = await apiService.getClients();
-                console.log(
-                  `[App] Synced ${unsyncedClients.length} local-only client(s) to server`
-                );
-              } catch (syncErr) {
-                console.warn('[App] Failed to sync local clients to server:', syncErr);
-              }
-            }
-          }
-        }
+        // No local-only client backfill any more. That block existed to push
+        // members a coach had keyed in offline up to the server; since members
+        // can only be created by the student themselves, uploading a local row
+        // would just mint a duplicate, password-less account that shadows the
+        // student's real one.
       } catch (e) {
         console.warn('[App] Failed to load data from API (lessons, clients, coaches), falling back to local storage:', e);
         setLessons(storageService.getLessons());
@@ -1165,84 +1134,6 @@ const AppContent: React.FC = () => {
     const localCoach = authService.getCoachProfile();
     if (localCoach?.id === coachId) return localCoach.name;
     return undefined;
-  };
-
-  const handleAddClient = async (newClient: ClientProfile) => {
-    // Sync designatedCoach with coachId - 데이터 일관성 보장
-    // 규칙: coachId가 있으면 designatedCoach도 설정, 없으면 둘 다 undefined
-    const clientWithCoach: ClientProfile = {
-      ...newClient,
-      designatedCoach: newClient.coachId
-        ? getCoachNameById(newClient.coachId) || undefined
-        : undefined,
-    };
-
-    setClients((prev) => [...prev, clientWithCoach]);
-    const isFb = apiService.isAvailable();
-    if (isFb) {
-      await apiService.saveClients([clientWithCoach]);
-      // Reload the client list so the newly created client gets its server-assigned ID.
-      // Without this, the client sits in state without an ID, which can cause duplicate
-      // POST requests if the coach edits the client before the next full data reload.
-      try {
-        const refreshed = await apiService.getClients();
-        setClients(refreshed);
-      } catch (e) {
-        console.warn('[App] Failed to refresh client list after add:', e);
-      }
-    } else {
-      storageService.saveClients([...clients, clientWithCoach]);
-    }
-
-    // If coachId is set, update ALL existing lessons for this client
-    // This ensures the coach can see all of the client's existing lessons
-    if (clientWithCoach.coachId) {
-      const clientLessons = lessons.filter(
-        (l) =>
-          lessonBelongsToClient(l, clientWithCoach) &&
-          l.coachId !== clientWithCoach.coachId // Only update lessons that don't already have this coachId
-      );
-
-      if (clientLessons.length > 0) {
-        // Update coachId for ALL existing lessons of this client
-        const updatedLessons = clientLessons.map((lesson) => ({
-          ...lesson,
-          coachId: clientWithCoach.coachId, // Assign to the coach
-        }));
-
-        // Update lessons in state
-        setLessons((prev) =>
-          prev.map((l) => {
-            const updated = updatedLessons.find((ul) => ul.id === l.id);
-            return updated || l;
-          })
-        );
-
-        // Save updated lessons
-        if (isFb) {
-          try {
-            await Promise.all(
-              updatedLessons.map((lesson) => apiService.saveLesson(lesson))
-            );
-            console.log(
-              `✅ Updated ${updatedLessons.length} existing lessons for client ${clientWithCoach.name} to coach ${clientWithCoach.coachId}`
-            );
-          } catch (e) {
-            console.error('Failed to update lessons in Firebase:', e);
-          }
-        } else {
-          const allLessons = storageService.getLessons();
-          const finalLessons = allLessons.map((l) => {
-            const updated = updatedLessons.find((ul) => ul.id === l.id);
-            return updated || l;
-          });
-          storageService.saveLessons(finalLessons);
-          console.log(
-            `✅ Updated ${updatedLessons.length} existing lessons for client ${clientWithCoach.name} to coach ${clientWithCoach.coachId}`
-          );
-        }
-      }
-    }
   };
 
   const handleDeleteClient = async (client: ClientProfile) => {
@@ -2314,15 +2205,6 @@ const AppContent: React.FC = () => {
               lessons={lessons}
               userRole="COACH"
               currentUser={currentUser ?? undefined}
-              onDirectRegisterFromLessonStart={
-                !isEditingLesson
-                  ? () => {
-                      setClientsOpenedFromLessonStart(true);
-                      setAutoOpenAddMemberFromLessonStart(true);
-                      setCoachView('CLIENTS');
-                    }
-                  : undefined
-              }
               onSave={handleSaveLesson}
               onCancel={() => {
                 if (pendingPackageSession) {
@@ -2373,21 +2255,9 @@ const AppContent: React.FC = () => {
         {coachView === 'CLIENTS' && (
           <CoachClientManager
             clients={clients}
-            onAdd={handleAddClient}
             onUpdate={handleUpdateClientProfile}
             onDelete={handleDeleteClient}
-            onBack={() => {
-              if (clientsOpenedFromLessonStart) {
-                setClientsOpenedFromLessonStart(false);
-                setAutoOpenAddMemberFromLessonStart(false);
-                setCoachView('NEW');
-                return;
-              }
-              setCoachView('LESSON_LIST');
-            }}
-            showAddButton
-            autoOpenAddModal={autoOpenAddMemberFromLessonStart}
-            onAutoOpenAddModalHandled={() => setAutoOpenAddMemberFromLessonStart(false)}
+            onBack={() => setCoachView('LESSON_LIST')}
             coachId={
               currentUser && 'id' in currentUser ? currentUser.id : undefined
             }

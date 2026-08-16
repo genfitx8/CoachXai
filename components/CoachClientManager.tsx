@@ -1,9 +1,8 @@
-import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useMemo } from 'react';
 import { ClientProfile } from '../types';
 import { Button } from './Button';
 import {
   ArrowLeft,
-  UserPlus,
   Search,
   Edit,
   Trash2,
@@ -18,15 +17,26 @@ import {
   FileBarChart,
   AlertCircle,
   BookOpen,
-  Plus,
+  Info,
 } from 'lucide-react';
 import { MemberGrowthReport, MemberTrend } from '../services/coachXService';
 import { useLanguage } from './LanguageContext';
 import { MemberGrowthDetailScreen } from './MemberGrowthDetailScreen';
 
+/**
+ * Members are never created from the coach app.
+ *
+ * A student signs up in the student app and designates their coach there
+ * (프로필 → 담당 코치 지정, backed by `PUT /api/clients/me`), which is the
+ * single path that links the two accounts. Letting a coach also key in a
+ * name + phone produced a second, password-less row that only merged back
+ * into the student's real account if the two phone strings happened to
+ * match character for character — so this screen is now read-and-manage
+ * only: search, review, hand off, release. Everything that used to open
+ * the "새 회원 등록" form is gone.
+ */
 interface CoachClientManagerProps {
   clients: ClientProfile[];
-  onAdd: (client: ClientProfile) => void;
   onUpdate: (client: ClientProfile) => void;
   onDelete: (client: ClientProfile) => void;
   onBack: () => void;
@@ -47,12 +57,6 @@ interface CoachClientManagerProps {
   memberReports?: MemberGrowthReport[];
   /** Called when coach taps "Ask CoachX" for a specific member. */
   onOpenCoachX?: (query?: string) => void;
-  /** Shows the direct member registration button in toolbar. */
-  showAddButton?: boolean;
-  /** Auto-opens the add-member modal when entering this screen. */
-  autoOpenAddModal?: boolean;
-  /** Callback fired after auto-open has been handled. */
-  onAutoOpenAddModalHandled?: () => void;
   /** Overrides the default page title. */
   pageTitle?: string;
 }
@@ -63,29 +67,8 @@ const clientFormInputClass =
 const clientCardActionButtonClass =
   'w-full flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl transition-colors text-sm font-semibold';
 
-/**
- * Format a Korean mobile number as the coach types.
- * Strips non-digits, caps at 11 digits, and inserts hyphens so the
- * value renders as 010-1234-5678. Also handles Seoul-style 02-XXX-XXXX
- * when the input starts with 02 so land-line entries still look right.
- */
-const formatKoreanPhone = (raw: string): string => {
-  const digits = raw.replace(/\D/g, '').slice(0, 11);
-  if (digits.length === 0) return '';
-  if (digits.startsWith('02')) {
-    if (digits.length <= 2) return digits;
-    if (digits.length <= 5) return `${digits.slice(0, 2)}-${digits.slice(2)}`;
-    if (digits.length <= 9) return `${digits.slice(0, 2)}-${digits.slice(2, 5)}-${digits.slice(5)}`;
-    return `${digits.slice(0, 2)}-${digits.slice(2, 6)}-${digits.slice(6, 10)}`;
-  }
-  if (digits.length <= 3) return digits;
-  if (digits.length <= 7) return `${digits.slice(0, 3)}-${digits.slice(3)}`;
-  return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`;
-};
-
 export const CoachClientManager: React.FC<CoachClientManagerProps> = ({
   clients,
-  onAdd,
   onUpdate,
   onDelete,
   onBack,
@@ -96,23 +79,18 @@ export const CoachClientManager: React.FC<CoachClientManagerProps> = ({
   onGenerateProgram,
   memberReports,
   onOpenCoachX,
-  showAddButton = true,
-  autoOpenAddModal = false,
-  onAutoOpenAddModalHandled,
   pageTitle,
 }) => {
   const { t } = useLanguage();
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const hasHandledAutoOpenRef = useRef(false);
   const [editingClient, setEditingClient] = useState<ClientProfile | null>(
     null
   );
   const [detailReport, setDetailReport] = useState<MemberGrowthReport | null>(null);
 
-  // Form State
-  const [name, setName] = useState('');
-  const [phone, setPhone] = useState('');
+  // Form state — memo is the only coach-editable field. Name and phone
+  // belong to the student's own account now, so they render read-only.
   const [memo, setMemo] = useState('');
 
   const clientKey = (name: string, phone: string) => `${name}_${phone}`;
@@ -176,97 +154,19 @@ export const CoachClientManager: React.FC<CoachClientManagerProps> = ({
     }
   };
 
-  const openAddModal = useCallback(() => {
-    setEditingClient(null);
-    setName('');
-    setPhone('');
-    setMemo('');
-    setIsModalOpen(true);
-  }, []);
-
-  useEffect(() => {
-    if (!autoOpenAddModal) {
-      hasHandledAutoOpenRef.current = false;
-      return;
-    }
-    if (hasHandledAutoOpenRef.current) return;
-    hasHandledAutoOpenRef.current = true;
-    openAddModal();
-    onAutoOpenAddModalHandled?.();
-  }, [autoOpenAddModal, onAutoOpenAddModalHandled, openAddModal]);
-
   const openEditModal = (client: ClientProfile) => {
     setEditingClient(client);
-    setName(client.name);
-    setPhone(client.phone);
     setMemo(client.memo || '');
     setIsModalOpen(true);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!editingClient) return;
 
-    if (!name.trim() || !phone.trim()) {
-      alert(t('coach_client_name_required'));
-      return;
-    }
-
-    if (editingClient) {
-      // Update - preserve coachId (designatedCoach는 App.tsx에서 자동 설정됨)
-      onUpdate({
-        ...editingClient,
-        name,
-        phone,
-        memo,
-        // coachId는 기존 값 유지 (변경하지 않음)
-      });
-    } else {
-      // Add New
-      // Check for duplicate in global list
-      const existingClient = clients.find(
-        (c) => c.name === name && c.phone === phone
-      );
-
-      if (existingClient) {
-        // 다른 코치에게 배정된 회원인지 확인
-        if (
-          existingClient.coachId &&
-          existingClient.coachId.trim() !== '' &&
-          existingClient.coachId !== coachId
-        ) {
-          alert(t('coach_client_already_assigned'));
-          return;
-        }
-
-        // 이미 현재 코치에게 배정된 회원
-        if (existingClient.coachId === coachId) {
-          alert(t('coach_client_already_registered'));
-          return;
-        }
-
-        // coachId가 없는 경우 (할당되지 않은 회원) - 현재 코치에게 할당
-        // 이 경우는 업데이트로 처리
-        const updatedClient: ClientProfile = {
-          ...existingClient,
-          memo: memo || existingClient.memo,
-          coachId: coachId, // 현재 코치에게 할당
-        };
-        onUpdate(updatedClient);
-        setIsModalOpen(false);
-        return;
-      }
-
-      // 새 회원 추가
-      const newClient: ClientProfile = {
-        name,
-        phone,
-        memo,
-        isSubscribed: false,
-        currentPoints: 0,
-        coachId: coachId, // Automatically assign this coach
-      };
-      onAdd(newClient);
-    }
+    // Name / phone are the student's own profile fields — the coach only
+    // writes the memo, so coachId and identity stay untouched.
+    onUpdate({ ...editingClient, memo });
     setIsModalOpen(false);
   };
 
@@ -316,17 +216,18 @@ export const CoachClientManager: React.FC<CoachClientManagerProps> = ({
             className={`${clientFormInputClass} pl-10 py-3`}
           />
         </div>
-        {showAddButton && (
-          <button
-            type="button"
-            onClick={openAddModal}
-            data-testid="coach-client-add-btn"
-            className="inline-flex items-center justify-center gap-2 w-full sm:w-auto px-5 h-12 rounded-xl bg-gradient-to-b from-emerald-500 to-emerald-600 text-white font-semibold shadow-elev-2 hover:from-emerald-400 hover:to-emerald-500 hover:shadow-glow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/70 transition-all active:scale-[0.98]"
-          >
-            <UserPlus className="w-5 h-5" />
-            <span>{t('coach_client_add_btn')}</span>
-          </button>
-        )}
+      </div>
+
+      {/* How members join — replaces the removed 직접 등록 button so the
+          coach is told what to do instead of hunting for a missing form. */}
+      <div
+        data-testid="coach-client-linking-guide"
+        className="flex gap-3 p-4 rounded-2xl bg-emerald-500/[0.07] border border-emerald-500/20"
+      >
+        <Info className="w-5 h-5 text-emerald-300 flex-shrink-0 mt-0.5" />
+        <p className="text-sm text-ink-medium leading-relaxed">
+          {t('coach_client_linking_guide')}
+        </p>
       </div>
 
       {growthSummary && (
@@ -369,6 +270,11 @@ export const CoachClientManager: React.FC<CoachClientManagerProps> = ({
                 ? t('coach_client_empty')
                 : t('coach_client_no_results')}
             </p>
+            {visibleClients.length === 0 && (
+              <p className="text-sm text-ink-muted mt-2 max-w-sm mx-auto leading-relaxed">
+                {t('coach_client_empty_hint')}
+              </p>
+            )}
           </div>
         ) : (
           filteredClients.map((client) => {
@@ -530,23 +436,10 @@ export const CoachClientManager: React.FC<CoachClientManagerProps> = ({
         )}
       </div>
 
-      {/* Floating add button — always reachable while scrolling the roster */}
-      {showAddButton && !isModalOpen && (
-        <button
-          type="button"
-          onClick={openAddModal}
-          data-testid="coach-client-add-fab"
-          aria-label={t('coach_client_add_btn')}
-          className="fixed bottom-24 right-5 z-40 w-14 h-14 rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 text-white shadow-glow-lg flex items-center justify-center hover:scale-105 active:scale-95 transition-transform focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300"
-        >
-          <Plus className="w-7 h-7" strokeWidth={2.5} />
-        </button>
-      )}
-
-      {/* Add/Edit Modal */}
-      {isModalOpen && (
+      {/* Edit Modal — memo only; the member row itself is student-owned. */}
+      {isModalOpen && editingClient && (
         <div
-          data-testid="coach-client-add-modal"
+          data-testid="coach-client-edit-modal"
           role="dialog"
           aria-modal="true"
           aria-labelledby="coach-client-modal-title"
@@ -578,17 +471,15 @@ export const CoachClientManager: React.FC<CoachClientManagerProps> = ({
             <div className="bg-gradient-to-r from-emerald-700 via-emerald-600 to-emerald-700 px-6 py-5 flex justify-between items-center text-white">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-white/15 flex items-center justify-center shadow-inner">
-                  <UserPlus className="w-5 h-5" />
+                  <Edit className="w-5 h-5" />
                 </div>
                 <div>
                   <h3 id="coach-client-modal-title" className="font-bold text-lg leading-tight">
-                    {editingClient ? t('coach_client_form_title_edit') : t('coach_client_form_title_new')}
+                    {t('coach_client_form_title_edit')}
                   </h3>
-                  {!editingClient && (
-                    <p className="text-xs text-emerald-100/90 mt-0.5">
-                      {t('coach_client_form_hint')}
-                    </p>
-                  )}
+                  <p className="text-xs text-emerald-100/90 mt-0.5">
+                    {t('coach_client_form_readonly_hint')}
+                  </p>
                 </div>
               </div>
               <button
@@ -603,47 +494,37 @@ export const CoachClientManager: React.FC<CoachClientManagerProps> = ({
 
             <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
               <div className="px-6 py-5 space-y-5 overflow-y-auto flex-1">
+                {/* Identity is read-only: the student owns these fields in
+                    their own account, and rewriting them here would silently
+                    edit someone else's profile. */}
                 <div>
                   <label className="block text-sm font-semibold text-ink-high mb-1.5">
-                    {t('coach_client_name_label')} <span className="text-emerald-400">*</span>
+                    {t('coach_client_name_label')}
                   </label>
                   <div className="relative">
                     <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-muted pointer-events-none" />
-                    <input
-                      type="text"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      className={`${clientFormInputClass} pl-10`}
-                      placeholder={t('coach_client_name_placeholder')}
-                      required
-                      autoFocus
-                      inputMode="text"
-                      autoComplete="name"
-                    />
+                    <p
+                      data-testid="coach-client-name-readonly"
+                      className={`${clientFormInputClass} pl-10 bg-white/[0.03] text-ink-medium`}
+                    >
+                      {editingClient.name}
+                    </p>
                   </div>
                 </div>
 
                 <div>
                   <label className="block text-sm font-semibold text-ink-high mb-1.5">
-                    {t('coach_client_phone_label')} <span className="text-emerald-400">*</span>
+                    {t('coach_client_phone_label')}
                   </label>
                   <div className="relative">
                     <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-muted pointer-events-none" />
-                    <input
-                      type="tel"
-                      value={phone}
-                      onChange={(e) => setPhone(formatKoreanPhone(e.target.value))}
-                      className={`${clientFormInputClass} pl-10 tracking-wide`}
-                      placeholder="010-0000-0000"
-                      required
-                      inputMode="tel"
-                      autoComplete="tel"
-                      maxLength={13}
-                    />
+                    <p
+                      data-testid="coach-client-phone-readonly"
+                      className={`${clientFormInputClass} pl-10 tracking-wide bg-white/[0.03] text-ink-medium`}
+                    >
+                      {editingClient.phone}
+                    </p>
                   </div>
-                  <p className="text-[11px] text-ink-muted mt-1.5 leading-snug">
-                    {t('coach_client_phone_note')}
-                  </p>
                 </div>
 
                 <div>
@@ -680,8 +561,7 @@ export const CoachClientManager: React.FC<CoachClientManagerProps> = ({
                 </button>
                 <button
                   type="submit"
-                  disabled={!name.trim() || !phone.trim()}
-                  className="flex-1 inline-flex items-center justify-center gap-2 h-12 rounded-xl bg-gradient-to-b from-emerald-500 to-emerald-600 text-white font-semibold shadow-elev-2 hover:from-emerald-400 hover:to-emerald-500 hover:shadow-glow disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:from-emerald-500 disabled:hover:to-emerald-600 transition-all active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300"
+                  className="flex-1 inline-flex items-center justify-center gap-2 h-12 rounded-xl bg-gradient-to-b from-emerald-500 to-emerald-600 text-white font-semibold shadow-elev-2 hover:from-emerald-400 hover:to-emerald-500 hover:shadow-glow transition-all active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300"
                 >
                   <Save className="w-4 h-4" />
                   {t('coach_client_save_btn')}

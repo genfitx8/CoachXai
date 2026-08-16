@@ -26,6 +26,8 @@ vi.mock('../components/LanguageContext', () => ({
         coachx_trend_new: '초기 단계',
         coachx_stat_lessons: '레슨 기록',
         coachx_view_full_report: '분석 리포트',
+        coach_client_linking_guide:
+          '회원은 학생 앱에서 직접 가입한 뒤 담당 코치를 지정하면 연동됩니다.',
       };
       return map[key] ?? key;
     },
@@ -76,7 +78,6 @@ const PLATEAU_REPORT: MemberGrowthReport = {
 
 const DEFAULT_PROPS = {
   clients: [CLIENT, CLIENT_NO_REPORT],
-  onAdd: vi.fn(),
   onUpdate: vi.fn(),
   onDelete: vi.fn(),
   onBack: vi.fn(),
@@ -177,6 +178,34 @@ describe('CoachClientManager – CoachX integration', () => {
     // None of the trend labels should appear
     expect(screen.queryByText('성장 중')).toBeNull();
     expect(screen.queryByText('정체 구간')).toBeNull();
+  });
+});
+
+describe('CoachClientManager – no coach-side member registration', () => {
+  it('renders no add-member button, FAB, or form', () => {
+    render(<CoachClientManager {...DEFAULT_PROPS} />);
+    expect(screen.queryByTestId('coach-client-add-btn')).toBeNull();
+    expect(screen.queryByTestId('coach-client-add-fab')).toBeNull();
+    expect(screen.queryByTestId('coach-client-add-modal')).toBeNull();
+  });
+
+  it('tells the coach how members link themselves instead', () => {
+    render(<CoachClientManager {...DEFAULT_PROPS} />);
+    expect(screen.getByTestId('coach-client-linking-guide')).toBeTruthy();
+  });
+
+  it('opens an edit form whose name and phone are read-only', () => {
+    const onUpdate = vi.fn();
+    render(<CoachClientManager {...DEFAULT_PROPS} onUpdate={onUpdate} />);
+
+    // The edit affordance is the only way into the modal now.
+    fireEvent.click(screen.getAllByRole('button', { name: '' })[0]);
+    const modal = screen.getByTestId('coach-client-edit-modal');
+    expect(modal).toBeTruthy();
+    // Identity is rendered as text, never as an editable input.
+    expect(screen.getByTestId('coach-client-name-readonly').tagName).toBe('P');
+    expect(screen.getByTestId('coach-client-phone-readonly').tagName).toBe('P');
+    expect(modal.querySelector('input[type="tel"]')).toBeNull();
   });
 });
 

@@ -165,6 +165,13 @@ router.get('/', async (req: Request, res: Response) => {
 });
 
 // POST /api/clients
+//
+// Legacy: this backed the coach app's "새 회원 등록" form, which has been
+// removed. Members are now created only by signing up in the student app
+// (POST /api/auth/signup/client) and are linked to a coach only by the
+// student choosing one (PUT /api/clients/me). No current client calls this
+// route; it stays reachable so coach app builds still in the field don't
+// hard-fail, and should be deleted once those have rolled over.
 router.post('/', async (req: Request, res: Response) => {
   try {
     const coachId = req.user!.id;
