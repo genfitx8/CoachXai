@@ -641,6 +641,63 @@ a:focus-visible {
   50% { transform: scale(1.06); }
 }
 
+/* ─── CoachX 마크 라이브 상태 ────────────────────────────────────────────────
+   AI 대화창의 X 로고가 "대기 중 / 생각 중"임을 알리는 신호.
+   브랜드 규칙상 움직임은 에메랄드 획(과 그 글로우)에만 허용되므로,
+   획 위치·두께·각도는 건드리지 않고 밝기만 오르내립니다.
+   ────────────────────────────────────────────────────────────────────────── */
+
+/* 대기 중 — 느리게 숨쉬듯 깜빡임 */
+@keyframes coachxMarkStandby {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.25; }
+}
+
+/* 응답 생성 중 — 더 빠르고 또렷하게 */
+@keyframes coachxMarkThinking {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.45; }
+}
+
+@keyframes coachxMarkGlowStandby {
+  0%, 100% { filter: drop-shadow(0 0 0 rgba(16, 185, 129, 0)); }
+  50%      { filter: drop-shadow(0 0 5px rgba(16, 185, 129, 0.35)); }
+}
+
+@keyframes coachxMarkGlowThinking {
+  0%, 100% { filter: drop-shadow(0 0 3px rgba(16, 185, 129, 0.45)); }
+  50%      { filter: drop-shadow(0 0 8px rgba(16, 185, 129, 0.75)); }
+}
+
+.coachx-mark-accent-standby {
+  animation: coachxMarkStandby 2.6s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.coachx-mark-accent-thinking {
+  animation: coachxMarkThinking 0.9s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.coachx-mark-glow-standby {
+  animation: coachxMarkGlowStandby 2.6s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.coachx-mark-glow-thinking {
+  animation: coachxMarkGlowThinking 0.9s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* 모션 최소화를 켠 사용자에게는 깜빡임 없이 정적인 로고를 보여줍니다. */
+@media (prefers-reduced-motion: reduce) {
+  .coachx-mark-accent-standby,
+  .coachx-mark-accent-thinking,
+  .coachx-mark-glow-standby,
+  .coachx-mark-glow-thinking {
+    animation: none;
+  }
+  .coachx-mark-glow-thinking {
+    filter: drop-shadow(0 0 6px rgba(16, 185, 129, 0.65));
+  }
+}
+
 /* ─── Semantic color token fallbacks ─────────────────────────────────────────
    These explicit utility classes mirror what Tailwind generates from the
    theme config. They act as a CSS-variable-aware fallback so that auth-screen

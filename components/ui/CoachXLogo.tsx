@@ -24,12 +24,15 @@ interface MarkProps extends React.SVGProps<SVGSVGElement> {
   size?: number;
   tone?: LogoTone;
   monochrome?: boolean;
+  /** 에메랄드 획에만 붙는 클래스. 애니메이션은 이 획에만 허용됩니다. */
+  accentClassName?: string;
 }
 
 export const CoachXMark: React.FC<MarkProps> = ({
   size = 40,
   tone = 'dark',
   monochrome = false,
+  accentClassName,
   ...rest
 }) => {
   const stroke = size >= 40 ? 3.4 : size >= 24 ? 3.8 : size >= 20 ? 4.2 : 4.6;
@@ -53,6 +56,7 @@ export const CoachXMark: React.FC<MarkProps> = ({
         x1="32" y1="8" x2="8" y2="32"
         stroke={accent} strokeWidth={stroke} strokeLinecap="round"
         opacity={monochrome ? 0.45 : 1}
+        className={accentClassName}
       />
     </svg>
   );
@@ -121,19 +125,34 @@ export const CoachXLogo: React.FC<LogoProps> = ({
 };
 
 /**
- * 에이전트 활동 표시. 작업 중일 때 에메랄드 획이 은은하게 밝아집니다 — 허용되는 유일한 애니메이션.
+ * 에이전트 활동 표시. 애니메이션은 에메랄드 획에만 허용됩니다.
+ *
+ *   active=true   응답 생성 중 — 빠르게 깜빡이며 글로우가 켜집니다.
+ *   active=false  대기 중 — 느리게 숨쉬듯 깜빡여 "AI가 대기 중"임을 알립니다.
+ *   standby=false 정적. 로고를 가만히 두고 싶을 때.
+ *
+ * prefers-reduced-motion 사용자는 index.css 에서 애니메이션이 꺼집니다.
  */
-export const CoachXMarkLive: React.FC<MarkProps & { active?: boolean }> = ({
+export const CoachXMarkLive: React.FC<MarkProps & { active?: boolean; standby?: boolean }> = ({
   active = false,
+  standby = true,
   ...rest
-}) => (
-  <span
-    style={{
-      display: 'inline-flex',
-      filter: active ? 'drop-shadow(0 0 6px rgba(16,185,129,0.65))' : 'none',
-      transition: 'filter 600ms cubic-bezier(0.16, 1, 0.3, 1)',
-    }}
-  >
-    <CoachXMark {...rest} />
-  </span>
-);
+}) => {
+  const accentClassName = active
+    ? 'coachx-mark-accent-thinking'
+    : standby
+      ? 'coachx-mark-accent-standby'
+      : undefined;
+
+  return (
+    <span
+      className={active ? 'coachx-mark-glow-thinking' : standby ? 'coachx-mark-glow-standby' : undefined}
+      style={{
+        display: 'inline-flex',
+        transition: 'filter 600ms cubic-bezier(0.16, 1, 0.3, 1)',
+      }}
+    >
+      <CoachXMark accentClassName={accentClassName} {...rest} />
+    </span>
+  );
+};
