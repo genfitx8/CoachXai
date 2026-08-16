@@ -23,11 +23,21 @@ export const NotificationToast: React.FC<NotificationToastProps> = ({
 
   return (
     <div
+      aria-hidden={!visible}
+      // `invisible` (visibility: hidden) is what actually takes the hidden
+      // toast out of hit-testing. Without it the card below keeps its
+      // `pointer-events-auto` and — being fixed at top-20 with z-50 — swallows
+      // taps on whatever sits underneath it, most notably the student app's
+      // hamburger button in the top-left corner.
       className={`fixed top-20 left-0 right-0 z-[50] flex justify-center px-4 pointer-events-none transition-all duration-500 transform ${
-        visible ? 'translate-y-0 opacity-100' : '-translate-y-10 opacity-0'
+        visible ? 'translate-y-0 opacity-100 visible' : '-translate-y-10 opacity-0 invisible'
       }`}
     >
-      <div className="bg-white/[0.10] backdrop-blur-xl shadow-2xl rounded-2xl p-4 flex items-center gap-4 w-full max-w-sm border border-white/40 pointer-events-auto ring-1 ring-emerald-700/10 animate-slide-in-up">
+      <div
+        className={`bg-white/[0.10] backdrop-blur-xl shadow-2xl rounded-2xl p-4 flex items-center gap-4 w-full max-w-sm border border-white/40 ring-1 ring-emerald-700/10 animate-slide-in-up ${
+          visible ? 'pointer-events-auto' : 'pointer-events-none'
+        }`}
+      >
         <div className="bg-gradient-to-br from-emerald-700 via-emerald-600 to-teal-600 w-12 h-12 rounded-xl flex items-center justify-center text-white shadow-xl shadow-emerald-700/50 flex-shrink-0 animate-float">
           <Bell className="w-6 h-6 fill-current" />
         </div>
