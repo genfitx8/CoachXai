@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Button } from './Button';
 import { VideoTrimmer } from './VideoTrimmer';
 import { AudioRecorder } from './AudioRecorder';
@@ -36,12 +36,43 @@ export const VideoEditor: React.FC<VideoEditorProps> = ({
   const [slowMotionSpeed, setSlowMotionSpeed] = useState<0.5 | 0.25 | 0.125 | undefined>(undefined);
   const [currentVideoUrl, setCurrentVideoUrl] = useState(videoUrl);
 
+  // Object URLs this editor created for intermediate results, so they can be
+  // revoked instead of piling up for the lifetime of the page.
+  const derivedUrlsRef = useRef<string[]>([]);
+
+  useEffect(() => {
+    return () => {
+      derivedUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
+      derivedUrlsRef.current = [];
+    };
+  }, []);
+
+  /** Load the working copy of the clip, with a readable message when it fails. */
+  const loadCurrentVideo = async (): Promise<Blob> => {
+    try {
+      const response = await fetch(currentVideoUrl);
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      return await response.blob();
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : String(error);
+      throw new Error(`영상을 불러오지 못했습니다. (${detail})`);
+    }
+  };
+
+  const useDerivedVideo = (blob: Blob) => {
+    const newUrl = URL.createObjectURL(blob);
+    derivedUrlsRef.current.push(newUrl);
+    setCurrentVideoUrl(newUrl);
+  };
+
   const handleTrim = async (startTime: number, endTime: number) => {
     setIsProcessing(true);
     setProcessingStatus('영상을 자르는 중...');
-    
+
     try {
-      const videoBlob = await fetch(currentVideoUrl).then(r => r.blob());
+      const videoBlob = await loadCurrentVideo();
       const trimmedBlob = await videoEditingService.trimVideo(
         videoBlob,
         startTime,
@@ -51,13 +82,14 @@ export const VideoEditor: React.FC<VideoEditorProps> = ({
         }
       );
       
-      setTrimStart(startTime);
-      setTrimEnd(endTime);
-      
+      // Trims stack, so report the range relative to the original clip.
+      const appliedStart = (trimStart ?? 0) + startTime;
+      setTrimStart(appliedStart);
+      setTrimEnd(appliedStart + (endTime - startTime));
+
       // Update current video URL with trimmed version
-      const newUrl = URL.createObjectURL(trimmedBlob);
-      setCurrentVideoUrl(newUrl);
-      
+      useDerivedVideo(trimmedBlob);
+
       setEditMode('SELECT');
       alert('영상이 성공적으로 잘렸습니다.');
     } catch (error) {
@@ -87,14 +119,14 @@ export const VideoEditor: React.FC<VideoEditorProps> = ({
     setIsProcessing(true);
     setProcessingStatus(`슬로모션 ${speed}x 처리 중...`);
     try {
-      const videoBlob = await fetch(currentVideoUrl).then(r => r.blob());
+      const videoBlob = await loadCurrentVideo();
       const slowBlob = await videoEditingService.createSlowMotionVideo(
         videoBlob,
         speed,
         (progress) => setProcessingProgress(progress * 100)
       );
       setSlowMotionSpeed(speed);
-      setCurrentVideoUrl(URL.createObjectURL(slowBlob));
+      useDerivedVideo(slowBlob);
       setEditMode('SELECT');
     } catch (error) {
       console.error('Error applying slow motion:', error);
@@ -112,7 +144,7 @@ export const VideoEditor: React.FC<VideoEditorProps> = ({
     setProcessingStatus('편집된 영상을 저장하는 중...');
     
     try {
-      let finalBlob = await fetch(currentVideoUrl).then(r => r.blob());
+      let finalBlob = await loadCurrentVideo();
       
       // Apply audio if recorded
       if (audioBlob) {

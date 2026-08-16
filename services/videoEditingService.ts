@@ -5,6 +5,37 @@ import { createLogger } from '../utils/logger';
 
 const log = createLogger('videoEditing');
 
+/** Shortest clip we let through — below this ffmpeg reliably produces 0 frames. */
+export const MIN_TRIM_DURATION = 0.2;
+
+const EXTENSION_BY_MIME: Record<string, string> = {
+  'video/mp4': 'mp4',
+  'video/quicktime': 'mov',
+  'video/webm': 'webm',
+  'video/x-matroska': 'mkv',
+  'video/x-m4v': 'm4v',
+  'video/3gpp': '3gp',
+};
+
+/** Pick a container extension ffmpeg can demux from the blob's MIME type / filename. */
+const extensionFor = (file: File | Blob): string => {
+  const name = (file as File).name;
+  if (name) {
+    const ext = name.split('.').pop();
+    if (ext && ext.length <= 5 && /^[a-z0-9]+$/i.test(ext)) return ext.toLowerCase();
+  }
+  const mime = (file.type || '').split(';')[0].toLowerCase();
+  return EXTENSION_BY_MIME[mime] || 'mp4';
+};
+
+/** ffmpeg.readFile can hand back a string when the file is text; normalise to bytes. */
+const toUint8Array = (data: unknown): Uint8Array => {
+  if (data instanceof Uint8Array) return data;
+  if (typeof data === 'string') return new TextEncoder().encode(data);
+  if (data instanceof ArrayBuffer) return new Uint8Array(data);
+  return new Uint8Array(0);
+};
+
 export interface SideBySideOptions {
   outputWidth?: number;   // default 1080
   outputHeight?: number;  // default 1920
@@ -72,43 +103,96 @@ class VideoEditingService {
     if (!this.ffmpeg) {
       throw new Error('FFmpeg not initialized');
     }
+    const ffmpeg = this.ffmpeg;
+
+    const start = Number.isFinite(startTime) ? Math.max(0, startTime) : 0;
+    const end = Number.isFinite(endTime) ? endTime : NaN;
+    const duration = end - start;
+    if (!Number.isFinite(duration) || duration < MIN_TRIM_DURATION) {
+      throw new Error(
+        `자를 구간이 너무 짧습니다. 시작/종료 지점을 ${MIN_TRIM_DURATION}초 이상 벌려주세요.`
+      );
+    }
+
+    // Keep the source container extension so ffmpeg picks the right demuxer
+    // for .mov / .webm recordings straight off a phone camera.
+    const inputName = `trim_input.${extensionFor(videoFile)}`;
+    const outputName = 'trim_output.mp4';
+    const handleProgress = onProgress
+      ? ({ progress }: { progress: number }) => {
+          if (Number.isFinite(progress)) {
+            onProgress(Math.min(Math.max(progress, 0), 1));
+          }
+        }
+      : null;
 
     try {
-      const inputName = 'input.mp4';
-      const outputName = 'output.mp4';
+      await ffmpeg.writeFile(inputName, await fetchFile(videoFile));
 
-      // Write input file
-      await this.ffmpeg.writeFile(inputName, await fetchFile(videoFile));
+      // The listener has to be removed again in `finally`; otherwise every
+      // trim stacked another callback that kept driving old progress bars.
+      if (handleProgress) ffmpeg.on('progress', handleProgress);
 
-      // Set up progress callback
-      if (onProgress) {
-        this.ffmpeg.on('progress', ({ progress }) => {
-          onProgress(progress);
-        });
+      // Seek on the input (fast) and re-encode. The previous version seeked on
+      // the output with `-c copy`, which cuts on keyframe boundaries only —
+      // for swing clips that produced empty or frozen-first-second files, and
+      // often a broken/unplayable MP4.
+      let code: number;
+      try {
+        code = await ffmpeg.exec([
+          '-ss', start.toFixed(3),
+          '-i', inputName,
+          '-t', duration.toFixed(3),
+          // Even dimensions keep libx264 happy with odd-sized phone captures.
+          '-vf', 'scale=trunc(iw/2)*2:trunc(ih/2)*2',
+          '-c:v', 'libx264',
+          '-preset', 'veryfast',
+          '-crf', '23',
+          '-pix_fmt', 'yuv420p',
+          '-c:a', 'aac',
+          '-movflags', '+faststart',
+          outputName,
+        ]);
+      } catch (encodeError) {
+        log.warn('Trim re-encode threw, falling back to stream copy', encodeError);
+        code = -1;
       }
 
-      // Trim video
-      const duration = endTime - startTime;
-      await this.ffmpeg.exec([
-        '-i', inputName,
-        '-ss', startTime.toString(),
-        '-t', duration.toString(),
-        '-c', 'copy',
-        outputName
-      ]);
+      if (code !== 0) {
+        // Fallback for sources libx264 refuses: a keyframe-aligned stream copy
+        // still beats failing outright.
+        log.warn('Trim re-encode failed, retrying with stream copy', { code });
+        code = await ffmpeg.exec([
+          '-ss', start.toFixed(3),
+          '-i', inputName,
+          '-t', duration.toFixed(3),
+          '-c', 'copy',
+          '-avoid_negative_ts', 'make_zero',
+          '-movflags', '+faststart',
+          outputName,
+        ]);
+      }
 
-      // Read output file
-      const data = await this.ffmpeg.readFile(outputName);
-      const blob = new Blob([data], { type: 'video/mp4' });
+      if (code !== 0) {
+        throw new Error(`영상 자르기에 실패했습니다. (ffmpeg 종료 코드 ${code})`);
+      }
 
-      // Clean up
-      await this.ffmpeg.deleteFile(inputName);
-      await this.ffmpeg.deleteFile(outputName);
+      const data = await ffmpeg.readFile(outputName);
+      const bytes = toUint8Array(data);
+      if (bytes.byteLength === 0) {
+        throw new Error('잘라낸 영상이 비어 있습니다. 구간을 다시 선택해주세요.');
+      }
 
-      return blob;
+      return new Blob([bytes], { type: 'video/mp4' });
     } catch (error) {
       log.error('Error trimming video:', error);
       throw error;
+    } finally {
+      if (handleProgress) {
+        try { ffmpeg.off('progress', handleProgress); } catch { /* noop */ }
+      }
+      try { await ffmpeg.deleteFile(inputName); } catch { /* noop */ }
+      try { await ffmpeg.deleteFile(outputName); } catch { /* noop */ }
     }
   }
 
@@ -123,21 +207,20 @@ class VideoEditingService {
       throw new Error('FFmpeg not initialized');
     }
 
-    try {
-      const videoName = 'video.mp4';
-      const audioName = 'audio.webm';
-      const outputName = 'output.mp4';
+    const videoName = 'video.mp4';
+    const audioName = 'audio.webm';
+    const outputName = 'output.mp4';
+    const handleProgress = onProgress
+      ? ({ progress }: { progress: number }) => onProgress(progress)
+      : null;
 
+    try {
       // Write input files
       await this.ffmpeg.writeFile(videoName, await fetchFile(videoBlob));
       await this.ffmpeg.writeFile(audioName, await fetchFile(audioBlob));
 
       // Set up progress callback
-      if (onProgress) {
-        this.ffmpeg.on('progress', ({ progress }) => {
-          onProgress(progress);
-        });
-      }
+      if (handleProgress) this.ffmpeg.on('progress', handleProgress);
 
       // Merge audio with video
       await this.ffmpeg.exec([
@@ -155,17 +238,17 @@ class VideoEditingService {
 
       // Read output file
       const data = await this.ffmpeg.readFile(outputName);
-      const blob = new Blob([data], { type: 'video/mp4' });
-
-      // Clean up
-      await this.ffmpeg.deleteFile(videoName);
-      await this.ffmpeg.deleteFile(audioName);
-      await this.ffmpeg.deleteFile(outputName);
-
-      return blob;
+      return new Blob([toUint8Array(data)], { type: 'video/mp4' });
     } catch (error) {
       log.error('Error merging audio with video:', error);
       throw error;
+    } finally {
+      if (handleProgress) {
+        try { this.ffmpeg!.off('progress', handleProgress); } catch { /* noop */ }
+      }
+      try { await this.ffmpeg!.deleteFile(videoName); } catch { /* noop */ }
+      try { await this.ffmpeg!.deleteFile(audioName); } catch { /* noop */ }
+      try { await this.ffmpeg!.deleteFile(outputName); } catch { /* noop */ }
     }
   }
 
@@ -216,16 +299,15 @@ class VideoEditingService {
     const beforeName = 'before.mp4';
     const afterName = 'after.mp4';
     const outputName = 'compare.mp4';
+    const handleProgress = onProgress
+      ? ({ progress }: { progress: number }) => onProgress(Math.min(progress, 1))
+      : null;
 
     try {
       await this.ffmpeg.writeFile(beforeName, await fetchFile(beforeFile));
       await this.ffmpeg.writeFile(afterName, await fetchFile(afterFile));
 
-      if (onProgress) {
-        this.ffmpeg.on('progress', ({ progress }) => {
-          onProgress(Math.min(progress, 1));
-        });
-      }
+      if (handleProgress) this.ffmpeg.on('progress', handleProgress);
 
       // Scale each side to fill (halfWidth x videoHeight), then pad top with colored label bar
       const scaleAndCrop = `scale=${halfWidth}:${videoHeight}:force_original_aspect_ratio=increase,crop=${halfWidth}:${videoHeight}`;
@@ -260,16 +342,17 @@ class VideoEditingService {
       ]);
 
       const data = await this.ffmpeg.readFile(outputName);
-      const blob = new Blob([data], { type: 'video/mp4' });
-
-      await this.ffmpeg.deleteFile(beforeName);
-      await this.ffmpeg.deleteFile(afterName);
-      await this.ffmpeg.deleteFile(outputName);
-
-      return blob;
+      return new Blob([toUint8Array(data)], { type: 'video/mp4' });
     } catch (error) {
       log.error('Error creating side-by-side compare video:', error);
       throw error;
+    } finally {
+      if (handleProgress) {
+        try { this.ffmpeg!.off('progress', handleProgress); } catch { /* noop */ }
+      }
+      try { await this.ffmpeg!.deleteFile(beforeName); } catch { /* noop */ }
+      try { await this.ffmpeg!.deleteFile(afterName); } catch { /* noop */ }
+      try { await this.ffmpeg!.deleteFile(outputName); } catch { /* noop */ }
     }
   }
 
@@ -283,23 +366,27 @@ class VideoEditingService {
       throw new Error('FFmpeg not initialized');
     }
 
-    const inputName = 'input.mp4';
+    const inputName = `slow_input.${extensionFor(videoFile)}`;
     const outputName = 'slow_output.mp4';
+    const handleProgress = onProgress
+      ? ({ progress }: { progress: number }) => onProgress(progress)
+      : null;
 
     try {
       await this.ffmpeg.writeFile(inputName, await fetchFile(videoFile));
 
-      if (onProgress) {
-        this.ffmpeg.on('progress', ({ progress }) => onProgress(progress));
-      }
+      if (handleProgress) this.ffmpeg.on('progress', handleProgress);
 
       const ptsMultiplier = 1 / speed; // 0.5x → 2, 0.25x → 4, 0.125x → 8
       // atempo only supports 0.5–2.0 per filter, so chain multiple for extreme speeds
       const atempoCount = Math.round(Math.log(speed) / Math.log(0.5));
       const atempoChain = Array(atempoCount).fill('atempo=0.5').join(',');
 
+      // ffmpeg.exec resolves with the exit code instead of throwing, so the
+      // silent-video fallback below has to test the code, not catch an error.
+      let code: number;
       try {
-        await this.ffmpeg.exec([
+        code = await this.ffmpeg.exec([
           '-i', inputName,
           '-filter_complex', `[0:v]setpts=${ptsMultiplier}*PTS[v];[0:a]${atempoChain}[a]`,
           '-map', '[v]',
@@ -311,8 +398,12 @@ class VideoEditingService {
           outputName,
         ]);
       } catch {
+        code = -1;
+      }
+
+      if (code !== 0) {
         // Fallback: no audio stream
-        await this.ffmpeg.exec([
+        code = await this.ffmpeg.exec([
           '-i', inputName,
           '-filter:v', `setpts=${ptsMultiplier}*PTS`,
           '-an',
@@ -323,12 +414,19 @@ class VideoEditingService {
         ]);
       }
 
+      if (code !== 0) {
+        throw new Error(`슬로모션 처리에 실패했습니다. (ffmpeg 종료 코드 ${code})`);
+      }
+
       const data = await this.ffmpeg.readFile(outputName);
-      return new Blob([data], { type: 'video/mp4' });
+      return new Blob([toUint8Array(data)], { type: 'video/mp4' });
     } catch (error) {
       log.error('Error creating slow motion video:', error);
       throw error;
     } finally {
+      if (handleProgress) {
+        try { this.ffmpeg!.off('progress', handleProgress); } catch { /* noop */ }
+      }
       try { await this.ffmpeg!.deleteFile(inputName); } catch {}
       try { await this.ffmpeg!.deleteFile(outputName); } catch {}
     }

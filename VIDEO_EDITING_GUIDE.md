@@ -3,6 +3,11 @@
 ## Overview
 CoachX now includes comprehensive video editing capabilities designed specifically for golf lesson analysis. Coaches can trim videos, add voice commentary, and draw annotations directly on swing videos.
 
+**Editing is always opt-in.** Uploading a swing video in the lesson record form
+(`NewLessonForm`) keeps the clip exactly as selected; the editor opens only when
+the coach taps **영상 편집** on the media preview. Edited clips are marked with a
+**편집됨** badge in the thumbnail strip, and the button becomes **다시 편집**.
+
 ## Features
 
 ### 0. Before/After Comparison Video (전/후 비교영상)
@@ -56,10 +61,14 @@ Extract specific portions of lesson videos with precise control.
 6. Click "자르기 적용" to apply
 
 **Technical Details:**
-- Precision: 0.01 seconds (10ms)
-- Format: MP4 output
+- Precision: 0.01 seconds (10ms) in the UI; frame-accurate output
+- Minimum selection: 0.2 seconds (`MIN_TRIM_DURATION`); shorter ranges are blocked in the UI and rejected by the service
+- Format: MP4 output (`+faststart`)
 - Processing: Browser-based using FFmpeg.js WebAssembly
-- No quality loss (uses copy codec)
+- Seeks on the **input** (`-ss` before `-i`) and re-encodes with libx264/AAC.
+  Output seeking with `-c copy` only cuts on keyframe boundaries, which
+  produced empty or frozen clips for short swing videos; a stream copy is
+  still used as a fallback if the re-encode fails.
 
 ### 2. Audio Recording (음성 녹음)
 Add voice-over commentary to explain swing techniques.
