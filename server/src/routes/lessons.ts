@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import pool from '../services/db';
-import { authMiddleware } from '../middleware/auth';
+import { authMiddleware, AuthRole } from '../middleware/auth';
 import { signMediaUrl, reSignIfMedia } from '../services/mediaAccess';
 
 const router = Router();
@@ -28,7 +28,7 @@ function reSignMediaTree(value: unknown): unknown {
   return value;
 }
 
-function mapLesson(row: Record<string, unknown>, viewerRole?: 'coach' | 'client') {
+function mapLesson(row: Record<string, unknown>, viewerRole?: AuthRole) {
   // Prefer signing the stored key when available; fall back to re-signing
   // whatever's in video_url (covers legacy rows that only have the URL form).
   const videoKey = row.video_key as string | null;
@@ -112,7 +112,10 @@ router.get('/', async (req: Request, res: Response) => {
     const userRole = req.user!.role;
 
     let result;
-    if (userRole === 'coach') {
+    if (userRole === 'admin') {
+      // Admin console shows platform-wide lesson stats.
+      result = await pool.query('SELECT * FROM lessons ORDER BY created_at DESC');
+    } else if (userRole === 'coach') {
       // Coach: fetch every lesson the coach has ever owned — current
       // assignment (coach_id), original creator (original_coach_id), or
       // a previous owner from the handover chain (previous_coach_ids).
@@ -366,8 +369,11 @@ router.post('/', async (req: Request, res: Response) => {
 async function loadOwnedLesson(
   lessonId: string,
   userId: string,
-  userRole: 'coach' | 'client'
+  userRole: AuthRole
 ): Promise<Record<string, unknown> | null> {
+  // The admin token is read-only: it can list lessons but owns none, so
+  // every write path denies it here.
+  if (userRole === 'admin') return null;
   if (userRole === 'coach') {
     const row = await pool.query(
       'SELECT * FROM lessons WHERE id = $1 AND coach_id = $2',

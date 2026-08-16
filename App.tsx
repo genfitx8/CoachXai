@@ -608,7 +608,11 @@ const AppContent: React.FC = () => {
       );
     });
 
-    if (needsUpdate && useFirebase) {
+    // The admin session reads the entire member table. Writing the
+    // normalized copy back would fire one PUT per member on every load —
+    // and the admin token owns none of those rows, so every one of them
+    // would fail anyway. Normalize in memory only.
+    if (needsUpdate && useFirebase && role !== 'ADMIN') {
       // Firebase에 수정된 데이터 저장
       try {
         await apiService.saveClients(syncedClients);
@@ -616,7 +620,7 @@ const AppContent: React.FC = () => {
       } catch (e) {
         console.error('Failed to save fixed client data:', e);
       }
-    } else if (needsUpdate) {
+    } else if (needsUpdate && role !== 'ADMIN') {
       // 로컬 스토리지에 수정된 데이터 저장
       storageService.saveClients(syncedClients);
       console.log(

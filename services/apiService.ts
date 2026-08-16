@@ -212,6 +212,25 @@ export const apiService = {
     return data;
   },
 
+  /**
+   * Exchange the admin credentials for a real JWT.
+   *
+   * Before this existed the admin console authenticated entirely in the
+   * browser, so an admin session carried no token: every protected list
+   * endpoint answered 401/403 and the dashboard silently rendered whatever
+   * was cached in that device's localStorage. That is why 코치 회원 검색
+   * only ever surfaced the single locally-cached coach while the student
+   * app's /api/coaches/search returned the real rows.
+   */
+  async loginAdmin(email: string, password: string): Promise<{ token: string }> {
+    const data = await req<{ token: string }>('POST', '/api/auth/login/admin', { email, password });
+    if (!data?.token) {
+      throw new Error('로그인 응답 형식이 올바르지 않습니다.');
+    }
+    this.setToken(data.token);
+    return data;
+  },
+
   async requestPasswordReset(role: 'COACH' | 'CLIENT', email: string, phone: string): Promise<void> {
     await req('POST', '/api/auth/password/recover', {
       role: role === 'COACH' ? 'coach' : 'client',
