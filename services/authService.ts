@@ -29,12 +29,6 @@ const createResetToken = (): string => {
 
 const normalizeEmail = (email: string): string => email.trim().toLowerCase();
 
-// Only used by the offline/demo path, where there is no backend to
-// authenticate against. Server-backed deployments verify against
-// ADMIN_EMAIL / ADMIN_PASSWORD instead.
-const LEGACY_ADMIN_EMAIL = 'admin@coachx.kr';
-const LEGACY_ADMIN_PASSWORD = 'admin1234';
-
 /**
  * Safely read a JSON-encoded value out of `Storage`. A prior code path — a
  * malformed API response, a JSON.stringify(undefined) that coerced to the
@@ -168,32 +162,23 @@ export const authService = {
    * list cached in that browser's localStorage — usually a single coach —
    * while the student app queried the real table and found every match.
    *
-   * When no backend is configured (offline/demo builds) we keep the legacy
-   * local check so the console still opens against local storage data.
+   * Verification is server-side only. There is deliberately no local
+   * credential check: anything compared here would have to ship inside the
+   * JS bundle, where anyone can read it out of the deployed app.
    */
   loginAdmin: async (email: string, password: string): Promise<boolean> => {
     const normalizedEmail = normalizeEmail(email);
 
-    if (apiService.isAvailable()) {
-      await apiService.loginAdmin(normalizedEmail, password).catch((error: unknown) => {
-        log.error('Admin login error:', error);
-        const message =
-          typeof error === 'string'
-            ? error
-            : (error as { message?: string })?.message ||
-              '관리자 로그인 정보가 일치하지 않습니다.';
-        throw message;
-      });
-      return true;
-    }
-
-    if (
-      normalizedEmail === LEGACY_ADMIN_EMAIL &&
-      password === LEGACY_ADMIN_PASSWORD
-    ) {
-      return true;
-    }
-    throw '관리자 로그인 정보가 일치하지 않습니다.';
+    await apiService.loginAdmin(normalizedEmail, password).catch((error: unknown) => {
+      log.error('Admin login error:', error);
+      const message =
+        typeof error === 'string'
+          ? error
+          : (error as { message?: string })?.message ||
+            '관리자 로그인 정보가 일치하지 않습니다.';
+      throw message;
+    });
+    return true;
   },
 
   // --- Branch Admin Authentication ---

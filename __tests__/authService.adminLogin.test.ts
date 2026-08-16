@@ -129,20 +129,50 @@ describe('authService.loginAdmin', () => {
     expect(localStorage.getItem(TOKEN_KEY)).toBeNull();
   });
 
-  it('falls back to the local credential check when no backend is configured', async () => {
+  it('has no local credential check to fall back on', async () => {
+    // Any pair compared in the browser would ship inside the JS bundle, so the
+    // client must always ask the server — even with no API base URL set.
     vi.stubEnv('VITE_API_BASE_URL', '');
 
-    const fetchMock = vi.fn();
+    const fetchMock = vi.fn(
+      async () =>
+        new Response(JSON.stringify({ error: '관리자 로그인 정보가 일치하지 않습니다.' }), {
+          status: 401,
+          headers: { 'Content-Type': 'application/json' },
+        })
+    );
     vi.stubGlobal('fetch', fetchMock);
 
     const { authService } = await import('../services/authService');
 
-    await expect(authService.loginAdmin('admin@coachx.kr', 'admin1234')).resolves.toBe(
-      true
-    );
-    await expect(authService.loginAdmin('admin@coachx.kr', 'wrong')).rejects.toBe(
+    await expect(authService.loginAdmin('admin@coachx.kr', 'admin1234')).rejects.toBe(
       '관리자 로그인 정보가 일치하지 않습니다.'
     );
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(localStorage.getItem(TOKEN_KEY)).toBeNull();
+  });
+
+  it('surfaces the setup error when the server has no admin account configured', async () => {
+    vi.stubEnv('VITE_API_BASE_URL', MOCK_BASE_URL);
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify({
+              error:
+                '관리자 계정이 서버에 설정되어 있지 않습니다. ADMIN_EMAIL / ADMIN_PASSWORD_HASH 환경변수를 확인하세요.',
+            }),
+            { status: 500, headers: { 'Content-Type': 'application/json' } }
+          )
+      )
+    );
+
+    const { authService } = await import('../services/authService');
+
+    await expect(authService.loginAdmin('admin@coachx.kr', 'pw')).rejects.toContain(
+      'ADMIN_EMAIL / ADMIN_PASSWORD_HASH'
+    );
   });
 });

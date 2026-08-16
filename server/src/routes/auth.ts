@@ -34,13 +34,12 @@ const passwordRecoveryLimiter = rateLimit({
 });
 
 const ADMIN_JWT_EXPIRY = '12h';
-// Credentials the admin console shipped with before server-side admin auth
-// existed (they were hardcoded in the frontend bundle, so they were never a
-// secret). They stay as the fallback so an un-migrated deployment keeps
-// working, but ADMIN_EMAIL / ADMIN_PASSWORD should be set in production.
-const LEGACY_ADMIN_EMAIL = 'admin@coachx.kr';
-const LEGACY_ADMIN_PASSWORD = 'admin1234';
 const ADMIN_SENTINEL_ID = '00000000-0000-0000-0000-000000000000';
+const ADMIN_NOT_CONFIGURED_ERROR =
+  '관리자 계정이 서버에 설정되어 있지 않습니다. ADMIN_EMAIL / ADMIN_PASSWORD_HASH 환경변수를 확인하세요.';
+// A throwaway hash to compare against when the submitted admin email is wrong,
+// so a bad email costs the same time as a bad password.
+const ADMIN_DECOY_HASH = bcrypt.hashSync(crypto.randomBytes(32).toString('hex'), BCRYPT_ROUNDS);
 
 function signToken(id: string, role: AuthRole, expiresIn: string = JWT_EXPIRY): string {
   const secret = process.env.JWT_SECRET;
@@ -267,24 +266,33 @@ router.post('/login/admin', adminLoginLimiter, async (req: Request, res: Respons
     return;
   }
 
+  const expectedEmail = process.env.ADMIN_EMAIL?.trim().toLowerCase();
+  const passwordHash = process.env.ADMIN_PASSWORD_HASH?.trim();
+  const plainPassword = process.env.ADMIN_PASSWORD;
+
+  // Fail closed. The previous built-in fallback pair lived in the repository,
+  // so leaving it in place meant a published password unlocked production.
+  if (!expectedEmail || (!passwordHash && !plainPassword)) {
+    console.error(
+      '[auth] login/admin blocked: set ADMIN_EMAIL and ADMIN_PASSWORD_HASH (or ADMIN_PASSWORD)'
+    );
+    res.status(500).json({ error: ADMIN_NOT_CONFIGURED_ERROR });
+    return;
+  }
+
   try {
-    const expectedEmail = (process.env.ADMIN_EMAIL || LEGACY_ADMIN_EMAIL).trim().toLowerCase();
-    const passwordHash = process.env.ADMIN_PASSWORD_HASH;
-    const plainPassword = process.env.ADMIN_PASSWORD;
-
-    if (!passwordHash && !plainPassword) {
-      console.warn(
-        '[auth] ADMIN_PASSWORD / ADMIN_PASSWORD_HASH is not configured; ' +
-          'falling back to the legacy built-in admin credentials. Set one of them.'
-      );
-    }
-
     const emailMatches = email.trim().toLowerCase() === expectedEmail;
     let passwordMatches: boolean;
     if (passwordHash) {
-      passwordMatches = await bcrypt.compare(password, passwordHash);
+      // Compare against a throwaway hash when the email is wrong so both
+      // halves cost the same time and the response does not reveal which
+      // one failed.
+      passwordMatches = await bcrypt.compare(
+        password,
+        emailMatches ? passwordHash : ADMIN_DECOY_HASH
+      );
     } else {
-      passwordMatches = password === (plainPassword || LEGACY_ADMIN_PASSWORD);
+      passwordMatches = password === plainPassword;
     }
 
     if (!emailMatches || !passwordMatches) {
