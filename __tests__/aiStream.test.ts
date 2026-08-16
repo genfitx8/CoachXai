@@ -24,6 +24,7 @@ vi.mock('../services/firebase', () => ({
 
 vi.mock('../services/apiBase', () => ({
   resolveApiBaseUrl: () => '',
+  authHeaders: () => ({ Authorization: 'Bearer test-token' }),
 }));
 
 import {

@@ -15,6 +15,8 @@ import {
   streamGeminiApi,
 } from '../services/geminiApiRuntime';
 import { resolveModel } from '../services/modelRouter';
+import { authMiddleware } from '../middleware/auth';
+import { createUserLimiter } from '../middleware/rateLimit';
 
 type RuntimePart =
   | { text: string }
@@ -91,6 +93,17 @@ const resolveTemperature = (
 
 const router = Router();
 
+// Every model call here bills to our Gemini key, so the endpoint must not be
+// open to the internet: the backend URL ships in the client bundle, and an
+// unauthenticated /invoke is a free, unmetered proxy to a paid API. Requiring
+// a JWT ties each call to a coach or student account; the limiter then caps
+// what any single account can spend if a client loops on a retry.
+//
+// The cap is generous relative to real usage — a coach running back-to-back
+// lesson analyses lands well under it — but it bounds the damage from a
+// runaway loop to something recoverable.
+const aiInvokeLimiter = createUserLimiter(60 * 1000, 30);
+
 router.get('/status', (_req: Request, res: Response) => {
   const legacy = getAgentRuntimeStatus();
   res.json({
@@ -100,7 +113,7 @@ router.get('/status', (_req: Request, res: Response) => {
   });
 });
 
-router.post('/invoke', async (req: Request, res: Response) => {
+router.post('/invoke', authMiddleware, aiInvokeLimiter, async (req: Request, res: Response) => {
   try {
     const { feature, payload } = req.body as {
       feature?: string;
@@ -188,7 +201,7 @@ router.post('/invoke', async (req: Request, res: Response) => {
  * Chunks are yielded as they arrive from Gemini so the client can render
  * incrementally. The server never buffers the full response.
  */
-router.post('/invoke-stream', async (req: Request, res: Response) => {
+router.post('/invoke-stream', authMiddleware, aiInvokeLimiter, async (req: Request, res: Response) => {
   const { feature, payload } = req.body as {
     feature?: string;
     payload?: unknown;

@@ -23,7 +23,7 @@
  */
 import { createLogger } from '../utils/logger';
 import { recordAiCall, hashPrompt } from './aiCallLogger';
-import { resolveApiBaseUrl } from './apiBase';
+import { authHeaders, resolveApiBaseUrl } from './apiBase';
 import { scanForInjection } from './promptSafety';
 
 const log = createLogger('aiStream');
@@ -176,7 +176,7 @@ export const invokeBackendAIStream = async (
   try {
     response = await fetch(getStreamEndpoint(), {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
       body: JSON.stringify({ feature, payload }),
       signal: options.signal,
     });

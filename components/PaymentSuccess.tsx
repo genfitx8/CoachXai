@@ -108,7 +108,7 @@ export const PaymentSuccess: React.FC<PaymentSuccessProps> = ({
           let refreshedBalance = (clientProfile.currentPoints ?? 0) + creditedPoints;
 
           if (firebaseService.isInitialized()) {
-            const clients = await firebaseService.loadClients();
+            const clients = await firebaseService.getClients();
             const found = clients.find(
               (c) =>
                 c.name === clientProfile.name && c.phone === clientProfile.phone

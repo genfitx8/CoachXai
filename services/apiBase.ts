@@ -12,6 +12,34 @@
  */
 const DEPLOYED_BACKEND_FALLBACK = 'https://coachxai-server.onrender.com';
 
+/**
+ * localStorage slot holding the API JWT. Kept in sync with `apiService`'s
+ * own `TOKEN_KEY`; duplicated here rather than imported so that services
+ * needing only the header (aiStream, geminiService) don't pull in the whole
+ * apiService module graph.
+ */
+const TOKEN_KEY = 'swingnote_api_token';
+
+/**
+ * Authorization header for the current session, or `{}` when signed out.
+ *
+ * `/api/ai/*` requires a JWT — the endpoint bills to our Gemini key, so it
+ * can't be left open to anonymous callers. Every AI caller must send this.
+ */
+export function authHeaders(): Record<string, string> {
+  if (typeof window === 'undefined' || typeof window.localStorage === 'undefined') {
+    return {};
+  }
+  try {
+    const token = window.localStorage.getItem(TOKEN_KEY);
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  } catch {
+    // Storage blocked (private mode / embedded webview) — the request will
+    // fail auth and surface the normal signed-out path.
+    return {};
+  }
+}
+
 export function resolveApiBaseUrl(): string {
   const envUrl = import.meta.env.VITE_API_BASE_URL;
   if (envUrl) return envUrl.replace(/\/$/, '');

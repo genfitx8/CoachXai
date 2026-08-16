@@ -45,7 +45,7 @@ import {
   buildMemberActivityOverview,
   formatLessonEntry,
 } from './lessonContext';
-import { resolveApiBaseUrl } from './apiBase';
+import { authHeaders, resolveApiBaseUrl } from './apiBase';
 import { recordAiCall, hashPrompt } from './aiCallLogger';
 import {
   CACHEABLE_FEATURES,
@@ -294,7 +294,7 @@ export const invokeBackendAI = async <T>(feature: string, payload: unknown): Pro
   try {
     const response = await fetch(getAiApiEndpoint(), {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
       body: JSON.stringify({ feature, payload }),
     });
 

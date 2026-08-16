@@ -6,6 +6,15 @@ const pool = new Pool({
   ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : undefined,
 });
 
+// `pg` emits 'error' on idle clients when the server closes the connection —
+// which Render does routinely during database maintenance. An 'error' event
+// with no listener is rethrown as an uncaught exception and kills the process,
+// so this listener is what keeps a routine reconnect from becoming an outage.
+// The pool discards the broken client and dials a new one on the next query.
+pool.on('error', (err) => {
+  console.error('[swingnote-server] Idle Postgres client error:', err);
+});
+
 export async function initDb(): Promise<void> {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS payment_orders (

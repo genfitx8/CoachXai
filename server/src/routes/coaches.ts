@@ -1,21 +1,15 @@
 import { Router, Request, Response } from 'express';
-import { rateLimit } from 'express-rate-limit';
 import pool from '../services/db';
 import { authMiddleware } from '../middleware/auth';
+import { createUserLimiter } from '../middleware/rateLimit';
 
 const router = Router();
-const listCoachesLimiter = rateLimit({
-  windowMs: 60 * 1000,
-  limit: 120,
-  standardHeaders: true,
-  legacyHeaders: false,
-});
-const coachSelfLimiter = rateLimit({
-  windowMs: 60 * 1000,
-  limit: 180,
-  standardHeaders: true,
-  legacyHeaders: false,
-});
+// Keyed per account rather than per IP. These limits were written as
+// per-user budgets, but an IP key behind the platform proxy turned them into
+// a single bucket shared by every coach and student — 120 req/min across the
+// whole user base, which a few dozen concurrent sessions exhaust on their own.
+const listCoachesLimiter = createUserLimiter(60 * 1000, 120);
+const coachSelfLimiter = createUserLimiter(60 * 1000, 180);
 const COACH_COLUMNS = `
   id, name, email, phone,
   is_subscribed, subscription_plan, subscription_end_date,
@@ -58,7 +52,7 @@ function mapCoach(row: Record<string, unknown>) {
 }
 
 // GET /api/coaches
-router.get('/', listCoachesLimiter, authMiddleware, requireCoachOrAdminRole, async (_req: Request, res: Response) => {
+router.get('/', authMiddleware, listCoachesLimiter, requireCoachOrAdminRole, async (_req: Request, res: Response) => {
   try {
     const result = await pool.query(
       `SELECT ${COACH_COLUMNS} FROM coaches ORDER BY created_at DESC`
@@ -73,7 +67,7 @@ router.get('/', listCoachesLimiter, authMiddleware, requireCoachOrAdminRole, asy
 // GET /api/coaches/search?q=<name>
 // Accessible by any authenticated user (coaches and clients) so students
 // can search for a coach to assign to their own profile.
-router.get('/search', listCoachesLimiter, authMiddleware, async (req: Request, res: Response) => {
+router.get('/search', authMiddleware, listCoachesLimiter, async (req: Request, res: Response) => {
   try {
     const rawQuery = typeof req.query.q === 'string' ? req.query.q : '';
     const term = rawQuery.trim();
@@ -105,7 +99,7 @@ router.get('/search', listCoachesLimiter, authMiddleware, async (req: Request, r
 });
 
 // GET /api/coaches/me
-router.get('/me', coachSelfLimiter, authMiddleware, requireCoachRole, async (req: Request, res: Response) => {
+router.get('/me', authMiddleware, coachSelfLimiter, requireCoachRole, async (req: Request, res: Response) => {
   try {
     const coachId = req.user!.id;
     const result = await pool.query(
@@ -126,7 +120,7 @@ router.get('/me', coachSelfLimiter, authMiddleware, requireCoachRole, async (req
 });
 
 // GET /api/coaches/:id - accessible by authenticated coaches and clients
-router.get('/:id', coachSelfLimiter, authMiddleware, async (req: Request, res: Response) => {
+router.get('/:id', authMiddleware, coachSelfLimiter, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const result = await pool.query(
@@ -161,7 +155,7 @@ router.get('/:id', coachSelfLimiter, authMiddleware, async (req: Request, res: R
 });
 
 // PUT /api/coaches/me
-router.put('/me', coachSelfLimiter, authMiddleware, requireCoachRole, async (req: Request, res: Response) => {
+router.put('/me', authMiddleware, coachSelfLimiter, requireCoachRole, async (req: Request, res: Response) => {
   try {
     const coachId = req.user!.id;
     const {

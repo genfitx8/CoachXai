@@ -23,6 +23,14 @@ services:
         sync: false
       - key: ADMIN_PASSWORD_HASH
         sync: false
+      # Shared secret for the admin-only curriculum-template routes
+      # (middleware/adminAuth.ts). Those routes answer 500 until it is set.
+      - key: ADMIN_API_TOKEN
+        sync: false
+      # Signs lesson-media access URLs. Falls back to JWT_SECRET when unset;
+      # set it explicitly so rotating one secret does not invalidate the other.
+      - key: MEDIA_SIGNING_SECRET
+        sync: false
       - key: R2_ACCOUNT_ID
         sync: false
       - key: R2_ACCESS_KEY_ID

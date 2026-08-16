@@ -23,6 +23,22 @@ const adminLoginLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 });
+// Per-account login and signup were previously unthrottled, leaving the only
+// credential check in the system open to unlimited guessing. These are keyed
+// by IP (the caller is anonymous by definition at this point) and sized so a
+// coach fat-fingering a password several times never notices the limit.
+const loginLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  limit: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+const signupLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  limit: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 const passwordRecoveryLimiter = rateLimit({
   windowMs: PASSWORD_RECOVERY_WINDOW_MS,
   limit: PASSWORD_RECOVERY_MAX_REQUESTS,
@@ -84,7 +100,7 @@ function mapClient(row: Record<string, unknown>) {
 }
 
 // POST /api/auth/signup/coach
-router.post('/signup/coach', async (req: Request, res: Response) => {
+router.post('/signup/coach', signupLimiter, async (req: Request, res: Response) => {
   const { name, email, password, phone } = req.body as {
     name?: string;
     email?: string;
@@ -125,7 +141,7 @@ router.post('/signup/coach', async (req: Request, res: Response) => {
 });
 
 // POST /api/auth/login/coach
-router.post('/login/coach', async (req: Request, res: Response) => {
+router.post('/login/coach', loginLimiter, async (req: Request, res: Response) => {
   const { email, password } = req.body as { email?: string; password?: string };
 
   if (!email || !password) {
@@ -157,7 +173,7 @@ router.post('/login/coach', async (req: Request, res: Response) => {
 });
 
 // POST /api/auth/signup/client
-router.post('/signup/client', async (req: Request, res: Response) => {
+router.post('/signup/client', signupLimiter, async (req: Request, res: Response) => {
   const { name, email, password, phone } = req.body as {
     name?: string;
     email?: string;
@@ -220,7 +236,7 @@ router.post('/signup/client', async (req: Request, res: Response) => {
 });
 
 // POST /api/auth/login/client
-router.post('/login/client', async (req: Request, res: Response) => {
+router.post('/login/client', loginLimiter, async (req: Request, res: Response) => {
   const { email, password } = req.body as { email?: string; password?: string };
 
   if (!email || !password) {
@@ -273,6 +289,23 @@ router.post('/login/admin', adminLoginLimiter, async (req: Request, res: Respons
     const plainPassword = process.env.ADMIN_PASSWORD;
 
     if (!passwordHash && !plainPassword) {
+      // The legacy pair is published in this repository's history, and the
+      // admin console reads every coach and student in the database. Letting
+      // it stand in production would put real users' records behind a password
+      // anyone can look up, so production requires a configured credential and
+      // refuses the fallback outright. Local development keeps it for
+      // convenience.
+      if (process.env.NODE_ENV === 'production') {
+        console.error(
+          '[auth] Admin login refused: neither ADMIN_PASSWORD_HASH nor ADMIN_PASSWORD ' +
+            'is set. Configure one — the legacy built-in credentials are public and ' +
+            'are not accepted in production.'
+        );
+        res.status(503).json({
+          error: '관리자 계정이 설정되지 않았습니다. 서버 환경변수를 확인해주세요.',
+        });
+        return;
+      }
       console.warn(
         '[auth] ADMIN_PASSWORD / ADMIN_PASSWORD_HASH is not configured; ' +
           'falling back to the legacy built-in admin credentials. Set one of them.'
