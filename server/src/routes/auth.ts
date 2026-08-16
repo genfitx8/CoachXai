@@ -10,6 +10,14 @@ const router = Router();
 
 const BCRYPT_ROUNDS = 10;
 const JWT_EXPIRY = '30d';
+// Admin sessions are far more sensitive than member sessions, so they expire
+// in hours rather than the 30 days a coach/client token lives for.
+const ADMIN_JWT_EXPIRY = '12h';
+const ADMIN_LOGIN_WINDOW_MS = 15 * 60 * 1000;
+const ADMIN_LOGIN_MAX_ATTEMPTS = 10;
+const ADMIN_CREDENTIALS_ERROR = '관리자 로그인 정보가 일치하지 않습니다.';
+const ADMIN_NOT_CONFIGURED_ERROR =
+  '관리자 계정이 서버에 설정되어 있지 않습니다. ADMIN_EMAIL / ADMIN_PASSWORD_HASH 환경변수를 확인하세요.';
 const PASSWORD_RECOVERY_MESSAGE = '등록된 이메일로 비밀번호 안내 메일을 발송했습니다.';
 const PASSWORD_RESET_TOKEN_EXPIRY_MS = 30 * 60 * 1000;
 const PASSWORD_RECOVERY_WINDOW_MS = 10 * 60 * 1000;
@@ -24,10 +32,31 @@ const passwordRecoveryLimiter = rateLimit({
   },
 });
 
-function signToken(id: string, role: 'coach' | 'client'): string {
+const adminLoginLimiter = rateLimit({
+  windowMs: ADMIN_LOGIN_WINDOW_MS,
+  limit: ADMIN_LOGIN_MAX_ATTEMPTS,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (_req, res) => {
+    res
+      .status(429)
+      .json({ error: '로그인 시도가 너무 많습니다. 잠시 후 다시 시도해주세요.' });
+  },
+});
+
+// A throwaway hash compared against when the submitted admin email is wrong,
+// so a bad email costs the same time as a bad password and the endpoint does
+// not leak which half of the credentials was incorrect.
+const ADMIN_DECOY_HASH = bcrypt.hashSync(crypto.randomBytes(32).toString('hex'), BCRYPT_ROUNDS);
+
+function signToken(
+  id: string,
+  role: 'coach' | 'client' | 'admin',
+  expiresIn: jwt.SignOptions['expiresIn'] = JWT_EXPIRY
+): string {
   const secret = process.env.JWT_SECRET;
   if (!secret) throw new Error('JWT_SECRET is not configured');
-  return jwt.sign({ id, role }, secret, { expiresIn: JWT_EXPIRY });
+  return jwt.sign({ id, role }, secret, { expiresIn });
 }
 
 function mapCoach(row: Record<string, unknown>) {
@@ -229,6 +258,48 @@ router.post('/login/client', async (req: Request, res: Response) => {
     res.json({ token, client: mapClient(client) });
   } catch (err) {
     console.error('[auth] login/client error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// POST /api/auth/login/admin
+//
+// The admin account is not a database row — it is a single operator account
+// configured through environment variables, so the credentials never ship in
+// the client bundle. ADMIN_PASSWORD_HASH holds a bcrypt hash; generate one
+// with `npm run hash:admin-password` inside server/.
+router.post('/login/admin', adminLoginLimiter, async (req: Request, res: Response) => {
+  const { email, password } = req.body as { email?: string; password?: string };
+
+  if (!email || !password) {
+    res.status(400).json({ error: 'email and password are required' });
+    return;
+  }
+
+  const expectedEmail = process.env.ADMIN_EMAIL?.trim().toLowerCase();
+  const expectedHash = process.env.ADMIN_PASSWORD_HASH?.trim();
+
+  if (!expectedEmail || !expectedHash) {
+    console.error('[auth] login/admin blocked: ADMIN_EMAIL / ADMIN_PASSWORD_HASH not configured');
+    res.status(500).json({ error: ADMIN_NOT_CONFIGURED_ERROR });
+    return;
+  }
+
+  try {
+    const emailMatches = email.trim().toLowerCase() === expectedEmail;
+    const passwordMatches = await bcrypt.compare(
+      password,
+      emailMatches ? expectedHash : ADMIN_DECOY_HASH
+    );
+
+    if (!emailMatches || !passwordMatches) {
+      res.status(401).json({ error: ADMIN_CREDENTIALS_ERROR });
+      return;
+    }
+
+    res.json({ token: signToken('admin', 'admin', ADMIN_JWT_EXPIRY) });
+  } catch (err) {
+    console.error('[auth] login/admin error:', err);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

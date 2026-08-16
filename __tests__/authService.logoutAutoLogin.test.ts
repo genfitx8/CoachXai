@@ -30,6 +30,9 @@ vi.mock('../services/apiService', () => ({
     loginClient: vi.fn(),
     setToken: vi.fn(),
     clearToken: vi.fn(),
+    setAdminToken: vi.fn(),
+    clearAdminToken: vi.fn(),
+    getAdminToken: vi.fn(),
   },
 }));
 

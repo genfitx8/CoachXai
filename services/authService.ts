@@ -151,16 +151,24 @@ export const authService = {
     });
   },
 
-  loginAdmin: (email: string, password: string): Promise<boolean> => {
-    return new Promise((resolve, reject) => {
-      setTimeout(() => {
-        if (email === 'admin@coachx.kr' && password === 'admin1234') {
-          resolve(true);
-        } else {
-          reject('관리자 로그인 정보가 일치하지 않습니다.');
-        }
-      }, 500);
-    });
+  /**
+   * Admin credentials are verified server-side against ADMIN_EMAIL /
+   * ADMIN_PASSWORD_HASH; nothing about the admin account is knowable from the
+   * client bundle. On success the server hands back a short-lived admin JWT
+   * that apiService attaches to subsequent admin-only requests.
+   */
+  loginAdmin: async (email: string, password: string): Promise<boolean> => {
+    try {
+      await apiService.loginAdmin(normalizeEmail(email), password);
+      return true;
+    } catch (error: any) {
+      log.error('Admin login error:', error);
+      const message =
+        typeof error === 'string'
+          ? error
+          : error?.message || '관리자 로그인 정보가 일치하지 않습니다.';
+      return Promise.reject(message);
+    }
   },
 
   // --- Branch Admin Authentication ---
@@ -415,6 +423,7 @@ export const authService = {
 
   logout: () => {
     apiService.clearToken();
+    apiService.clearAdminToken();
     localStorage.removeItem(STORAGE_KEYS.SESSION_ROLE);
     localStorage.removeItem(STORAGE_KEYS.SESSION_CLIENT_DATA);
     localStorage.removeItem(STORAGE_KEYS.SESSION_BRANCH_ADMIN_DATA);

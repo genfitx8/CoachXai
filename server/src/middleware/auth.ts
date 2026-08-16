@@ -1,7 +1,21 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 
+export type AuthRole = 'coach' | 'client' | 'admin';
+
+/** Shape of any token this server issues. */
 export interface AuthPayload {
+  id: string;
+  role: AuthRole;
+}
+
+/**
+ * A member session. `req.user` is deliberately narrower than AuthPayload:
+ * admin tokens are issued for the admin console only and must never be
+ * mistaken for an owner on member-scoped routes, so authMiddleware rejects
+ * them and every downstream owner check keeps its two-role assumption.
+ */
+export interface MemberAuthPayload {
   id: string;
   role: 'coach' | 'client';
 }
@@ -10,9 +24,14 @@ export interface AuthPayload {
 declare global {
   namespace Express {
     interface Request {
-      user?: AuthPayload;
+      user?: MemberAuthPayload;
+      admin?: { id: string };
     }
   }
+}
+
+function isMemberRole(role: unknown): role is 'coach' | 'client' {
+  return role === 'coach' || role === 'client';
 }
 
 function extractToken(req: Request): string | null {
@@ -40,6 +59,10 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction):
 
   try {
     const payload = jwt.verify(token, secret) as AuthPayload;
+    if (!isMemberRole(payload.role)) {
+      res.status(403).json({ error: 'Forbidden' });
+      return;
+    }
     req.user = { id: payload.id, role: payload.role };
     next();
   } catch {
@@ -58,7 +81,9 @@ export function optionalAuth(req: Request, _res: Response, next: NextFunction): 
     if (secret) {
       try {
         const payload = jwt.verify(token, secret) as AuthPayload;
-        req.user = { id: payload.id, role: payload.role };
+        if (isMemberRole(payload.role)) {
+          req.user = { id: payload.id, role: payload.role };
+        }
       } catch {
         // silently ignore invalid tokens
       }

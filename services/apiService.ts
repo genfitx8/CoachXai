@@ -3,6 +3,9 @@ import { resolveApiBaseUrl } from './apiBase';
 
 const BASE_URL = resolveApiBaseUrl();
 const TOKEN_KEY = 'swingnote_api_token';
+// Admin sessions live in sessionStorage only: authService.saveSession never
+// persists the ADMIN role beyond the tab, and the token should not outlive it.
+const ADMIN_TOKEN_KEY = 'coachxai_admin_session_token';
 const LESSON_NOT_FOUND_ERROR = 'Lesson not found or access denied';
 const HTTP_404_ERROR = 'HTTP 404';
 
@@ -33,8 +36,20 @@ function parseErrorDetails(error: unknown): { status?: number; message: string }
   return { message: '' };
 }
 
+function readStoredToken(storage: Storage, key: string): string | null {
+  const raw = storage.getItem(key);
+  // Heal the "undefined" / "null" strings left over from an earlier bad
+  // write so callers see the same null they would on a fresh browser.
+  if (raw === null || raw === '' || raw === 'undefined' || raw === 'null') {
+    if (raw !== null) storage.removeItem(key);
+    return null;
+  }
+  return raw;
+}
+
 async function req<T = unknown>(method: string, path: string, body?: unknown): Promise<T> {
-  const token = localStorage.getItem(TOKEN_KEY);
+  const token =
+    readStoredToken(localStorage, TOKEN_KEY) ?? readStoredToken(sessionStorage, ADMIN_TOKEN_KEY);
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   if (token) headers['Authorization'] = `Bearer ${token}`;
   let res: Response;
@@ -164,14 +179,19 @@ export const apiService = {
   },
   clearToken() { localStorage.removeItem(TOKEN_KEY); },
   getToken(): string | null {
-    const raw = localStorage.getItem(TOKEN_KEY);
-    // Heal the "undefined" / "null" strings left over from an earlier bad
-    // write so callers see the same null they would on a fresh browser.
-    if (raw === null || raw === '' || raw === 'undefined' || raw === 'null') {
-      if (raw !== null) localStorage.removeItem(TOKEN_KEY);
-      return null;
+    return readStoredToken(localStorage, TOKEN_KEY);
+  },
+
+  setAdminToken(token: string) {
+    if (typeof token !== 'string' || token.length === 0) {
+      sessionStorage.removeItem(ADMIN_TOKEN_KEY);
+      return;
     }
-    return raw;
+    sessionStorage.setItem(ADMIN_TOKEN_KEY, token);
+  },
+  clearAdminToken() { sessionStorage.removeItem(ADMIN_TOKEN_KEY); },
+  getAdminToken(): string | null {
+    return readStoredToken(sessionStorage, ADMIN_TOKEN_KEY);
   },
 
   // ── Auth ──────────────────────────────────────────────────────────────────
@@ -209,6 +229,15 @@ export const apiService = {
       throw new Error('로그인 응답 형식이 올바르지 않습니다.');
     }
     this.setToken(data.token);
+    return data;
+  },
+
+  async loginAdmin(email: string, password: string): Promise<{ token: string }> {
+    const data = await req<{ token: string }>('POST', '/api/auth/login/admin', { email, password });
+    if (!data?.token) {
+      throw new Error('관리자 로그인 응답 형식이 올바르지 않습니다.');
+    }
+    this.setAdminToken(data.token);
     return data;
   },
 

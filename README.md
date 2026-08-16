@@ -71,6 +71,32 @@ Build the most trusted AI assistant for coaches by turning each lesson into clea
 2. Fill in your own values in `.env`. See `.env.example` for all available variables and their descriptions.
 3. For deployments (e.g., Vercel), add the variables through the platform's environment variable UI — never hard-code them in source files.
 
+### Admin account setup
+
+The admin console login is verified **server-side only** — no admin credential
+exists in the client bundle. Configure it on the backend:
+
+1. Generate a bcrypt hash of the admin password (the password is read from
+   stdin, so it never reaches your shell history):
+   ```bash
+   cd server && npm run hash:admin-password
+   ```
+2. Set the printed value along with the admin address:
+   - `ADMIN_EMAIL` (example: `admin@coachx.kr`)
+   - `ADMIN_PASSWORD_HASH` (the `$2a$...` hash from step 1)
+   - `JWT_SECRET` — required to sign the session token
+
+Signing in posts to `POST /api/auth/login/admin`, which returns a 12-hour admin
+JWT. The token is kept in `sessionStorage`, so closing the tab ends the session.
+Failed attempts are rate limited to 10 per 15 minutes per IP.
+
+If `ADMIN_EMAIL` or `ADMIN_PASSWORD_HASH` is missing, admin login fails with an
+explicit configuration error rather than falling back to a default account.
+
+`ADMIN_API_TOKEN` remains supported as a legacy shared secret for admin-only
+APIs via the `x-admin-token` header (server-to-server callers and break-glass
+access); a normal admin login does not need it.
+
 ### Firebase Google auth setup
 
 To use **Google login/signup**, set these client environment variables:
