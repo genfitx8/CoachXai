@@ -150,6 +150,10 @@ const LESSON_FLOW_HEADER_CLASS =
   'bg-base/95 border-b border-line-subtle px-5 py-4 flex items-center justify-between text-ink-high flex-shrink-0 backdrop-blur-md';
 const LESSON_FLOW_INPUT_CLASS =
   'w-full pl-10 pr-4 py-3 border border-line-subtle rounded-xl bg-white/[0.04]/[0.04] text-ink-high placeholder:text-ink-muted focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-all';
+// Every action button in the lesson flow shares one height / radius / type
+// scale so the stacked CTAs read as a single group. Colour is the only thing
+// that separates the primary action from the secondary ones.
+const LESSON_FLOW_ACTION_BTN_CLASS = 'text-base font-bold';
 
 // Detailed Club Options Definition
 const CLUB_GROUPS = [
@@ -1897,34 +1901,48 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
             </p>
           )}
 
-          <Button
-            onClick={handleStartLesson}
-            className="w-full py-4 text-lg font-bold shadow-glow mt-4"
-          >
-            레슨 기록 시작 <Play className="w-5 h-5 ml-2 fill-current" />
-          </Button>
-
-          {userRole === 'COACH' && (
-            <button
-              type="button"
-              onClick={handleStartRound}
-              data-testid="coach-start-round-btn"
-              className="w-full flex items-center justify-center gap-2 py-3.5 px-4 bg-blue-900/40 border border-blue-700/60 rounded-xl text-blue-200 font-semibold hover:bg-blue-900/70 hover:border-blue-600 transition-colors mt-2"
-            >
-              <Trophy className="w-5 h-5" /> 라운드 기록
-            </button>
-          )}
-
-          {userRole === 'COACH' && onDirectRegisterFromLessonStart && (
+          <div className="space-y-3 pt-2">
             <Button
-              onClick={onDirectRegisterFromLessonStart}
-              data-testid="lesson-start-direct-register-btn"
-              className="w-full py-3 mt-3 bg-base hover:bg-white/[0.05] text-ink-high border border-line-subtle"
-              icon={<UserPlus className="w-4 h-4" />}
+              type="button"
+              onClick={handleStartLesson}
+              fullWidth
+              size="lg"
+              className={`${LESSON_FLOW_ACTION_BTN_CLASS} shadow-glow`}
+              icon={<Play className="w-5 h-5 fill-current" />}
             >
-              {t('coach_client_add_btn')}
+              레슨 기록 시작
             </Button>
-          )}
+
+            {userRole === 'COACH' && (
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={handleStartRound}
+                data-testid="coach-start-round-btn"
+                fullWidth
+                size="lg"
+                className={LESSON_FLOW_ACTION_BTN_CLASS}
+                icon={<Trophy className="w-5 h-5" />}
+              >
+                라운드 기록
+              </Button>
+            )}
+
+            {userRole === 'COACH' && onDirectRegisterFromLessonStart && (
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={onDirectRegisterFromLessonStart}
+                data-testid="lesson-start-direct-register-btn"
+                fullWidth
+                size="lg"
+                className={LESSON_FLOW_ACTION_BTN_CLASS}
+                icon={<UserPlus className="w-5 h-5" />}
+              >
+                {t('coach_client_add_btn')}
+              </Button>
+            )}
+          </div>
         </div>
       </div>
     );
