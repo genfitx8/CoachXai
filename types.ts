@@ -613,7 +613,17 @@ export interface ClientProfile {
    * history to include.
    */
   previousCoachIds?: string[];
+  /** The student's own 자기소개 / 목표, written from their profile screen. */
   memo?: string;
+  /**
+   * The assigned coach's private note about this student.
+   *
+   * Server-side this is a separate column from `memo` and is only ever
+   * returned by the coach-scoped endpoints, so it never reaches the student
+   * app. Both notes used to share `memo`, which meant a coach's note and a
+   * student's bio silently overwrote each other.
+   */
+  coachMemo?: string;
   memberBodyAnalysis?: LessonBodyAnalysis; // Member body analysis managed in My Info
   // Added: Points
   currentPoints?: number;

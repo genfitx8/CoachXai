@@ -1389,6 +1389,9 @@ const AppContent: React.FC = () => {
             phone: profileWithCoach.phone,
             coachId: profileWithCoach.coachId ?? null,
             designatedCoach: profileWithCoach.designatedCoach ?? null,
+            // The student's own 자기소개/목표. Omitted from this patch before,
+            // so anything typed in the bio box was dropped on save.
+            memo: profileWithCoach.memo,
             pushToken: profileWithCoach.pushToken,
           } as Partial<ClientProfile>);
           // Merge server-authoritative fields (id, coachId resolved by server)

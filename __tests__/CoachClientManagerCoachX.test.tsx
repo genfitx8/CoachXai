@@ -194,6 +194,40 @@ describe('CoachClientManager – no coach-side member registration', () => {
     expect(screen.getByTestId('coach-client-linking-guide')).toBeTruthy();
   });
 
+  it('edits the private coach note without touching the student-owned fields', () => {
+    const onUpdate = vi.fn();
+    const withNotes = {
+      ...CLIENT,
+      memo: '올해 목표는 깨백',
+      coachMemo: '어깨 회전 부족',
+    };
+    render(
+      <CoachClientManager
+        {...DEFAULT_PROPS}
+        clients={[withNotes]}
+        onUpdate={onUpdate}
+      />
+    );
+
+    fireEvent.click(screen.getAllByRole('button', { name: '' })[0]);
+    const textarea = screen.getByTestId('coach-client-coach-memo-input');
+    // The form is seeded from coachMemo, never from the student's bio.
+    expect((textarea as HTMLTextAreaElement).value).toBe('어깨 회전 부족');
+
+    fireEvent.change(textarea, { target: { value: '상체 조기 신전 교정 중' } });
+    fireEvent.click(screen.getByText('coach_client_save_btn'));
+
+    expect(onUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        coachMemo: '상체 조기 신전 교정 중',
+        // Student-owned fields pass through untouched.
+        memo: '올해 목표는 깨백',
+        name: CLIENT.name,
+        phone: CLIENT.phone,
+      })
+    );
+  });
+
   it('opens an edit form whose name and phone are read-only', () => {
     const onUpdate = vi.fn();
     render(<CoachClientManager {...DEFAULT_PROPS} onUpdate={onUpdate} />);

@@ -73,6 +73,9 @@ function mapClient(row: Record<string, unknown>) {
     phone: row.phone,
     coachId: row.coach_id,
     designatedCoach: row.designated_coach,
+    // The student's own bio. coach_memo is deliberately absent — it is the
+    // coach's private note and must never reach the student.
+    memo: row.memo,
     currentPoints: row.current_points,
     isSubscribed: row.is_subscribed,
     subscriptionPlan: row.subscription_plan,

@@ -89,9 +89,10 @@ export const CoachClientManager: React.FC<CoachClientManagerProps> = ({
   );
   const [detailReport, setDetailReport] = useState<MemberGrowthReport | null>(null);
 
-  // Form state — memo is the only coach-editable field. Name and phone
-  // belong to the student's own account now, so they render read-only.
-  const [memo, setMemo] = useState('');
+  // Form state — the coach's private note is the only coach-editable field.
+  // Name and phone belong to the student's own account, so they render
+  // read-only, and `memo` (the student's own bio) is theirs to write.
+  const [coachMemo, setCoachMemo] = useState('');
 
   const clientKey = (name: string, phone: string) => `${name}_${phone}`;
 
@@ -156,7 +157,7 @@ export const CoachClientManager: React.FC<CoachClientManagerProps> = ({
 
   const openEditModal = (client: ClientProfile) => {
     setEditingClient(client);
-    setMemo(client.memo || '');
+    setCoachMemo(client.coachMemo || '');
     setIsModalOpen(true);
   };
 
@@ -164,9 +165,9 @@ export const CoachClientManager: React.FC<CoachClientManagerProps> = ({
     e.preventDefault();
     if (!editingClient) return;
 
-    // Name / phone are the student's own profile fields — the coach only
-    // writes the memo, so coachId and identity stay untouched.
-    onUpdate({ ...editingClient, memo });
+    // Name / phone / memo are the student's own profile fields — the coach
+    // only writes their private note, so identity and bio stay untouched.
+    onUpdate({ ...editingClient, coachMemo });
     setIsModalOpen(false);
   };
 
@@ -352,10 +353,25 @@ export const CoachClientManager: React.FC<CoachClientManagerProps> = ({
               </div>
 
               {client.memo && (
-                <div className="bg-white/[0.04]/[0.04] p-3 rounded-xl mb-3 border border-line-subtle">
+                <div className="bg-white/[0.04] p-3 rounded-xl mb-2 border border-line-subtle">
+                  <p className="text-[10px] font-bold text-ink-muted mb-1">
+                    {t('coach_client_student_bio_label')}
+                  </p>
                   <p className="text-xs text-ink-medium line-clamp-2 flex gap-1">
                     <MessageSquare className="w-3 h-3 mt-0.5 flex-shrink-0" />{' '}
                     {client.memo}
+                  </p>
+                </div>
+              )}
+
+              {client.coachMemo && (
+                <div className="bg-emerald-500/[0.06] p-3 rounded-xl mb-3 border border-emerald-500/20">
+                  <p className="text-[10px] font-bold text-emerald-300/80 mb-1">
+                    {t('coach_client_memo_label')}
+                  </p>
+                  <p className="text-xs text-ink-medium line-clamp-2 flex gap-1">
+                    <MessageSquare className="w-3 h-3 mt-0.5 flex-shrink-0" />{' '}
+                    {client.coachMemo}
                   </p>
                 </div>
               )}
@@ -436,7 +452,8 @@ export const CoachClientManager: React.FC<CoachClientManagerProps> = ({
         )}
       </div>
 
-      {/* Edit Modal — memo only; the member row itself is student-owned. */}
+      {/* Edit Modal — the coach's private note only; the member row
+          itself is student-owned. */}
       {isModalOpen && editingClient && (
         <div
           data-testid="coach-client-edit-modal"
@@ -537,8 +554,9 @@ export const CoachClientManager: React.FC<CoachClientManagerProps> = ({
                   <div className="relative">
                     <MessageSquare className="absolute left-3.5 top-3.5 w-4 h-4 text-ink-muted pointer-events-none" />
                     <textarea
-                      value={memo}
-                      onChange={(e) => setMemo(e.target.value)}
+                      data-testid="coach-client-coach-memo-input"
+                      value={coachMemo}
+                      onChange={(e) => setCoachMemo(e.target.value)}
                       className={`${clientFormInputClass} pl-10 min-h-[88px] max-h-[140px] resize-none`}
                       placeholder={t('coach_client_memo_placeholder')}
                       rows={3}
