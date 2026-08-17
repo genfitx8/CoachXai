@@ -1,5 +1,6 @@
 import crypto from 'crypto';
 import pool from './db';
+import { applyPointDelta } from './pointBalance';
 
 interface PointCreditResult {
   success: boolean;
@@ -35,6 +36,20 @@ export async function creditPoints(
     );
   } catch (err) {
     console.error('[pointCredit] Failed to log transaction:', err);
+  }
+
+  // Server-authoritative balance (docs/DATA_ARCHITECTURE.md Phase 1): credit
+  // current_points here so API-mode clients only need to refresh their
+  // profile. localStorage-mode clients still apply locally via the applyToken
+  // flow below — their local store is separate from this DB balance.
+  // Best-effort: a balance failure must not fail the payment confirm.
+  try {
+    const balance = await applyPointDelta(userId, points);
+    if (balance === null) {
+      console.warn(`[pointCredit] No profile row found for ${userId}; balance not applied`);
+    }
+  } catch (err) {
+    console.error('[pointCredit] Failed to apply balance:', err);
   }
 
   // Issue a short-lived token; the client exchanges it to update its local data

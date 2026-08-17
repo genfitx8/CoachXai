@@ -1,4 +1,4 @@
-import type { Lesson, ClientProfile, CoachProfile, LessonPackage, TrainingProgram, Homework, LessonReservation } from '../types';
+import type { Lesson, ClientProfile, CoachProfile, LessonPackage, TrainingProgram, Homework, LessonReservation, PointTransaction } from '../types';
 import { resolveApiBaseUrl } from './apiBase';
 
 const BASE_URL = resolveApiBaseUrl();
@@ -527,6 +527,37 @@ export const apiService = {
 
   async deleteHomework(homeworkId: string): Promise<void> {
     await req('DELETE', `/api/homework/${homeworkId}`);
+  },
+
+  // ── Point ledger (Phase 1 server promotion) ───────────────────────────────
+
+  /** Own ledger rows (server scopes by token: client ids or coach_<id>). */
+  async getPointTransactions(): Promise<PointTransaction[]> {
+    const data = await req<{ transactions: PointTransaction[] }>(
+      'GET',
+      '/api/points/transactions'
+    );
+    return data.transactions ?? [];
+  },
+
+  /**
+   * Append one ledger row; the server applies the balance atomically and
+   * returns it. The transaction id is the idempotency key.
+   */
+  async addPointTransaction(
+    transaction: PointTransaction
+  ): Promise<{ transaction: PointTransaction; balance: number | null }> {
+    return req<{ transaction: PointTransaction; balance: number | null }>(
+      'POST',
+      '/api/points/transactions',
+      { transaction }
+    );
+  },
+
+  /** Audit-only backfill of device-local history — never touches balances. */
+  async importPointTransactions(transactions: PointTransaction[]): Promise<void> {
+    if (transactions.length === 0) return;
+    await req('POST', '/api/points/transactions/import', { transactions });
   },
 
   // ── Lesson reservations (Phase 1 server promotion) ────────────────────────
