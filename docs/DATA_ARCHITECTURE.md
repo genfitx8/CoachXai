@@ -660,7 +660,9 @@ R2 스토리지 비용은 영상이 지배한다. 상용화 초기엔 원본 보
 
 우선순위 순:
 
-1. **예약 계열** (`lesson_reservations`, `branches`, `bays`, `bay_price_rules`, `bay_reservations`) — 다기기 불일치가 사용자 신뢰를 직접 깨는 영역. DB 유니크 제약으로 이중 예약 원천 차단
+1. **예약 계열** — 다기기 불일치가 사용자 신뢰를 직접 깨는 영역
+   - [x] `lesson_reservations` 서버 승격: 문서 원문(JSONB) + 조회 키 컬럼 방식, `/api/reservations` CRUD(역할 스코프 + 타 학생 PII 새니타이즈), 클라이언트 백엔드 스위치(api→firebase→local) + 로그인별 1회 로컬 데이터 업로드 동기화. 상태 전이는 domain_events(`reservation.*`)로 기록
+   - [ ] `branches` / `bays` / `bay_price_rules` / `bay_reservations` 승격 + DB 유니크 제약으로 이중 예약 원천 차단 (bayReservationService 전환)
 2. **포인트 원장** (`point_ledger`) — 돈과 직결. 기존 `point_transactions`를 원장으로 흡수, 잔액 대사 잡 추가
 3. **숙제/퀵로그/진단** (`homework`, `quick_logs`, `diagnosis_sessions`)
 4. **AI 자산** (`student_context_snapshots`, `ai_feedback_events`, `chat_messages`, 주간 인사이트, 프롬프트 템플릿)

@@ -1,6 +1,7 @@
 import { LessonReservation, ReservationStatus, DayOfWeek, CoachProfile } from '../types';
 import { firebaseService } from './firebase';
 import { storageService } from './storage';
+import { apiService } from './apiService';
 import {
   sendLessonReservationNotifications,
   sendLessonReservationStatusNotifications,
@@ -63,12 +64,99 @@ const OCCUPIED_SLOT_STATUSES: ReservationStatus[] = [
 /** Prefix used for synthesised (virtual) working-hour slot IDs. Not persisted. */
 export const VIRTUAL_SLOT_ID_PREFIX = 'virtual_';
 
+const RESERVATION_SYNC_FLAG = 'swingnote_reservations_synced_v1';
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 class ReservationService {
+  /**
+   * Backend selection (docs/DATA_ARCHITECTURE.md Phase 1): the server API is
+   * the source of truth whenever a server session exists; Firebase and
+   * localStorage remain as legacy fallbacks. The reservation state machine
+   * itself stays in this service — only the storage layer switches.
+   */
+  private isApiMode(): boolean {
+    return apiService.isAvailable() && !!apiService.getToken();
+  }
+
   private isFirebaseMode(): boolean {
     return firebaseService.isInitialized();
   }
 
+  /**
+   * One-time promotion of reservations this device accumulated while it was
+   * localStorage-only. Runs before the first server read of a login session;
+   * upserts are id-keyed so re-running is harmless. Rows the current account
+   * isn't allowed to write (another user's data on a shared device) are
+   * skipped — they sync when their owner logs in.
+   */
+  private localSyncPromise: Promise<void> | null = null;
+
+  private syncLocalReservationsOnce(): Promise<void> {
+    if (!this.localSyncPromise) {
+      this.localSyncPromise = this.uploadLocalReservations().catch((e) => {
+        log.warn('Local reservation sync failed; will retry on next read:', e);
+        this.localSyncPromise = null;
+      });
+    }
+    return this.localSyncPromise;
+  }
+
+  private async uploadLocalReservations(): Promise<void> {
+    const token = apiService.getToken() ?? '';
+    try {
+      // Re-sync per login (flag stores the token) so every account that uses
+      // this device gets its own rows promoted.
+      if (localStorage.getItem(RESERVATION_SYNC_FLAG) === token) return;
+    } catch {
+      return;
+    }
+    const locals = storageService
+      .getReservations()
+      .filter((r) => r.id && UUID_PATTERN.test(r.id));
+    let transientFailure = false;
+    for (const r of locals) {
+      try {
+        await apiService.upsertReservation(r);
+      } catch (e) {
+        const status = (e as { status?: number }).status;
+        // 4xx = not ours / invalid → skip forever. 0/5xx = transient → retry
+        // the whole sync on a later read instead of marking it done.
+        if (status === undefined || status === 0 || status >= 500) transientFailure = true;
+        log.warn(`Skipping local reservation ${r.id} during sync:`, e);
+      }
+    }
+    if (transientFailure) throw new Error('transient reservation sync failure');
+    try {
+      localStorage.setItem(RESERVATION_SYNC_FLAG, token);
+    } catch { /* ignore */ }
+  }
+
+  private async listReservations(filter?: {
+    coachId?: string;
+    clientId?: string;
+  }): Promise<LessonReservation[]> {
+    const coachId = filter?.coachId;
+    const clientId = filter?.clientId;
+    let reservations: LessonReservation[];
+    if (this.isApiMode()) {
+      await this.syncLocalReservationsOnce();
+      reservations = await apiService.getReservations(coachId);
+    } else if (this.isFirebaseMode()) {
+      reservations = await firebaseService.getReservations(coachId, clientId);
+    } else {
+      reservations = storageService.getReservations();
+    }
+    if (coachId) reservations = reservations.filter((r) => r.coachId === coachId);
+    if (clientId) reservations = reservations.filter((r) => r.clientId === clientId);
+    return reservations;
+  }
+
   private async loadReservationById(reservationId: string): Promise<LessonReservation | undefined> {
+    if (this.isApiMode()) {
+      await this.syncLocalReservationsOnce();
+      return (await apiService.getReservation(reservationId)) ?? undefined;
+    }
     if (this.isFirebaseMode()) {
       const allReservations = await firebaseService.getReservations();
       return allReservations.find((r) => r.id === reservationId);
@@ -77,12 +165,52 @@ class ReservationService {
     return allReservations.find((r) => r.id === reservationId);
   }
 
-  private async persistReservation(reservation: LessonReservation): Promise<void> {
+  /** Create a brand-new reservation row in the active backend. */
+  private async saveNewReservation(reservation: LessonReservation): Promise<void> {
+    if (this.isApiMode()) {
+      await apiService.upsertReservation(reservation);
+      return;
+    }
+    if (this.isFirebaseMode()) {
+      await firebaseService.saveReservation(reservation);
+      return;
+    }
+    storageService.saveReservation(reservation);
+  }
+
+  /** Write an updated reservation without touching push reminders. */
+  private async writeReservation(reservation: LessonReservation): Promise<void> {
+    if (this.isApiMode()) {
+      await apiService.upsertReservation(reservation);
+      return;
+    }
     if (this.isFirebaseMode()) {
       await firebaseService.updateReservation(reservation);
-    } else {
-      storageService.updateReservation(reservation);
+      return;
     }
+    storageService.updateReservation(reservation);
+  }
+
+  private async removeReservation(reservationId: string): Promise<void> {
+    if (this.isApiMode()) {
+      await apiService.deleteReservation(reservationId);
+      return;
+    }
+    if (this.isFirebaseMode()) {
+      await firebaseService.deleteReservation(reservationId);
+      return;
+    }
+    storageService.deleteReservation(reservationId);
+  }
+
+  private async getCoachProfile(coachId: string): Promise<CoachProfile | null> {
+    if (this.isApiMode()) return apiService.getCoachById(coachId);
+    if (this.isFirebaseMode()) return firebaseService.getCoachById(coachId);
+    return storageService.getCoachById(coachId);
+  }
+
+  private async persistReservation(reservation: LessonReservation): Promise<void> {
+    await this.writeReservation(reservation);
     // Fire-and-forget: keep server-side reminder schedule in sync with the
     // reservation's terminal state. Failures are swallowed so a push-service
     // outage never blocks a reservation write.
@@ -111,11 +239,7 @@ class ReservationService {
       updatedAt: Date.now(),
     };
 
-    if (this.isFirebaseMode()) {
-      await firebaseService.saveReservation(reservation);
-    } else {
-      storageService.saveReservation(reservation);
-    }
+    await this.saveNewReservation(reservation);
 
     return reservation;
   }
@@ -135,12 +259,7 @@ class ReservationService {
     const endTime   = `${date}T${pad(hour + 1)}:00:00`;
 
     // Duplicate check: same coach, overlapping non-cancelled slot
-    let existing: LessonReservation[];
-    if (this.isFirebaseMode()) {
-      existing = await firebaseService.getReservations();
-    } else {
-      existing = storageService.getReservations();
-    }
+    const existing = await this.listReservations({ coachId });
     const overlap = existing.find(
       (r) =>
         r.coachId === coachId &&
@@ -178,11 +297,7 @@ class ReservationService {
       updatedAt: Date.now(),
     };
 
-    if (this.isFirebaseMode()) {
-      await firebaseService.saveReservation(reservation);
-    } else {
-      storageService.saveReservation(reservation);
-    }
+    await this.saveNewReservation(reservation);
 
     return reservation;
   }
@@ -247,14 +362,7 @@ class ReservationService {
     notes?: string
   ): Promise<LessonReservation> {
     // 모든 예약 조회
-    let allReservations: LessonReservation[];
-    
-    if (this.isFirebaseMode()) {
-      allReservations = await firebaseService.getReservations(coachId);
-    } else {
-      const all = storageService.getReservations();
-      allReservations = all.filter((r) => r.coachId === coachId);
-    }
+    const allReservations = await this.listReservations({ coachId });
 
     const requestStart = new Date(startTime);
     const requestEnd = new Date(endTime);
@@ -305,11 +413,7 @@ class ReservationService {
       updatedAt: Date.now(),
     };
 
-    if (this.isFirebaseMode()) {
-      await firebaseService.saveReservation(reservation);
-    } else {
-      storageService.saveReservation(reservation);
-    }
+    await this.saveNewReservation(reservation);
 
     // Fire-and-forget: send push notifications after successful persistence.
     sendLessonReservationNotifications(reservation).catch((e) =>
@@ -400,11 +504,7 @@ class ReservationService {
     if (!reservation) return;
 
     if (reservation.status === 'AVAILABLE' || reservation.status === 'BLOCKED') {
-      if (this.isFirebaseMode()) {
-        await firebaseService.deleteReservation(reservationId);
-      } else {
-        storageService.deleteReservation(reservationId);
-      }
+      await this.removeReservation(reservationId);
       return;
     }
 
@@ -493,15 +593,8 @@ class ReservationService {
     startDate?: string,
     endDate?: string
   ): Promise<LessonReservation[]> {
-    let reservations: LessonReservation[];
-
-    if (this.isFirebaseMode()) {
-      reservations = await firebaseService.getReservations(coachId);
-    } else {
-      const allReservations = storageService.getReservations();
-      // If coachId is provided and not empty, filter by it; otherwise return all
-      reservations = coachId ? allReservations.filter((r) => r.coachId === coachId) : allReservations;
-    }
+    // If coachId is provided and not empty, filter by it; otherwise return all
+    let reservations = await this.listReservations(coachId ? { coachId } : undefined);
 
     // Filter by date range if provided
     if (startDate || endDate) {
@@ -525,14 +618,10 @@ class ReservationService {
   ): Promise<LessonReservation[]> {
     let reservations: LessonReservation[];
 
-    if (this.isFirebaseMode()) {
-      try {
-        reservations = await firebaseService.getReservations();
-      } catch (error) {
-        log.warn('Firebase fetch failed, falling back to localStorage:', error);
-        reservations = storageService.getReservations();
-      }
-    } else {
+    try {
+      reservations = await this.listReservations();
+    } catch (error) {
+      log.warn('Backend fetch failed, falling back to localStorage:', error);
       reservations = storageService.getReservations();
     }
 
@@ -553,25 +642,13 @@ class ReservationService {
    * 회원의 모든 예약 조회 (시작 시간 내림차순 - 최근 예약부터)
    */
   async getClientReservations(clientId: string): Promise<LessonReservation[]> {
-    let reservations: LessonReservation[];
-
-    if (this.isFirebaseMode()) {
-      reservations = await firebaseService.getReservations(undefined, clientId);
-    } else {
-      const allReservations = storageService.getReservations();
-      reservations = allReservations.filter((r) => r.clientId === clientId);
-    }
+    const reservations = await this.listReservations({ clientId });
 
     return reservations.sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime());
   }
 
   async getAdminPendingReservations(branchId?: string): Promise<LessonReservation[]> {
-    let reservations: LessonReservation[];
-    if (this.isFirebaseMode()) {
-      reservations = await firebaseService.getReservations();
-    } else {
-      reservations = storageService.getReservations();
-    }
+    const reservations = await this.listReservations();
 
     const filtered = reservations.filter((r) => {
       if (r.status !== 'ADMIN_BLOCK_PENDING') return false;
@@ -643,14 +720,7 @@ class ReservationService {
     startDate?: string,
     endDate?: string
   ): Promise<LessonReservation[]> {
-    let reservations: LessonReservation[];
-
-    if (this.isFirebaseMode()) {
-      reservations = await firebaseService.getReservations(coachId);
-    } else {
-      const allReservations = storageService.getReservations();
-      reservations = allReservations.filter((r) => r.coachId === coachId);
-    }
+    let reservations = await this.listReservations({ coachId });
 
     // Filter for available slots only
     reservations = reservations.filter((r) => r.status === 'AVAILABLE');
@@ -686,12 +756,7 @@ class ReservationService {
     const startTime = `${safeDate}T${pad(hour)}:00:00`;
     const endTime   = `${safeDate}T${pad(hour + 1)}:00:00`;
 
-    let existing: LessonReservation[];
-    if (this.isFirebaseMode()) {
-      existing = await firebaseService.getReservations();
-    } else {
-      existing = storageService.getReservations();
-    }
+    const existing = await this.listReservations({ coachId });
 
     const slot = existing.find(
       (r) =>
@@ -709,11 +774,7 @@ class ReservationService {
 
       if (slot.status === 'BLOCKED') {
         // Remove block → restore to working-hour default (available)
-        if (this.isFirebaseMode()) {
-          await firebaseService.deleteReservation(slot.id);
-        } else {
-          storageService.deleteReservation(slot.id);
-        }
+        await this.removeReservation(slot.id);
         return { action: 'available' };
       }
 
@@ -723,11 +784,7 @@ class ReservationService {
         status: 'BLOCKED',
         updatedAt: Date.now(),
       };
-      if (this.isFirebaseMode()) {
-        await firebaseService.updateReservation(updated);
-      } else {
-        storageService.updateReservation(updated);
-      }
+      await this.writeReservation(updated);
       return { action: 'blocked' };
     }
 
@@ -749,12 +806,7 @@ class ReservationService {
     const safeDate = date.slice(0, 10); // ensure YYYY-MM-DD only
 
     // Fetch coach profile to read working schedule
-    let coachProfile: CoachProfile | null = null;
-    if (this.isFirebaseMode()) {
-      coachProfile = await firebaseService.getCoachById(coachId);
-    } else {
-      coachProfile = storageService.getCoachById(coachId);
-    }
+    const coachProfile: CoachProfile | null = await this.getCoachProfile(coachId);
 
     // If no working schedule configured, fall back to explicit AVAILABLE slots
     if (!coachProfile?.workingSchedule) {
@@ -762,13 +814,7 @@ class ReservationService {
     }
 
     // Get all reservations for this date
-    let allReservations: LessonReservation[];
-    if (this.isFirebaseMode()) {
-      allReservations = await firebaseService.getReservations(coachId);
-    } else {
-      const all = storageService.getReservations();
-      allReservations = all.filter((r) => r.coachId === coachId);
-    }
+    const allReservations = await this.listReservations({ coachId });
 
     const dateReservations = allReservations.filter(
       (r) =>
@@ -886,14 +932,7 @@ class ReservationService {
     endTime: string,
     notes?: string
   ): Promise<LessonReservation> {
-    let allReservations: LessonReservation[];
-
-    if (this.isFirebaseMode()) {
-      allReservations = await firebaseService.getReservations(coachId);
-    } else {
-      const all = storageService.getReservations();
-      allReservations = all.filter((r) => r.coachId === coachId);
-    }
+    const allReservations = await this.listReservations({ coachId });
 
     const requestStart = new Date(startTime);
     const requestEnd = new Date(endTime);
@@ -936,11 +975,7 @@ class ReservationService {
       updatedAt: Date.now(),
     };
 
-    if (this.isFirebaseMode()) {
-      await firebaseService.saveReservation(reservation);
-    } else {
-      storageService.saveReservation(reservation);
-    }
+    await this.saveNewReservation(reservation);
 
     sendLessonReservationStatusNotifications(reservation, 'ADMIN_CONFIRMED').catch((e) =>
       log.error('[ReservationService] Unexpected notification error:', e)
@@ -964,14 +999,7 @@ class ReservationService {
     endTime: string,
     notes?: string
   ): Promise<LessonReservation> {
-    let allReservations: LessonReservation[];
-
-    if (this.isFirebaseMode()) {
-      allReservations = await firebaseService.getReservations(coachId);
-    } else {
-      const all = storageService.getReservations();
-      allReservations = all.filter((r) => r.coachId === coachId);
-    }
+    const allReservations = await this.listReservations({ coachId });
 
     const requestStart = new Date(startTime);
     const requestEnd = new Date(endTime);
@@ -1011,11 +1039,7 @@ class ReservationService {
       updatedAt: Date.now(),
     };
 
-    if (this.isFirebaseMode()) {
-      await firebaseService.saveReservation(reservation);
-    } else {
-      storageService.saveReservation(reservation);
-    }
+    await this.saveNewReservation(reservation);
 
     return reservation;
   }

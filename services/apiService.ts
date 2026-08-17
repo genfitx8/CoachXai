@@ -1,4 +1,4 @@
-import type { Lesson, ClientProfile, CoachProfile, LessonPackage, TrainingProgram, Homework } from '../types';
+import type { Lesson, ClientProfile, CoachProfile, LessonPackage, TrainingProgram, Homework, LessonReservation } from '../types';
 import { resolveApiBaseUrl } from './apiBase';
 
 const BASE_URL = resolveApiBaseUrl();
@@ -511,4 +511,49 @@ export const apiService = {
   // ── Homework (Phase 2) ────────────────────────────────────────────────────
 
   async saveHomeworkBatch(_homework: Homework[]): Promise<void> {},
+
+  // ── Lesson reservations (Phase 1 server promotion) ────────────────────────
+
+  /**
+   * List reservations visible to the current token. Coaches get their own
+   * calendar; clients get their own bookings, or — with coachId — that
+   * coach's calendar with other students' PII stripped server-side.
+   */
+  async getReservations(coachId?: string): Promise<LessonReservation[]> {
+    const qs = coachId ? `?coachId=${encodeURIComponent(coachId)}` : '';
+    const data = await req<{ reservations: LessonReservation[] }>(
+      'GET',
+      `/api/reservations${qs}`
+    );
+    return data.reservations ?? [];
+  },
+
+  /** Single reservation, or null when it doesn't exist / isn't visible. */
+  async getReservation(reservationId: string): Promise<LessonReservation | null> {
+    try {
+      const data = await req<{ reservation: LessonReservation }>(
+        'GET',
+        `/api/reservations/${reservationId}`
+      );
+      return data.reservation ?? null;
+    } catch (error) {
+      const { status } = parseErrorDetails(error);
+      if (status === 404) return null;
+      throw error;
+    }
+  },
+
+  /** Full-document upsert; the client-generated UUID id is the idempotency key. */
+  async upsertReservation(reservation: LessonReservation): Promise<LessonReservation> {
+    const data = await req<{ reservation: LessonReservation }>(
+      'PUT',
+      `/api/reservations/${reservation.id}`,
+      reservation
+    );
+    return data.reservation;
+  },
+
+  async deleteReservation(reservationId: string): Promise<void> {
+    await req('DELETE', `/api/reservations/${reservationId}`);
+  },
 };
