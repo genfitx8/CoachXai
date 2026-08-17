@@ -32,16 +32,24 @@ const App: React.FC = () => {
     let cancelled = false;
     (async () => {
       try {
-        const [coaches, cs, ls] = await Promise.all([
-          apiService.getCoaches().catch(() => []),
+        const [me, cs, ls] = await Promise.all([
+          apiService.getMyCoachProfile().catch(() => null),
           apiService.getClients().catch(() => []),
           apiService.getLessons().catch(() => []),
         ]);
         if (cancelled) return;
-        // /api/coaches falls back to /api/coaches/me for non-admins, so the
-        // first entry is "me" in that case.
-        if (coaches.length > 0 && coaches[0]?.id) setCoachId(coaches[0].id);
-        if (cs.length > 0) setClients(cs);
+        // Identify the coach from the auth token (GET /api/coaches/me), never
+        // from /api/coaches — that route returns EVERY coach for a coach
+        // session too, so `coaches[0].id` was an arbitrary colleague. The
+        // member picker scopes its roster by this id, so getting it wrong
+        // means showing (or hiding) the wrong members.
+        if (me?.id) setCoachId(me.id);
+        // Only hand the picker a roster once we know WHOSE roster it is.
+        // /api/clients is scoped to the token owner for coach sessions but
+        // returns the whole member table for an admin session — without a
+        // resolved coach id there is nothing to scope it by, so the picker
+        // stays hidden rather than listing the entire academy.
+        if (me?.id && cs.length > 0) setClients(cs);
         if (ls.length > 0) setStudentLessons(ls);
       } catch {
         /* ignore — standalone mode still works */
