@@ -1853,6 +1853,7 @@ export const swingAnalysisService = {
         analyzedRange,
         sampledFps,
         nativeFps,
+        videoSize: { width: canvas.width, height: canvas.height },
         detectedInterval,
         alternateIntervals,
         events,
