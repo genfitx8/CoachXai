@@ -3,10 +3,11 @@ import { Lesson, ClientProfile, CoachProfile, Homework, LessonReservation, Quick
 import {
   ChevronLeft, Send, Sparkles, Bot, MessageCircle, Target, TrendingUp,
   ListChecks, Dumbbell, HelpCircle, Mic, MicOff, MessageSquare, Volume2, VolumeX,
-  Calendar, Clock, CheckCircle, XCircle, AlertCircle, Loader2,
+  Calendar, Clock, CheckCircle, XCircle, AlertCircle, Loader2, RotateCcw,
 } from 'lucide-react';
 import { CoachXChatMessage } from '../services/coachXService';
 import { generateStudentChatResponse } from '../services/geminiService';
+import { loadChatHistory, saveChatHistory, clearChatHistory } from '../services/chatHistoryService';
 import { reservationService } from '../services/reservationService';
 import { useLanguage } from './LanguageContext';
 import { useTypingReveal } from '../hooks/useTypingReveal';
@@ -157,13 +158,26 @@ export const StudentAIChat: React.FC<StudentAIChatProps> = ({
 
   const greeting = initialGreeting ?? fallbackGreeting;
 
+  const clientId = `${clientProfile.name}_${clientProfile.phone}`.trim();
+
   const [mode, setMode] = useState<Mode>(defaultMode);
   const [showModeSelector, setShowModeSelector] = useState<boolean>(
     hideModeSelector ? false : !initialQuery
   );
-  const [messages, setMessages] = useState<CoachXChatMessage[]>([
-    { role: 'assistant', content: greeting, timestamp: Date.now() },
-  ]);
+
+  // The transcript is restored from localStorage on mount so leaving the app
+  // (or the OS evicting the WebView while it sits in the background) no longer
+  // wipes the conversation. Only when there is nothing to restore do we seed
+  // the greeting. Computed lazily — `loadChatHistory` never throws.
+  const restoredRef = useRef<CoachXChatMessage[] | null>(null);
+  if (restoredRef.current === null) {
+    restoredRef.current = loadChatHistory(clientId);
+  }
+  const [messages, setMessages] = useState<CoachXChatMessage[]>(() =>
+    restoredRef.current && restoredRef.current.length > 0
+      ? restoredRef.current
+      : [{ role: 'assistant', content: greeting, timestamp: Date.now() }]
+  );
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [ttsEnabled, setTtsEnabled] = useState(true);
@@ -177,8 +191,6 @@ export const StudentAIChat: React.FC<StudentAIChatProps> = ({
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const clientId = `${clientProfile.name}_${clientProfile.phone}`.trim();
-
   const suggestedPrompts =
     language === 'en' ? SUGGESTED_PROMPTS_EN
     : language === 'ja' ? SUGGESTED_PROMPTS_JA
@@ -190,6 +202,31 @@ export const StudentAIChat: React.FC<StudentAIChatProps> = ({
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isTyping, revealedChars, bookingStep]);
+
+  // ── Transcript persistence ─────────────────────────────────────────────────
+
+  const hasRestoredHistory = (restoredRef.current?.length ?? 0) > 0;
+
+  // Write through on every change. localStorage writes are synchronous, so the
+  // transcript is already on disk by the time the OS suspends or kills the
+  // WebView — there is no flush to miss on backgrounding.
+  useEffect(() => {
+    if (messages.length <= 1) return; // greeting only — nothing worth keeping
+    saveChatHistory(clientId, messages);
+  }, [messages, clientId]);
+
+  // The AI Home resolves its context-aware greeting asynchronously, so the
+  // first render seeds a placeholder. Refresh it while it is still the only
+  // message; once a real turn exists (or a transcript was restored) the
+  // greeting is history and must never be rewritten.
+  useEffect(() => {
+    if (hasRestoredHistory) return;
+    setMessages(prev => {
+      if (prev.length !== 1 || prev[0].role !== 'assistant') return prev;
+      if (prev[0].content === greeting) return prev;
+      return [{ ...prev[0], content: greeting }];
+    });
+  }, [greeting, hasRestoredHistory]);
 
   const addAssistantMessage = useCallback((content: string, doSpeak = false) => {
     setMessages(prev => [...prev, { role: 'assistant', content, timestamp: Date.now() }]);
@@ -307,6 +344,38 @@ export const StudentAIChat: React.FC<StudentAIChatProps> = ({
 
   // ── Chat send ──────────────────────────────────────────────────────────────
 
+  /**
+   * Ask the AI for a reply to `msgText`. `priorHistory` is the transcript as it
+   * stood *before* that message. Split out of `handleSend` so a request that
+   * was cut short — the app backgrounded mid-answer and the WebView reclaimed —
+   * can be replayed from the restored transcript on the next launch.
+   */
+  const requestAssistantReply = useCallback(async (
+    msgText: string,
+    priorHistory: CoachXChatMessage[],
+  ) => {
+    setIsTyping(true);
+    const historyForAI = priorHistory.map(m => ({ role: m.role, content: m.content }));
+
+    try {
+      const reply = await generateStudentChatResponse(
+        msgText, myLessons, clientProfile, homeworkList, lang, coachProfile, quickLogs, historyForAI
+      );
+      setMessages(prev => [...prev, { role: 'assistant', content: reply, timestamp: Date.now() }]);
+      speak(reply);
+      startReveal(reply);
+    } catch {
+      const errMsg = lang === 'en'
+        ? "Sorry, I couldn't get a reply just now. Please try asking again."
+        : lang === 'ja'
+        ? '申し訳ありません、回答を取得できませんでした。もう一度お試しください。'
+        : '죄송해요, 답변을 가져오지 못했어요. 다시 한번 물어봐 주세요.';
+      setMessages(prev => [...prev, { role: 'assistant', content: errMsg, timestamp: Date.now() }]);
+    } finally {
+      setIsTyping(false);
+    }
+  }, [myLessons, clientProfile, homeworkList, lang, coachProfile, quickLogs, speak, startReveal]);
+
   const handleSend = async (text?: string) => {
     const msgText = (text ?? input).trim();
     if (!msgText) return;
@@ -314,6 +383,7 @@ export const StudentAIChat: React.FC<StudentAIChatProps> = ({
     clearReveal();
     stopSpeaking();
 
+    const priorHistory = messages;
     const userMsg: CoachXChatMessage = { role: 'user', content: msgText, timestamp: Date.now() };
     setMessages(prev => [...prev, userMsg]);
     setInput('');
@@ -323,15 +393,7 @@ export const StudentAIChat: React.FC<StudentAIChatProps> = ({
       return;
     }
 
-    setIsTyping(true);
-
-    const historyForAI = [...messages, userMsg].slice(0, -1).map(m => ({ role: m.role, content: m.content }));
-    const reply = await generateStudentChatResponse(msgText, myLessons, clientProfile, homeworkList, lang, coachProfile, quickLogs, historyForAI);
-
-    setMessages(prev => [...prev, { role: 'assistant', content: reply, timestamp: Date.now() }]);
-    setIsTyping(false);
-    speak(reply);
-    startReveal(reply);
+    await requestAssistantReply(msgText, priorHistory);
   };
 
   // ── Voice STT ──────────────────────────────────────────────────────────────
@@ -349,11 +411,32 @@ export const StudentAIChat: React.FC<StudentAIChatProps> = ({
   });
 
   useEffect(() => {
-    if (!initialQuery) return;
+    // A restored transcript already contains the answer to the entry-point
+    // query (or the resume effect below is about to fetch it) — re-sending it
+    // would duplicate the turn on every relaunch.
+    if (!initialQuery || hasRestoredHistory) return;
     const timer = setTimeout(() => { void handleSend(initialQuery); }, INITIAL_QUERY_DELAY_MS);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // A restored transcript ending on a user turn means the app went away before
+  // the reply landed. Pick the request back up rather than leaving the student
+  // staring at their own unanswered question.
+  const resumedRef = useRef(false);
+  useEffect(() => {
+    if (resumedRef.current) return;
+    const restored = restoredRef.current ?? [];
+    const last = restored[restored.length - 1];
+    if (!last || last.role !== 'user') return;
+
+    resumedRef.current = true;
+    if (isBookingIntent(last.content)) {
+      void startBookingFlow();
+      return;
+    }
+    void requestAssistantReply(last.content, restored.slice(0, -1));
+  }, [requestAssistantReply, startBookingFlow]);
 
   const switchMode = useCallback((newMode: Mode) => {
     if (newMode === 'chat') {
@@ -367,6 +450,36 @@ export const StudentAIChat: React.FC<StudentAIChatProps> = ({
     switchMode(newMode);
     setShowModeSelector(false);
   }, [switchMode]);
+
+  /**
+   * Wipe the stored transcript and start over. Now that history survives app
+   * restarts this is the only way back to a clean thread, so it asks first.
+   */
+  const handleNewConversation = useCallback(() => {
+    const confirmText = lang === 'en'
+      ? 'Start a new conversation? The current chat history will be deleted.'
+      : lang === 'ja'
+      ? '新しい会話を始めますか？現在のチャット履歴は削除されます。'
+      : '새 대화를 시작할까요? 지금까지의 대화 내용은 삭제돼요.';
+    if (typeof window !== 'undefined' && !window.confirm(confirmText)) return;
+
+    clearReveal();
+    stopSpeaking();
+    stopListening();
+    clearChatHistory(clientId);
+
+    // Nothing left to restore or resume on this mount.
+    restoredRef.current = [];
+    resumedRef.current = true;
+
+    setMessages([{ role: 'assistant', content: greeting, timestamp: Date.now() }]);
+    setInput('');
+    setIsTyping(false);
+    setBookingStep('idle');
+    setAvailableSlots([]);
+    setSelectedSlot(null);
+    setBookingNotes('');
+  }, [lang, clearReveal, stopSpeaking, stopListening, clientId, greeting]);
 
   // ── Render helpers ─────────────────────────────────────────────────────────
 
@@ -616,6 +729,20 @@ export const StudentAIChat: React.FC<StudentAIChatProps> = ({
               ? <Volume2 className="w-4 h-4 text-emerald-300" />
               : <VolumeX className="w-4 h-4 text-ink-muted" />
             }
+          </button>
+        )}
+
+        {/* New conversation — the transcript now persists across app restarts,
+            so this is the student's way back to a clean thread. Only offered
+            once there is something to clear. */}
+        {!showModeSelector && messages.length > 1 && (
+          <button
+            onClick={handleNewConversation}
+            className="p-2 rounded-full hover:bg-white/10 transition-colors flex-shrink-0"
+            aria-label={language === 'en' ? 'New conversation' : language === 'ja' ? '新しい会話' : '새 대화 시작'}
+            title={language === 'en' ? 'New conversation' : language === 'ja' ? '新しい会話' : '새 대화 시작'}
+          >
+            <RotateCcw className="w-4 h-4 text-ink-muted" />
           </button>
         )}
 
