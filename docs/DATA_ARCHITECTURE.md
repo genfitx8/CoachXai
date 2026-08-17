@@ -663,7 +663,10 @@ R2 스토리지 비용은 영상이 지배한다. 상용화 초기엔 원본 보
 1. **예약 계열** — 다기기 불일치가 사용자 신뢰를 직접 깨는 영역
    - [x] `lesson_reservations` 서버 승격: 문서 원문(JSONB) + 조회 키 컬럼 방식, `/api/reservations` CRUD(역할 스코프 + 타 학생 PII 새니타이즈), 클라이언트 백엔드 스위치(api→firebase→local) + 로그인별 1회 로컬 데이터 업로드 동기화. 상태 전이는 domain_events(`reservation.*`)로 기록
    - [ ] `branches` / `bays` / `bay_price_rules` / `bay_reservations` 승격 + DB 유니크 제약으로 이중 예약 원천 차단 (bayReservationService 전환)
-2. **포인트 원장** (`point_ledger`) — 돈과 직결. 기존 `point_transactions`를 원장으로 흡수, 잔액 대사 잡 추가
+2. **포인트 원장** — 돈과 직결
+   - [x] `point_transactions`를 정식 원장으로 확장(grant 메타데이터 + doc 원문 컬럼), `/api/points` 라우트: 조회(역할 스코프), 원장 추가+잔액 원자 적용(id=멱등 키, 클라이언트 자가 적립은 타입·금액 한도 검증, 탑업 타입은 거부), 감사용 로컬 이력 import(잔액 미적용). 서버 `creditPoints`가 결제 확정 시점에 잔액까지 적용하고, 클라이언트 `pointService`는 API 모드에서 탑업이면 행 삽입 없이 잔액만 새로고침 → **이중 적립 원천 차단**. `point.earned/spent` 이벤트 기록
+   - [ ] 잔액 대사(reconcile) 잡: SUM(원장) ↔ current_points 비교 (§10.3 대시보드와 함께)
+   - [ ] 지점관리자 포인트 지급(grant)은 지점관리자 서버 인증(§8.3) 전까지 레거시 로컬 경로 유지
 3. **숙제/퀵로그/진단**
    - [x] `homework` 서버 승격: `/api/homework` (배치 업서트, 완료 토글, 삭제), 코치 권한은 담당 학생 로스터로 판정, `homeworkService` 파사드로 컴포넌트 직접 접근 제거, 로그인별 1회 로컬 동기화. `homework.assigned/self_added/completed/deleted` 이벤트 기록. (기존 apiService.saveHomeworkBatch가 no-op 스텁이라 API 모드에서 코치 숙제 배치가 조용히 유실되던 버그도 함께 해소)
    - [ ] `quick_logs` — 현재 저장 호출부가 없는 미완성 기능(UI만 존재). 쓰기 경로가 생길 때 같은 패턴으로 승격
