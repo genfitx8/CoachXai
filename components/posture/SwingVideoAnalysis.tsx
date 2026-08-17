@@ -2162,12 +2162,33 @@ export const SwingVideoAnalysis: React.FC<SwingVideoAnalysisProps> = ({
   const [saveBusy, setSaveBusy] = useState(false);
   const [saveStatus, setSaveStatus] = useState<null | { ok: true; lesson: Lesson } | { ok: false; error: string }>(null);
 
+  /**
+   * The signed-in coach's own members — the ONLY roster this component may
+   * search, display or save to.
+   *
+   * `/api/clients` is server-scoped to `coach_id = <token owner>` for coach
+   * sessions but returns the entire member table for admin sessions, so the
+   * picker used to list every member in the academy. Every other coach-facing
+   * roster in the app (CoachClientManager, NewLessonForm, CurriculumManager,
+   * App.coachOwnClients) applies this same `coachId` filter on top of the
+   * server scope; this one was missing it.
+   *
+   * When `coachId` is absent we cannot prove ownership, so we fall back to the
+   * server-scoped list as-is rather than blanking the picker — the same drift
+   * that once hid PC/mobile member lists when the id was derived wrongly.
+   */
+  const coachOwnClients = useMemo(() => {
+    if (!clients) return undefined;
+    if (!coachId) return clients;
+    return clients.filter((c) => c.coachId === coachId);
+  }, [clients, coachId]);
+
   // Resolve the selected member from the roster + the id-composite convention
   // shared with Lesson.clientId (`${name}_${phone}`).
   const selectedClient = useMemo(() => {
-    if (!clients || !selectedClientId) return undefined;
-    return clients.find((c) => (c.id ?? `${c.name}_${c.phone}`) === selectedClientId);
-  }, [clients, selectedClientId]);
+    if (!coachOwnClients || !selectedClientId) return undefined;
+    return coachOwnClients.find((c) => (c.id ?? `${c.name}_${c.phone}`) === selectedClientId);
+  }, [coachOwnClients, selectedClientId]);
 
   // AI cross-reference should quote THIS student's shots, not the coach's
   // whole book. When a member is selected, filter `studentLessons` down;
@@ -2230,7 +2251,7 @@ export const SwingVideoAnalysis: React.FC<SwingVideoAnalysisProps> = ({
    */
   const saveToLesson = async () => {
     if (!analysis || !videoUrl) return;
-    const client = clients?.find((c) => (c.id ?? `${c.name}_${c.phone}`) === saveClientId);
+    const client = coachOwnClients?.find((c) => (c.id ?? `${c.name}_${c.phone}`) === saveClientId);
     if (!client) {
       setSaveStatus({ ok: false, error: '회원을 선택해 주세요.' });
       return;
@@ -2327,27 +2348,29 @@ export const SwingVideoAnalysis: React.FC<SwingVideoAnalysisProps> = ({
     }
   };
 
+  // Search runs over the coach's own members only — scope first, match after,
+  // the same order as CoachClientManager's visibleClients → filteredClients.
   const filteredClients = useMemo(() => {
-    if (!clients) return [];
+    if (!coachOwnClients) return [];
     const q = saveClientFilter.trim().toLowerCase();
-    if (!q) return clients.slice(0, 20);
-    return clients
+    if (!q) return coachOwnClients.slice(0, 20);
+    return coachOwnClients
       .filter((c) => c.name.toLowerCase().includes(q) || c.phone.includes(q))
       .slice(0, 20);
-  }, [clients, saveClientFilter]);
+  }, [coachOwnClients, saveClientFilter]);
 
   // Same convention as filteredClients — bumped to 30 for the pre-upload
   // picker so a coach with a wider book still sees more without typing.
   const pickerClients = useMemo(() => {
-    if (!clients) return [];
+    if (!coachOwnClients) return [];
     const q = clientPickerFilter.trim().toLowerCase();
-    if (!q) return clients.slice(0, 30);
-    return clients
+    if (!q) return coachOwnClients.slice(0, 30);
+    return coachOwnClients
       .filter((c) => c.name.toLowerCase().includes(q) || c.phone.includes(q))
       .slice(0, 30);
-  }, [clients, clientPickerFilter]);
+  }, [coachOwnClients, clientPickerFilter]);
 
-  const gateOnMemberPicker = !!clients && !selectedClient;
+  const gateOnMemberPicker = !!coachOwnClients && !selectedClient;
 
   const runAnalysis = async (window?: { startTime: number; endTime: number }) => {
     if (!videoUrl) return;
@@ -2407,7 +2430,7 @@ export const SwingVideoAnalysis: React.FC<SwingVideoAnalysisProps> = ({
         {/* Member picker — coaches select the student BEFORE uploading so
             the AI report cross-references only that student's own shot /
             lesson history and the save step is one click at the end. */}
-        {clients && !analysis && (
+        {coachOwnClients && !analysis && (
           selectedClient ? (
             <div className="rounded-lg border border-emerald-800/60 bg-emerald-950/30 p-3 flex items-center justify-between gap-3">
               <div className="flex items-center gap-2 min-w-0">
@@ -2608,7 +2631,7 @@ export const SwingVideoAnalysis: React.FC<SwingVideoAnalysisProps> = ({
             )}
             {videoUrl && !editing && (
               <div className="flex justify-end gap-2">
-                {clients && clients.length > 0 && (
+                {coachOwnClients && coachOwnClients.length > 0 && (
                   <button
                     type="button"
                     onClick={() => setSaveOpen(true)}
@@ -2632,7 +2655,7 @@ export const SwingVideoAnalysis: React.FC<SwingVideoAnalysisProps> = ({
                 </button>
               </div>
             )}
-            {saveOpen && clients && (
+            {saveOpen && coachOwnClients && (
               <div className="rounded-lg border border-emerald-800/60 bg-slate-900 p-4 space-y-3">
                 <div className="flex items-center justify-between">
                   <div className="text-sm font-semibold text-slate-100">회원 레슨 기록에 저장</div>
