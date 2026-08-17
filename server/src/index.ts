@@ -13,6 +13,7 @@ import lessonPackagesRouter from './routes/lessonPackages';
 import aiRouter from './routes/ai';
 import curriculumsRouter from './routes/curriculums';
 import reservationsRouter from './routes/reservations';
+import homeworkRouter from './routes/homework';
 import curriculumTemplatesRouter from './routes/curriculumTemplates';
 import pushRouter from './routes/push';
 import { startScheduledPushRunner } from './services/scheduledPushRunner';
@@ -66,6 +67,7 @@ app.use('/api/lesson-packages', lessonPackagesRouter);
 app.use('/api/ai', aiRouter);
 app.use('/api/curriculums', curriculumsRouter);
 app.use('/api/reservations', reservationsRouter);
+app.use('/api/homework', homeworkRouter);
 app.use('/api/curriculum-templates', curriculumTemplatesRouter);
 app.use('/api/push', pushRouter);
 

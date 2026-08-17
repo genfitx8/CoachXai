@@ -3,8 +3,7 @@ import { ClientProfile, Homework, Lesson } from '../types';
 import { Sparkles, ChevronLeft, Bot, Zap, RefreshCw, CheckCircle } from 'lucide-react';
 import { Button } from './Button';
 import { generateGolfMissions } from '../services/geminiService';
-import { firebaseService } from '../services/firebase';
-import { storageService } from '../services/storage';
+import { homeworkService } from '../services/homeworkService';
 import { lessonBelongsToClient } from '../utils/clientMatch';
 
 interface GolfAIAgentProps {
@@ -69,12 +68,7 @@ export const GolfAIAgent: React.FC<GolfAIAgentProps> = ({
       createdAt: Date.now(),
     };
 
-    if (isFirebaseMode) {
-      await firebaseService.saveHomework(newHomework);
-    } else {
-      const all = storageService.getHomework();
-      storageService.saveHomework([...all, newHomework]);
-    }
+    await homeworkService.add(newHomework);
 
     setSavedMissions((prev) => new Set(prev).add(idx));
     onMissionSaved();

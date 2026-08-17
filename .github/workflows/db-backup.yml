@@ -1,0 +1,86 @@
+# Weekly logical backup of the Render Postgres database to Cloudflare R2.
+#
+# Why this exists (docs/DATA_ARCHITECTURE.md §10.2): Render's automatic
+# backups have a short retention window. This workflow keeps independent
+# pg_dump archives under our own control so "the data looked wrong last
+# month" class problems stay recoverable.
+#
+# Required repository secrets (Settings → Secrets and variables → Actions):
+#   RENDER_DATABASE_URL   External Database URL from the Render dashboard
+#                         (postgres://...render.com/...?sslmode=require)
+#   R2_ENDPOINT           https://<account-id>.r2.cloudflarestorage.com
+#   R2_ACCESS_KEY_ID      R2 API token key with write access to the bucket
+#   R2_SECRET_ACCESS_KEY  matching secret
+#   R2_BACKUP_BUCKET      bucket name, e.g. coachx-db-backups
+#
+# Restore procedure (rehearse this — see docs/DATA_ARCHITECTURE.md §10.2):
+#   aws s3 cp s3://$BUCKET/postgres/coachx_YYYYMMDD.dump . --endpoint-url $R2_ENDPOINT
+#   pg_restore --list coachx_YYYYMMDD.dump          # sanity check
+#   createdb coachx_restore && pg_restore -d coachx_restore coachx_YYYYMMDD.dump
+
+name: DB Backup
+
+on:
+  schedule:
+    # 매주 월요일 03:00 KST (일요일 18:00 UTC)
+    - cron: '0 18 * * 0'
+  workflow_dispatch: {}
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Install PostgreSQL 17 client
+        run: |
+          sudo sh -c 'echo "deb https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
+          curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo gpg --dearmor -o /usr/share/keyrings/postgresql.gpg
+          sudo sed -i 's|deb |deb [signed-by=/usr/share/keyrings/postgresql.gpg] |' /etc/apt/sources.list.d/pgdg.list
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client-17
+
+      - name: Dump database
+        env:
+          DATABASE_URL: ${{ secrets.RENDER_DATABASE_URL }}
+        run: |
+          STAMP=$(date -u +%Y%m%d_%H%M)
+          FILE="coachx_${STAMP}.dump"
+          echo "FILE=$FILE" >> "$GITHUB_ENV"
+          # Custom format (-Fc): compressed, restorable table-by-table.
+          pg_dump "$DATABASE_URL" -Fc --no-owner --no-privileges -f "$FILE"
+          ls -lh "$FILE"
+
+      - name: Verify dump integrity
+        run: |
+          # A truncated/corrupt dump fails to list its TOC.
+          pg_restore --list "$FILE" | head -5
+          echo "TOC entries: $(pg_restore --list "$FILE" | wc -l)"
+
+      - name: Upload to R2
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: auto
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+          BUCKET: ${{ secrets.R2_BACKUP_BUCKET }}
+        run: |
+          aws s3 cp "$FILE" "s3://$BUCKET/postgres/$FILE" --endpoint-url "$R2_ENDPOINT"
+
+      - name: Prune backups older than 180 days
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: auto
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+          BUCKET: ${{ secrets.R2_BACKUP_BUCKET }}
+        run: |
+          CUTOFF=$(date -u -d '180 days ago' +%Y%m%d)
+          aws s3 ls "s3://$BUCKET/postgres/" --endpoint-url "$R2_ENDPOINT" \
+            | awk '{print $4}' \
+            | while read -r key; do
+                stamp=$(echo "$key" | sed -n 's/^coachx_\([0-9]\{8\}\)_.*/\1/p')
+                if [ -n "$stamp" ] && [ "$stamp" -lt "$CUTOFF" ]; then
+                  echo "Pruning $key"
+                  aws s3 rm "s3://$BUCKET/postgres/$key" --endpoint-url "$R2_ENDPOINT"
+                fi
+              done

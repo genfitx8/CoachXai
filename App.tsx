@@ -48,6 +48,7 @@ import { storageService } from './services/storage';
 import { authService } from './services/authService';
 import { firebaseService } from './services/firebase';
 import { apiService } from './services/apiService';
+import { homeworkService } from './services/homeworkService';
 import { videoStore, IDB_PREFIX } from './services/videoStore';
 import { initializePush, unregisterCurrentDevice } from './services/pushService';
 import {
@@ -185,6 +186,29 @@ const AppContent: React.FC = () => {
   // same chat surface.
   const [coachAIInitialQuery, setCoachAIInitialQuery] = useState<string | undefined>(undefined);
   const [selectedStudentForDetail, setSelectedStudentForDetail] = useState<ClientProfile | null>(null);
+  // Homework for the student-detail screen. Loaded async because homework now
+  // lives behind homeworkService (server-backed in API mode) instead of a
+  // synchronous localStorage read.
+  const [studentDetailHomework, setStudentDetailHomework] = useState<Homework[]>([]);
+  useEffect(() => {
+    if (!selectedStudentForDetail) {
+      setStudentDetailHomework([]);
+      return;
+    }
+    const compositeId = `${selectedStudentForDetail.name}_${selectedStudentForDetail.phone}`;
+    let cancelled = false;
+    homeworkService
+      .listByClient(compositeId)
+      .then((hw) => {
+        if (!cancelled) setStudentDetailHomework(hw);
+      })
+      .catch(() => {
+        if (!cancelled) setStudentDetailHomework([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedStudentForDetail]);
   const [hamburgerOpen, setHamburgerOpen] = useState(false);
   const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(null);
   const [selectedClientFilter, setSelectedClientFilter] = useState<string>(''); // '' or clientName
@@ -951,11 +975,7 @@ const AppContent: React.FC = () => {
 
       // 2. Handle Assigned Homework (Saved to Homework collection)
       if (homeworkBatch && homeworkBatch.length > 0) {
-        if (isFb) {
-          await apiService.saveHomeworkBatch(homeworkBatch);
-        } else {
-          storageService.saveHomeworkBatch(homeworkBatch);
-        }
+        await homeworkService.addBatch(homeworkBatch);
       }
     } catch (e) {
       console.error('[handleSaveLesson] Save failed', e);
@@ -2347,13 +2367,7 @@ const AppContent: React.FC = () => {
                   l.clientPhone === selectedStudentForDetail.phone) ||
                 l.clientId === `${selectedStudentForDetail.name}_${selectedStudentForDetail.phone}`
             )}
-            homework={storageService
-              .getHomework()
-              .filter(
-                (h) =>
-                  h.clientId ===
-                  `${selectedStudentForDetail.name}_${selectedStudentForDetail.phone}`
-              )}
+            homework={studentDetailHomework}
             packages={lessonPackages.filter(
               (p) =>
                 (p.clientName === selectedStudentForDetail.name &&

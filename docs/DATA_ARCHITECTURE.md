@@ -664,7 +664,10 @@ R2 스토리지 비용은 영상이 지배한다. 상용화 초기엔 원본 보
    - [x] `lesson_reservations` 서버 승격: 문서 원문(JSONB) + 조회 키 컬럼 방식, `/api/reservations` CRUD(역할 스코프 + 타 학생 PII 새니타이즈), 클라이언트 백엔드 스위치(api→firebase→local) + 로그인별 1회 로컬 데이터 업로드 동기화. 상태 전이는 domain_events(`reservation.*`)로 기록
    - [ ] `branches` / `bays` / `bay_price_rules` / `bay_reservations` 승격 + DB 유니크 제약으로 이중 예약 원천 차단 (bayReservationService 전환)
 2. **포인트 원장** (`point_ledger`) — 돈과 직결. 기존 `point_transactions`를 원장으로 흡수, 잔액 대사 잡 추가
-3. **숙제/퀵로그/진단** (`homework`, `quick_logs`, `diagnosis_sessions`)
+3. **숙제/퀵로그/진단**
+   - [x] `homework` 서버 승격: `/api/homework` (배치 업서트, 완료 토글, 삭제), 코치 권한은 담당 학생 로스터로 판정, `homeworkService` 파사드로 컴포넌트 직접 접근 제거, 로그인별 1회 로컬 동기화. `homework.assigned/self_added/completed/deleted` 이벤트 기록. (기존 apiService.saveHomeworkBatch가 no-op 스텁이라 API 모드에서 코치 숙제 배치가 조용히 유실되던 버그도 함께 해소)
+   - [ ] `quick_logs` — 현재 저장 호출부가 없는 미완성 기능(UI만 존재). 쓰기 경로가 생길 때 같은 패턴으로 승격
+   - [ ] `diagnosis_sessions`
 4. **AI 자산** (`student_context_snapshots`, `ai_feedback_events`, `chat_messages`, 주간 인사이트, 프롬프트 템플릿)
 5. **알림/골프코스** — 후순위
 
@@ -719,6 +722,7 @@ storage.ts 폴백 제거 → apiService에 실제 엔드포인트 연결
 ### 10.2 백업·복구
 
 - Render 자동 백업 + **주 1회 복구 리허설**(스테이징에 restore 후 스모크 테스트)을 운영 루틴으로.
+- [x] 독립 논리 백업: `.github/workflows/db-backup.yml` — 매주 월 03:00 KST에 `pg_dump -Fc` → Cloudflare R2 적재(무결성 검증 + 180일 보존). GitHub Secrets에 `RENDER_DATABASE_URL`, `R2_ENDPOINT`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BACKUP_BUCKET` 등록 필요.
 - `domain_events` 월 파티션은 콜드 파티션부터 R2로 아카이브 가능하게 설계.
 
 ### 10.3 데이터 품질 운영 (admin 대시보드 지표)
