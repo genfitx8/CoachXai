@@ -98,7 +98,21 @@ interface HandPathOverlay {
    * path (used on event snapshots).
    */
   upToT?: number;
+  /**
+   * Timestamp of the top of the backswing. Splits the trail into a green
+   * backswing half (t ≤ topT) and an orange downswing/follow-through half
+   * so a coach can see where the transition happened. Undefined when the
+   * top event wasn't detected — the whole trail then falls back to yellow.
+   */
+  topT?: number;
 }
+
+/** Backswing (address → top) trail color. */
+const HAND_PATH_BACKSWING_COLOR = '#4ade80'; // green-400
+/** Downswing / follow-through (top → finish) trail color. */
+const HAND_PATH_DOWNSWING_COLOR = '#f97316'; // orange-500
+/** Fallback when the top of the backswing wasn't detected. */
+const HAND_PATH_FALLBACK_COLOR = '#fde047'; // yellow-300
 
 function drawKeypoints(
   canvas: HTMLCanvasElement,
@@ -320,31 +334,57 @@ function drawKeypoints(
       ? handPath.points
       : handPath.points.filter((p) => p.t <= cutoff);
     if (pts.length >= 2) {
+      // Split the trail at the top of the backswing: green going back, orange
+      // coming down. The downswing run starts one sample early (the last
+      // backswing point) so the two colored strokes meet without a gap.
+      const topT = handPath.topT;
+      const splitIdx = topT == null ? -1 : pts.findIndex((p) => p.t > topT);
+      let segments: Array<{ pts: typeof pts; color: string }>;
+      if (topT == null) {
+        segments = [{ pts, color: HAND_PATH_FALLBACK_COLOR }];
+      } else if (splitIdx < 0) {
+        // Nothing past the top yet — still on the way back.
+        segments = [{ pts, color: HAND_PATH_BACKSWING_COLOR }];
+      } else if (splitIdx === 0) {
+        segments = [{ pts, color: HAND_PATH_DOWNSWING_COLOR }];
+      } else {
+        segments = [
+          { pts: pts.slice(0, splitIdx), color: HAND_PATH_BACKSWING_COLOR },
+          { pts: pts.slice(splitIdx - 1), color: HAND_PATH_DOWNSWING_COLOR },
+        ];
+      }
+      const strokePath = (seg: typeof pts) => {
+        ctx.beginPath();
+        ctx.moveTo(seg[0].x * canvas.width, seg[0].y * canvas.height);
+        for (let i = 1; i < seg.length; i++) {
+          ctx.lineTo(seg[i].x * canvas.width, seg[i].y * canvas.height);
+        }
+        ctx.stroke();
+      };
       ctx.save();
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
-      // Black underlay so the arc reads over grass, mats, or bright kits.
-      ctx.strokeStyle = 'rgba(0, 0, 0, 0.7)';
-      ctx.lineWidth = 6;
-      ctx.beginPath();
-      ctx.moveTo(pts[0].x * canvas.width, pts[0].y * canvas.height);
-      for (let i = 1; i < pts.length; i++) {
-        ctx.lineTo(pts[i].x * canvas.width, pts[i].y * canvas.height);
+      // Black underlay so the arc reads over grass, mats, or bright kits —
+      // one pass over the whole trail, matching the skeleton's underlay.
+      ctx.strokeStyle = 'rgba(0, 0, 0, 0.6)';
+      ctx.lineWidth = strokePx + 3;
+      strokePath(pts);
+      // Same weight as the skeleton bones so the trail reads as part of the
+      // same overlay language.
+      ctx.lineWidth = strokePx;
+      for (const seg of segments) {
+        if (seg.pts.length < 2) continue;
+        ctx.strokeStyle = seg.color;
+        strokePath(seg.pts);
       }
-      ctx.stroke();
-      // Yellow fill — reads as "club head trail" and pops against skin /
-      // clothing more consistently than red or cyan.
-      ctx.strokeStyle = '#fde047'; // yellow-300
-      ctx.lineWidth = 3;
-      ctx.stroke();
       // Head dot at the leading edge so the eye locks onto "where the club
-      // is right now" while playing.
+      // is right now" while playing — tinted by the current phase.
       const head = pts[pts.length - 1];
       const hx = head.x * canvas.width;
       const hy = head.y * canvas.height;
-      ctx.fillStyle = '#facc15';
+      ctx.fillStyle = segments[segments.length - 1].color;
       ctx.beginPath();
-      ctx.arc(hx, hy, 5, 0, 2 * Math.PI);
+      ctx.arc(hx, hy, Math.max(4, Math.round(strokePx * 0.9)), 0, 2 * Math.PI);
       ctx.fill();
       ctx.strokeStyle = 'rgba(0, 0, 0, 0.7)';
       ctx.lineWidth = 1.5;
@@ -391,6 +431,8 @@ interface EventSnapshotProps {
   wristArc?: Array<{ x: number; y: number }>;
   /** Full-swing hand path, drawn up to this event's timestamp. */
   handPath?: Array<{ x: number; y: number; t: number }>;
+  /** Top-of-backswing timestamp — splits the hand path into green/orange. */
+  handPathTopT?: number;
 }
 
 const EventSnapshot: React.FC<EventSnapshotProps> = ({
@@ -404,6 +446,7 @@ const EventSnapshot: React.FC<EventSnapshotProps> = ({
   centerlineX,
   wristArc,
   handPath,
+  handPathTopT,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -417,7 +460,7 @@ const EventSnapshot: React.FC<EventSnapshotProps> = ({
     video.crossOrigin = 'anonymous';
     const onSeeked = () => {
       const handPathOverlay = handPath
-        ? { points: handPath, upToT: event.t }
+        ? { points: handPath, upToT: event.t, topT: handPathTopT }
         : undefined;
       drawKeypoints(
         canvas,
@@ -441,7 +484,18 @@ const EventSnapshot: React.FC<EventSnapshotProps> = ({
       video.removeEventListener('seeked', onSeeked);
       video.src = '';
     };
-  }, [event, frame, videoUrl, overlay, clubHead, trajectory, centerlineX, wristArc, handPath]);
+  }, [
+    event,
+    frame,
+    videoUrl,
+    overlay,
+    clubHead,
+    trajectory,
+    centerlineX,
+    wristArc,
+    handPath,
+    handPathTopT,
+  ]);
 
   if (!event || !frame) {
     return (
@@ -908,7 +962,11 @@ const PlaybackSection: React.FC<{ analysis: SwingAnalysis }> = ({ analysis }) =>
       }
       const handPathOverlay =
         showHandPath && analysis.summary.handPath2D
-          ? { points: analysis.summary.handPath2D, upToT: t }
+          ? {
+              points: analysis.summary.handPath2D,
+              upToT: t,
+              topT: analysis.events.top?.t,
+            }
           : undefined;
       drawKeypoints(
         canvas,
@@ -1023,13 +1081,31 @@ const PlaybackSection: React.FC<{ analysis: SwingAnalysis }> = ({ analysis }) =>
                 onClick={() => setShowHandPath((v) => !v)}
                 className={`text-[11px] px-2 py-1 rounded border font-semibold transition-colors ${
                   showHandPath
-                    ? 'border-yellow-500 bg-yellow-900/40 text-yellow-100'
+                    ? 'border-orange-500 bg-orange-900/40 text-orange-100'
                     : 'border-slate-700 bg-slate-800 text-slate-300 hover:bg-slate-700'
                 }`}
-                title="양손 중점 기반 스윙 궤도 (클럽 헤드 궤도 근사)"
+                title="양손 중점 기반 스윙 궤도 (클럽 헤드 궤도 근사) — 백스윙 초록, 다운스윙 주황"
               >
                 {showHandPath ? '● 클럽 궤도' : '○ 클럽 궤도'}
               </button>
+              {showHandPath && (
+                <span className="flex items-center gap-2 text-[10px] text-slate-400">
+                  <span className="flex items-center gap-1">
+                    <span
+                      className="inline-block w-3 h-[3px] rounded-full"
+                      style={{ backgroundColor: HAND_PATH_BACKSWING_COLOR }}
+                    />
+                    백스윙
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <span
+                      className="inline-block w-3 h-[3px] rounded-full"
+                      style={{ backgroundColor: HAND_PATH_DOWNSWING_COLOR }}
+                    />
+                    다운스윙
+                  </span>
+                </span>
+              )}
             </>
           )}
           <span className="ml-auto text-[11px] text-slate-400 font-mono">
@@ -2653,6 +2729,7 @@ export const SwingVideoAnalysis: React.FC<SwingVideoAnalysisProps> = ({
                     centerlineX={analysis.summary.bodyCenterlineX}
                     wristArc={name === 'impact' ? analysis.summary.downswingWristArc2D : undefined}
                     handPath={analysis.summary.handPath2D}
+                    handPathTopT={analysis.events.top?.t}
                   />
                 );
               })}
