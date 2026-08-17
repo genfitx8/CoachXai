@@ -176,11 +176,15 @@ export const CoachAIHome: React.FC<CoachAIHomeProps> = ({
   return (
     <div
       className="fixed inset-x-0 top-0 z-30 flex flex-col bg-base text-white"
-      // Stop above the bottom nav (~4rem + iOS safe area) so the tab bar
-      // remains visible on the coach home. Nav sits at z-50; the home shell
-      // stays under it as a defense-in-depth (nav still wins even if this
-      // stops flush at bottom-0 in some transition).
-      style={{ bottom: 'calc(4rem + env(safe-area-inset-bottom))' }}
+      // Stop above the bottom nav so the tab bar remains visible on the coach
+      // home. Nav sits at z-50; the home shell stays under it as a
+      // defense-in-depth (nav still wins even if this stops flush at bottom-0
+      // in some transition). The stop reads the same token the nav sizes
+      // itself with — the literal 4rem it used to hard-code missed the bar's
+      // own top hairline, leaving the input row's last pixel underneath it.
+      style={{
+        bottom: 'calc(var(--coach-nav-height) + env(safe-area-inset-bottom, 0px))',
+      }}
     >
       {/* Ambient background */}
       <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
@@ -379,8 +383,14 @@ export const CoachAIHome: React.FC<CoachAIHomeProps> = ({
         </div>
       )}
 
-      {/* Input area */}
-      <div className="relative z-10 border-t border-white/8 bg-base/80 px-4 pb-safe pb-4 pt-3 backdrop-blur-md">
+      {/* Input area.
+          Pairing the safe-area class with a `pb-4` read like "gutter, and more
+          on a notched phone" but did the opposite: `.pb-safe` is unlayered CSS
+          and outranks Tailwind's layered padding, so the gutter collapsed to
+          the raw inset — 0px wherever the platform reports none. No inset is
+          wanted here anyway;
+          this shell already stops above the nav, and the nav owns the inset. */}
+      <div className="relative z-10 border-t border-white/8 bg-base/80 px-4 pb-4 pt-3 backdrop-blur-md">
         {/* Mode toggle */}
         <div className="mb-3 flex justify-center">
           <div className="flex rounded-full border border-white/10 bg-white/4 p-0.5">

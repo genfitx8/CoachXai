@@ -111,7 +111,12 @@ export const CoachBottomNav: React.FC<CoachBottomNavProps> = ({
       role="navigation"
       aria-label="Coach navigation"
     >
-      <div className="max-w-md mx-auto grid grid-cols-5">
+      {/* Pinned to --coach-nav-row-height rather than left to add up from the
+          icon + label + py-3 stack. Everything above the nav reserves
+          --coach-nav-height (this row plus the border-t above); if the row's
+          real height drifts from the token the reservation silently stops
+          matching and content slides back under the bar. */}
+      <div className="max-w-md mx-auto grid grid-cols-5 h-[var(--coach-nav-row-height)]">
         {renderTabButton('LESSON')}
         {renderTabButton('CLIENTS', clientsBadge)}
         {renderTabButton('RECORD')}

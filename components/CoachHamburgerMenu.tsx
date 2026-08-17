@@ -108,7 +108,12 @@ export const CoachHamburgerMenu: React.FC<CoachHamburgerMenuProps> = ({
       />
 
       {/* Drawer */}
-      <aside className="absolute left-0 top-0 h-full w-[86%] max-w-sm bg-base border-r border-line-subtle shadow-2xl flex flex-col animate-slide-in-left">
+      {/* The drawer spans the full screen height, so its own header row sits
+          under the status bar / notch and the 로그아웃 row under the home
+          indicator / gesture bar. The insets go on the panel — it has no
+          padding of its own for `pt-safe` / `pb-safe` to overwrite — and the
+          header and footer inherit the clearance. */}
+      <aside className="absolute left-0 top-0 h-full w-[86%] max-w-sm bg-base border-r border-line-subtle shadow-2xl flex flex-col animate-slide-in-left pt-safe pb-safe">
         {/* Header */}
         <div className="px-5 py-5 border-b border-line-subtle flex items-center gap-3">
           <div className="bg-gradient-to-br from-emerald-500/30 to-emerald-500/20 p-2.5 rounded-full text-emerald-100 border border-emerald-300/20">

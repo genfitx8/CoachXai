@@ -40,10 +40,16 @@
   --bg-overlay-rgb: 28 34 29;
   --bg-inset-rgb:   4 6 5;
 
-  /* Height of the coach bottom tab bar, excluding the device safe area.
+  /* Height of the coach bottom tab bar, excluding the device safe area, in
+     two parts so the reservation and the bar can never drift apart:
+       --coach-nav-row-height  the tappable row; the nav pins itself to it.
+       --coach-nav-height      what the bar actually occupies on screen, i.e.
+                               the row plus its top hairline.
      Full-screen coach views use `.coach-nav-clearance` to keep their own
-     footer CTA above it. */
-  --coach-nav-height: 64px;
+     footer CTA above it. Reserving only the row leaves the last pixel of
+     content under the border. */
+  --coach-nav-row-height: 64px;
+  --coach-nav-height: calc(var(--coach-nav-row-height) + 1px);
 
   /* Same for the student bottom tab bar (StudentBottomNav), in two parts so
      the reservation and the bar can never drift apart:
@@ -116,6 +122,16 @@ body,
   padding-bottom: calc(var(--coach-nav-height) + env(safe-area-inset-bottom, 0px));
 }
 
+/* Same clearance plus the page's own bottom gutter. The bare version above
+   stops content exactly at the bar, which is right for a screen whose inner
+   content already carries a gutter and wrong for one where this element IS
+   the gutter — the coach <main> in App.tsx, which previously reserved a flat
+   `pb-24` (96px) for a bar that is 65px plus an inset of up to ~48px on an
+   Android three-button navigation bar. */
+.coach-nav-clearance-gutter {
+  padding-bottom: calc(var(--coach-nav-height) + env(safe-area-inset-bottom, 0px) + 2rem);
+}
+
 /* Student equivalents. The student tab bodies used to reserve a flat `pb-20`
    (80px) for a nav that is 64px + the home indicator / gesture bar — short by
    the whole inset on any modern phone, so the tail of every tab sat under the
@@ -179,10 +195,13 @@ body,
 /* Coach app's bottom tab bar (CoachBottomNav) sits at bottom-0 z-50.
    Full-screen coach sheets (레슨 기록 등) that are also z-50 need to
    reserve this much space at the bottom so their sticky footers /
-   trailing buttons don't hide behind the nav. Keep in sync with
-   CoachBottomNav's content height (icon + label + py-3). */
+   trailing buttons don't hide behind the nav.
+
+   Same rule as `.coach-nav-clearance` under a second name that predates it;
+   both now read the shared token instead of repeating a literal 64px, which
+   is what let the bar's own top hairline go unreserved. */
 .above-coach-bottom-nav {
-  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 64px);
+  padding-bottom: calc(var(--coach-nav-height) + env(safe-area-inset-bottom, 0px));
 }
 
 /* Mobile-optimized FullCalendar styles */

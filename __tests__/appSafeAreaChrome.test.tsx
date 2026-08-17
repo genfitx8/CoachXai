@@ -1,7 +1,7 @@
 /**
- * Regression tests for the student app overlapping the phone's own top and
- * bottom UI (status bar / notch, home indicator / gesture bar, Android nav
- * buttons).
+ * Regression tests for the student AND coach apps overlapping the phone's own
+ * top and bottom UI (status bar / notch, home indicator / gesture bar,
+ * Android nav buttons).
  *
  * The WebView runs edge-to-edge on both platforms, so nothing stays clear of
  * the system bars unless it asks for the inset. Three distinct faults stacked
@@ -21,10 +21,15 @@
  *     and the padding collapsed to the raw inset — 0px anywhere the platform
  *     reports none.
  *
+ * The coach app carried the same faults in its own dialect: a flat `pb-24`
+ * under a 65px bar, a `4rem` literal for the bar's stop on the 대화 home, the
+ * same `pb-safe pb-4` pair on that home's input row, and a full-height
+ * drawer / full-screen 동반 overlay with no top inset.
+ *
  * Android needs one more thing that no stylesheet can supply: its WebView
  * only reports a display cutout through `env(safe-area-inset-*)`, never the
  * system bars, so the insets below all resolve to 0px there. The native shell
- * has to apply the real window insets — see the capacitor config assertion.
+ * has to apply the real window insets — see the capacitor config assertions.
  */
 
 import React from 'react';
@@ -35,6 +40,7 @@ import path from 'node:path';
 import { ClientApp } from '../components/ClientApp';
 import { StudentBottomNav } from '../components/StudentBottomNav';
 import { StudentHamburgerMenu } from '../components/StudentHamburgerMenu';
+import { CoachBottomNav } from '../components/CoachBottomNav';
 import { LanguageProvider } from '../components/LanguageContext';
 import { ClientProfile } from '../types';
 
@@ -245,13 +251,89 @@ describe('NewLessonForm shell (student 기록 flow)', () => {
   });
 });
 
-describe('student native shell', () => {
-  it('applies the real window insets on Android, where CSS env() reports none', () => {
-    // targetSdk 35 forces edge-to-edge on Android 15 and the legacy opt-outs
-    // (including StatusBar.overlaysWebView) are ignored. Without this the
-    // WebView spans the whole display and no stylesheet can tell.
-    expect(repoFile('capacitor.student.config.ts')).toMatch(
-      /adjustMarginsForEdgeToEdge:\s*'(auto|force)'/
+describe('coach safe-area utilities', () => {
+  it('counts the nav border into the height everything above it reserves', () => {
+    expect(css).toMatch(/--coach-nav-row-height:\s*\d+px/);
+    expect(css).toMatch(
+      /--coach-nav-height:\s*calc\(var\(--coach-nav-row-height\)\s*\+\s*1px\)/
     );
   });
+
+  it('drives both clearance spellings off that token instead of a literal', () => {
+    // `.above-coach-bottom-nav` predates `.coach-nav-clearance` and repeated
+    // the 64px by hand, so it silently kept the old, border-less reservation.
+    expect(css).toMatch(
+      /\.above-coach-bottom-nav\s*\{[^}]*padding-bottom:\s*calc\(var\(--coach-nav-height\)/
+    );
+    expect(css).not.toMatch(/\.above-coach-bottom-nav\s*\{[^}]*64px/);
+  });
+
+  it('offers a clearance variant that keeps the page gutter', () => {
+    expect(css).toMatch(
+      /\.coach-nav-clearance-gutter\s*\{[^}]*calc\(var\(--coach-nav-height\)[^}]*\+\s*2rem\)/
+    );
+  });
+});
+
+describe('CoachBottomNav', () => {
+  it('pins its row to --coach-nav-row-height so the clearance math stays true', () => {
+    render(
+      <LanguageProvider>
+        <CoachBottomNav activeTab="LESSON" onTabChange={vi.fn()} />
+      </LanguageProvider>
+    );
+
+    const nav = screen.getByRole('navigation', { name: /coach navigation/i });
+    expect(nav.className).toContain('pb-safe');
+
+    const row = nav.querySelector('div');
+    expect(row).not.toBeNull();
+    expect(row!.className).toContain('h-[var(--coach-nav-row-height)]');
+  });
+});
+
+describe('coach app shell', () => {
+  const appSource = repoFile('App.tsx');
+  const homeSource = repoFile('components', 'CoachAIHome.tsx');
+
+  it('reserves the real bar height under the coach content area', () => {
+    // 96px was short of 65px of bar plus an inset of up to ~48px.
+    expect(appSource).not.toContain('pb-24');
+    expect(appSource).toContain('coach-nav-clearance-gutter');
+  });
+
+  it('stops the 대화 home above the bar using the shared token', () => {
+    expect(homeSource).toMatch(
+      /bottom:\s*'calc\(var\(--coach-nav-height\)\s*\+\s*env\(safe-area-inset-bottom/
+    );
+    expect(homeSource).not.toContain("calc(4rem + env(safe-area-inset-bottom)");
+  });
+
+  it('does not pair pb-safe with pb-4 on the coach input row', () => {
+    expect(homeSource).not.toContain('pb-safe pb-4');
+  });
+
+  it('keeps the coach drawer off the status bar and the gesture bar', () => {
+    const drawer = repoFile('components', 'CoachHamburgerMenu.tsx');
+    expect(drawer).toMatch(/<aside className="[^"]*pt-safe[^"]*pb-safe/);
+  });
+
+  it('keeps the full-screen 동반 overlay off the status bar', () => {
+    // fixed inset-0 over the app header: nothing else owns its top inset.
+    expect(repoFile('components', 'LiveLessonCompanion.tsx')).toMatch(
+      /fixed inset-0[^"]*pt-safe[^"]*coach-nav-clearance/
+    );
+  });
+});
+
+describe('native shells', () => {
+  it.each(['capacitor.student.config.ts', 'capacitor.coach.config.ts'])(
+    '%s applies the real window insets on Android, where CSS env() reports none',
+    (file) => {
+      // targetSdk 35 forces edge-to-edge on Android 15 and the legacy opt-outs
+      // (including StatusBar.overlaysWebView) are ignored. Without this the
+      // WebView spans the whole display and no stylesheet can tell.
+      expect(repoFile(file)).toMatch(/adjustMarginsForEdgeToEdge:\s*'(auto|force)'/);
+    }
+  );
 });

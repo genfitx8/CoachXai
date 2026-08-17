@@ -52,6 +52,23 @@ const config: CapacitorConfig = {
     path: 'native/coach/android',
     backgroundColor: '#f9fafb',
     allowMixedContent: false,
+    // targetSdk is 35, so Android 15 draws this activity edge-to-edge and
+    // ignores the legacy opt-outs — including the StatusBar plugin's
+    // `overlaysWebView: false` above, which only sets deprecated
+    // systemUiVisibility flags. The WebView then spans the whole display and
+    // the app paints under the status bar and under the navigation / gesture
+    // bar.
+    //
+    // CSS cannot recover this on Android: the WebView only reports a display
+    // cutout through `env(safe-area-inset-*)`, never the system bars, so
+    // every safe-area rule in index.css resolves to 0px there. "auto" makes
+    // Capacitor apply the real window insets as WebView margins on Android
+    // 15+ (and leaves older versions untouched), which is what actually keeps
+    // the header and the bottom tab bar clear of the phone's buttons.
+    //
+    // Capacitor 8 will default to "auto"; setting it explicitly also pins the
+    // behaviour across that upgrade.
+    adjustMarginsForEdgeToEdge: 'auto',
   },
 };
 

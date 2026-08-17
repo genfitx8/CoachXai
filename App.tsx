@@ -1971,7 +1971,12 @@ const AppContent: React.FC = () => {
       </header>
 
 
-      <main className="flex-1 max-w-7xl mx-auto w-full px-4 py-6 md:py-8 pb-24">
+      {/* A flat 96px reservation was short of the bar it had to clear: 65px of tab bar
+          plus the home indicator / gesture bar, which is ~34px on iOS and up
+          to ~48px on an Android three-button navigation bar. The clearance
+          now comes from the same token the nav sizes itself with, with the
+          page's bottom gutter kept on top of it. */}
+      <main className="flex-1 max-w-7xl mx-auto w-full px-4 pt-6 md:pt-8 coach-nav-clearance-gutter">
         {coachView === 'LESSON_LIST' && (
           <div className="space-y-6 animate-fade-in">
             {/* Title — the list is opened from the hamburger menu, so the

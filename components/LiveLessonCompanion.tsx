@@ -230,8 +230,11 @@ export const LiveLessonCompanion: React.FC<LiveLessonCompanionProps> = ({
   // z-index as this overlay, so it paints over whatever sits at the bottom
   // edge. `coach-nav-clearance` reserves its height (+ the device gesture bar)
   // on the root, otherwise the sticky "레슨 종료" CTA lands behind the tab bar.
+  // `pt-safe` does the same at the other end: this is a fixed inset-0 overlay
+  // over the app header, so nothing else keeps its own header off the status
+  // bar / notch.
   return (
-    <div className="fixed inset-0 z-50 bg-base text-ink-high flex flex-col coach-nav-clearance">
+    <div className="fixed inset-0 z-50 bg-base text-ink-high flex flex-col pt-safe coach-nav-clearance">
       <PermissionDeniedModal
         open={permissionModalOpen}
         kind="microphone"
