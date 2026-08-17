@@ -226,8 +226,12 @@ export const LiveLessonCompanion: React.FC<LiveLessonCompanionProps> = ({
     onFinish(clips);
   };
 
+  // The coach bottom nav stays mounted on the 동반 탭 and is fixed at the same
+  // z-index as this overlay, so it paints over whatever sits at the bottom
+  // edge. `coach-nav-clearance` reserves its height (+ the device gesture bar)
+  // on the root, otherwise the sticky "레슨 종료" CTA lands behind the tab bar.
   return (
-    <div className="fixed inset-0 z-50 bg-base text-ink-high flex flex-col">
+    <div className="fixed inset-0 z-50 bg-base text-ink-high flex flex-col coach-nav-clearance">
       <PermissionDeniedModal
         open={permissionModalOpen}
         kind="microphone"

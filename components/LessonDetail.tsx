@@ -1182,7 +1182,12 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
       />
       {/* ... (Header and Main Content rendering remains same) ... */}
       {/* Header */}
-      <div className="bg-base/95 border-b border-line-subtle px-4 py-3 flex items-center justify-between text-ink-high flex-shrink-0 safe-area-top relative backdrop-blur-md">
+      {/* Fully opaque, not bg-base/95: this is a full-screen overlay laid over
+          the list/chat screen, and the header underneath lines up with this
+          one — any translucency shows that screen's title through ours. The
+          body scrolls in its own pane below, so there is nothing of our own
+          for a blurred header to reveal. */}
+      <div className="bg-base border-b border-line-subtle px-4 py-3 flex items-center justify-between text-ink-high flex-shrink-0 safe-area-top relative">
         <button
           onClick={onBack}
           className="p-3 bg-white/[0.04]/10 backdrop-blur-sm rounded-full hover:bg-white/[0.04]/20 text-white transition-all duration-200 hover:scale-110 transform min-w-[44px] min-h-[44px] flex items-center justify-center"

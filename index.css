@@ -33,6 +33,18 @@
   --brand-600: #059669;
   --brand-700: #047857;
 
+  /* Channel-split copies of the background layers so utilities can apply an
+     alpha (rgb(var(--bg-base-rgb) / 0.95)). Keep in sync with the hex above. */
+  --bg-base-rgb:    8 12 10;
+  --bg-raised-rgb:  16 22 13;
+  --bg-overlay-rgb: 28 34 29;
+  --bg-inset-rgb:   4 6 5;
+
+  /* Height of the coach bottom tab bar, excluding the device safe area.
+     Full-screen coach views use `.coach-nav-clearance` to keep their own
+     footer CTA above it. */
+  --coach-nav-height: 64px;
+
   /* Legacy alias (kept so existing markup keeps working) */
   --app-bg-color: var(--bg-base);
 }
@@ -83,6 +95,14 @@ body,
    home indicator rather than under it). */
 .mb-safe { margin-bottom: env(safe-area-inset-bottom, 0px); }
 .mt-safe { margin-top:    env(safe-area-inset-top,    0px); }
+
+/* Reserve room for the fixed coach bottom nav (plus the home indicator /
+   gesture bar underneath it) so a full-screen coach view's own bottom button
+   never ends up behind the tab bar. The nav sits at the same z-index as those
+   overlays, so it paints over anything that reaches the bottom edge. */
+.coach-nav-clearance {
+  padding-bottom: calc(var(--coach-nav-height) + env(safe-area-inset-bottom, 0px));
+}
 
 /* Alternate names actually used by a few components (safe-area-top /
    safe-area-bottom in LessonDetail). Keep them working. */
@@ -721,6 +741,38 @@ a:focus-visible {
 .bg-bg-raised  { background-color: var(--bg-raised); }
 .bg-bg-overlay { background-color: var(--bg-overlay); }
 .bg-bg-inset   { background-color: var(--bg-inset); }
+
+/* Short aliases — the semantic backgrounds live under a `bg` key in
+   tailwind.config.js, so Tailwind only ever emits `bg-bg-base`. Markup all
+   over the app writes the shorter `bg-base` / `bg-raised` / `bg-overlay` /
+   `bg-inset` (and their /NN opacity variants), which Tailwind never generates:
+   the class silently did nothing and the element stayed fully transparent.
+   On an already-dark page that is invisible, but it broke full-screen overlays
+   (the screen underneath showed through — the lesson detail header collided
+   with the header behind it) and fixed bars (the coach bottom nav and the
+   sticky CTAs it covers had no surface of their own). Keep both spellings
+   working.
+
+   These sit inside @layer utilities on purpose: plenty of call sites pair
+   `bg-base` with a `hover:bg-*`, and unlayered rules outrank every layered
+   utility regardless of specificity — which would kill those hover states. */
+@layer utilities {
+  .bg-base    { background-color: var(--bg-base); }
+  .bg-raised  { background-color: var(--bg-raised); }
+  .bg-overlay { background-color: var(--bg-overlay); }
+  .bg-inset   { background-color: var(--bg-inset); }
+
+  /* Translucent variants (used by sticky headers / footers that sit over a
+     blurred backdrop). Space-separated rgb() keeps this working in the older
+     Android WebViews the Capacitor shell can land on. */
+  .bg-base\/95    { background-color: rgb(var(--bg-base-rgb)    / 0.95); }
+  .bg-base\/90    { background-color: rgb(var(--bg-base-rgb)    / 0.90); }
+  .bg-base\/85    { background-color: rgb(var(--bg-base-rgb)    / 0.85); }
+  .bg-base\/80    { background-color: rgb(var(--bg-base-rgb)    / 0.80); }
+  .bg-base\/60    { background-color: rgb(var(--bg-base-rgb)    / 0.60); }
+  .bg-overlay\/80 { background-color: rgb(var(--bg-overlay-rgb) / 0.80); }
+  .bg-overlay\/50 { background-color: rgb(var(--bg-overlay-rgb) / 0.50); }
+}
 
 /* Border hairlines */
 .border-line-subtle  { border-color: var(--line-subtle); }
