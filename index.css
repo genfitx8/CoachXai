@@ -40,10 +40,28 @@
   --bg-overlay-rgb: 28 34 29;
   --bg-inset-rgb:   4 6 5;
 
-  /* Height of the coach bottom tab bar, excluding the device safe area.
+  /* Height of the coach bottom tab bar, excluding the device safe area, in
+     two parts so the reservation and the bar can never drift apart:
+       --coach-nav-row-height  the tappable row; the nav pins itself to it.
+       --coach-nav-height      what the bar actually occupies on screen, i.e.
+                               the row plus its top hairline.
      Full-screen coach views use `.coach-nav-clearance` to keep their own
-     footer CTA above it. */
-  --coach-nav-height: 64px;
+     footer CTA above it. Reserving only the row leaves the last pixel of
+     content under the border. */
+  --coach-nav-row-height: 64px;
+  --coach-nav-height: calc(var(--coach-nav-row-height) + 1px);
+
+  /* Same for the student bottom tab bar (StudentBottomNav), in two parts so
+     the reservation and the bar can never drift apart:
+       --student-nav-row-height  the tappable row; the nav pins itself to it.
+       --student-nav-height      what the bar actually occupies on screen,
+                                 i.e. the row plus its top hairline.
+     Everything above the nav reserves the latter — `.student-nav-clearance`
+     for scrolling tab bodies, `.student-nav-viewport` for the full-height
+     대화 tab — instead of guessing with a hard-coded `pb-20`. Reserving only
+     the row leaves the last pixel of content under the border. */
+  --student-nav-row-height: 64px;
+  --student-nav-height: calc(var(--student-nav-row-height) + 1px);
 
   /* Legacy alias (kept so existing markup keeps working) */
   --app-bg-color: var(--bg-base);
@@ -104,6 +122,45 @@ body,
   padding-bottom: calc(var(--coach-nav-height) + env(safe-area-inset-bottom, 0px));
 }
 
+/* Same clearance plus the page's own bottom gutter. The bare version above
+   stops content exactly at the bar, which is right for a screen whose inner
+   content already carries a gutter and wrong for one where this element IS
+   the gutter — the coach <main> in App.tsx, which previously reserved a flat
+   `pb-24` (96px) for a bar that is 65px plus an inset of up to ~48px on an
+   Android three-button navigation bar. */
+.coach-nav-clearance-gutter {
+  padding-bottom: calc(var(--coach-nav-height) + env(safe-area-inset-bottom, 0px) + 2rem);
+}
+
+/* Student equivalents. The student tab bodies used to reserve a flat `pb-20`
+   (80px) for a nav that is 64px + the home indicator / gesture bar — short by
+   the whole inset on any modern phone, so the tail of every tab sat under the
+   bar. Two shapes are needed:
+     - `.student-nav-clearance` for tab bodies that scroll in the page flow.
+     - `.student-nav-viewport` for the 대화 tab, which is a fixed-height flex
+       column with its own internal scroller. Padding is no use there: the
+       column is sized off the viewport, so its input row would still land at
+       100dvh — i.e. underneath the nav. The column has to be *shorter* than
+       the viewport by exactly the space the nav occupies. */
+.student-nav-clearance {
+  padding-bottom: calc(var(--student-nav-height) + env(safe-area-inset-bottom, 0px));
+}
+.student-nav-viewport {
+  height: calc(100dvh - var(--student-nav-height) - env(safe-area-inset-bottom, 0px));
+}
+
+/* Safe-area padding that KEEPS the element's own 1rem gutter and adds the
+   device inset on top.
+
+   Use these instead of pairing `pb-safe` with a Tailwind `pb-4` (as the
+   student chat input bar did). `.pb-safe` is declared outside every cascade
+   layer, and unlayered rules outrank *every* layered utility regardless of
+   specificity — so `pb-4` never applied and the padding collapsed to the raw
+   inset, which is 0px anywhere the platform reports no inset (Android
+   WebView, desktop browsers). The control sat flush against the screen edge. */
+.pt-safe-gutter { padding-top:    calc(1rem + env(safe-area-inset-top,    0px)); }
+.pb-safe-gutter { padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px)); }
+
 /* Alternate names actually used by a few components (safe-area-top /
    safe-area-bottom in LessonDetail). Keep them working. */
 .safe-area-top    { padding-top:    env(safe-area-inset-top,    0px); }
@@ -138,10 +195,13 @@ body,
 /* Coach app's bottom tab bar (CoachBottomNav) sits at bottom-0 z-50.
    Full-screen coach sheets (레슨 기록 등) that are also z-50 need to
    reserve this much space at the bottom so their sticky footers /
-   trailing buttons don't hide behind the nav. Keep in sync with
-   CoachBottomNav's content height (icon + label + py-3). */
+   trailing buttons don't hide behind the nav.
+
+   Same rule as `.coach-nav-clearance` under a second name that predates it;
+   both now read the shared token instead of repeating a literal 64px, which
+   is what let the bar's own top hairline go unreserved. */
 .above-coach-bottom-nav {
-  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 64px);
+  padding-bottom: calc(var(--coach-nav-height) + env(safe-area-inset-bottom, 0px));
 }
 
 /* Mobile-optimized FullCalendar styles */

@@ -129,8 +129,11 @@ export const GolfPassportScreen: React.FC<GolfPassportScreenProps> = ({
   }, [approvedLessons]);
 
   return (
-    <div className="min-h-screen bg-base text-ink-high pb-12">
-      <header className="sticky top-0 z-10 bg-base/95 backdrop-blur border-b border-line-subtle">
+    // Rendered straight into ClientApp with no wrapper, so this screen owns
+    // its own device insets. The trailing `pb-12` moved onto <main> below:
+    // `pb-safe` here would have replaced it outright rather than adding to it.
+    <div className="min-h-screen bg-base text-ink-high pb-safe">
+      <header className="sticky top-0 z-10 bg-base/95 backdrop-blur border-b border-line-subtle pt-safe">
         <div className="max-w-md mx-auto px-5 h-14 flex items-center gap-3">
           <button
             type="button"
@@ -149,7 +152,7 @@ export const GolfPassportScreen: React.FC<GolfPassportScreenProps> = ({
         </div>
       </header>
 
-      <main className="max-w-md mx-auto px-5 py-5 space-y-5">
+      <main className="max-w-md mx-auto px-5 pt-5 pb-12 space-y-5">
         {/* Overview stats */}
         <section className="rounded-2xl border border-emerald-500/25 bg-gradient-to-br from-emerald-500/[0.08] via-emerald-500/[0.04] to-transparent p-4">
           <div className="flex items-center gap-2 mb-3">

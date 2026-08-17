@@ -3,7 +3,7 @@ import { Lesson, ClientProfile, CoachProfile } from '../types';
 import { CoachXChatMessage } from '../services/coachXService';
 import { generateCoachXChatResponseStream } from '../services/geminiService';
 import { useLanguage } from './LanguageContext';
-import { Send, Mic, MicOff, LayoutDashboard, VolumeX, Volume2, MessageSquare, Target, ClipboardCheck } from 'lucide-react';
+import { Send, Mic, MicOff, LayoutDashboard, VolumeX, Volume2, MessageSquare, Target, ClipboardCheck, Menu } from 'lucide-react';
 import { useTypingReveal } from '../hooks/useTypingReveal';
 import { useTextToSpeech } from '../hooks/useTextToSpeech';
 import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
@@ -24,6 +24,12 @@ interface CoachAIHomeProps {
   clients: ClientProfile[];
   todayLessons: TodayLessonSummary[];
   onNavigateToDashboard: () => void;
+  /**
+   * Opens the coach hamburger drawer. This screen covers the app shell's
+   * header, so — exactly like the student 대화 tab — it has to carry the
+   * menu entry itself; App.tsx stops rendering its own header here.
+   */
+  onOpenMenu?: () => void;
   /**
    * When provided, auto-sent as the first user message on mount. Used by
    * "ask about this member" entry points from the dashboard, member list,
@@ -49,6 +55,7 @@ export const CoachAIHome: React.FC<CoachAIHomeProps> = ({
   clients,
   todayLessons,
   onNavigateToDashboard,
+  onOpenMenu,
   initialQuery,
   onInitialQueryConsumed,
 }) => {
@@ -175,12 +182,20 @@ export const CoachAIHome: React.FC<CoachAIHomeProps> = ({
 
   return (
     <div
-      className="fixed inset-x-0 top-0 z-30 flex flex-col bg-base text-white"
-      // Stop above the bottom nav (~4rem + iOS safe area) so the tab bar
-      // remains visible on the coach home. Nav sits at z-50; the home shell
-      // stays under it as a defense-in-depth (nav still wins even if this
-      // stops flush at bottom-0 in some transition).
-      style={{ bottom: 'calc(4rem + env(safe-area-inset-bottom))' }}
+      className="fixed inset-x-0 top-0 z-30 flex flex-col bg-base text-white pt-safe"
+      // This shell reaches the top of the screen — App.tsx drops its own
+      // header on this view — so `pt-safe` is what keeps the row below off
+      // the status bar / notch.
+      //
+      // Stop above the bottom nav so the tab bar remains visible on the coach
+      // home. Nav sits at z-50; the home shell stays under it as a
+      // defense-in-depth (nav still wins even if this stops flush at bottom-0
+      // in some transition). The stop reads the same token the nav sizes
+      // itself with — the literal 4rem it used to hard-code missed the bar's
+      // own top hairline, leaving the input row's last pixel underneath it.
+      style={{
+        bottom: 'calc(var(--coach-nav-height) + env(safe-area-inset-bottom, 0px))',
+      }}
     >
       {/* Ambient background */}
       <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
@@ -189,19 +204,34 @@ export const CoachAIHome: React.FC<CoachAIHomeProps> = ({
         <div className="absolute -top-20 left-0 h-80 w-80 rounded-full bg-cyan-500/6 blur-3xl" />
       </div>
 
-      {/* Header */}
-      <div className="relative z-10 flex items-center justify-between border-b border-white/8 bg-base/80 px-4 py-3 backdrop-blur-md">
-        <div className="flex items-center gap-2.5">
+      {/* Header. This is the only header on the 대화 tab, so it carries the
+          hamburger — the same arrangement the student 대화 tab uses. */}
+      <div className="relative z-10 flex items-center gap-2 border-b border-white/8 bg-base/80 px-4 py-3 backdrop-blur-md">
+        {onOpenMenu && (
+          <button
+            type="button"
+            onClick={onOpenMenu}
+            aria-label="Open menu"
+            className="-ml-2 flex-shrink-0 rounded-lg p-2 text-white transition-colors hover:bg-white/10"
+          >
+            <Menu className="h-5 w-5" />
+          </button>
+        )}
+
+        <div className="flex min-w-0 items-center gap-2.5">
           <CoachXMarkLive size={22} tone="dark" active={isTyping} />
-          <div>
-            <p className="text-sm font-semibold text-white">CoachX AI</p>
-            <p className="text-[10px] text-white/40">
+          <div className="min-w-0">
+            <p className="truncate text-sm font-semibold text-white">CoachX AI</p>
+            <p className="truncate text-[10px] text-white/40">
               {language === 'en' ? 'Your golf assistant' : language === 'ja' ? 'ゴルフアシスタント' : '골프 전용 AI 비서'}
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        {/* Actions. The two chips drop their labels on narrow phones so the
+            row still fits at 360px now that the hamburger shares it — the
+            icon plus the title/aria-label still names each one. */}
+        <div className="ml-auto flex flex-shrink-0 items-center gap-2">
           {/* TTS toggle */}
           <button
             type="button"
@@ -229,17 +259,23 @@ export const CoachAIHome: React.FC<CoachAIHomeProps> = ({
             }
           >
             <Target className="h-3.5 w-3.5" />
-            <span>{language === 'en' ? 'Swing' : language === 'ja' ? 'スイング' : '스윙 분석'}</span>
+            <span className="hidden min-[420px]:inline">
+              {language === 'en' ? 'Swing' : language === 'ja' ? 'スイング' : '스윙 분석'}
+            </span>
           </a>
 
           {/* Dashboard button */}
           <button
             type="button"
             onClick={onNavigateToDashboard}
+            aria-label={language === 'en' ? 'Dashboard' : language === 'ja' ? 'ダッシュボード' : '대시보드'}
+            title={language === 'en' ? 'Dashboard' : language === 'ja' ? 'ダッシュボード' : '대시보드'}
             className="flex items-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-medium text-white/70 backdrop-blur-sm transition-colors hover:border-white/30 hover:text-white"
           >
             <LayoutDashboard className="h-3.5 w-3.5" />
-            <span>{language === 'en' ? 'Dashboard' : language === 'ja' ? 'ダッシュボード' : '대시보드'}</span>
+            <span className="hidden min-[420px]:inline">
+              {language === 'en' ? 'Dashboard' : language === 'ja' ? 'ダッシュボード' : '대시보드'}
+            </span>
           </button>
         </div>
       </div>
@@ -379,8 +415,14 @@ export const CoachAIHome: React.FC<CoachAIHomeProps> = ({
         </div>
       )}
 
-      {/* Input area */}
-      <div className="relative z-10 border-t border-white/8 bg-base/80 px-4 pb-safe pb-4 pt-3 backdrop-blur-md">
+      {/* Input area.
+          Pairing the safe-area class with a `pb-4` read like "gutter, and more
+          on a notched phone" but did the opposite: `.pb-safe` is unlayered CSS
+          and outranks Tailwind's layered padding, so the gutter collapsed to
+          the raw inset — 0px wherever the platform reports none. No inset is
+          wanted here anyway;
+          this shell already stops above the nav, and the nav owns the inset. */}
+      <div className="relative z-10 border-t border-white/8 bg-base/80 px-4 pb-4 pt-3 backdrop-blur-md">
         {/* Mode toggle */}
         <div className="mb-3 flex justify-center">
           <div className="flex rounded-full border border-white/10 bg-white/4 p-0.5">

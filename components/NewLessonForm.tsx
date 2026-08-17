@@ -142,8 +142,13 @@ const DURATION_OPTIONS = [
   { label: '8주 (2개월)', value: 8 },
 ];
 
+// `pt-safe` keeps the header clear of the status bar / notch. It lives on the
+// shell rather than the header because the header already owns a `py-4` and
+// `.pt-safe` replaces padding instead of adding to it (it is declared outside
+// every cascade layer, so it outranks Tailwind's utilities). The matching
+// bottom inset comes from `bottomNavPadClass` below.
 const LESSON_FLOW_SHELL_CLASS =
-  'fixed inset-0 z-50 bg-base text-ink-high flex flex-col overflow-hidden';
+  'fixed inset-0 z-50 bg-base text-ink-high flex flex-col overflow-hidden pt-safe';
 const LESSON_FLOW_HEADER_CLASS =
   'bg-base/95 border-b border-line-subtle px-5 py-4 flex items-center justify-between text-ink-high flex-shrink-0 backdrop-blur-md';
 const LESSON_FLOW_INPUT_CLASS =
@@ -234,10 +239,14 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
   onInitialClipsConsumed,
 }) => {
   const { t } = useLanguage();
-  // Coach shell sits at the same z-index as the fixed coach bottom tab bar,
-  // so reserve room for the nav; the client shell renders over its lower-z
-  // student nav and needs no extra padding.
-  const bottomNavPadClass = userRole === 'COACH' ? ' above-coach-bottom-nav' : '';
+  // Coach shell sits at the same z-index as the fixed coach bottom tab bar, so
+  // it reserves the nav's height (that class already folds in the device
+  // inset). The student opens this form as a sub-view, which unmounts the
+  // student nav — but the gesture bar / home indicator is still there, so the
+  // shell takes the bare inset. Either way the sticky footers below can keep
+  // their own `p-5` gutter, instead of a bottom-inset utility on the same
+  // element overwriting it.
+  const bottomNavPadClass = userRole === 'COACH' ? ' above-coach-bottom-nav' : ' pb-safe';
   // Wizard State: COACH starts at CLIENT_SELECT, CLIENT starts at TYPE_SELECT
   // When prefilledClient is provided, skip CLIENT_SELECT and jump to TYPE_SELECT
   const [step, setStep] = useState<'CLIENT_SELECT' | 'PACKAGE_SELECT' | 'TYPE_SELECT' | 'FORM'>(
@@ -1774,7 +1783,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
         </div>
 
         {/* Action buttons */}
-        <div className="flex-shrink-0 p-5 border-t border-line-subtle bg-[#070b12] space-y-3 safe-bottom">
+        <div className="flex-shrink-0 p-5 border-t border-line-subtle bg-[#070b12] space-y-3">
           <Button
             onClick={handleConfirmSession}
             disabled={!selectedPackageId || selectedSessionNumber === null}
@@ -1933,7 +1942,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
   // STEP: CLIENT TYPE SELECTION
   if (step === 'TYPE_SELECT') {
     return (
-      <div className={`fixed inset-0 z-50 bg-[#070b12] text-ink-high flex flex-col overflow-hidden${bottomNavPadClass}`}>
+      <div className={`fixed inset-0 z-50 bg-[#070b12] text-ink-high flex flex-col overflow-hidden pt-safe${bottomNavPadClass}`}>
         <div className="bg-gradient-to-r from-emerald-900 via-emerald-800 to-emerald-900 px-5 py-4 flex justify-between items-center text-white flex-shrink-0">
           <h2 className="text-lg font-bold flex items-center gap-2"><Target className="w-5 h-5" /> 기록 유형 선택</h2>
           <button
@@ -2005,7 +2014,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
 
   // STEP: FORM
   return (
-    <div className={`fixed inset-0 z-50 bg-[#070b12] text-ink-high flex flex-col overflow-hidden${bottomNavPadClass}`}>
+    <div className={`fixed inset-0 z-50 bg-[#070b12] text-ink-high flex flex-col overflow-hidden pt-safe${bottomNavPadClass}`}>
       <PermissionDeniedModal
         open={!!permissionRequest}
         kind={permissionRequest?.kind ?? 'microphone'}
@@ -3265,7 +3274,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
         </div>{/* end scrollable area */}
 
         {/* Sticky footer with error/status and save button */}
-        <div className="flex-shrink-0 px-5 pb-5 pt-4 border-t border-line-subtle bg-[#070b12] space-y-3 safe-bottom">
+        <div className="flex-shrink-0 px-5 pb-5 pt-4 border-t border-line-subtle bg-[#070b12] space-y-3">
         {error && (
           <div className="flex items-center gap-2 text-red-400 bg-red-900/20 border border-red-800/50 p-3 rounded-lg text-sm font-medium">
             <AlertCircle className="w-5 h-5 flex-shrink-0" />

@@ -123,7 +123,9 @@ export const PracticeUploadFlow: React.FC<PracticeUploadFlowProps> = ({
       onClick={stage === 'confirm' ? onClose : undefined}
     >
       <div
-        className="w-full sm:max-w-sm bg-base border-t sm:border border-line-subtle sm:rounded-2xl rounded-t-2xl shadow-2xl"
+        // Bottom sheet: its last row sits on the screen edge, i.e. on top of
+        // the home indicator / gesture bar, so the panel takes the inset.
+        className="w-full sm:max-w-sm bg-base border-t sm:border border-line-subtle sm:rounded-2xl rounded-t-2xl shadow-2xl pb-safe"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-5 py-3 border-b border-line-subtle">

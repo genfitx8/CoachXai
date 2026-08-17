@@ -60,6 +60,14 @@ interface StudentAIChatProps {
    * Scrolls with the messages so it doesn't consume permanent screen space.
    */
   topBannerSlot?: React.ReactNode;
+  /**
+   * Set when this chat renders underneath the fixed StudentBottomNav (the
+   * 대화 tab). The column then sizes itself to the viewport *minus* the nav
+   * so the input row stops above it; the nav's own `pb-safe` already clears
+   * the home indicator / gesture bar below that. Left unset the chat owns
+   * the full viewport and takes the bottom inset itself.
+   */
+  reserveBottomNav?: boolean;
 }
 
 const SUGGESTED_PROMPTS_KO = [
@@ -146,6 +154,7 @@ export const StudentAIChat: React.FC<StudentAIChatProps> = ({
   hideBackButton = false,
   headerLeftSlot,
   topBannerSlot,
+  reserveBottomNav = false,
 }) => {
   const { language, t } = useLanguage();
   const lang = (language as 'ko' | 'en' | 'ja') ?? 'ko';
@@ -498,7 +507,7 @@ export const StudentAIChat: React.FC<StudentAIChatProps> = ({
   // ── Booking UI panels ──────────────────────────────────────────────────────
 
   const renderSlotSelection = () => (
-    <div className="mx-4 mb-3 bg-white/[0.10] border border-emerald-500/30 rounded-2xl overflow-hidden">
+    <div className="flex-shrink-0 mx-4 mb-3 bg-white/[0.10] border border-emerald-500/30 rounded-2xl overflow-hidden">
       <div className="flex items-center justify-between px-4 py-3 bg-emerald-900/40 border-b border-emerald-500/20">
         <div className="flex items-center gap-2">
           <Calendar className="w-4 h-4 text-emerald-300" />
@@ -545,7 +554,7 @@ export const StudentAIChat: React.FC<StudentAIChatProps> = ({
   const renderConfirmation = () => {
     if (!selectedSlot) return null;
     return (
-      <div className="mx-4 mb-3 bg-white/[0.10] border border-emerald-500/30 rounded-2xl overflow-hidden">
+      <div className="flex-shrink-0 mx-4 mb-3 bg-white/[0.10] border border-emerald-500/30 rounded-2xl overflow-hidden">
         <div className="flex items-center gap-2 px-4 py-3 bg-emerald-900/30 border-b border-emerald-500/20">
           <CheckCircle className="w-4 h-4 text-emerald-400" />
           <span className="text-sm font-bold text-emerald-200">
@@ -611,7 +620,7 @@ export const StudentAIChat: React.FC<StudentAIChatProps> = ({
   };
 
   const renderBookingLoading = () => (
-    <div className="mx-4 mb-3 flex items-center justify-center gap-3 py-4 bg-white/[0.10] border border-white/10 rounded-2xl">
+    <div className="flex-shrink-0 mx-4 mb-3 flex items-center justify-center gap-3 py-4 bg-white/[0.10] border border-white/10 rounded-2xl">
       <Loader2 className="w-5 h-5 text-emerald-400 animate-spin" />
       <span className="text-sm text-emerald-300 font-medium">
         {lang === 'en' ? 'Processing your booking...' : lang === 'ja' ? '予約処理中...' : '예약 처리 중...'}
@@ -646,8 +655,17 @@ export const StudentAIChat: React.FC<StudentAIChatProps> = ({
     ? '質問を入力して回答を読む'
     : '질문을 입력하고 답변을 읽기';
 
+  // A bare 100dvh column ends exactly at the viewport bottom, which is where
+  // the fixed StudentBottomNav paints — so the input row rendered *behind*
+  // the tab bar, and padding on the parent could not lift it (it only added
+  // scrollable space after the column). Under the nav the column has to be
+  // shorter than the viewport instead; `student-nav-viewport` does that.
+  const shellHeightClass = reserveBottomNav
+    ? 'student-nav-viewport'
+    : 'min-h-[100dvh]';
+
   return (
-    <div className="flex flex-col bg-base text-white" style={{ minHeight: '100dvh' }}>
+    <div className={`flex flex-col bg-base text-white ${shellHeightClass}`}>
       <PermissionDeniedModal
         open={micPermissionDenied}
         kind="microphone"
@@ -662,7 +680,7 @@ export const StudentAIChat: React.FC<StudentAIChatProps> = ({
           line at 360px. Without them "CoachX AI" wrapped one character per
           line, ballooning the header to ~190px and pushing the hamburger
           button far down the screen. */}
-      <div className="flex items-center gap-2 px-4 py-3 border-b border-white/10 bg-base/90 backdrop-blur-sm sticky top-0 z-10 pt-safe">
+      <div className="flex-shrink-0 flex items-center gap-2 px-4 py-3 border-b border-white/10 bg-base/90 backdrop-blur-sm sticky top-0 z-10 pt-safe">
         {headerLeftSlot ?? (!hideBackButton && (
           <BackButton
             onClick={onBack}
@@ -803,7 +821,11 @@ export const StudentAIChat: React.FC<StudentAIChatProps> = ({
       ) : (
       <>
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto py-4 space-y-4">
+      {/* min-h-0 lets this pane actually shrink inside the fixed-height
+          column — without it a long conversation grows the flex item past
+          the column and pushes the input row off-screen instead of
+          scrolling here. */}
+      <div className="flex-1 min-h-0 overflow-y-auto py-4 space-y-4">
         {topBannerSlot ? <div className="mb-2">{topBannerSlot}</div> : null}
         <div className="px-4 space-y-4">
         {messages.map((msg, idx) => {
@@ -891,7 +913,7 @@ export const StudentAIChat: React.FC<StudentAIChatProps> = ({
 
       {/* Booking slot loading indicator */}
       {bookingStep === 'loading-slots' && (
-        <div className="mx-4 mb-3 flex items-center gap-3 py-3 px-4 bg-emerald-900/30 border border-emerald-500/20 rounded-2xl">
+        <div className="flex-shrink-0 mx-4 mb-3 flex items-center gap-3 py-3 px-4 bg-emerald-900/30 border border-emerald-500/20 rounded-2xl">
           <Loader2 className="w-4 h-4 text-emerald-400 animate-spin flex-shrink-0" />
           <span className="text-sm text-emerald-300">
             {lang === 'en' ? 'Loading available slots...' : lang === 'ja' ? '空き時間を読み込み中...' : '예약 가능한 시간 불러오는 중...'}
@@ -905,14 +927,23 @@ export const StudentAIChat: React.FC<StudentAIChatProps> = ({
 
       {/* Voice error */}
       {voiceError && (
-        <div className="mx-4 mb-2 px-3 py-2 bg-red-900/40 border border-red-500/30 rounded-xl text-xs text-red-300 flex items-center gap-2">
+        <div className="flex-shrink-0 mx-4 mb-2 px-3 py-2 bg-red-900/40 border border-red-500/30 rounded-xl text-xs text-red-300 flex items-center gap-2">
           <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
           {voiceError}
         </div>
       )}
 
-      {/* Input bar */}
-      <div className="px-4 pb-safe pb-4 border-t border-white/10 bg-base/90 backdrop-blur-sm pt-3">
+      {/* Input bar.
+          `pb-safe pb-4` did not do what it reads like: `.pb-safe` is unlayered
+          CSS and beats Tailwind's layered `pb-4` outright, so the gutter
+          collapsed to the raw inset — 0px wherever the platform reports none.
+          Under the nav the bar needs no inset at all (the nav below owns it);
+          standalone it needs gutter + inset, which `pb-safe-gutter` adds. */}
+      <div
+        className={`flex-shrink-0 px-4 pt-3 border-t border-white/10 bg-base/90 backdrop-blur-sm ${
+          reserveBottomNav ? 'pb-4' : 'pb-safe-gutter'
+        }`}
+      >
         {mode === 'chat' ? (
           <div className="flex gap-2 items-end">
             <input

@@ -115,7 +115,15 @@ export const StudentBottomNav: React.FC<StudentBottomNavProps> = ({
       role="navigation"
       aria-label="Student navigation"
     >
-      <div className={`max-w-md mx-auto grid ${gridColsClass}`}>
+      {/* Pinned to --student-nav-row-height rather than left to add up from
+          the icon + label + py-3 stack. Everything above the nav reserves
+          --student-nav-height (this row plus the border-t above); if the
+          row's real height drifts from the token (a font swap, one more line
+          of label) the reservation silently stops matching and content slides
+          back under the bar. */}
+      <div
+        className={`max-w-md mx-auto grid ${gridColsClass} h-[var(--student-nav-row-height)]`}
+      >
         {renderTabButton('HOME')}
         {renderTabButton('RESERVATION', reservationBadge)}
         {showRecordTab && renderRecordTab()}

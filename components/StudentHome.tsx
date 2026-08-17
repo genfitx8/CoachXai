@@ -24,6 +24,14 @@ interface StudentHomeProps {
   onToggleHomework?: (homeworkId: string, isCompleted: boolean) => void;
   /** Tap the upload chip in the drill card → open the practice upload flow. */
   onUploadPractice?: (homeworkId: string) => void;
+  /**
+   * Rendered above the home cards, at the very top of the scrolling area.
+   * ClientApp puts the "connect a coach" prompt here rather than stacking it
+   * outside the chat: this screen is a viewport-height column sized to stop
+   * above the bottom nav, so anything added above it would push the input
+   * row back down behind the tab bar.
+   */
+  topSlot?: React.ReactNode;
 }
 
 /**
@@ -46,6 +54,7 @@ export const StudentHome: React.FC<StudentHomeProps> = ({
   onOpenLesson,
   onToggleHomework,
   onUploadPractice,
+  topSlot,
 }) => {
   const { language } = useLanguage();
   const lang = (language as 'ko' | 'en' | 'ja') ?? 'ko';
@@ -120,13 +129,16 @@ export const StudentHome: React.FC<StudentHomeProps> = ({
   );
 
   const homeBanner = (
-    <StudentHomeCards
-      lessons={sortedLessons}
-      homework={homeworkList}
-      onOpenLesson={onOpenLesson}
-      onToggleHomework={onToggleHomework}
-      onUploadPractice={onUploadPractice}
-    />
+    <>
+      {topSlot}
+      <StudentHomeCards
+        lessons={sortedLessons}
+        homework={homeworkList}
+        onOpenLesson={onOpenLesson}
+        onToggleHomework={onToggleHomework}
+        onUploadPractice={onUploadPractice}
+      />
+    </>
   );
 
   return (
@@ -143,6 +155,10 @@ export const StudentHome: React.FC<StudentHomeProps> = ({
       hideBackButton
       headerLeftSlot={menuButton}
       topBannerSlot={homeBanner}
+      // This screen is always the 대화 tab, i.e. it renders underneath the
+      // fixed StudentBottomNav. Without this the chat column runs the full
+      // 100dvh and its input row lands behind the tab bar.
+      reserveBottomNav
     />
   );
 };

@@ -88,6 +88,20 @@ type SubView =
   | 'SWING_ANALYSIS'
   | 'GOLF_PASSPORT';
 
+/**
+ * Shell for a full-screen sub-view.
+ *
+ * `min-h-screen` on its own lets the first row of content sit under the
+ * status bar / notch and the last row under the home indicator / gesture
+ * bar: the WebView runs edge-to-edge on both platforms, so nothing stays
+ * clear of the system bars unless it asks for the inset. The insets belong
+ * on this element rather than the inner `<main>` because it carries no
+ * padding of its own — `pt-safe` / `pb-safe` *replace* padding instead of
+ * adding to it, so anywhere they share an element with a `py-*` they would
+ * silently delete the design gutter.
+ */
+const SUBVIEW_SHELL_CLASS = 'min-h-screen pt-safe pb-safe';
+
 export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons, onLogout, onUpdateLesson, onSaveNewRecord, onDeleteLesson, onUpdateProfile, onRefreshLessons }) => {
   const { t, language, setLanguage } = useLanguage();
 
@@ -512,44 +526,53 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
 
   const showBottomNav = !effectiveSubView;
 
+  // Coach linking is student-driven: a coach cannot register a member on the
+  // student's behalf, so an unlinked account gets a standing prompt until it
+  // picks a coach. Without a coach, lessons the coach records never reach
+  // this student's feed. It rides in the home screen's own top slot — the
+  // home screen is a viewport-height column that stops just above the bottom
+  // nav, so a sibling stacked above it would push the chat input row back
+  // down behind the tab bar.
+  const connectCoachPrompt = !clientProfile.coachId ? (
+    <div className="max-w-md mx-auto px-4 pb-1">
+      <button
+        type="button"
+        onClick={() => openProfileSection('COACH')}
+        data-testid="client-connect-coach-cta"
+        className="w-full flex items-center gap-3 text-left p-4 rounded-2xl bg-emerald-500/10 border border-emerald-400/30 hover:bg-emerald-500/15 transition-colors"
+      >
+        <div className="w-10 h-10 rounded-full bg-emerald-500/20 border border-emerald-400/30 flex items-center justify-center flex-shrink-0">
+          <UserCheck className="w-5 h-5 text-emerald-300" />
+        </div>
+        <div className="min-w-0">
+          <p className="font-bold text-sm text-ink-high">
+            {t('client_connect_coach_title')}
+          </p>
+          <p className="text-xs text-ink-muted mt-0.5 leading-snug">
+            {t('client_connect_coach_desc')}
+          </p>
+        </div>
+        <ChevronRight className="w-5 h-5 text-emerald-300 ml-auto flex-shrink-0" />
+      </button>
+    </div>
+  ) : null;
+
   return (
     <div className="min-h-screen bg-base text-ink-high font-sans">
       {/* ── Tab bodies (only when no sub-view is active) ─────────────────────── */}
       {!effectiveSubView && tab === 'HOME' && (
-        <div className="pb-20">
-          {/* Coach linking is student-driven: a coach cannot register a member
-              on the student's behalf, so an unlinked account gets a standing
-              prompt here until it picks a coach. Without a coach, lessons the
-              coach records never reach this student's feed. */}
-          {!clientProfile.coachId && (
-            <div className="max-w-md mx-auto px-4 pt-4">
-              <button
-                type="button"
-                onClick={() => openProfileSection('COACH')}
-                data-testid="client-connect-coach-cta"
-                className="w-full flex items-center gap-3 text-left p-4 rounded-2xl bg-emerald-500/10 border border-emerald-400/30 hover:bg-emerald-500/15 transition-colors"
-              >
-                <div className="w-10 h-10 rounded-full bg-emerald-500/20 border border-emerald-400/30 flex items-center justify-center flex-shrink-0">
-                  <UserCheck className="w-5 h-5 text-emerald-300" />
-                </div>
-                <div className="min-w-0">
-                  <p className="font-bold text-sm text-ink-high">
-                    {t('client_connect_coach_title')}
-                  </p>
-                  <p className="text-xs text-ink-muted mt-0.5 leading-snug">
-                    {t('client_connect_coach_desc')}
-                  </p>
-                </div>
-                <ChevronRight className="w-5 h-5 text-emerald-300 ml-auto flex-shrink-0" />
-              </button>
-            </div>
-          )}
+        // No bottom padding here on purpose: StudentHome sizes itself to the
+        // viewport minus the nav (`reserveBottomNav`). Padding on a wrapper
+        // would only add scrollable space *after* that column, leaving the
+        // input row exactly where the tab bar paints.
+        <div>
           <StudentHome
             clientProfile={clientProfile}
             myLessons={myLessonsRaw}
             homeworkList={homeworkList}
             quickLogs={quickLogs}
             coachProfile={designatedCoachProfile ?? undefined}
+            topSlot={connectCoachPrompt}
             onOpenMenu={() => setHamburgerOpen(true)}
             onOpenLesson={(lessonId) => {
               const target = myLessonsRaw.find((l) => l.id === lessonId);
@@ -596,7 +619,7 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
           // next lesson + package balance + CTAs — instead of dropping
           // straight into the booking form. The old ClientReservation
           // and ClientBayReservation flows are one tap away as sub-views.
-          <div className="pb-20">
+          <div className="student-nav-clearance">
             <TabHeader title={reservationTabTitle} />
             <StudentReservationSummary
               clientProfile={clientProfile}
@@ -621,7 +644,7 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
       )}
 
       {effectiveSubView === 'LESSON_BOOKING' && (
-        <div className="min-h-screen">
+        <div className={SUBVIEW_SHELL_CLASS}>
           <main className="max-w-md mx-auto">
             <ClientReservation
               clientProfile={clientProfile}
@@ -632,7 +655,7 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
       )}
 
       {!effectiveSubView && tab === 'GROWTH' && (
-        <div className="pb-20">
+        <div className="student-nav-clearance">
           <TabHeader title={growthTabTitle} />
           <main className="max-w-md mx-auto px-4 py-4">
             <GrowthTimeline
@@ -647,7 +670,7 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
 
       {/* ── Sub-view overlays ────────────────────────────────────────────────── */}
       {effectiveSubView === 'DETAIL' && selectedLesson && (
-        <div className="min-h-screen">
+        <div className={SUBVIEW_SHELL_CLASS}>
           <main className="max-w-md mx-auto px-4 py-6">
             <LessonDetail
               lesson={selectedLesson}
@@ -665,7 +688,7 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
       )}
 
       {effectiveSubView === 'STATS' && (
-        <div className="min-h-screen">
+        <div className={SUBVIEW_SHELL_CLASS}>
           <main className="max-w-md mx-auto px-4 py-6">
             <ClientStats
               lessons={allMyLessons}
@@ -689,7 +712,7 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
       )}
 
       {effectiveSubView === 'PROFILE' && (
-        <div className="min-h-screen">
+        <div className={SUBVIEW_SHELL_CLASS}>
           <main className="max-w-md mx-auto px-4 py-6">
             <ClientProfileSettings
               profile={clientProfile}
@@ -704,7 +727,7 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
       )}
 
       {effectiveSubView === 'RECENT_RECORDS' && (
-        <div className="min-h-screen">
+        <div className={SUBVIEW_SHELL_CLASS}>
           <main className="max-w-md mx-auto px-4 py-6">
             <div className="space-y-4 animate-fade-in">
               <div className="flex items-center gap-3 pb-2">
@@ -800,7 +823,9 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
       )}
 
       {effectiveSubView === 'SWING_ANALYSIS' && (
-        <div className="fixed inset-0 z-50 bg-base overflow-y-auto">
+        // Insets on the scroller, not the padded content box below: `pt-safe`
+        // / `pb-safe` would override `p-4`'s own top/bottom padding.
+        <div className="fixed inset-0 z-50 bg-base overflow-y-auto pt-safe pb-safe">
           <div className="max-w-3xl mx-auto p-4 sm:p-6 space-y-5 text-ink-high">
             <header className="pb-4 border-b border-line-subtle flex items-center gap-3">
               <BackButton
@@ -829,7 +854,7 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
       )}
 
       {!HIDE_RESERVATION_FEATURES && effectiveSubView === 'BAY_RESERVATION' && (
-        <div className="min-h-screen">
+        <div className={SUBVIEW_SHELL_CLASS}>
           <main className="max-w-md mx-auto px-4 py-6">
             <ClientBayReservation
               clientProfile={clientProfile}
@@ -843,7 +868,7 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
       )}
 
       {!HIDE_RESERVATION_FEATURES && effectiveSubView === 'MY_BAY_RESERVATIONS' && (
-        <div className="min-h-screen">
+        <div className={SUBVIEW_SHELL_CLASS}>
           <main className="max-w-md mx-auto px-4 py-6">
             <MyBayReservations
               clientProfile={clientProfile}
@@ -854,7 +879,7 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
       )}
 
       {effectiveSubView === 'POINT_PURCHASE' && (
-        <div className="min-h-screen">
+        <div className={SUBVIEW_SHELL_CLASS}>
           <main className="max-w-md mx-auto px-4 py-6">
             <PointPurchase
               clientProfile={clientProfile}
@@ -865,7 +890,7 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
       )}
 
       {!HIDE_MEMBERSHIP_FEATURES && effectiveSubView === 'MEMBERSHIP_PURCHASE' && (
-        <div className="min-h-screen">
+        <div className={SUBVIEW_SHELL_CLASS}>
           <main className="max-w-md mx-auto px-4 py-6">
             <MembershipPurchase
               clientProfile={clientProfile}
@@ -876,7 +901,7 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
       )}
 
       {effectiveSubView === 'PAYMENT_SUCCESS' && (
-        <div className="min-h-screen">
+        <div className={SUBVIEW_SHELL_CLASS}>
           <main className="max-w-md mx-auto px-4 py-6">
             <PaymentSuccess
               clientProfile={clientProfile}
@@ -891,7 +916,7 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
       )}
 
       {!HIDE_MEMBERSHIP_FEATURES && effectiveSubView === 'MEMBERSHIP_PAYMENT_SUCCESS' && (
-        <div className="min-h-screen">
+        <div className={SUBVIEW_SHELL_CLASS}>
           <main className="max-w-md mx-auto px-4 py-6">
             <MembershipPaymentSuccess
               clientProfile={clientProfile}
@@ -906,7 +931,7 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
       )}
 
       {effectiveSubView === 'PAYMENT_FAIL' && (
-        <div className="min-h-screen">
+        <div className={SUBVIEW_SHELL_CLASS}>
           <main className="max-w-md mx-auto px-4 py-6">
             <PaymentFail
               onBack={() => {
