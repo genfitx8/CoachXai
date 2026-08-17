@@ -1942,33 +1942,43 @@ const AppContent: React.FC = () => {
   return (
     <div className="min-h-screen bg-base text-ink-high flex flex-col font-sans">
       {/* Header — hamburger opens the drawer, brand shows coach name.
-          pt-safe keeps the bar clear of the phone's status bar / notch. */}
-      <header className="bg-base/95 border-b border-line-subtle shadow-lg shadow-black/30 sticky top-0 z-40 backdrop-blur-xl pt-safe">
-        <div className="max-w-7xl mx-auto px-3 h-14 flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setHamburgerOpen(true)}
-            aria-label="Open menu"
-            className="p-2 rounded-lg text-ink-high hover:bg-white/10 transition-colors"
-          >
-            <Menu className="w-5 h-5" />
-          </button>
-          {currentUser && 'id' in currentUser && (
+          pt-safe keeps the bar clear of the phone's status bar / notch.
+
+          Not rendered on the 대화 tab: CoachAIHome is a fixed full-bleed
+          surface with a header of its own, so this bar simply painted on top
+          of it — hiding the CoachX mark (and the typing blink added in
+          3564a8d) and leaving that header's TTS / 스윙 분석 / 대시보드
+          buttons focusable but unclickable underneath. CoachAIHome carries
+          the hamburger instead, the same way the student 대화 tab does, and
+          the coach profile stays one tap away in the drawer. */}
+      {coachView !== 'COACHX' && (
+        <header className="bg-base/95 border-b border-line-subtle shadow-lg shadow-black/30 sticky top-0 z-40 backdrop-blur-xl pt-safe">
+          <div className="max-w-7xl mx-auto px-3 h-14 flex items-center gap-2">
             <button
               type="button"
-              onClick={() => setShowProfileModal(true)}
-              className="flex items-center gap-2 text-sm text-ink-high hover:bg-white/8 px-3 py-1.5 rounded-full transition-colors min-w-0"
+              onClick={() => setHamburgerOpen(true)}
+              aria-label="Open menu"
+              className="p-2 rounded-lg text-ink-high hover:bg-white/10 transition-colors"
             >
-              <div className="bg-emerald-500/20 p-1 rounded-full text-emerald-300 flex-shrink-0">
-                <User className="w-4 h-4" />
-              </div>
-              <span className="font-bold truncate">
-                {currentUser.name} {t('coach')}
-              </span>
+              <Menu className="w-5 h-5" />
             </button>
-          )}
-        </div>
-      </header>
+            {currentUser && 'id' in currentUser && (
+              <button
+                type="button"
+                onClick={() => setShowProfileModal(true)}
+                className="flex items-center gap-2 text-sm text-ink-high hover:bg-white/8 px-3 py-1.5 rounded-full transition-colors min-w-0"
+              >
+                <div className="bg-emerald-500/20 p-1 rounded-full text-emerald-300 flex-shrink-0">
+                  <User className="w-4 h-4" />
+                </div>
+                <span className="font-bold truncate">
+                  {currentUser.name} {t('coach')}
+                </span>
+              </button>
+            )}
+          </div>
+        </header>
+      )}
 
 
       {/* A flat 96px reservation was short of the bar it had to clear: 65px of tab bar
@@ -2439,6 +2449,7 @@ const AppContent: React.FC = () => {
             allLessons={allCoachLessons}
             clients={clients}
             todayLessons={buildTodayLessonSummaries(allCoachLessons)}
+            onOpenMenu={() => setHamburgerOpen(true)}
             onNavigateToDashboard={() => setCoachView('COACHX_DASHBOARD')}
             initialQuery={coachAIInitialQuery}
             onInitialQueryConsumed={() => setCoachAIInitialQuery(undefined)}
