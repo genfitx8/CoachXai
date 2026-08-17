@@ -24,7 +24,7 @@ interface ClientProfileSettingsProps {
   onSave: (updatedProfile: ClientProfile) => void;
   onBack: () => void;
   onSearchCoach: (name: string) => Promise<CoachSearchResult[]>;
-  initialSection?: 'OVERVIEW' | 'GOLF_PROFILE' | 'CLUB_BAG' | 'BODY_ANALYSIS';
+  initialSection?: 'OVERVIEW' | 'GOLF_PROFILE' | 'CLUB_BAG' | 'BODY_ANALYSIS' | 'COACH';
 }
 
 export const ClientProfileSettings: React.FC<ClientProfileSettingsProps> = ({ profile, allLessons = [], onSave, onBack, onSearchCoach, initialSection = 'OVERVIEW' }) => {
@@ -81,6 +81,9 @@ export const ClientProfileSettings: React.FC<ClientProfileSettingsProps> = ({ pr
   const golfProfileRef = useRef<HTMLDivElement | null>(null);
   const bodyAnalysisRef = useRef<HTMLDivElement | null>(null);
   const clubBagRef = useRef<HTMLDivElement | null>(null);
+  // Coach designation is the only thing that links a student to a coach,
+  // so it needs to be deep-linkable from the home 'connect your coach' card.
+  const coachSearchRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (!latestLessonBodyAnalysis || formData.memberBodyAnalysis) return;
@@ -126,6 +129,8 @@ export const ClientProfileSettings: React.FC<ClientProfileSettingsProps> = ({ pr
       bodyAnalysisRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     } else if (initialSection === 'CLUB_BAG') {
       clubBagRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } else if (initialSection === 'COACH') {
+      coachSearchRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
   }, [initialSection]);
 
@@ -533,8 +538,9 @@ export const ClientProfileSettings: React.FC<ClientProfileSettingsProps> = ({ pr
                     />
                 </div>
                 
-                {/* Designated Coach Section (New Component Integration) */}
-                <div className="mt-4">
+                {/* Designated Coach Section — the single link between a
+                    student account and a coach account. */}
+                <div className="mt-4" ref={coachSearchRef} data-testid="client-coach-search-section">
                     <CoachSearch 
                         onAssign={handleCoachAssign}
                         onRemove={handleCoachRemove}

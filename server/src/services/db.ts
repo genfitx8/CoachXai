@@ -63,6 +63,10 @@ export async function initDb(): Promise<void> {
       password_hash        VARCHAR(255),
       coach_id             UUID,
       designated_coach     VARCHAR(255),
+      -- Student's own bio / goal, written from their profile screen.
+      memo                 TEXT,
+      -- Assigned coach's private note. Never returned to the student.
+      coach_memo           TEXT,
       current_points       INTEGER DEFAULT 0,
       is_subscribed        BOOLEAN DEFAULT false,
       subscription_plan    VARCHAR(20) DEFAULT 'FREE',
@@ -317,6 +321,15 @@ export async function initDb(): Promise<void> {
     // before so the AI can build the "인수인계 패키지" summary the redesign
     // (§2 코치를 바꿀 때) calls for.
     "ALTER TABLE clients ADD COLUMN IF NOT EXISTS previous_coach_ids UUID[] DEFAULT '{}'",
+    // Two distinct notes that used to share one client-side `memo` field:
+    //   memo       — the student's own 자기소개/목표, written in their profile
+    //   coach_memo — the assigned coach's private note about the student
+    // Neither was ever persisted (the column simply did not exist), so a
+    // coach's note and a student's bio overwrote each other in local state
+    // and vanished on reload. They are separate columns with separate
+    // writers: coach_memo is never returned to the student.
+    "ALTER TABLE clients ADD COLUMN IF NOT EXISTS memo TEXT",
+    "ALTER TABLE clients ADD COLUMN IF NOT EXISTS coach_memo TEXT",
     "ALTER TABLE lesson_packages ADD COLUMN IF NOT EXISTS ownership VARCHAR(20) DEFAULT 'shared'",
     "ALTER TABLE training_programs ADD COLUMN IF NOT EXISTS ownership VARCHAR(20) DEFAULT 'shared'",
   ];

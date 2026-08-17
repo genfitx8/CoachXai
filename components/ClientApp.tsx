@@ -25,7 +25,7 @@ import { StudentHamburgerMenu, HamburgerAction } from './StudentHamburgerMenu';
 import { GrowthTimeline } from './GrowthTimeline';
 import { AIToneSettings } from './AIToneSettings';
 import { SwingVideoAnalysis } from './posture/SwingVideoAnalysis';
-import { PlayCircle, Filter, Eye, EyeOff, Target, Menu } from 'lucide-react';
+import { PlayCircle, Filter, Eye, EyeOff, Target, Menu, UserCheck, ChevronRight } from 'lucide-react';
 import { firebaseService } from '../services/firebase';
 import { storageService } from '../services/storage';
 import { apiService } from '../services/apiService';
@@ -136,7 +136,7 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
   
   // Mission/Homework Modal State
   const [showHomeworkModal, setShowHomeworkModal] = useState(false);
-  const [profileSection, setProfileSection] = useState<'OVERVIEW' | 'GOLF_PROFILE' | 'CLUB_BAG' | 'BODY_ANALYSIS'>('OVERVIEW');
+  const [profileSection, setProfileSection] = useState<'OVERVIEW' | 'GOLF_PROFILE' | 'CLUB_BAG' | 'BODY_ANALYSIS' | 'COACH'>('OVERVIEW');
 
   // Designated coach profile (for AI context)
   const [designatedCoachProfile, setDesignatedCoachProfile] = useState<CoachProfile | null>(null);
@@ -426,7 +426,7 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
       }));
   };
 
-  const openProfileSection = (section: 'OVERVIEW' | 'GOLF_PROFILE' | 'CLUB_BAG' | 'BODY_ANALYSIS') => {
+  const openProfileSection = (section: 'OVERVIEW' | 'GOLF_PROFILE' | 'CLUB_BAG' | 'BODY_ANALYSIS' | 'COACH') => {
       setProfileSection(section);
       setSelectedLesson(null);
       setSubView('PROFILE');
@@ -517,6 +517,33 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
       {/* ── Tab bodies (only when no sub-view is active) ─────────────────────── */}
       {!effectiveSubView && tab === 'HOME' && (
         <div className="pb-20">
+          {/* Coach linking is student-driven: a coach cannot register a member
+              on the student's behalf, so an unlinked account gets a standing
+              prompt here until it picks a coach. Without a coach, lessons the
+              coach records never reach this student's feed. */}
+          {!clientProfile.coachId && (
+            <div className="max-w-md mx-auto px-4 pt-4">
+              <button
+                type="button"
+                onClick={() => openProfileSection('COACH')}
+                data-testid="client-connect-coach-cta"
+                className="w-full flex items-center gap-3 text-left p-4 rounded-2xl bg-emerald-500/10 border border-emerald-400/30 hover:bg-emerald-500/15 transition-colors"
+              >
+                <div className="w-10 h-10 rounded-full bg-emerald-500/20 border border-emerald-400/30 flex items-center justify-center flex-shrink-0">
+                  <UserCheck className="w-5 h-5 text-emerald-300" />
+                </div>
+                <div className="min-w-0">
+                  <p className="font-bold text-sm text-ink-high">
+                    {t('client_connect_coach_title')}
+                  </p>
+                  <p className="text-xs text-ink-muted mt-0.5 leading-snug">
+                    {t('client_connect_coach_desc')}
+                  </p>
+                </div>
+                <ChevronRight className="w-5 h-5 text-emerald-300 ml-auto flex-shrink-0" />
+              </button>
+            </div>
+          )}
           <StudentHome
             clientProfile={clientProfile}
             myLessons={myLessonsRaw}

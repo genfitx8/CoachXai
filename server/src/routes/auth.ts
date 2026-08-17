@@ -73,6 +73,9 @@ function mapClient(row: Record<string, unknown>) {
     phone: row.phone,
     coachId: row.coach_id,
     designatedCoach: row.designated_coach,
+    // The student's own bio. coach_memo is deliberately absent — it is the
+    // coach's private note and must never reach the student.
+    memo: row.memo,
     currentPoints: row.current_points,
     isSubscribed: row.is_subscribed,
     subscriptionPlan: row.subscription_plan,
@@ -180,14 +183,29 @@ router.post('/signup/client', async (req: Request, res: Response) => {
     const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
     const now = Date.now();
 
-    // If phone provided, check for a coach-pre-registered client with the same phone.
-    // These records have no password yet (coach created them without a login account).
-    // Merge into that record so the member inherits their coach linkage and lesson history.
+    // Legacy pre-registered members: coaches used to be able to create a
+    // member row from just a name + phone, before that member had an account
+    // of their own. Those rows have no password_hash. New ones are no longer
+    // created — students self-register and pick their coach — but rows made
+    // before that change are still in the table, so signup keeps merging into
+    // a matching one instead of stranding the member's coach linkage and
+    // lesson history on an orphan row.
+    //
+    // The comparison is digits-only on both sides. A literal `phone = $1`
+    // never matched when the coach typed 010-1234-5678 and the member typed
+    // 01012345678, which silently produced exactly the duplicate account this
+    // merge exists to prevent. Every other phone lookup in the codebase
+    // already normalizes this way (see lessons.ts and utils/clientMatch.ts).
     let client = null;
-    if (phone) {
+    const normalizedPhone = (phone ?? '').replace(/[^0-9]/g, '');
+    if (normalizedPhone) {
       const preRegistered = await pool.query(
-        `SELECT * FROM clients WHERE phone = $1 AND password_hash IS NULL LIMIT 1`,
-        [phone.trim()]
+        `SELECT * FROM clients
+          WHERE REGEXP_REPLACE(COALESCE(phone, ''), '[^0-9]', '', 'g') = $1
+            AND password_hash IS NULL
+          ORDER BY created_at ASC
+          LIMIT 1`,
+        [normalizedPhone]
       );
 
       if (preRegistered.rows.length > 0) {

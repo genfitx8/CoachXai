@@ -26,7 +26,6 @@ import {
   Flag,
   Search,
   User,
-  UserPlus,
   PenTool,
   Play,
   ListChecks,
@@ -90,7 +89,6 @@ interface NewLessonFormProps {
    * Used when the lesson-start suggestion flow triggers the new-lesson form.
    */
   prefilledClient?: ClientProfile;
-  onDirectRegisterFromLessonStart?: () => void;
   /**
    * 3c handoff: clips captured during the live-lesson companion mode.
    * The form converts each one to a PendingMedia entry on mount so the
@@ -232,7 +230,6 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
   currentUser,
   initialData,
   prefilledClient,
-  onDirectRegisterFromLessonStart,
   initialClips,
   onInitialClipsConsumed,
 }) => {
@@ -1925,21 +1922,6 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
                 icon={<Trophy className="w-5 h-5" />}
               >
                 라운드 기록
-              </Button>
-            )}
-
-            {userRole === 'COACH' && onDirectRegisterFromLessonStart && (
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={onDirectRegisterFromLessonStart}
-                data-testid="lesson-start-direct-register-btn"
-                fullWidth
-                size="lg"
-                className={LESSON_FLOW_ACTION_BTN_CLASS}
-                icon={<UserPlus className="w-5 h-5" />}
-              >
-                {t('coach_client_add_btn')}
               </Button>
             )}
           </div>

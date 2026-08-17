@@ -251,7 +251,8 @@ export const LessonUploadPage: React.FC<LessonUploadPageProps> = ({
         ) : (
           <div className="flex flex-col gap-3" data-testid="student-empty-message">
             <p className="text-ink-muted text-sm">
-              등록된 학생이 없습니다. 먼저 회원을 등록해 주세요.
+              연결된 학생이 없습니다. 학생이 회원 앱에서 가입한 뒤 프로필에서
+              담당 코치로 회원님을 지정하면 여기에 나타납니다.
             </p>
             {onGoToStudents && (
               <button
@@ -260,7 +261,7 @@ export const LessonUploadPage: React.FC<LessonUploadPageProps> = ({
                 className="flex items-center gap-2 w-fit px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold transition-colors"
               >
                 <Users className="w-4 h-4" />
-                회원 등록하러 가기
+                회원 목록 열기
               </button>
             )}
           </div>

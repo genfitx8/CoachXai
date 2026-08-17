@@ -14,6 +14,9 @@ function mapClient(row: Record<string, unknown>) {
     phone: row.phone,
     coachId: row.coach_id,
     designatedCoach: row.designated_coach,
+    // The student's own 자기소개/목표. Written only through PUT /me; the
+    // coach sees it read-only for context.
+    memo: row.memo,
     currentPoints: row.current_points,
     isSubscribed: row.is_subscribed,
     subscriptionPlan: row.subscription_plan,
@@ -27,6 +30,19 @@ function mapClient(row: Record<string, unknown>) {
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
+}
+
+/**
+ * Coach/admin view of a member: everything the student sees, plus the
+ * coach's private note.
+ *
+ * `coachMemo` is deliberately absent from `mapClient` so it cannot leak
+ * through a student-facing response by accident — the student-facing
+ * routes (GET/PUT /me, and the signup/login payloads in auth.ts) use the
+ * plain mapper, and only the coach-scoped routes reach for this one.
+ */
+function mapClientForCoach(row: Record<string, unknown>) {
+  return { ...mapClient(row), coachMemo: row.coach_memo };
 }
 
 // GET /api/clients/me — client fetches their own profile
@@ -63,6 +79,7 @@ router.put('/me', async (req: Request, res: Response) => {
       phone,
       coachId,
       designatedCoach,
+      memo,
       pushToken,
     } = req.body as Record<string, unknown>;
 
@@ -116,8 +133,11 @@ router.put('/me', async (req: Request, res: Response) => {
           ELSE previous_coach_ids
         END,
         push_token       = COALESCE($8, push_token),
-        updated_at       = $9
-      WHERE id = $10
+        -- The student's own bio. coach_memo is intentionally not writable
+        -- here: it is the coach's private note about this student.
+        memo             = CASE WHEN $9::boolean THEN $10 ELSE memo END,
+        updated_at       = $11
+      WHERE id = $12
       RETURNING *`,
       [
         typeof name === 'string' ? name : null,
@@ -128,6 +148,10 @@ router.put('/me', async (req: Request, res: Response) => {
         resolvedDesignatedCoach !== undefined,
         resolvedDesignatedCoach ?? null,
         typeof pushToken === 'string' ? pushToken : null,
+        // Only touch memo when the caller sent one, so a partial patch
+        // (e.g. the invite flow's coachId-only PUT) doesn't wipe the bio.
+        typeof memo === 'string',
+        typeof memo === 'string' ? memo : null,
         now,
         clientId,
       ]
@@ -157,7 +181,8 @@ router.get('/', async (req: Request, res: Response) => {
             'SELECT * FROM clients WHERE coach_id = $1 ORDER BY created_at DESC',
             [req.user!.id]
           );
-    res.json({ clients: result.rows.map(mapClient) });
+    // Coach/admin surface — carries coachMemo, which GET /me never does.
+    res.json({ clients: result.rows.map(mapClientForCoach) });
   } catch (err) {
     console.error('[clients] GET / error:', err);
     res.status(500).json({ error: 'Internal server error' });
@@ -165,6 +190,13 @@ router.get('/', async (req: Request, res: Response) => {
 });
 
 // POST /api/clients
+//
+// Legacy: this backed the coach app's "새 회원 등록" form, which has been
+// removed. Members are now created only by signing up in the student app
+// (POST /api/auth/signup/client) and are linked to a coach only by the
+// student choosing one (PUT /api/clients/me). No current client calls this
+// route; it stays reachable so coach app builds still in the field don't
+// hard-fail, and should be deleted once those have rolled over.
 router.post('/', async (req: Request, res: Response) => {
   try {
     const coachId = req.user!.id;
@@ -210,7 +242,7 @@ router.post('/', async (req: Request, res: Response) => {
       ]
     );
 
-    res.status(201).json(mapClient(result.rows[0]));
+    res.status(201).json(mapClientForCoach(result.rows[0]));
   } catch (err) {
     console.error('[clients] POST / error:', err);
     res.status(500).json({ error: 'Internal server error' });
@@ -243,6 +275,7 @@ router.put('/:id', async (req: Request, res: Response) => {
       subscriptionPlan,
       subscriptionEndDate,
       pushToken,
+      coachMemo,
     } = req.body as Record<string, unknown>;
 
     const now = Date.now();
@@ -265,8 +298,12 @@ router.put('/:id', async (req: Request, res: Response) => {
         subscription_plan = COALESCE($9, subscription_plan),
         subscription_end_date = $10,
         push_token = $11,
-        updated_at = $12
-      WHERE id = $13 AND coach_id = $14
+        -- The coach's private note. memo (the student's own bio) is not
+        -- writable here — the coach app must not overwrite what the student
+        -- wrote about themselves.
+        coach_memo = CASE WHEN $12::boolean THEN $13 ELSE coach_memo END,
+        updated_at = $14
+      WHERE id = $15 AND coach_id = $16
       RETURNING *`,
       [
         name ?? null,
@@ -280,13 +317,15 @@ router.put('/:id', async (req: Request, res: Response) => {
         subscriptionPlan ?? null,
         subscriptionEndDate ?? null,
         pushToken ?? null,
+        typeof coachMemo === 'string',
+        typeof coachMemo === 'string' ? coachMemo : null,
         now,
         id,
         coachId,
       ]
     );
 
-    res.json(mapClient(result.rows[0]));
+    res.json(mapClientForCoach(result.rows[0]));
   } catch (err) {
     console.error('[clients] PUT /:id error:', err);
     res.status(500).json({ error: 'Internal server error' });

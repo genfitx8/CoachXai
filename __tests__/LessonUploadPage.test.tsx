@@ -102,9 +102,11 @@ describe('LessonUploadPage', () => {
   it('shows empty-student guidance when no students are provided', () => {
     render(<LessonUploadPage students={[]} onBack={vi.fn()} onNext={vi.fn()} />);
 
-    expect(
-      screen.getByText('등록된 학생이 없습니다. 먼저 회원을 등록해 주세요.')
-    ).toBeInTheDocument();
+    // Coaches can no longer register a member themselves — the empty state
+    // points them at the student-driven linking flow instead.
+    expect(screen.getByTestId('student-empty-message')).toHaveTextContent(
+      '학생이 회원 앱에서 가입한 뒤 프로필에서 담당 코치로 회원님을 지정하면'
+    );
     expect(screen.getByTestId('upload-next-btn')).toBeDisabled();
   });
 });
