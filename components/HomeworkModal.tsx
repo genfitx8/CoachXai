@@ -5,6 +5,7 @@ import { Button } from './Button';
 import { X, ListChecks, Calendar as CalendarIcon, Repeat, Trash2, CheckSquare, Square, CheckCircle2, ArrowLeft } from 'lucide-react';
 import { firebaseService } from '../services/firebase';
 import { storageService } from '../services/storage';
+import { homeworkService } from '../services/homeworkService';
 import { useLanguage } from './LanguageContext';
 
 interface HomeworkModalProps {
@@ -86,12 +87,10 @@ export const HomeworkModal: React.FC<HomeworkModalProps> = ({ isOpen, onClose, c
 
     if (isFirebaseMode) {
         tmpls = await firebaseService.getHomeworkTemplates();
-        hw = await firebaseService.getHomework(clientId);
     } else {
         tmpls = storageService.getHomeworkTemplates();
-        const allHw = storageService.getHomework();
-        hw = allHw.filter(h => h.clientId === clientId);
     }
+    hw = await homeworkService.listByClient(clientId);
     
     setTemplates(tmpls);
     setRecentHomework(hw.sort((a,b) => b.createdAt - a.createdAt));
@@ -176,11 +175,7 @@ export const HomeworkModal: React.FC<HomeworkModalProps> = ({ isOpen, onClose, c
     }
 
     try {
-        if (isFirebaseMode) {
-            await firebaseService.saveHomeworkBatch(newHomeworkBatch);
-        } else {
-            storageService.saveHomeworkBatch(newHomeworkBatch);
-        }
+        await homeworkService.addBatch(newHomeworkBatch);
 
         const sortedBatch = newHomeworkBatch.sort((a,b) => b.createdAt - a.createdAt);
         setRecentHomework(prev => [...sortedBatch, ...prev]);
@@ -204,11 +199,7 @@ export const HomeworkModal: React.FC<HomeworkModalProps> = ({ isOpen, onClose, c
       setRecentHomework(prev => prev.map(h => h.id === id ? { ...h, isCompleted: newStatus } : h));
 
       try {
-          if (isFirebaseMode) {
-              await firebaseService.updateHomeworkStatus(id, newStatus);
-          } else {
-              storageService.updateHomeworkStatus(id, newStatus);
-          }
+          await homeworkService.setCompleted(id, newStatus);
       } catch (e) {
           console.error(e);
       }
@@ -220,11 +211,7 @@ export const HomeworkModal: React.FC<HomeworkModalProps> = ({ isOpen, onClose, c
       setRecentHomework(prev => prev.filter(h => h.id !== id));
 
       try {
-          if (isFirebaseMode) {
-              await firebaseService.deleteHomework(id);
-          } else {
-              storageService.deleteHomework(id);
-          }
+          await homeworkService.remove(id);
       } catch (e) {
           console.error(e);
       }

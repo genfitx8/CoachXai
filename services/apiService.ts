@@ -508,9 +508,26 @@ export const apiService = {
     }
   },
 
-  // ── Homework (Phase 2) ────────────────────────────────────────────────────
+  // ── Homework (Phase 1 server promotion) ───────────────────────────────────
 
-  async saveHomeworkBatch(_homework: Homework[]): Promise<void> {},
+  async getHomework(clientId?: string): Promise<Homework[]> {
+    const qs = clientId ? `?clientId=${encodeURIComponent(clientId)}` : '';
+    const data = await req<{ homework: Homework[] }>('GET', `/api/homework${qs}`);
+    return data.homework ?? [];
+  },
+
+  async saveHomeworkBatch(homework: Homework[]): Promise<void> {
+    if (homework.length === 0) return;
+    await req('POST', '/api/homework', { homework });
+  },
+
+  async updateHomeworkStatus(homeworkId: string, isCompleted: boolean): Promise<void> {
+    await req('PATCH', `/api/homework/${homeworkId}`, { isCompleted });
+  },
+
+  async deleteHomework(homeworkId: string): Promise<void> {
+    await req('DELETE', `/api/homework/${homeworkId}`);
+  },
 
   // ── Lesson reservations (Phase 1 server promotion) ────────────────────────
 

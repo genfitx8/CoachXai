@@ -30,6 +30,7 @@ import { firebaseService } from '../services/firebase';
 import { storageService } from '../services/storage';
 import { apiService } from '../services/apiService';
 import { pointService } from '../services/pointService';
+import { homeworkService } from '../services/homeworkService';
 import { NotificationToast } from './NotificationToast';
 import { useLanguage } from './LanguageContext';
 import { BackButton } from './ui/BackButton';
@@ -203,13 +204,7 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
   // Load Homework & AI Check
   useEffect(() => {
     const loadHomework = async () => {
-        let hw: Homework[] = [];
-        if (isFirebaseMode) {
-            hw = await firebaseService.getHomework(clientId);
-        } else {
-            const all = storageService.getHomework();
-            hw = all.filter(h => h.clientId === clientId);
-        }
+        const hw = await homeworkService.listByClient(clientId);
         setHomeworkList(hw.sort((a,b) => b.createdAt - a.createdAt));
 
         // AI Notification Logic
@@ -255,23 +250,12 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
       // Optimistic Update
       setHomeworkList(prev => [newHomework, ...prev]);
 
-      if (isFirebaseMode) {
-          await firebaseService.saveHomework(newHomework);
-      } else {
-          const all = storageService.getHomework();
-          storageService.saveHomework([...all, newHomework]);
-      }
+      await homeworkService.add(newHomework);
   };
 
   // Called when HomeworkModal adds tasks
   const handleHomeworkUpdated = async () => {
-      let hw: Homework[] = [];
-      if (isFirebaseMode) {
-          hw = await firebaseService.getHomework(clientId);
-      } else {
-          const all = storageService.getHomework();
-          hw = all.filter(h => h.clientId === clientId);
-      }
+      const hw = await homeworkService.listByClient(clientId);
       setHomeworkList(hw.sort((a,b) => b.createdAt - a.createdAt));
       setShowHomeworkModal(false);
       setNotification({ title: "미션 추가 완료", message: "새로운 미션이 등록되었습니다." });
@@ -585,12 +569,9 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
               setHomeworkList((prev) =>
                 prev.map((h) => (h.id === id ? { ...h, isCompleted: next } : h))
               );
-              storageService.updateHomeworkStatus(id, next);
-              if (apiService.isAvailable()) {
-                void firebaseService.updateHomeworkStatus?.(id, next).catch(() => {
-                  /* best-effort — offline queue picks it up later */
-                });
-              }
+              void homeworkService.setCompleted(id, next).catch(() => {
+                /* best-effort — offline queue picks it up later */
+              });
             }}
             onUploadPractice={(homeworkId) => {
               // 5d flow: open the dedicated practice-upload sheet
@@ -1018,12 +999,9 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
             setHomeworkList((prev) =>
               prev.map((h) => (h.id === id ? { ...h, isCompleted: true } : h))
             );
-            storageService.updateHomeworkStatus(id, true);
-            if (apiService.isAvailable()) {
-              void firebaseService.updateHomeworkStatus?.(id, true).catch(() => {
-                /* best-effort */
-              });
-            }
+            void homeworkService.setCompleted(id, true).catch(() => {
+              /* best-effort */
+            });
           }}
           onClose={() => {
             setShowPracticeUpload(false);
