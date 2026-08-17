@@ -15,6 +15,12 @@ import {
   streamGeminiApi,
 } from '../services/geminiApiRuntime';
 import { resolveModel } from '../services/modelRouter';
+import { optionalAuth } from '../middleware/auth';
+import {
+  AiInteractionEntry,
+  hashPrompt,
+  logAiInteraction,
+} from '../services/aiInteractionLog';
 
 type RuntimePart =
   | { text: string }
@@ -89,7 +95,22 @@ const resolveTemperature = (
   return DEFAULT_TEMPERATURE_BY_FEATURE[feature];
 };
 
+// Best-effort response-text length for telemetry: runtimes return either a
+// string or an object carrying a `text` field; anything else stays unmeasured.
+const extractTextLength = (result: unknown): number | null => {
+  if (typeof result === 'string') return result.length;
+  if (result && typeof result === 'object') {
+    const text = (result as Record<string, unknown>).text;
+    if (typeof text === 'string') return text.length;
+  }
+  return null;
+};
+
 const router = Router();
+
+// Attach the caller's identity to ai_interactions rows when a token is
+// present, without turning the AI gateway into an auth wall.
+router.use(optionalAuth);
 
 router.get('/status', (_req: Request, res: Response) => {
   const legacy = getAgentRuntimeStatus();
@@ -101,6 +122,9 @@ router.get('/status', (_req: Request, res: Response) => {
 });
 
 router.post('/invoke', async (req: Request, res: Response) => {
+  const startedAt = Date.now();
+  // Telemetry base survives into the catch block; null until the request parses.
+  let telemetry: Omit<AiInteractionEntry, 'latencyMs' | 'status'> | null = null;
   try {
     const { feature, payload } = req.body as {
       feature?: string;
@@ -146,21 +170,64 @@ router.post('/invoke', async (req: Request, res: Response) => {
       }),
     };
 
+    telemetry = {
+      userId: req.user?.id ?? null,
+      userRole: req.user?.role ?? null,
+      feature,
+      model: runtimeRequest.model ?? null,
+      runtime: 'agent_legacy',
+      promptChars:
+        (runtimeRequest.prompt?.length ?? 0) +
+        (runtimeRequest.systemInstruction?.length ?? 0),
+      promptHash: hashPrompt(runtimeRequest.prompt),
+      hasSchema: Boolean(runtimeRequest.responseSchema),
+      mediaPartCount: validParts.length,
+    };
+
     if (isGeminiApiConfigured()) {
+      telemetry.runtime = 'gemini_api';
       const result = await invokeGeminiApi(runtimeRequest);
+      logAiInteraction({
+        ...telemetry,
+        model: result.model ?? telemetry.model,
+        responseChars: result.text.length,
+        latencyMs: Date.now() - startedAt,
+        status: 'success',
+      });
       res.json({ ok: true, result });
       return;
     }
 
     if (isAgentRuntimeConfigured()) {
+      telemetry.runtime = 'agent_platform';
       const result = await invokeAgentPlatformRuntime(runtimeRequest);
+      logAiInteraction({
+        ...telemetry,
+        responseChars: extractTextLength(result),
+        latencyMs: Date.now() - startedAt,
+        status: 'success',
+      });
       res.json({ ok: true, result });
       return;
     }
 
     const result = await invokeAgentRuntimeLegacy(feature, payload ?? {});
+    logAiInteraction({
+      ...telemetry,
+      responseChars: extractTextLength(result),
+      latencyMs: Date.now() - startedAt,
+      status: 'success',
+    });
     res.json({ ok: true, result });
   } catch (error) {
+    if (telemetry) {
+      logAiInteraction({
+        ...telemetry,
+        latencyMs: Date.now() - startedAt,
+        status: error instanceof AgentRuntimeError ? 'fallback' : 'error',
+        errorMessage: error instanceof Error ? error.message : String(error),
+      });
+    }
     if (error instanceof AgentRuntimeError) {
       res
         .status(error.statusCode)
@@ -238,6 +305,24 @@ router.post('/invoke-stream', async (req: Request, res: Response) => {
     }),
   };
 
+  const startedAt = Date.now();
+  let streamedModel: string | null = runtimeRequest.model ?? null;
+  let responseChars = 0;
+  const telemetry: Omit<AiInteractionEntry, 'latencyMs' | 'status'> = {
+    userId: req.user?.id ?? null,
+    userRole: req.user?.role ?? null,
+    feature,
+    model: streamedModel,
+    runtime: 'gemini_api',
+    promptChars:
+      (runtimeRequest.prompt?.length ?? 0) +
+      (runtimeRequest.systemInstruction?.length ?? 0),
+    promptHash: hashPrompt(runtimeRequest.prompt),
+    streamed: true,
+    hasSchema: Boolean(runtimeRequest.responseSchema),
+    mediaPartCount: validParts.length,
+  };
+
   // SSE headers — set before the first write so intermediaries flush per-event.
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache, no-transform');
@@ -261,13 +346,30 @@ router.post('/invoke-stream', async (req: Request, res: Response) => {
     for await (const item of streamGeminiApi(runtimeRequest)) {
       if (clientClosed) break;
       if (item.type === 'meta') {
+        streamedModel = item.model;
         writeEvent('meta', { model: item.model });
       } else {
+        responseChars += item.text.length;
         writeEvent('chunk', { text: item.text });
       }
     }
     if (!clientClosed) writeEvent('done', { status: 'ok' });
+    logAiInteraction({
+      ...telemetry,
+      model: streamedModel,
+      responseChars,
+      latencyMs: Date.now() - startedAt,
+      status: 'success',
+    });
   } catch (error) {
+    logAiInteraction({
+      ...telemetry,
+      model: streamedModel,
+      responseChars,
+      latencyMs: Date.now() - startedAt,
+      status: 'error',
+      errorMessage: error instanceof Error ? error.message : String(error),
+    });
     if (!clientClosed) {
       writeEvent('error', {
         message: error instanceof Error ? error.message : String(error),

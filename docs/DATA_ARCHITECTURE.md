@@ -650,11 +650,11 @@ R2 스토리지 비용은 영상이 지배한다. 상용화 초기엔 원본 보
 
 ### Phase 0 — 기반 공사 (1주 내외, 다른 모든 것의 전제)
 
-- [ ] `node-pg-migrate` 도입. 현재 `initDb()`의 결과 스키마를 baseline 마이그레이션(0001)으로 스냅샷. 이후 `initDb()`는 마이그레이션 러너 호출로 대체
-- [ ] 신규 테이블부터 공통 규약 적용(TIMESTAMPTZ, UUID, client_generated_id)
-- [ ] `domain_events` 테이블 생성 + 서버 라우트에 이벤트 기록 헬퍼 1개 추가 (`recordEvent(tx, {...})`)
-- [ ] `ai_interactions` 생성 — `/api/ai/invoke`가 이미 서버 경유이므로 **이 단계에서 즉시 AI 텔레메트리 서버 축적 시작** (원문은 동의 게이트 전까지 hash만)
-- [ ] 스테이징 DB 분리(현재 단일 Render PG로 추정) + 일일 백업/복구 리허설
+- [x] `node-pg-migrate` 도입. 현재 `initDb()`의 결과 스키마를 baseline 마이그레이션으로 스냅샷(`server/migrations/…_baseline.js`, 멱등이므로 신규/기존 운영 DB 모두에 안전 적용). 이후 `initDb()`는 마이그레이션 러너 호출로 대체
+- [x] 신규 테이블부터 공통 규약 적용(TIMESTAMPTZ, UUID, 멱등 event_id)
+- [x] `domain_events` 테이블 생성 + 이벤트 기록 헬퍼(`server/src/services/events.ts`) — 레슨 create/update/approve/delete에 연결
+- [x] `ai_interactions` 생성 — `/api/ai/invoke(-stream)`에 로깅 훅 연결(`server/src/services/aiInteractionLog.ts`). **서버 배포 즉시 AI 텔레메트리 축적 시작** (원문은 동의 게이트 전까지 hash만)
+- [ ] 스테이징 DB 분리(현재 단일 Render PG로 추정) + 일일 백업/복구 리허설 — 운영 콘솔 작업, 코드 외
 
 ### Phase 1 — localStorage 엔티티의 서버 승격 (상용화 최소선, 2–4주)
 

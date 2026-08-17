@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import pool from '../services/db';
 import { authMiddleware, AuthRole } from '../middleware/auth';
 import { signMediaUrl, reSignIfMedia } from '../services/mediaAccess';
+import { recordEventSafe } from '../services/events';
 
 const router = Router();
 const UUID_PATTERN =
@@ -352,7 +353,26 @@ router.post('/', async (req: Request, res: Response) => {
       ]
     );
 
-    res.status(201).json({ lesson: mapLesson(result.rows[0], userRole) });
+    const created = result.rows[0];
+    recordEventSafe({
+      actorId: userId,
+      actorRole: userRole,
+      eventType: 'lesson.created',
+      entityType: 'lesson',
+      entityId: created.id as string,
+      // The authenticated client's own id is the canonical student UUID;
+      // coach-created lessons only carry the legacy composite id (payload).
+      studentUuid: userRole === 'client' ? userId : null,
+      payload: {
+        recordType: (created.record_type as string | null) ?? null,
+        clientCompositeId: (created.client_id as string | null) ?? null,
+        coachId: (created.coach_id as string | null) ?? null,
+        hasVideo: Boolean(created.video_key || created.video_url),
+        hasGolfData: created.golf_data != null,
+      },
+    });
+
+    res.status(201).json({ lesson: mapLesson(created, userRole) });
   } catch (err) {
     console.error('[lessons] POST / error:', err);
     res.status(500).json({ error: 'Internal server error' });
@@ -544,7 +564,27 @@ router.put('/:id', async (req: Request, res: Response) => {
       ]
     );
 
-    res.json({ lesson: mapLesson(result.rows[0], userRole) });
+    const updated = result.rows[0];
+    // Approval is the milestone the review workflow (8b) cares about — surface
+    // it as its own event type when this PUT crossed the draft→approved line.
+    const wasApproved =
+      (existing.approval_status as string | null) !== 'approved' &&
+      updated.approval_status === 'approved';
+    recordEventSafe({
+      actorId: userId,
+      actorRole: userRole,
+      eventType: wasApproved ? 'lesson.approved' : 'lesson.updated',
+      entityType: 'lesson',
+      entityId: id,
+      studentUuid: userRole === 'client' ? userId : null,
+      payload: {
+        clientCompositeId: (updated.client_id as string | null) ?? null,
+        coachId: (updated.coach_id as string | null) ?? null,
+        sharedToStudent: (updated.shared_to_student as boolean | null) ?? null,
+      },
+    });
+
+    res.json({ lesson: mapLesson(updated, userRole) });
   } catch (err) {
     console.error('[lessons] PUT /:id error:', err);
     res.status(500).json({ error: 'Internal server error' });
@@ -565,6 +605,18 @@ router.delete('/:id', async (req: Request, res: Response) => {
     }
 
     await pool.query('DELETE FROM lessons WHERE id = $1', [id]);
+    recordEventSafe({
+      actorId: userId,
+      actorRole: userRole,
+      eventType: 'lesson.deleted',
+      entityType: 'lesson',
+      entityId: id,
+      studentUuid: userRole === 'client' ? userId : null,
+      payload: {
+        clientCompositeId: (existing.client_id as string | null) ?? null,
+        coachId: (existing.coach_id as string | null) ?? null,
+      },
+    });
     res.json({ deleted: true, id });
   } catch (err) {
     console.error('[lessons] DELETE /:id error:', err);
