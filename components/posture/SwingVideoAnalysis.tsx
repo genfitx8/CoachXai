@@ -34,6 +34,12 @@ import {
   SwingSummary,
 } from '../../types/swingAnalysis';
 import { SkeletonKeypoint } from '../../types/postureAnalysis';
+import {
+  getVideoIntrinsicSize,
+  grabVideoFrame,
+  peekVideoFrame,
+  retainVideoFrameSource,
+} from '../../utils/videoFrameGrabber';
 
 const EVENT_LABEL: Record<SwingEventName, string> = {
   address: '어드레스',
@@ -114,9 +120,31 @@ const HAND_PATH_DOWNSWING_COLOR = '#f97316'; // orange-500
 /** Fallback when the top of the backswing wasn't detected. */
 const HAND_PATH_FALLBACK_COLOR = '#fde047'; // yellow-300
 
+type FrameBackground = HTMLVideoElement | HTMLImageElement | HTMLCanvasElement;
+
+/**
+ * Intrinsic pixel size of a background source, or undefined when it isn't
+ * ready yet (a video with no metadata reports 0×0).
+ */
+function backgroundSize(bg: FrameBackground): { width: number; height: number } | undefined {
+  const width =
+    'videoWidth' in bg
+      ? bg.videoWidth
+      : 'naturalWidth' in bg
+      ? bg.naturalWidth
+      : bg.width;
+  const height =
+    'videoHeight' in bg
+      ? bg.videoHeight
+      : 'naturalHeight' in bg
+      ? bg.naturalHeight
+      : bg.height;
+  return width && height ? { width, height } : undefined;
+}
+
 function drawKeypoints(
   canvas: HTMLCanvasElement,
-  bg: HTMLVideoElement | HTMLImageElement | null,
+  bg: FrameBackground | null,
   keypoints: SkeletonKeypoint[],
   overlay?: OverlayLine,
   clubHead?: ClubHeadMarker,
@@ -124,18 +152,25 @@ function drawKeypoints(
   centerlineX?: number,
   wristArc?: Array<{ x: number; y: number }>,
   handPath?: HandPathOverlay,
+  /**
+   * Canvas size to fall back to when there is no usable background. Without
+   * it the canvas keeps its 300×150 default and the skeleton renders into a
+   * squat, wrongly-proportioned box.
+   */
+  fallbackSize?: { width: number; height: number },
 ) {
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
-  if (bg && 'videoWidth' in bg) {
-    canvas.width = bg.videoWidth || canvas.width;
-    canvas.height = bg.videoHeight || canvas.height;
-    ctx.drawImage(bg, 0, 0, canvas.width, canvas.height);
-  } else if (bg) {
-    canvas.width = (bg as HTMLImageElement).naturalWidth || canvas.width;
-    canvas.height = (bg as HTMLImageElement).naturalHeight || canvas.height;
+  const size = bg ? backgroundSize(bg) : undefined;
+  if (bg && size) {
+    canvas.width = size.width;
+    canvas.height = size.height;
     ctx.drawImage(bg, 0, 0, canvas.width, canvas.height);
   } else {
+    if (fallbackSize?.width && fallbackSize.height) {
+      canvas.width = fallbackSize.width;
+      canvas.height = fallbackSize.height;
+    }
     ctx.fillStyle = '#0f172a';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
   }
@@ -433,6 +468,8 @@ interface EventSnapshotProps {
   handPath?: Array<{ x: number; y: number; t: number }>;
   /** Top-of-backswing timestamp — splits the hand path into green/orange. */
   handPathTopT?: number;
+  /** Intrinsic video size — used to shape the canvas when the frame is unavailable. */
+  videoSize?: { width: number; height: number };
 }
 
 const EventSnapshot: React.FC<EventSnapshotProps> = ({
@@ -447,24 +484,30 @@ const EventSnapshot: React.FC<EventSnapshotProps> = ({
   wristArc,
   handPath,
   handPathTopT,
+  videoSize,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [frameState, setFrameState] = useState<'loading' | 'ready' | 'failed'>('loading');
+  const [retryToken, setRetryToken] = useState(0);
+
+  // Hold the shared decoder open for as long as any snapshot is on screen, so
+  // the seven phase cards share one <video> instead of racing for decoders.
+  useEffect(() => {
+    if (!videoUrl) return;
+    return retainVideoFrameSource(videoUrl);
+  }, [videoUrl]);
 
   useEffect(() => {
     if (!event || !frame || !canvasRef.current) return;
     const canvas = canvasRef.current;
-    const video = document.createElement('video');
-    video.src = videoUrl;
-    video.muted = true;
-    video.playsInline = true;
-    video.crossOrigin = 'anonymous';
-    const onSeeked = () => {
-      const handPathOverlay = handPath
-        ? { points: handPath, upToT: event.t, topT: handPathTopT }
-        : undefined;
+    let cancelled = false;
+    const handPathOverlay = handPath
+      ? { points: handPath, upToT: event.t, topT: handPathTopT }
+      : undefined;
+    const paint = (bg: HTMLCanvasElement | null) => {
       drawKeypoints(
         canvas,
-        video,
+        bg,
         frame.keypoints,
         overlay,
         clubHead,
@@ -472,17 +515,43 @@ const EventSnapshot: React.FC<EventSnapshotProps> = ({
         centerlineX,
         wristArc,
         handPathOverlay,
+        // Analyses saved before `videoSize` existed still need a sane aspect
+        // ratio for the skeleton-only fallback; ask the loaded source.
+        videoSize ?? getVideoIntrinsicSize(videoUrl),
       );
-      video.removeEventListener('seeked', onSeeked);
-      video.src = '';
     };
-    video.addEventListener('loadedmetadata', () => {
-      video.currentTime = event.t;
-    });
-    video.addEventListener('seeked', onSeeked);
+
+    // Already extracted (parent re-render, or another card asked for the same
+    // timestamp): repaint synchronously so the card never flashes a spinner.
+    const cachedFrame = peekVideoFrame(videoUrl, event.t);
+    if (cachedFrame) {
+      paint(cachedFrame);
+      setFrameState('ready');
+      return;
+    }
+
+    setFrameState('loading');
+    // Paint the skeleton right away. Frames are extracted one at a time, so
+    // the later phases would otherwise sit as an unsized black box for a
+    // second or two — and this also locks in the card's aspect ratio so the
+    // grid doesn't jump as photos land.
+    paint(null);
+    grabVideoFrame(videoUrl, event.t)
+      .then((bg) => {
+        if (cancelled) return;
+        paint(bg);
+        setFrameState('ready');
+      })
+      .catch(() => {
+        if (cancelled) return;
+        // The frame couldn't be decoded — still render the skeleton so the
+        // phase shows its pose and metrics instead of an empty black box.
+        paint(null);
+        setFrameState('failed');
+      });
+
     return () => {
-      video.removeEventListener('seeked', onSeeked);
-      video.src = '';
+      cancelled = true;
     };
   }, [
     event,
@@ -495,6 +564,8 @@ const EventSnapshot: React.FC<EventSnapshotProps> = ({
     wristArc,
     handPath,
     handPathTopT,
+    videoSize,
+    retryToken,
   ]);
 
   if (!event || !frame) {
@@ -552,12 +623,30 @@ const EventSnapshot: React.FC<EventSnapshotProps> = ({
         </span>
         <span className="text-[10px] text-slate-500">t={event.t.toFixed(3)}s</span>
       </div>
-      <div className="bg-black">
+      <div className="bg-black relative">
         <canvas
           ref={canvasRef}
           className="w-full h-auto block"
           style={{ maxHeight: '220px', objectFit: 'contain' }}
         />
+        {frameState === 'loading' && (
+          // A badge, not a scrim — the skeleton underneath is already useful.
+          <div className="absolute top-1 right-1 flex items-center gap-1 rounded px-1.5 py-0.5 text-[9px] text-slate-300 bg-slate-950/80">
+            <Loader2 size={9} className="animate-spin" />
+            프레임 불러오는 중
+          </div>
+        )}
+        {frameState === 'failed' && (
+          <button
+            type="button"
+            onClick={() => setRetryToken((n) => n + 1)}
+            className="absolute inset-x-0 bottom-0 flex items-center justify-center gap-1 py-1 text-[10px] text-amber-300 bg-slate-950/80 hover:bg-slate-900"
+            title="이 구간의 영상 프레임을 다시 불러옵니다."
+          >
+            <RefreshCw size={10} />
+            영상 프레임 실패 · 다시 시도
+          </button>
+        )}
       </div>
       <div className="grid grid-cols-2 gap-2 p-3 text-[11px]">
         {event.name === 'address' ? (
@@ -2730,6 +2819,7 @@ export const SwingVideoAnalysis: React.FC<SwingVideoAnalysisProps> = ({
                     wristArc={name === 'impact' ? analysis.summary.downswingWristArc2D : undefined}
                     handPath={analysis.summary.handPath2D}
                     handPathTopT={analysis.events.top?.t}
+                    videoSize={analysis.videoSize}
                   />
                 );
               })}

@@ -335,6 +335,11 @@ export interface SwingAnalysis {
    * frames were processed than usual.
    */
   nativeFps?: number;
+  /**
+   * Intrinsic pixel size of the source video. Lets snapshot canvases keep the
+   * right aspect ratio even when a frame can't be decoded for display.
+   */
+  videoSize?: { width: number; height: number };
   /** Detected swing events; may be a partial subset if segmentation was unsure. */
   events: Partial<Record<SwingEventName, SwingEvent>>;
   /** Warnings surfaced to the user (low confidence, missing top, etc.). */
