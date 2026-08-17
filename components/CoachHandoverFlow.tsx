@@ -176,7 +176,10 @@ export const CoachHandoverFlow: React.FC<CoachHandoverFlowProps> = ({
       onClick={stage === 'done' ? onClose : undefined}
     >
       <div
-        className="w-full sm:max-w-md bg-base border-t sm:border border-line-subtle sm:rounded-2xl rounded-t-2xl shadow-2xl max-h-[92vh] overflow-y-auto"
+        // Bottom sheet — the panel's last row lands on the home indicator /
+        // gesture bar without the inset. Safe to put on the scroller: the
+        // panel carries no bottom padding of its own.
+        className="w-full sm:max-w-md bg-base border-t sm:border border-line-subtle sm:rounded-2xl rounded-t-2xl shadow-2xl max-h-[92vh] overflow-y-auto pb-safe"
         onClick={(e) => e.stopPropagation()}
       >
         <header className="sticky top-0 z-10 bg-base/95 backdrop-blur border-b border-line-subtle px-5 py-3 flex items-center gap-2">
