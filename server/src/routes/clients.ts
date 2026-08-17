@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import pool from '../services/db';
 import { authMiddleware } from '../middleware/auth';
+import { sendToUser } from '../services/fcm';
 
 const router = Router();
 
@@ -112,6 +113,18 @@ router.put('/me', async (req: Request, res: Response) => {
       resolvedDesignatedCoach = designatedCoach;
     }
 
+    // Snapshot the outgoing coach_id (pre-update) so we can tell a genuinely
+    // new designation apart from a no-op re-save and only notify the coach
+    // on real changes.
+    let previousCoachId: string | null = null;
+    if (typeof resolvedCoachId === 'string') {
+      const current = await pool.query(
+        'SELECT coach_id FROM clients WHERE id = $1',
+        [clientId]
+      );
+      previousCoachId = (current.rows[0]?.coach_id as string | null) ?? null;
+    }
+
     const now = Date.now();
 
     const result = await pool.query(
@@ -162,7 +175,31 @@ router.put('/me', async (req: Request, res: Response) => {
       return;
     }
 
-    res.json({ client: mapClient(result.rows[0]) });
+    const updated = result.rows[0];
+
+    // The student just designated a new coach: push a notification to that
+    // coach's devices so their member list updates without waiting for the
+    // next app open. Fire-and-forget — the assignment itself already
+    // succeeded, so a push failure must not fail the request. The coach app
+    // additionally polls GET /api/clients, so web (no FCM) still catches up.
+    if (
+      typeof resolvedCoachId === 'string' &&
+      previousCoachId !== resolvedCoachId
+    ) {
+      const studentName = (updated.name as string | null) ?? '새 회원';
+      sendToUser(resolvedCoachId, 'coach', {
+        title: `${studentName}님이 회원으로 등록되었어요`,
+        body: '학생 앱에서 코치로 지정했습니다. 학생 목록에서 확인해 보세요.',
+        data: {
+          type: 'MEMBER_LINKED',
+          clientId: String(updated.id),
+        },
+      }).catch((pushErr) => {
+        console.error('[clients] member-linked push failed:', pushErr);
+      });
+    }
+
+    res.json({ client: mapClient(updated) });
   } catch (err) {
     console.error('[clients] PUT /me error:', err);
     res.status(500).json({ error: 'Internal server error' });

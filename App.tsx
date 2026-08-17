@@ -129,6 +129,11 @@ const matchesClient = (
   return normalizeName(lesson.clientName) === normalizeName(filterName);
 };
 
+// How often the coach app re-polls the member list while it is visible, so a
+// student who picks this coach in the student app shows up without a manual
+// reload. Kept modest — GET /api/clients is a single indexed query per coach.
+const CLIENT_LIST_POLL_INTERVAL_MS = 15000;
+
 const diagnosisProgram: DiagnosisProgram = {
   title: 'coachxai 정밀진단 프로그램',
   subtitle: '골퍼 기본정보부터 통합 리포트까지 6단계 프로세스로 진행하는 골프 퍼포먼스 정밀진단 프로그램',
@@ -760,6 +765,67 @@ const AppContent: React.FC = () => {
       window.removeEventListener('focus', refreshLessons);
     };
   }, [userRole, refreshLessons]);
+
+  // Refetch the coach's member list from the backend without running the full
+  // loadData sync path. Used to pick up a student who designated (or removed)
+  // this coach from the student app while the coach app is already open.
+  const refreshClients = useCallback(async () => {
+    if (!apiService.isAvailable() || !apiService.getToken()) return;
+    try {
+      const fetched = await apiService.getClients();
+      setClients((prev) => {
+        // Same coachId ↔ designatedCoach consistency rule as loadData, but
+        // in memory only — this runs on a poll, so no write-back.
+        const next = fetched.map((client) => {
+          if (client.coachId) return client;
+          if (client.designatedCoach === undefined) return client;
+          const cleaned = { ...client };
+          delete cleaned.designatedCoach;
+          return cleaned;
+        });
+        // Skip the state update (and the app-wide re-render it would cause)
+        // when nothing actually changed, since this fires on an interval.
+        return JSON.stringify(prev) === JSON.stringify(next) ? prev : next;
+      });
+    } catch (e) {
+      console.warn('[App] refreshClients failed:', e);
+    }
+  }, []);
+
+  // Near-real-time member list for the coach app: a student assigning this
+  // coach lands via PUT /api/clients/me on the server, so the coach app polls
+  // GET /api/clients while visible and refetches immediately when the tab or
+  // native webview regains focus. (The server has no websocket channel, so
+  // polling + focus refresh is the sync mechanism here.)
+  useEffect(() => {
+    if (userRole !== 'COACH') return;
+
+    const refreshIfVisible = () => {
+      if (document.visibilityState === 'visible') {
+        refreshClients();
+      }
+    };
+
+    const intervalId = window.setInterval(
+      refreshIfVisible,
+      CLIENT_LIST_POLL_INTERVAL_MS
+    );
+    document.addEventListener('visibilitychange', refreshIfVisible);
+    window.addEventListener('focus', refreshClients);
+    return () => {
+      window.clearInterval(intervalId);
+      document.removeEventListener('visibilitychange', refreshIfVisible);
+      window.removeEventListener('focus', refreshClients);
+    };
+  }, [userRole, refreshClients]);
+
+  // Also refetch the moment the coach opens the 학생 (member) tab, so the
+  // list is fresh even if the poll hasn't ticked yet.
+  useEffect(() => {
+    if (userRole === 'COACH' && coachView === 'CLIENTS') {
+      refreshClients();
+    }
+  }, [userRole, coachView, refreshClients]);
 
   useEffect(() => {
     if (
