@@ -45,8 +45,14 @@ const log = createLogger('lessonAudio');
 
 // ─── Tunables ────────────────────────────────────────────────────────────────
 
-/** 세그먼트 목표 길이. 3분 = 30–50분 레슨에서 10–17개 세그먼트. */
-export const SEGMENT_TARGET_SEC = 180;
+/**
+ * 세그먼트 목표 길이. 2분 = 30–50분 레슨에서 15–25개 세그먼트.
+ * 실시간 요약의 갱신 주기이기도 하다 — 더 길면 화면 요약이 굼떠 보이고,
+ * 더 짧으면 구간 컨텍스트가 얕아져 전사·노트 품질이 떨어진다.
+ */
+export const SEGMENT_TARGET_SEC = 120;
+/** 첫 세그먼트만 짧게 끊어 레슨 시작 ~1분 안에 첫 필기·요약이 뜨게 한다. */
+export const FIRST_SEGMENT_TARGET_SEC = 60;
 /** archive 레코더의 청크 주기 — 크래시 시 최대 유실 폭. */
 export const ARCHIVE_TIMESLICE_MS = 5000;
 /**
@@ -120,6 +126,10 @@ export interface LiveSessionSnapshot {
   analyzedCount: number;
   failedCount: number;
   latestKeyPoints: string[];
+  /** 지금까지의 롤링 요약(불릿 텍스트). 세그먼트 분석이 쌓일 때마다 갱신. */
+  liveSummary: string;
+  /** 롤링 요약이 현재 재생성 중인가 — UI 스피너용. */
+  liveSummaryUpdating: boolean;
 }
 
 // ─── MIME negotiation ────────────────────────────────────────────────────────
@@ -533,12 +543,121 @@ export class SegmentAnalysisQueue {
   }
 }
 
+// ─── Rolling live summary ────────────────────────────────────────────────────
+
+/**
+ * 레슨 진행 중 화면에 띄우는 "지금까지 요약" 프롬프트. 최종 리포트
+ * (buildMergePrompt)와 달리 짧은 불릿에 최적화한다 — 코치가 매트 건너편에서
+ * 한눈에 훑는 용도라 형식보다 밀도가 중요하다.
+ */
+export const buildRollingSummaryPrompt = (
+  notes: LessonSegmentNote[],
+  studentName: string
+): string => {
+  const done = [...notes]
+    .filter((n) => n.status === 'done')
+    .sort((a, b) => a.index - b.index);
+  const blocks = done.map((n) => {
+    const window = `${formatClock(n.startSec)}–${formatClock(
+      n.startSec + n.durationSec
+    )}`;
+    const lines = [`[${window}] ${n.transcript || '(대화 없음)'}`];
+    if (n.keyPoints.length) lines.push(`  포인트: ${n.keyPoints.join(' / ')}`);
+    if (n.metrics.length) lines.push(`  수치: ${n.metrics.join(' / ')}`);
+    return lines.join('\n');
+  });
+
+  return `진행 중인 골프 레슨(학생: ${studentName})의 지금까지의 구간별 분석 노트입니다.
+
+${blocks.join('\n\n')}
+
+지금까지의 레슨 내용을 코치가 한눈에 훑을 수 있는 실시간 요약으로 정리하세요.
+규칙:
+- "- " 로 시작하는 불릿 3~5개, 각 불릿은 한 문장(한국어).
+- 가장 중요한 교정 포인트부터. 반복 언급된 포인트는 하나로 묶고 진행 상황(개선/유지)을 덧붙이세요.
+- 노트에 있는 수치는 그대로 인용하고, 노트에 없는 내용은 만들지 마세요.
+- 머리말·맺음말 없이 불릿만 출력하세요.`;
+};
+
+export type RollingSummarizer = (
+  notes: LessonSegmentNote[],
+  studentName: string
+) => Promise<string>;
+
+/** 기본 롤링 요약기 — 텍스트만 보내므로 호출당 수 초·저비용. */
+export const generateRollingLessonSummary: RollingSummarizer = async (
+  notes,
+  studentName
+) => {
+  const result = await invokeBackendAI<unknown>('lesson_live_summary', {
+    prompt: buildRollingSummaryPrompt(notes, studentName),
+  });
+  const text = getResponseText(result);
+  if (!text) throw new Error('실시간 요약 응답이 비어 있습니다.');
+  return text.trim();
+};
+
+/**
+ * 롤링 요약 갱신 조율기: 세그먼트 노트가 완성될 때마다 notify 되지만
+ * 요약 호출은 **항상 한 개만** 비행한다. 비행 중 새 노트가 들어오면
+ * dirty 로 표시했다가 끝난 뒤 최신 상태로 한 번 더 돌린다(trailing).
+ * 실패하면 이전 요약을 유지한다 — 다음 노트가 어차피 재시도 기회다.
+ */
+export class RollingSummaryController {
+  private inFlight = false;
+  private dirty = false;
+  private latestNotes: LessonSegmentNote[] = [];
+  private latestStudent = '';
+
+  constructor(
+    private readonly summarize: RollingSummarizer,
+    private readonly onUpdate: (summary: string) => void,
+    private readonly onStateChange?: (updating: boolean) => void
+  ) {}
+
+  get isUpdating(): boolean {
+    return this.inFlight;
+  }
+
+  notify(notes: LessonSegmentNote[], studentName: string): void {
+    this.latestNotes = notes;
+    this.latestStudent = studentName;
+    if (this.inFlight) {
+      this.dirty = true;
+      return;
+    }
+    void this.run();
+  }
+
+  private async run(): Promise<void> {
+    if (!this.latestNotes.some((n) => n.status === 'done')) return;
+    this.inFlight = true;
+    this.onStateChange?.(true);
+    try {
+      do {
+        this.dirty = false;
+        try {
+          const summary = await this.summarize(this.latestNotes, this.latestStudent);
+          if (summary) this.onUpdate(summary);
+        } catch (err) {
+          log.warn('롤링 요약 갱신 실패(이전 요약 유지):', err);
+        }
+      } while (this.dirty);
+    } finally {
+      this.inFlight = false;
+      this.onStateChange?.(false);
+    }
+  }
+}
+
 // ─── Live recording session ──────────────────────────────────────────────────
 
 export interface LessonAudioSessionOptions {
   studentName: string;
   /** 테스트/오프라인 대체용 분석기 주입 지점. */
   analyzer?: SegmentAnalyzer;
+  /** 테스트용 롤링 요약기 주입 지점. */
+  rollingSummarizer?: RollingSummarizer;
   /** 노트 변경(분석 완료/실패)마다 호출 — UI 라이브 티커용. */
   onNotesChanged?: (notes: LessonSegmentNote[]) => void;
   segmentTargetSec?: number;
@@ -564,6 +683,9 @@ export class LessonAudioSession {
     LessonAudioSessionOptions;
   private readonly analyzer: SegmentAnalyzer;
   private readonly queue = new SegmentAnalysisQueue();
+  private readonly rollingSummary: RollingSummaryController;
+  private liveSummary = '';
+  private liveSummaryUpdating = false;
 
   private stream: MediaStream | null = null;
   private archiveRecorder: MediaRecorder | null = null;
@@ -588,6 +710,17 @@ export class LessonAudioSession {
     this.opts = opts;
     this.analyzer = opts.analyzer ?? analyzeLessonAudioSegment;
     this.mimeType = pickAudioMimeType();
+    this.rollingSummary = new RollingSummaryController(
+      opts.rollingSummarizer ?? generateRollingLessonSummary,
+      (summary) => {
+        this.liveSummary = summary;
+        this.emitNotes();
+      },
+      (updating) => {
+        this.liveSummaryUpdating = updating;
+        this.emitNotes();
+      }
+    );
   }
 
   get recordedDurationSec(): number {
@@ -605,6 +738,8 @@ export class LessonAudioSession {
         .flatMap((n) => n.keyPoints)
         .slice(-3)
         .reverse(),
+      liveSummary: this.liveSummary,
+      liveSummaryUpdating: this.liveSummaryUpdating,
     };
   }
 
@@ -643,10 +778,14 @@ export class LessonAudioSession {
       if (this.paused || this.stopped) return;
       this.recordedSec += 1;
       this.segmentActiveSec += 1;
-      if (
-        this.segmentActiveSec >=
-        (this.opts.segmentTargetSec ?? SEGMENT_TARGET_SEC)
-      ) {
+      const target =
+        this.segmentIndex <= 1
+          ? Math.min(
+              FIRST_SEGMENT_TARGET_SEC,
+              this.opts.segmentTargetSec ?? SEGMENT_TARGET_SEC
+            )
+          : this.opts.segmentTargetSec ?? SEGMENT_TARGET_SEC;
+      if (this.segmentActiveSec >= target) {
         this.rotateSegment();
       }
     }, 1000);
@@ -780,6 +919,11 @@ export class LessonAudioSession {
       .sort((a, b) => a.index - b.index);
     this.emitNotes();
     void this.persistMeta();
+    // 새 구간 분석이 확정될 때마다 화면의 롤링 요약을 재생성한다.
+    // 컨트롤러가 단일 비행을 보장하므로 여기서는 그냥 알리기만 한다.
+    if (next.status === 'done' && !this.stopped) {
+      this.rollingSummary.notify(this.getNotes(), this.opts.studentName);
+    }
   }
 
   private emitNotes(): void {

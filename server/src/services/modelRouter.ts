@@ -56,6 +56,11 @@ const FEATURE_MODEL_OVERRIDES: Record<string, string> = {
   analyze_equipment_photo: 'gemini-2.5-flash-lite',
   swing_phase_timestamps: 'gemini-2.5-flash-lite',
   hole_voice_summary: 'gemini-2.5-flash-lite',
+
+  // 레슨 진행 중 롤링 요약 — 2분마다 재생성되는 3~5불릿 텍스트 요약.
+  // 지연이 UX에 직결되고 입력이 이미 구조화된 노트라 lite로 충분하다.
+  // (신규 피처라 기존 eval 베이스라인과 무관하게 lite에서 출발한다.)
+  lesson_live_summary: 'gemini-2.5-flash-lite',
 };
 
 interface CachedOverrides {

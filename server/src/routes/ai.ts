@@ -64,6 +64,9 @@ const DEFAULT_TEMPERATURE_BY_FEATURE: Record<string, number> = {
   // 세그먼트 노트 → 최종 리포트 병합(map-reduce reduce 단계). 톤은
   // lesson_summary 와 동일하게 맞춘다.
   lesson_summary_merge: 0.4,
+  // 레슨 진행 중 화면에 띄우는 롤링 요약 — 짧은 불릿 재생성이 잦으므로
+  // 흔들림 없이 노트에 충실해야 한다.
+  lesson_live_summary: 0.3,
   compare_swings: 0.4,
   weekly_insight: 0.5,
   coachx_insights: 0.6,

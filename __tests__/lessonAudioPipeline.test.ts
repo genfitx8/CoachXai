@@ -26,9 +26,11 @@ import {
   parseSegmentNoteResponse,
   buildSegmentPrompt,
   buildMergePrompt,
+  buildRollingSummaryPrompt,
   formatClock,
   audioExtensionForMime,
   SegmentAnalysisQueue,
+  RollingSummaryController,
   type LessonSegmentNote,
 } from '../services/lessonAudioPipeline';
 
@@ -157,6 +159,100 @@ describe('buildMergePrompt', () => {
   it('renders time windows for each segment', () => {
     const prompt = buildMergePrompt([doneNote(2)], '');
     expect(prompt).toContain('[6:00–9:00]');
+  });
+});
+
+describe('buildRollingSummaryPrompt', () => {
+  const note = (index: number, status: LessonSegmentNote['status'] = 'done'): LessonSegmentNote => ({
+    index,
+    startSec: index * 120,
+    durationSec: 120,
+    status,
+    transcript: `구간 ${index} 전사`,
+    keyPoints: [`포인트${index}`],
+    drills: [],
+    metrics: index === 1 ? ['캐리 210m'] : [],
+    studentState: '',
+  });
+
+  it('includes only done segments, in order, with metrics quoted', () => {
+    const prompt = buildRollingSummaryPrompt([note(1), note(0), note(2, 'analyzing')], '김회원');
+    expect(prompt).toContain('김회원');
+    expect(prompt.indexOf('구간 0 전사')).toBeLessThan(prompt.indexOf('구간 1 전사'));
+    expect(prompt).not.toContain('구간 2 전사');
+    expect(prompt).toContain('캐리 210m');
+    expect(prompt).toContain('불릿');
+  });
+});
+
+describe('RollingSummaryController', () => {
+  const doneNote = (index: number): LessonSegmentNote => ({
+    index,
+    startSec: index * 120,
+    durationSec: 120,
+    status: 'done',
+    transcript: 't',
+    keyPoints: [],
+    drills: [],
+    metrics: [],
+    studentState: '',
+  });
+
+  it('runs a single flight and a trailing update for notes arriving mid-flight', async () => {
+    const calls: number[] = [];
+    const resolvers: Array<(v: string) => void> = [];
+    const controller = new RollingSummaryController(
+      (notes) =>
+        new Promise<string>((resolve) => {
+          calls.push(notes.length);
+          resolvers.push(resolve);
+        }),
+      vi.fn()
+    );
+
+    controller.notify([doneNote(0)], 's');
+    // 비행 중 두 번 더 도착 — 합쳐서 트레일링 1회만 더 돌아야 한다.
+    controller.notify([doneNote(0), doneNote(1)], 's');
+    controller.notify([doneNote(0), doneNote(1), doneNote(2)], 's');
+    expect(calls).toEqual([1]);
+
+    resolvers[0]('요약1');
+    await new Promise((r) => setTimeout(r, 0));
+    expect(calls).toEqual([1, 3]); // 트레일링은 최신 노트(3개)로 1회
+
+    resolvers[1]('요약2');
+    await new Promise((r) => setTimeout(r, 0));
+    expect(calls).toEqual([1, 3]);
+    expect(controller.isUpdating).toBe(false);
+  });
+
+  it('delivers summaries via onUpdate and keeps the old one on failure', async () => {
+    const updates: string[] = [];
+    let fail = false;
+    const controller = new RollingSummaryController(
+      async () => {
+        if (fail) throw new Error('down');
+        return '요약';
+      },
+      (s) => updates.push(s)
+    );
+
+    controller.notify([doneNote(0)], 's');
+    await new Promise((r) => setTimeout(r, 0));
+    expect(updates).toEqual(['요약']);
+
+    fail = true;
+    controller.notify([doneNote(0), doneNote(1)], 's');
+    await new Promise((r) => setTimeout(r, 0));
+    expect(updates).toEqual(['요약']); // 실패해도 이전 요약 유지(onUpdate 미호출)
+  });
+
+  it('does nothing when no segment has finished', async () => {
+    const summarize = vi.fn(async () => 'x');
+    const controller = new RollingSummaryController(summarize, vi.fn());
+    controller.notify([{ ...doneNote(0), status: 'analyzing' }], 's');
+    await new Promise((r) => setTimeout(r, 0));
+    expect(summarize).not.toHaveBeenCalled();
   });
 });
 
