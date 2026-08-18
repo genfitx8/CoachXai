@@ -14,9 +14,33 @@
  * each other's conversation.
  */
 import type { CoachXChatMessage } from './coachXService';
+import { apiService } from './apiService';
 import { createLogger } from '../utils/logger';
 
 const log = createLogger('chatHistory');
+
+/** Server-backed mode (docs/DATA_ARCHITECTURE.md Phase 1): localStorage stays
+ * the fast synchronous store, and the server keeps the durable copy. */
+const isApiMode = (): boolean => apiService.isAvailable() && !!apiService.getToken();
+
+/** Debounced server mirror — one PUT per burst of messages, not per keystroke. */
+const MIRROR_DEBOUNCE_MS = 2000;
+const mirrorTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
+function mirrorToServer(clientId: string, payload: PersistedChat): void {
+  if (!isApiMode()) return;
+  const pending = mirrorTimers.get(clientId);
+  if (pending) clearTimeout(pending);
+  mirrorTimers.set(
+    clientId,
+    setTimeout(() => {
+      mirrorTimers.delete(clientId);
+      apiService.saveChatThread(clientId, payload).catch((e) => {
+        log.warn('Chat thread server mirror failed (local copy kept):', e);
+      });
+    }, MIRROR_DEBOUNCE_MS)
+  );
+}
 
 const KEY_PREFIX = 'coachx_student_chat_v1_';
 
@@ -151,8 +175,12 @@ export function saveChatHistory(clientId: string, messages: CoachXChatMessage[])
     };
     try {
       window.localStorage.setItem(key, JSON.stringify(payload));
+      mirrorToServer(clientId, payload);
       return true;
     } catch {
+      // Local quota failure — still mirror to the server so the transcript
+      // survives even when the device store is full.
+      mirrorToServer(clientId, payload);
       return false;
     }
   };
@@ -172,4 +200,47 @@ export function saveChatHistory(clientId: string, messages: CoachXChatMessage[])
 export function clearChatHistory(clientId: string): void {
   if (!clientId) return;
   tryRemove(chatHistoryKey(clientId));
+  const pending = mirrorTimers.get(clientId);
+  if (pending) {
+    clearTimeout(pending);
+    mirrorTimers.delete(clientId);
+  }
+  if (isApiMode()) {
+    apiService.deleteChatThread(clientId).catch((e) => {
+      log.warn('Chat thread server delete failed:', e);
+    });
+  }
+}
+
+/**
+ * Pull the server copy of the transcript (new device / reinstalled app).
+ * Returns the restored messages after mirroring them into localStorage, or
+ * null when there is nothing on the server / no server session. Never throws.
+ */
+export async function hydrateChatHistoryFromServer(
+  clientId: string
+): Promise<CoachXChatMessage[] | null> {
+  if (!clientId || !isApiMode()) return null;
+  try {
+    const thread = await apiService.getChatThread(clientId);
+    if (!thread || thread.v !== SCHEMA_VERSION || !Array.isArray(thread.messages)) {
+      return null;
+    }
+    const messages = thread.messages
+      .filter(isChatMessage)
+      .slice(-MAX_PERSISTED_MESSAGES);
+    if (messages.length === 0) return null;
+    if (inBrowser()) {
+      try {
+        window.localStorage.setItem(
+          chatHistoryKey(clientId),
+          JSON.stringify({ v: SCHEMA_VERSION, updatedAt: Date.now(), messages })
+        );
+      } catch { /* cache miss is fine — server copy remains */ }
+    }
+    return messages;
+  } catch (e) {
+    log.warn('Chat thread hydrate failed:', e);
+    return null;
+  }
 }

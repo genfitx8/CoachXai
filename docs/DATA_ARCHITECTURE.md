@@ -671,7 +671,9 @@ R2 스토리지 비용은 영상이 지배한다. 상용화 초기엔 원본 보
    - [x] `homework` 서버 승격: `/api/homework` (배치 업서트, 완료 토글, 삭제), 코치 권한은 담당 학생 로스터로 판정, `homeworkService` 파사드로 컴포넌트 직접 접근 제거, 로그인별 1회 로컬 동기화. `homework.assigned/self_added/completed/deleted` 이벤트 기록. (기존 apiService.saveHomeworkBatch가 no-op 스텁이라 API 모드에서 코치 숙제 배치가 조용히 유실되던 버그도 함께 해소)
    - [ ] `quick_logs` — 현재 저장 호출부가 없는 미완성 기능(UI만 존재). 쓰기 경로가 생길 때 같은 패턴으로 승격
    - [ ] `diagnosis_sessions`
-4. **AI 자산** (`student_context_snapshots`, `ai_feedback_events`, `chat_messages`, 주간 인사이트, 프롬프트 템플릿)
+4. **AI 자산**
+   - [x] `student_contexts`(AI 메모리), `coach_style_exemplars`(파인튜닝 골드 데이터 — 코치 소유/글로벌 스코프, `ai.exemplar_*` 이벤트), `chat_threads`(학생 채팅 — 코치 접근 차단, 디바운스 write-through + 새 기기 하이드레이션), `weekly_insights`, `handover_summaries` 서버 승격. `/api/ai-assets` 라우트 + 각 서비스 API 모드 분기
+   - [ ] `prompt_templates` / 클라이언트 AiCallLog 이력 승격 (신규 호출은 이미 서버 `ai_interactions`에 축적 중이라 후순위)
 5. **알림/골프코스** — 후순위
 
 클라이언트 전환 패턴 (서비스별 동일 적용):

@@ -18,9 +18,14 @@
 import { ClientProfile, Homework, Lesson, StudentContext } from '../types';
 import { firebaseService } from './firebase';
 import { storageService } from './storage';
+import { apiService } from './apiService';
 import { createLogger } from '../utils/logger';
 
 const log = createLogger('studentContext');
+
+/** Server-backed mode (docs/DATA_ARCHITECTURE.md Phase 1): the Postgres
+ * student_contexts row is the durable copy; localStorage stays a cache. */
+const isApiMode = (): boolean => apiService.isAvailable() && !!apiService.getToken();
 
 const inMemoryCache = new Map<string, StudentContext>();
 
@@ -46,7 +51,13 @@ export const getStudentContext = async (clientId: string): Promise<StudentContex
   if (cached) return cached;
 
   let ctx: StudentContext | null = null;
-  if (firebaseService.isInitialized()) {
+  if (isApiMode()) {
+    try {
+      ctx = await apiService.getStudentContext(clientId);
+    } catch (e) {
+      log.error('Server student context read failed, falling back to local', e);
+    }
+  } else if (firebaseService.isInitialized()) {
     try {
       ctx = await firebaseService.getStudentContext(clientId);
     } catch (e) {
@@ -88,7 +99,13 @@ export const saveStudentContext = async (ctx: StudentContext): Promise<void> => 
     }
   }
 
-  if (firebaseService.isInitialized()) {
+  if (isApiMode()) {
+    try {
+      await apiService.saveStudentContext(stamped);
+    } catch (e) {
+      log.error('Server student context write failed (local cache kept)', e);
+    }
+  } else if (firebaseService.isInitialized()) {
     try {
       await firebaseService.saveStudentContext(stamped);
     } catch (e) {
