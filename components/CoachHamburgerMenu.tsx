@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { CoachProfile } from '../types';
 import { useLanguage } from './LanguageContext';
+import { OnDeviceModelManager } from './OnDeviceModelManager';
 
 export type CoachHamburgerAction =
   | 'PROFILE'
@@ -154,6 +155,9 @@ export const CoachHamburgerMenu: React.FC<CoachHamburgerMenuProps> = ({
             <Row icon={User} label={L.profile} onClick={() => handle('PROFILE')} />
             <Row icon={Globe} label={L.language} onClick={() => handle('LANGUAGE')} />
           </Section>
+
+          {/* Renders nothing unless VITE_ON_DEVICE_MODEL_URL is configured. */}
+          <OnDeviceModelManager />
         </nav>
 
         {/* Footer */}

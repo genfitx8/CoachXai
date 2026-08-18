@@ -53,6 +53,7 @@ import {
   setCachedResponse,
 } from './aiResponseCache';
 import { invokeBackendAIStream, StreamNotSupportedError } from './aiStream';
+import { tryAnswerOnDevice } from './onDeviceLlm';
 import { scanForInjection } from './promptSafety';
 import { buildPhysicsReferenceBlock } from './physicsGrounding';
 import { buildFewShotBlock, coachStyleService } from './coachStyleService';
@@ -2259,6 +2260,21 @@ export const generateCoachXChatResponseStream = async (
 ): Promise<string> => {
   const fallback = () =>
     generateHeuristicResponse(userMessage, allLessons, clients, language);
+
+  // ── On-device fast path ────────────────────────────────────────────────
+  // Simple, data-free queries (greetings, golf glossary, short generic golf
+  // questions) can be answered by the local Gemma model when the user has
+  // downloaded it: zero API cost, works offline, instant first token. A
+  // null return means "not eligible / not ready / failed" — continue to the
+  // server exactly as before.
+  const onDeviceReply = await tryAnswerOnDevice({
+    userMessage,
+    language,
+    clientNames: clients.map((c) => c.name),
+    onChunk,
+    coachId,
+  });
+  if (onDeviceReply) return onDeviceReply;
 
   try {
     const memberCount = new Set(
