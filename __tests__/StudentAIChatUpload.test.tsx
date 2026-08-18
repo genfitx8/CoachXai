@@ -96,7 +96,18 @@ function makeFile(name: string, type: string, size: number): File {
   return file;
 }
 
-const renderChat = (onSaveLesson?: (lesson: Lesson) => void | Promise<void>) =>
+/** A student with a designated coach — the only state where an upload
+ *  actually reaches somebody (the server stamps coach_id from clients). */
+const coachProfile = {
+  id: 'c0ffee00-0000-4000-8000-000000000001',
+  name: '박코치',
+  email: 'coach@test',
+} as unknown as Parameters<typeof StudentAIChat>[0]['coachProfile'];
+
+const renderChat = (
+  onSaveLesson?: (lesson: Lesson) => void | Promise<void>,
+  opts: { withCoach?: boolean } = {}
+) =>
   render(
     <StudentAIChat
       clientProfile={clientProfile}
@@ -108,6 +119,7 @@ const renderChat = (onSaveLesson?: (lesson: Lesson) => void | Promise<void>) =>
       hideBackButton
       initialGreeting="안녕하세요, 코치X AI예요."
       onSaveLesson={onSaveLesson}
+      coachProfile={opts.withCoach === false ? undefined : coachProfile}
     />
   );
 
@@ -198,6 +210,43 @@ describe('StudentAIChat file attachment', () => {
     fireEvent.click(screen.getByRole('button', { name: '재시도' }));
     await screen.findByText('저장 위치 선택');
     expect(apiService.uploadChatAttachment).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('StudentAIChat with no designated coach', () => {
+  it('does not promise coach delivery, and hides the booking route', async () => {
+    renderChat(vi.fn(), { withCoach: false });
+    await pickFile(makeFile('swing.mp4', 'video/mp4', 1024));
+    await screen.findByText('저장 위치 선택');
+
+    // The record still saves — it just reaches nobody yet, and says so.
+    expect(screen.getByText('기록 탭에 저장돼요 (공유하려면 지정 코치가 필요해요)')).toBeTruthy();
+    expect(screen.queryByText('기록 탭에 저장되고, 코치님께 전달돼요')).toBeNull();
+    // Booking would dead-end without a coach to book with.
+    expect(screen.queryByText('저장하고 레슨 예약')).toBeNull();
+  });
+
+  it('tells the AI the record was saved but not shared', async () => {
+    renderChat(vi.fn(), { withCoach: false });
+    await pickFile(makeFile('swing.mp4', 'video/mp4', 1024));
+    await screen.findByText('저장 위치 선택');
+    fireEvent.click(screen.getByText('기록으로 저장'));
+
+    await waitFor(() => expect(generateStudentChatResponse).toHaveBeenCalled());
+    const prompt = vi.mocked(generateStudentChatResponse).mock.calls[0][0];
+    expect(prompt).toContain('지정 코치가 없어서');
+    expect(prompt).not.toContain('코치님께 공유했어요');
+  });
+
+  it('still promises delivery when a coach is linked', async () => {
+    renderChat(vi.fn());
+    await pickFile(makeFile('swing.mp4', 'video/mp4', 1024));
+    await screen.findByText('저장 위치 선택');
+    fireEvent.click(screen.getByText('기록으로 저장'));
+
+    await waitFor(() => expect(generateStudentChatResponse).toHaveBeenCalled());
+    expect(vi.mocked(generateStudentChatResponse).mock.calls[0][0])
+      .toContain('코치님께 공유했어요');
   });
 });
 
