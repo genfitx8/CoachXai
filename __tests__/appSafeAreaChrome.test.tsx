@@ -13,7 +13,7 @@
  *     adds scrollable space after the column. The column has to be shorter
  *     than the viewport instead.
  *  2. That same `pb-20` (80px) was the clearance for a nav that is 64px plus
- *     the device inset, so the tail of the 예약 / 성장 tabs sat under the bar
+ *     the device inset, so the tail of the 예약 / 기록 tabs sat under the bar
  *     on every phone with a gesture bar.
  *  3. `pb-safe pb-4` reads like "gutter, and more on a notched phone" but is
  *     the opposite: `.pb-safe` is declared outside every cascade layer and
@@ -194,7 +194,7 @@ describe('ClientApp chrome', () => {
   it('gives the scrolling tabs the full nav clearance', () => {
     const { container } = renderClientApp();
 
-    fireEvent.click(screen.getByRole('button', { name: /성장/ }));
+    fireEvent.click(screen.getByRole('button', { name: '기록' }));
 
     expect(container.querySelector('.student-nav-clearance')).not.toBeNull();
   });

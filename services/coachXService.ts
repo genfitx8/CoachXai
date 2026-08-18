@@ -91,10 +91,32 @@ export interface MemberGrowthReport {
   weeklyActivity: { weekLabel: string; count: number }[];
 }
 
+/** Where a chat attachment was filed once the student picked a destination. */
+export type ChatAttachmentDestination = 'practice' | 'reservation' | 'none';
+
+/**
+ * A file the student sent through the chat composer.
+ *
+ * `id` is the lesson UUID minted for the upload, so the R2 object lives under
+ * the `lessons/{id}/…` key namespace the presign guard already allows and the
+ * same id becomes the practice-record row when the student files it there.
+ */
+export interface ChatAttachment {
+  id: string;
+  url: string;
+  type: 'video' | 'image' | 'audio';
+  name: string;
+  size: number;
+  mimeType: string;
+  destination?: ChatAttachmentDestination;
+}
+
 export interface CoachXChatMessage {
   role: 'user' | 'assistant';
   content: string;
   timestamp: number;
+  /** Files sent with this turn. Absent on plain text messages. */
+  attachments?: ChatAttachment[];
 }
 
 /** One entry in the topic-frequency breakdown for the coach growth profile. */

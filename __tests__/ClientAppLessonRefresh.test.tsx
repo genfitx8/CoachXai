@@ -55,8 +55,9 @@ describe('ClientApp growth-tab refresh', () => {
       </LanguageProvider>
     );
 
-    // Growth tab lives in the bottom nav labelled "성장" (ko default).
-    fireEvent.click(screen.getByRole('button', { name: '성장' }));
+    // Growth tab lives in the bottom nav, labelled "기록" (ko default) since
+    // the three-tab redesign folded records into it.
+    fireEvent.click(screen.getByRole('button', { name: '기록' }));
 
     expect(onRefreshLessons).toHaveBeenCalledTimes(1);
   });
@@ -74,7 +75,7 @@ describe('ClientApp growth-tab refresh', () => {
     );
 
     expect(() =>
-      fireEvent.click(screen.getByRole('button', { name: '성장' }))
+      fireEvent.click(screen.getByRole('button', { name: '기록' }))
     ).not.toThrow();
   });
 });

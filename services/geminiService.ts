@@ -2865,6 +2865,17 @@ const buildCoachContext = (coachProfile: CoachProfile | undefined, designatedCoa
   return lines.join('\n');
 };
 
+/**
+ * Ceiling on what the student chat inlines into the AI request.
+ *
+ * Attachments ride to the model as base64 in the JSON body, which inflates
+ * them by ~33% and has to be held in memory on both ends. Uploads are capped
+ * far higher server-side (500MB for video), so a long range clip would blow
+ * the request up; past this size the chat still answers, just from the text
+ * and the student's records rather than the file itself.
+ */
+export const STUDENT_CHAT_MEDIA_LIMIT_BYTES = 20 * 1024 * 1024;
+
 export const generateStudentChatResponse = async (
   userMessage: string,
   myLessons: Lesson[],
@@ -2873,7 +2884,12 @@ export const generateStudentChatResponse = async (
   language: CoachXLanguage = 'ko',
   coachProfile?: CoachProfile,
   quickLogs: QuickLogEntry[] = [],
-  conversationHistory: { role: 'user' | 'assistant'; content: string }[] = []
+  conversationHistory: { role: 'user' | 'assistant'; content: string }[] = [],
+  /**
+   * Files the student attached to this turn. Anything over
+   * `STUDENT_CHAT_MEDIA_LIMIT_BYTES` is dropped before encoding — see above.
+   */
+  attachments: { blob: Blob; mimeType: string }[] = []
 ): Promise<string> => {
   try {
     const golferContext = buildRichGolferContext(myLessons, quickLogs, homeworkList, clientProfile);
@@ -2909,6 +2925,21 @@ export const generateStudentChatResponse = async (
 
 언어 지시: ${LANG_INSTRUCTION[language]}`;
 
+    // Encode the attachments the model can actually take. Oversized files are
+    // dropped rather than failing the turn, and the prompt says so explicitly
+    // so the model doesn't claim to have watched a video it never received.
+    const sendable = attachments.filter(a => a.blob.size <= STUDENT_CHAT_MEDIA_LIMIT_BYTES);
+    const mediaParts = await Promise.all(
+      sendable.map(a => fileToGenerativePart(a.blob, a.mimeType))
+    );
+    const skippedCount = attachments.length - sendable.length;
+    const attachmentBlock =
+      mediaParts.length > 0
+        ? `\n\n=== 첨부 파일 ===\n학생이 이 질문과 함께 ${mediaParts.length}개의 파일(영상/사진)을 보냈습니다. 첨부된 파일을 직접 보고 구체적으로 분석해 주세요.`
+        : skippedCount > 0
+        ? `\n\n=== 첨부 파일 ===\n학생이 파일을 보냈지만 용량이 커서 직접 볼 수 없습니다. 파일을 본 것처럼 말하지 말고, 기록 데이터를 근거로 답하거나 더 짧은 영상을 요청해 주세요.`
+        : '';
+
     const prompt = `--- 제공 데이터 (이 데이터만 기반으로 답변) ---
 === 학생 프로필 ===
 이름: ${clientProfile.name}
@@ -2924,13 +2955,14 @@ ${golferContext || '기록 없음 (기본기 위주로 조언해 주세요)'}
 ${conversationBlock}--- 제공 데이터 끝 ---
 
 === 학생 질문 ===
-"${userMessage}"`;
+"${userMessage}"${attachmentBlock}`;
 
     const result = await invokeBackendAI<unknown>('student_chat', {
       prompt,
       systemInstruction,
       language,
       userMessage,
+      ...(mediaParts.length > 0 ? { mediaParts } : {}),
     });
     const text = getResponseText(result) ?? '';
     if (!text.trim()) throw new Error('Empty response');
