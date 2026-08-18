@@ -1,8 +1,16 @@
 import type {
   Lesson, ClientProfile, CoachProfile, LessonPackage, TrainingProgram, Homework,
   LessonReservation, PointTransaction, Branch, Bay, BayPriceRule, BayReservation,
-  BranchAdminAccount,
+  BranchAdminAccount, StudentContext, CoachStyleExemplar, WeeklyInsight, HandoverSummary,
 } from '../types';
+
+/** Chat thread document as stored server-side; messages stay untyped here so
+ * apiService doesn't import chat types (chatHistoryService validates them). */
+export interface ChatThreadDoc {
+  v: number;
+  updatedAt: number;
+  messages: unknown[];
+}
 import { resolveApiBaseUrl } from './apiBase';
 
 const BASE_URL = resolveApiBaseUrl();
@@ -650,6 +658,73 @@ export const apiService = {
     fields: Partial<BayReservation>
   ): Promise<void> {
     await req('PATCH', `/api/bay-reservations/${encodeURIComponent(reservationId)}`, fields);
+  },
+
+  // ── AI assets (Phase 1 server promotion) ──────────────────────────────────
+
+  async getStudentContext(clientId: string): Promise<StudentContext | null> {
+    const data = await req<{ context: StudentContext | null }>(
+      'GET', `/api/ai-assets/student-context/${encodeURIComponent(clientId)}`
+    );
+    return data.context ?? null;
+  },
+
+  async saveStudentContext(ctx: StudentContext): Promise<void> {
+    await req('PUT', `/api/ai-assets/student-context/${encodeURIComponent(ctx.clientId)}`, ctx);
+  },
+
+  /** Global exemplars + the calling coach's own (admin token: all). */
+  async getCoachStyleExemplars(): Promise<CoachStyleExemplar[]> {
+    const data = await req<{ exemplars: CoachStyleExemplar[] }>(
+      'GET', '/api/ai-assets/exemplars'
+    );
+    return data.exemplars ?? [];
+  },
+
+  async saveCoachStyleExemplar(exemplar: CoachStyleExemplar): Promise<void> {
+    await req('PUT', `/api/ai-assets/exemplars/${encodeURIComponent(exemplar.id)}`, exemplar);
+  },
+
+  async deleteCoachStyleExemplar(exemplarId: string): Promise<void> {
+    await req('DELETE', `/api/ai-assets/exemplars/${encodeURIComponent(exemplarId)}`);
+  },
+
+  async getChatThread(clientId: string): Promise<ChatThreadDoc | null> {
+    const data = await req<{ thread: ChatThreadDoc | null }>(
+      'GET', `/api/ai-assets/chat/${encodeURIComponent(clientId)}`
+    );
+    return data.thread ?? null;
+  },
+
+  async saveChatThread(clientId: string, thread: ChatThreadDoc): Promise<void> {
+    await req('PUT', `/api/ai-assets/chat/${encodeURIComponent(clientId)}`, thread);
+  },
+
+  async deleteChatThread(clientId: string): Promise<void> {
+    await req('DELETE', `/api/ai-assets/chat/${encodeURIComponent(clientId)}`);
+  },
+
+  async getWeeklyInsights(clientId: string): Promise<WeeklyInsight[]> {
+    const data = await req<{ insights: WeeklyInsight[] }>(
+      'GET', `/api/ai-assets/weekly-insights?clientId=${encodeURIComponent(clientId)}`
+    );
+    return data.insights ?? [];
+  },
+
+  async saveWeeklyInsight(insight: WeeklyInsight): Promise<void> {
+    await req('PUT', `/api/ai-assets/weekly-insights/${encodeURIComponent(insight.id)}`, insight);
+  },
+
+  /** Summaries visible to the current token (coach: involved, client: own). */
+  async getHandoverSummaries(): Promise<HandoverSummary[]> {
+    const data = await req<{ summaries: HandoverSummary[] }>(
+      'GET', '/api/ai-assets/handover-summaries'
+    );
+    return data.summaries ?? [];
+  },
+
+  async saveHandoverSummary(summary: HandoverSummary): Promise<void> {
+    await req('PUT', `/api/ai-assets/handover-summaries/${encodeURIComponent(summary.id)}`, summary);
   },
 
   // ── Point ledger (Phase 1 server promotion) ───────────────────────────────

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { WeeklyInsight, QuickLogEntry, Lesson, ClientProfile, CoachStyleExemplar } from '../types';
 import { Sparkles, ChevronLeft, RefreshCw, TrendingUp, Target, List, Info } from 'lucide-react';
 import { generateWeeklyInsight } from '../services/geminiService';
-import { firebaseService } from '../services/firebase';
+import { insightService } from '../services/insightService';
 import { storageService } from '../services/storage';
 import { EvidenceDetailModal } from './EvidenceDetailModal';
 import { coachStyleService, tierForSource } from '../services/coachStyleService';
@@ -129,15 +129,14 @@ export const WeeklyInsightCard: React.FC<WeeklyInsightCardProps> = ({
     await coachStyleService.save(exemplar, isFirebaseMode);
   };
 
-  // Load from Firebase on mount
+  // Load from the active backend on mount (server API → Firebase → local).
   React.useEffect(() => {
-    if (isFirebaseMode && !loadedFromFirebase) {
-      firebaseService.getWeeklyInsightsByClient(clientId).then((data) => {
-        setInsights(data);
-        setLoadedFromFirebase(true);
-      });
-    }
-  }, [clientId, isFirebaseMode, loadedFromFirebase]);
+    if (loadedFromFirebase) return;
+    insightService.getWeeklyInsightsByClient(clientId).then((data) => {
+      if (data.length > 0) setInsights(data);
+      setLoadedFromFirebase(true);
+    });
+  }, [clientId, loadedFromFirebase]);
 
   const latestInsight = insights[0] ?? null;
 
@@ -172,11 +171,7 @@ export const WeeklyInsightCard: React.FC<WeeklyInsightCardProps> = ({
         generatedAt: now,
       };
 
-      if (isFirebaseMode) {
-        await firebaseService.saveWeeklyInsight(insight);
-      } else {
-        storageService.saveWeeklyInsight(insight);
-      }
+      await insightService.saveWeeklyInsight(insight);
       setInsights((prev) => [insight, ...prev]);
     } catch (err) {
       console.error('Failed to generate weekly insight:', err);

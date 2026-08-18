@@ -21,6 +21,7 @@ import type {
 } from '../types';
 import type { MemberGrowthReport } from '../services/coachXService';
 import { storageService } from '../services/storage';
+import { insightService } from '../services/insightService';
 import { useLanguage } from './LanguageContext';
 
 /**
@@ -127,15 +128,25 @@ export const CoachStudentDetail: React.FC<CoachStudentDetailProps> = ({
       return;
     }
     const compositeId = `${student.name}_${student.phone ?? ''}`;
-    const match = storageService
+    let cancelled = false;
+    insightService
       .getHandoverSummariesForCoach(viewerCoachId)
-      .find((s) => s.clientId === compositeId && !s.readAt);
-    setHandover(match ?? null);
-    setHandoverDismissed(false);
+      .then((summaries) => {
+        if (cancelled) return;
+        const match = summaries.find((s) => s.clientId === compositeId && !s.readAt);
+        setHandover(match ?? null);
+        setHandoverDismissed(false);
+      })
+      .catch(() => {
+        if (!cancelled) setHandover(null);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [viewerCoachId, student.name, student.phone]);
 
   const dismissHandover = () => {
-    if (handover) storageService.markHandoverSummaryRead(handover.id);
+    if (handover) void insightService.markHandoverSummaryRead(handover);
     setHandoverDismissed(true);
   };
 

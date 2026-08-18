@@ -15,9 +15,15 @@
 import { CoachStyleExemplar, CoachStyleExemplarSource, PromptTarget } from '../types';
 import { storageService } from './storage';
 import { firebaseService } from './firebase';
+import { apiService } from './apiService';
 import { createLogger } from '../utils/logger';
 
 const log = createLogger('coachStyle');
+
+/** Server-backed mode (docs/DATA_ARCHITECTURE.md §6.1): exemplars are
+ * fine-tuning gold data, so the server pool takes priority over the
+ * caller-provided legacy backend flag. */
+const isApiMode = (): boolean => apiService.isAvailable() && !!apiService.getToken();
 
 /**
  * Compute the quality tier for an exemplar based on where the signal came from.
@@ -71,6 +77,10 @@ export const coachStyleService = {
     exemplar: CoachStyleExemplar,
     isFirebaseMode: boolean
   ): Promise<void> => {
+    if (isApiMode()) {
+      await apiService.saveCoachStyleExemplar(exemplar);
+      return;
+    }
     if (isFirebaseMode) {
       await firebaseService.saveCoachStyleExemplar(exemplar);
     } else {
@@ -85,6 +95,10 @@ export const coachStyleService = {
     exemplarId: string,
     isFirebaseMode: boolean
   ): Promise<void> => {
+    if (isApiMode()) {
+      await apiService.deleteCoachStyleExemplar(exemplarId);
+      return;
+    }
     if (isFirebaseMode) {
       await firebaseService.deleteCoachStyleExemplar(exemplarId);
     } else {
@@ -106,9 +120,11 @@ export const coachStyleService = {
   ): Promise<CoachStyleExemplar[]> => {
     const { limit = 5, includeGlobalFallback = true } = options;
     try {
-      const all = isFirebaseMode
-        ? await firebaseService.getCoachStyleExemplars()
-        : storageService.getCoachStyleExemplars();
+      const all = isApiMode()
+        ? await apiService.getCoachStyleExemplars()
+        : isFirebaseMode
+          ? await firebaseService.getCoachStyleExemplars()
+          : storageService.getCoachStyleExemplars();
 
       const targetMatches = all.filter((x) => x.target === target);
 
@@ -138,6 +154,9 @@ export const coachStyleService = {
    * List all exemplars — used by admin UIs to inspect the pool.
    */
   getAll: async (isFirebaseMode: boolean): Promise<CoachStyleExemplar[]> => {
+    if (isApiMode()) {
+      return apiService.getCoachStyleExemplars();
+    }
     if (isFirebaseMode) {
       return firebaseService.getCoachStyleExemplars();
     }
