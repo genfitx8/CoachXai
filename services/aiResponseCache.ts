@@ -41,6 +41,56 @@ export const CACHEABLE_FEATURES: ReadonlySet<string> = new Set([
   'generate_interview_question',
 ]);
 
+/**
+ * Per-feature "did the model actually read anything?" checks. OCR features
+ * sometimes come back with every field null (the cheap tier satisfies the
+ * response schema without reading the screen). Caching that response would
+ * pin the failure to the image for the whole TTL — every retry of the same
+ * photo would be served the empty read from cache. So empty extractions are
+ * rejected at write time AND evicted at read time (covers entries written
+ * before this guard existed).
+ *
+ * Features without a validator are always cacheable.
+ */
+const toFiniteNumber = (v: unknown): number | null => {
+  const n = typeof v === 'string' ? parseFloat(v) : typeof v === 'number' ? v : NaN;
+  return Number.isFinite(n) ? n : null;
+};
+
+const RESPONSE_VALIDATORS: Record<string, (responseText: string) => boolean> = {
+  // Usable iff the scorecard score OR at least one metric was read.
+  extract_golf_data: (text) => {
+    const parsed = JSON.parse(text) as Record<string, unknown>;
+    if (toFiniteNumber(parsed.score) !== null) return true;
+    const metrics = parsed.metrics;
+    if (!metrics || typeof metrics !== 'object' || Array.isArray(metrics)) return false;
+    return Object.values(metrics).some((v) => toFiniteNumber(v) !== null);
+  },
+  // Usable iff at least one field carries a positive reading (mirrors
+  // parseTrackmanScreenResponse, which drops non-positive values).
+  analyze_trackman_screen: (text) => {
+    const parsed = JSON.parse(text) as Record<string, unknown>;
+    return Object.values(parsed).some((v) => {
+      const n = toFiniteNumber(v);
+      return n !== null && n > 0;
+    });
+  },
+};
+
+/**
+ * Whether a response is worth caching for a feature. Unparseable text for a
+ * validated feature is treated as not cacheable.
+ */
+export const isCacheableResponse = (feature: string, responseText: string): boolean => {
+  const validate = RESPONSE_VALIDATORS[feature];
+  if (!validate) return true;
+  try {
+    return validate(responseText);
+  } catch {
+    return false;
+  }
+};
+
 interface CacheEntry {
   /** The response text stored verbatim. */
   response: string;
@@ -108,6 +158,13 @@ export const getCachedResponse = (
     writeBlob(blob);
     return null;
   }
+  if (!isCacheableResponse(feature, entry.response)) {
+    // Poisoned entry (empty extraction cached before the write guard) —
+    // evict so the caller re-runs the real request.
+    delete blob.entries[key];
+    writeBlob(blob);
+    return null;
+  }
   entry.lastAccessAt = now;
   blob.entries[key] = entry;
   writeBlob(blob);
@@ -126,6 +183,7 @@ export const setCachedResponse = (
 ): void => {
   if (!CACHEABLE_FEATURES.has(feature)) return;
   if (!response) return;
+  if (!isCacheableResponse(feature, response)) return;
   const now = opts.now ?? Date.now();
   const ttlMs = opts.ttlMs ?? DEFAULT_TTL_MS;
   const blob = readBlob();

@@ -11,8 +11,12 @@ import {
   setCachedResponse,
 } from '../services/aiResponseCache';
 
-// Use one feature from the allowlist and one that isn't in it.
-const CACHEABLE = 'extract_golf_data';
+// Use one feature from the allowlist and one that isn't in it. These tests
+// exercise the generic LRU/TTL mechanics with free-text responses, so pick
+// an allowlisted feature WITHOUT a response validator — OCR features
+// (extract_golf_data, analyze_trackman_screen) reject non-JSON/empty
+// responses by design (see extractGolfDataEscalation.test.ts).
+const CACHEABLE = 'generate_system_prompt';
 const NON_CACHEABLE = 'coachx_chat';
 
 describe('aiResponseCache', () => {

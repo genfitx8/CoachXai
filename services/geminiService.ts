@@ -472,6 +472,15 @@ export interface AnalysisInput {
   mimeType: string;
 }
 
+/**
+ * Second-pass model for OCR features. The router serves them on
+ * gemini-2.5-flash-lite (cheap+fast), but that tier sometimes satisfies the
+ * response schema with every field null instead of actually reading the
+ * screen. When a first pass comes back empty we retry once on the proven
+ * baseline model — the server honors a per-request `model` override.
+ */
+const OCR_ESCALATION_MODEL = 'gemini-2.5-flash';
+
 export interface BodyPhotoAnalysisResult {
   bodyType:
     | '이상체형'
@@ -745,42 +754,61 @@ export const extractGolfData = async (
       \`\`\`
     `;
 
-    const result = await invokeBackendAI<unknown>('extract_golf_data', {
-      prompt,
-      mediaParts: [mediaPart],
-      responseMimeType: 'application/json',
-      responseSchema: extractGolfDataSchema,
-    });
-    const text = getJsonTextFromResult(result);
-    if (!text) throw new Error('분석 실패');
+    const runExtraction = async (model?: string) => {
+      const result = await invokeBackendAI<unknown>('extract_golf_data', {
+        prompt,
+        mediaParts: [mediaPart],
+        responseMimeType: 'application/json',
+        responseSchema: extractGolfDataSchema,
+        ...(model ? { model } : {}),
+      });
+      const text = getJsonTextFromResult(result);
+      if (!text) throw new Error('분석 실패');
 
-    const parsedResult = JSON.parse(text);
+      const parsedResult = JSON.parse(text);
 
-    // flash-lite (the model this feature routes to) often satisfies the
-    // response schema by returning every declared metric as `null` when it
-    // couldn't read one, instead of omitting the field. Passing those
-    // nulls straight through pollutes `Lesson.golfData` (typed as
-    // `number | undefined`) and makes the visualiser render "null m".
-    // Strip null/non-finite values here and collapse an empty result to
-    // `null` so callers can treat "no metrics" uniformly.
-    const rawMetrics = parsedResult.metrics;
-    let cleanedMetrics: GolfData | null = null;
-    if (rawMetrics && typeof rawMetrics === 'object' && !Array.isArray(rawMetrics)) {
-      const entries = Object.entries(rawMetrics as Record<string, unknown>).filter(
-        ([, v]) => typeof v === 'number' && Number.isFinite(v)
-      );
-      cleanedMetrics = entries.length > 0 ? (Object.fromEntries(entries) as GolfData) : null;
-    }
+      // flash-lite (the model this feature routes to) often satisfies the
+      // response schema by returning every declared metric as `null` when it
+      // couldn't read one, instead of omitting the field. Passing those
+      // nulls straight through pollutes `Lesson.golfData` (typed as
+      // `number | undefined`) and makes the visualiser render "null m".
+      // Strip null/non-finite values here and collapse an empty result to
+      // `null` so callers can treat "no metrics" uniformly.
+      const rawMetrics = parsedResult.metrics;
+      let cleanedMetrics: GolfData | null = null;
+      if (rawMetrics && typeof rawMetrics === 'object' && !Array.isArray(rawMetrics)) {
+        const entries = Object.entries(rawMetrics as Record<string, unknown>).filter(
+          ([, v]) => typeof v === 'number' && Number.isFinite(v)
+        );
+        cleanedMetrics = entries.length > 0 ? (Object.fromEntries(entries) as GolfData) : null;
+      }
 
-    const rawScore = parsedResult.score;
-    const cleanedScore =
-      typeof rawScore === 'number' && Number.isFinite(rawScore) ? rawScore : undefined;
+      const rawScore = parsedResult.score;
+      const cleanedScore =
+        typeof rawScore === 'number' && Number.isFinite(rawScore) ? rawScore : undefined;
 
-    return {
-      textAnalysis: parsedResult.comment,
-      golfData: cleanedMetrics,
-      score: cleanedScore,
+      return {
+        textAnalysis: parsedResult.comment,
+        golfData: cleanedMetrics,
+        score: cleanedScore,
+      };
     };
+
+    // First pass on the router's model (flash-lite). If it read nothing —
+    // no metrics AND no score — or errored, escalate once to the baseline
+    // model before telling the user the photo has no data. Empty responses
+    // are never cached (aiResponseCache validator), so the retry is a real
+    // network call, and a successful retry caches the good read.
+    let extraction: Awaited<ReturnType<typeof runExtraction>> | null = null;
+    try {
+      extraction = await runExtraction();
+    } catch (firstPassError) {
+      log.warn('extract_golf_data first pass failed, escalating:', firstPassError);
+    }
+    if (!extraction || (extraction.golfData === null && extraction.score === undefined)) {
+      extraction = await runExtraction(OCR_ESCALATION_MODEL);
+    }
+    return extraction;
   } catch (error) {
     log.error('Golf Data Extraction Error:', error);
     return {
@@ -2730,15 +2758,31 @@ export const analyzeTrackmanScreen = async (
       - 코드블록 없이 순수 JSON만 반환해라.
     `;
 
-    const result = await invokeBackendAI<unknown>('analyze_trackman_screen', {
-      prompt,
-      mediaParts: [mediaPart],
-      responseMimeType: 'application/json',
-      responseSchema: trackmanScreenSchema,
-    });
-    const text = getJsonTextFromResult(result);
-    if (!text) return {};
-    return parseTrackmanScreenResponse(text);
+    const runAnalysis = async (model?: string): Promise<TrackmanScreenAnalysisResult> => {
+      const result = await invokeBackendAI<unknown>('analyze_trackman_screen', {
+        prompt,
+        mediaParts: [mediaPart],
+        responseMimeType: 'application/json',
+        responseSchema: trackmanScreenSchema,
+        ...(model ? { model } : {}),
+      });
+      const text = getJsonTextFromResult(result);
+      if (!text) return {};
+      return parseTrackmanScreenResponse(text);
+    };
+
+    // Same escalation ladder as extractGolfData: an all-empty read from
+    // flash-lite gets one retry on the baseline model.
+    let parsed: TrackmanScreenAnalysisResult = {};
+    try {
+      parsed = await runAnalysis();
+    } catch (firstPassError) {
+      log.warn('analyze_trackman_screen first pass failed, escalating:', firstPassError);
+    }
+    if (Object.values(parsed).every((v) => v === undefined)) {
+      parsed = await runAnalysis(OCR_ESCALATION_MODEL);
+    }
+    return parsed;
   } catch (error) {
     log.error('AI trackman screen analysis failed:', error);
     return {};

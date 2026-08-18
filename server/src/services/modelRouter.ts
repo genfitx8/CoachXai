@@ -42,6 +42,14 @@ const FALLBACK_DEFAULT_MODEL = 'gemini-2.5-flash';
  *   established there; changing the router is a quality-affecting
  *   change and needs eval:real to sign off.
  *
+ *   Update 2026-08-18 — flash-lite proved unreliable on launch-monitor
+ *   screenshots (it can satisfy the response schema with all-null fields
+ *   without reading the screen). `extract_golf_data` and
+ *   `analyze_trackman_screen` now escalate client-side to the baseline
+ *   model when the flash-lite pass reads nothing (see
+ *   services/geminiService.ts, OCR_ESCALATION_MODEL) — the routes here
+ *   still serve the cheap tier for the happy path.
+ *
  *   shot_analysis was tested against `gemini-3.5-flash` (newer generation)
  *   and `gemini-2.5-pro` (deprecated to new users, 404s). 3.5-flash was
  *   slower AND produced shorter output with no observable quality lift
