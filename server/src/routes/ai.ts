@@ -55,8 +55,15 @@ const DEFAULT_TEMPERATURE_BY_FEATURE: Record<string, number> = {
   hole_voice_summary: 0.2,
   motion_capture_analysis: 0.3,
 
+  // 레슨 오디오 세그먼트 전사+노트 추출 — 들리는 내용에 충실해야 하므로
+  // OCR 수준으로 낮게 유지한다.
+  lesson_audio_segment: 0.2,
+
   // Analytical / summarization — mostly deterministic with light phrasing.
   lesson_summary: 0.4,
+  // 세그먼트 노트 → 최종 리포트 병합(map-reduce reduce 단계). 톤은
+  // lesson_summary 와 동일하게 맞춘다.
+  lesson_summary_merge: 0.4,
   compare_swings: 0.4,
   weekly_insight: 0.5,
   coachx_insights: 0.6,
