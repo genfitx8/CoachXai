@@ -400,12 +400,16 @@ export const apiService = {
   },
 
   async saveClients(clients: ClientProfile[]): Promise<void> {
+    // Update existing rows only. A client without a server id is a
+    // local-only artifact (stale device cache, legacy demo data) — POSTing
+    // it used to create a brand-new member owned by whoever was signed in,
+    // which is how members nobody registered appeared in a coach's list.
+    // Member accounts are created solely by the student signing up
+    // (POST /api/auth/signup/client), never from a coach-side save.
     await Promise.all(
-      clients.map(c =>
-        c.id
-          ? req('PUT', `/api/clients/${c.id}`, c)
-          : req('POST', '/api/clients', c)
-      )
+      clients
+        .filter(c => c.id)
+        .map(c => req('PUT', `/api/clients/${c.id}`, c))
     );
   },
 

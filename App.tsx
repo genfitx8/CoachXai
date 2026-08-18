@@ -490,6 +490,12 @@ const AppContent: React.FC = () => {
   ) => {
     let fetchedClients: ClientProfile[] = [];
     let fetchedCoaches: CoachProfile[] = [];
+    // True only when the member list actually came from GET /api/clients
+    // (server-scoped to this account). The localStorage fallback below can
+    // contain rows cached by other roles/accounts that used this device, so
+    // it must never be written back to the server as if it were this
+    // coach's data.
+    let clientsFromServer = false;
 
     if (useFirebase) {
       try {
@@ -500,6 +506,7 @@ const AppContent: React.FC = () => {
         ]);
         setLessons(fetchedLessons);
         fetchedClients = clients;
+        clientsFromServer = true;
         fetchedCoaches = coachesData;
         setCoaches(fetchedCoaches);
 
@@ -566,6 +573,20 @@ const AppContent: React.FC = () => {
     const localCoachProfile = authService.getCoachProfile();
     setCoachProfile(localCoachProfile);
 
+    // 내 회원 = 학생이 나를 담당 코치로 지정한 회원, 그게 전부다. When the
+    // member list didn't come from the server (offline mode, or the API
+    // fetch failed and we fell back to this device's cache), the cache may
+    // hold members that belong to other accounts that used this browser —
+    // an admin session's full member table, demo-era rows, a previous
+    // coach's data. Keep only rows already linked to this coach so none of
+    // them ever surface as 내 회원.
+    if (role === 'COACH' && !clientsFromServer) {
+      const ownCoachId = localCoachProfile?.id;
+      fetchedClients = ownCoachId
+        ? fetchedClients.filter((client) => client.coachId === ownCoachId)
+        : [];
+    }
+
     // Sync designatedCoach for all clients based on coachId
     // Ensure data consistency: coachId와 designatedCoach는 항상 함께 있어야 함
     const syncedClients = fetchedClients.map((client) => {
@@ -610,20 +631,30 @@ const AppContent: React.FC = () => {
     // normalized copy back would fire one PUT per member on every load —
     // and the admin token owns none of those rows, so every one of them
     // would fail anyway. Normalize in memory only.
-    if (needsUpdate && useFirebase && role !== 'ADMIN') {
-      // Firebase에 수정된 데이터 저장
-      try {
-        await apiService.saveClients(syncedClients);
-        console.log('✅ Client data consistency fixed and saved to Firebase');
-      } catch (e) {
-        console.error('Failed to save fixed client data:', e);
+    //
+    // The same restraint applies to fallback data: only a list that came
+    // from the server this load (clientsFromServer) may be written back to
+    // the server. Syncing the device cache upward is what used to push other
+    // accounts' stale rows into this coach's server-side member list. And a
+    // coach-scoped list (the fallback filter above) must not overwrite the
+    // shared local cache either — it would drop every cached row that isn't
+    // this coach's, e.g. a student profile on the same browser.
+    if (needsUpdate && role !== 'ADMIN') {
+      if (useFirebase && clientsFromServer) {
+        // 서버에서 온 목록만 서버로 되쓰기
+        try {
+          await apiService.saveClients(syncedClients);
+          console.log('✅ Client data consistency fixed and saved to Firebase');
+        } catch (e) {
+          console.error('Failed to save fixed client data:', e);
+        }
+      } else if (!useFirebase && role !== 'COACH') {
+        // 로컬 스토리지에 수정된 데이터 저장
+        storageService.saveClients(syncedClients);
+        console.log(
+          '✅ Client data consistency fixed and saved to local storage'
+        );
       }
-    } else if (needsUpdate && role !== 'ADMIN') {
-      // 로컬 스토리지에 수정된 데이터 저장
-      storageService.saveClients(syncedClients);
-      console.log(
-        '✅ Client data consistency fixed and saved to local storage'
-      );
     }
 
     setClients(syncedClients);
