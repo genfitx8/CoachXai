@@ -121,7 +121,18 @@ describe('NewLessonForm – manual shot data entry', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: '샷 데이터' }));
 
-    // Upload a shot-data photo
+    // Only the two entry points are offered: camera capture and file upload
+    expect(
+      await screen.findByRole('button', { name: '사진 촬영' })
+    ).toBeTruthy();
+    expect(
+      screen.getByRole('button', { name: '파일 업로드' })
+    ).toBeTruthy();
+    expect(
+      screen.getByTestId('shot-data-camera-input').getAttribute('capture')
+    ).toBe('environment');
+
+    // Upload a shot-data photo — AI extraction runs automatically, no manual trigger
     const photoFile = new File(['shot'], 'launch-monitor.png', {
       type: 'image/png',
     });
@@ -130,10 +141,10 @@ describe('NewLessonForm – manual shot data entry', () => {
     ) as HTMLInputElement;
     fireEvent.change(photoInput, { target: { files: [photoFile] } });
 
-    // Auto-fill from the uploaded photo
-    fireEvent.click(
-      await screen.findByRole('button', { name: /AI로 자동 채우기/i })
-    );
+    // The manual auto-fill button no longer exists
+    expect(
+      screen.queryByRole('button', { name: /AI로 자동 채우기/i })
+    ).toBeNull();
 
     await waitFor(() => {
       expect(extractGolfData).toHaveBeenCalledTimes(1);

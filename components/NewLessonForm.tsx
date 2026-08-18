@@ -336,6 +336,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
   const [isAutoFilling, setIsAutoFilling] = useState(false);
   const [autoFillError, setAutoFillError] = useState<string | null>(null);
   const shotDataPhotoInputRef = useRef<HTMLInputElement>(null);
+  const shotDataCameraInputRef = useRef<HTMLInputElement>(null);
 
   // Scorecard Specific Mode State
   const [scoreMode, setScoreMode] = useState<'SIMPLE' | 'DETAILED'>('SIMPLE');
@@ -1008,6 +1009,9 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
     setAutoFillError(null);
     // Allow re-selecting the same file later
     e.target.value = '';
+
+    // Extract shot data from the photo right away — no manual trigger.
+    void runAutoFillFromPhoto(file);
   };
 
   const removeShotDataPhoto = () => {
@@ -1019,16 +1023,15 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
     setAutoFillError(null);
   };
 
-  const handleAutoFillFromPhoto = async () => {
-    if (!shotDataPhoto) return;
+  const runAutoFillFromPhoto = async (file: File) => {
     setIsAutoFilling(true);
     setAutoFillError(null);
     try {
       const nameToSearch = clientName.split('(')[0].trim();
       const result = await extractGolfData(
         {
-          data: shotDataPhoto.file,
-          mimeType: shotDataPhoto.file.type,
+          data: file,
+          mimeType: file.type,
         },
         nameToSearch
       );
@@ -2630,13 +2633,13 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
                         </div>
                       </div>
 
-                      {/* Shot data photo upload (launch-monitor screenshot) */}
+                      {/* Shot data photo (launch-monitor screenshot) — capture or upload, AI extracts automatically */}
                       <div className="rounded-lg border border-line-subtle bg-white/[0.03] p-3 space-y-2">
                         <div className="flex items-center justify-between gap-2">
                           <label className="text-xs font-bold text-ink-medium flex items-center gap-1.5">
-                            <Camera className="w-3.5 h-3.5" /> 샷 데이터 사진 (선택)
+                            <Camera className="w-3.5 h-3.5" /> 샷 데이터 사진
                           </label>
-                          {shotDataPhoto ? (
+                          {shotDataPhoto && (
                             <button
                               type="button"
                               onClick={removeShotDataPhoto}
@@ -2644,17 +2647,16 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
                             >
                               <X className="w-3 h-3" /> 사진 제거
                             </button>
-                          ) : (
-                            <button
-                              type="button"
-                              onClick={() =>
-                                shotDataPhotoInputRef.current?.click()
-                              }
-                              className="text-[11px] text-emerald-300 hover:text-emerald-200 flex items-center gap-1 font-bold"
-                            >
-                              <Upload className="w-3 h-3" /> 사진 업로드
-                            </button>
                           )}
+                          <input
+                            ref={shotDataCameraInputRef}
+                            type="file"
+                            accept="image/*"
+                            capture="environment"
+                            className="hidden"
+                            onChange={handleShotDataPhotoSelect}
+                            data-testid="shot-data-camera-input"
+                          />
                           <input
                             ref={shotDataPhotoInputRef}
                             type="file"
@@ -2665,6 +2667,31 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
                           />
                         </div>
 
+                        {!shotDataPhoto && (
+                          <div className="grid grid-cols-2 gap-2">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                shotDataCameraInputRef.current?.click()
+                              }
+                              className="flex flex-col items-center justify-center gap-1.5 py-4 rounded-lg border border-line-subtle bg-white/[0.04] hover:bg-white/[0.06] text-ink-high text-xs font-bold"
+                            >
+                              <Camera className="w-5 h-5 text-emerald-300" />
+                              사진 촬영
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                shotDataPhotoInputRef.current?.click()
+                              }
+                              className="flex flex-col items-center justify-center gap-1.5 py-4 rounded-lg border border-line-subtle bg-white/[0.04] hover:bg-white/[0.06] text-ink-high text-xs font-bold"
+                            >
+                              <Upload className="w-5 h-5 text-emerald-300" />
+                              파일 업로드
+                            </button>
+                          </div>
+                        )}
+
                         {shotDataPhoto ? (
                           <div className="flex items-start gap-3">
                             <img
@@ -2673,30 +2700,30 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
                               className="w-24 h-24 object-cover rounded-lg border border-line-subtle flex-shrink-0"
                             />
                             <div className="flex-1 space-y-2">
-                              <p className="text-[11px] text-ink-muted leading-relaxed">
-                                런치모니터 화면 사진을 첨부했습니다. AI로 수치를
-                                자동 채울 수 있습니다.
-                              </p>
-                              <button
-                                type="button"
-                                onClick={handleAutoFillFromPhoto}
-                                disabled={isAutoFilling}
-                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-blue-600 hover:bg-blue-500 disabled:opacity-60 disabled:cursor-not-allowed text-white text-xs font-bold"
-                              >
-                                <Sparkles className="w-3 h-3" />
-                                {isAutoFilling ? '분석 중...' : 'AI로 자동 채우기'}
-                              </button>
-                              {autoFillError && (
+                              {isAutoFilling ? (
+                                <p className="text-[11px] text-blue-300 leading-relaxed flex items-center gap-1.5">
+                                  <Sparkles className="w-3 h-3 animate-pulse" />
+                                  AI가 사진에서 샷 데이터를 추출하는 중...
+                                </p>
+                              ) : autoFillError ? (
                                 <p className="text-[11px] text-red-400">
                                   {autoFillError}
                                 </p>
+                              ) : (
+                                <p className="text-[11px] text-emerald-300 leading-relaxed">
+                                  AI가 사진에서 추출한 수치를 아래에
+                                  채웠습니다. 확인 후 필요하면 수정하세요.
+                                </p>
                               )}
+                              <p className="text-[11px] text-ink-muted leading-relaxed">
+                                사진은 기록에 함께 저장됩니다.
+                              </p>
                             </div>
                           </div>
                         ) : (
                           <p className="text-[11px] text-ink-muted leading-relaxed">
-                            GDR/트랙맨 등의 화면 사진을 첨부하면 기록에 함께
-                            저장되고 AI로 수치를 자동 채울 수 있습니다.
+                            GDR/트랙맨 등의 화면을 촬영하거나 업로드하면 AI가
+                            수치를 자동으로 추출해 채워줍니다.
                           </p>
                         )}
                       </div>
