@@ -232,6 +232,14 @@ export const StudentAIChat: React.FC<StudentAIChatProps> = ({
 
   const clientId = `${clientProfile.name}_${clientProfile.phone}`.trim();
 
+  /**
+   * Whether anything the student files here can actually reach a coach.
+   * The server stamps an upload's coach_id from `clients.coach_id`, so with
+   * no linked coach the record is saved but seen by nobody. Same signal the
+   * booking flow gates on.
+   */
+  const hasCoach = !!coachProfile?.id;
+
   const [mode, setMode] = useState<Mode>(defaultMode);
   const [showModeSelector, setShowModeSelector] = useState<boolean>(
     hideModeSelector ? false : !initialQuery
@@ -636,12 +644,21 @@ export const StudentAIChat: React.FC<StudentAIChatProps> = ({
       }
     }
 
+    // The server files a student upload under their linked coach
+    // (`clients.coach_id`), so an unlinked student's record reaches nobody.
+    // Say that plainly instead of promising a delivery that will not happen.
     const savedLabel = savedRecord
-      ? (lang === 'en'
-          ? '\n\n(Saved to my records and shared with my coach.)'
-          : lang === 'ja'
-          ? '\n\n(記録に保存し、コーチに共有しました。)'
-          : '\n\n(기록에 저장했고 코치님께 공유했어요.)')
+      ? hasCoach
+        ? (lang === 'en'
+            ? '\n\n(Saved to my records and shared with my coach.)'
+            : lang === 'ja'
+            ? '\n\n(記録に保存し、コーチに共有しました。)'
+            : '\n\n(기록에 저장했고 코치님께 공유했어요.)')
+        : (lang === 'en'
+            ? '\n\n(Saved to my records. No coach is linked yet, so nobody else can see it.)'
+            : lang === 'ja'
+            ? '\n\n(記録に保存しました。担当コーチが未設定のため、まだ誰にも共有されていません。)'
+            : '\n\n(기록에 저장했어요. 지정 코치가 없어서 아직 아무에게도 공유되지 않았어요.)')
       : destination === 'none'
         ? ''
         : (lang === 'en'
@@ -675,7 +692,7 @@ export const StudentAIChat: React.FC<StudentAIChatProps> = ({
       : [];
     await requestAssistantReply(promptText, priorHistory, media);
   }, [
-    pending, input, messages, clientId, clientProfile, lang, onSaveLesson,
+    pending, input, messages, clientId, clientProfile, lang, onSaveLesson, hasCoach,
     clearReveal, stopSpeaking, clearPending, requestAssistantReply, startBookingFlow,
   ]);
 
@@ -925,12 +942,22 @@ export const StudentAIChat: React.FC<StudentAIChatProps> = ({
         icon: ClipboardList,
         recommended: true,
         title: lang === 'en' ? 'Save to my records' : lang === 'ja' ? '記録に保存' : '기록으로 저장',
-        desc: lang === 'en'
-          ? 'Kept in the records tab and shared with your coach'
-          : lang === 'ja'
-          ? '記録タブに保存され、コーチに共有されます'
-          : '기록 탭에 저장되고, 코치님께 전달돼요',
+        desc: hasCoach
+          ? (lang === 'en'
+              ? 'Kept in the records tab and shared with your coach'
+              : lang === 'ja'
+              ? '記録タブに保存され、コーチに共有されます'
+              : '기록 탭에 저장되고, 코치님께 전달돼요')
+          : (lang === 'en'
+              ? 'Kept in the records tab — link a coach to share it'
+              : lang === 'ja'
+              ? '記録タブに保存されます（共有には担当コーチの設定が必要）'
+              : '기록 탭에 저장돼요 (공유하려면 지정 코치가 필요해요)'),
       });
+    }
+    // Booking needs a coach to book with — offering it without one would
+    // only dead-end in startBookingFlow's "지정 코치가 필요해요".
+    if (onSaveLesson && hasCoach) {
       options.push({
         key: 'reservation',
         icon: Calendar,
