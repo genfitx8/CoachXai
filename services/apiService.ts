@@ -1,4 +1,8 @@
-import type { Lesson, ClientProfile, CoachProfile, LessonPackage, TrainingProgram, Homework, LessonReservation, PointTransaction } from '../types';
+import type {
+  Lesson, ClientProfile, CoachProfile, LessonPackage, TrainingProgram, Homework,
+  LessonReservation, PointTransaction, Branch, Bay, BayPriceRule, BayReservation,
+  BranchAdminAccount,
+} from '../types';
 import { resolveApiBaseUrl } from './apiBase';
 
 const BASE_URL = resolveApiBaseUrl();
@@ -527,6 +531,125 @@ export const apiService = {
 
   async deleteHomework(homeworkId: string): Promise<void> {
     await req('DELETE', `/api/homework/${homeworkId}`);
+  },
+
+  // ── Branch domain (Phase 1 server promotion) ──────────────────────────────
+
+  /** Server-side branch-admin login; stores the JWT like other logins. */
+  async loginBranchAdmin(loginId: string, password: string): Promise<{
+    token: string; branchId: string; branchName: string; username: string; adminId: string;
+  }> {
+    const data = await req<{
+      token: string; branchId: string; branchName: string; username: string; adminId: string;
+    }>('POST', '/api/auth/login/branch-admin', { loginId, password });
+    if (!data?.token || !data?.branchId) {
+      throw new Error('로그인 응답 형식이 올바르지 않습니다.');
+    }
+    this.setToken(data.token);
+    return data;
+  },
+
+  async getBranches(): Promise<Branch[]> {
+    const data = await req<{ branches: Branch[] }>('GET', '/api/branches');
+    return data.branches ?? [];
+  },
+
+  async saveBranch(branch: Branch): Promise<void> {
+    await req('PUT', `/api/branches/${encodeURIComponent(branch.id)}`, branch);
+  },
+
+  async getBays(branchId: string): Promise<Bay[]> {
+    const data = await req<{ bays: Bay[] }>(
+      'GET', `/api/branches/${encodeURIComponent(branchId)}/bays`
+    );
+    return data.bays ?? [];
+  },
+
+  async saveBay(bay: Bay): Promise<void> {
+    await req(
+      'PUT',
+      `/api/branches/${encodeURIComponent(bay.branchId)}/bays/${encodeURIComponent(bay.id)}`,
+      bay
+    );
+  },
+
+  async deleteBay(branchId: string, bayId: string): Promise<void> {
+    await req(
+      'DELETE',
+      `/api/branches/${encodeURIComponent(branchId)}/bays/${encodeURIComponent(bayId)}`
+    );
+  },
+
+  async getBayPriceRules(branchId: string): Promise<BayPriceRule[]> {
+    const data = await req<{ priceRules: BayPriceRule[] }>(
+      'GET', `/api/branches/${encodeURIComponent(branchId)}/price-rules`
+    );
+    return data.priceRules ?? [];
+  },
+
+  async saveBayPriceRule(rule: BayPriceRule): Promise<void> {
+    await req(
+      'PUT',
+      `/api/branches/${encodeURIComponent(rule.branchId)}/price-rules/${encodeURIComponent(rule.id)}`,
+      rule
+    );
+  },
+
+  async deleteBayPriceRule(branchId: string, ruleId: string): Promise<void> {
+    await req(
+      'DELETE',
+      `/api/branches/${encodeURIComponent(branchId)}/price-rules/${encodeURIComponent(ruleId)}`
+    );
+  },
+
+  /** Admin only. Pass no branchId for every branch's accounts. */
+  async getBranchAdminAccounts(branchId?: string): Promise<BranchAdminAccount[]> {
+    const data = await req<{ accounts: BranchAdminAccount[] }>(
+      'GET', `/api/branches/${encodeURIComponent(branchId ?? '_all')}/admins`
+    );
+    return data.accounts ?? [];
+  },
+
+  /**
+   * Create/update a branch-admin account. The plaintext password in the
+   * legacy document is hashed server-side and never stored; omit/blank it
+   * on update to keep the existing hash.
+   */
+  async saveBranchAdminAccount(account: BranchAdminAccount): Promise<void> {
+    await req(
+      'PUT',
+      `/api/branches/${encodeURIComponent(account.branchId)}/admins/${encodeURIComponent(account.username)}`,
+      { password: account.password || undefined, isActive: account.isActive !== false }
+    );
+  },
+
+  async getBayReservations(params?: {
+    branchId?: string; dateFrom?: string; dateTo?: string;
+  }): Promise<BayReservation[]> {
+    const qs = new URLSearchParams();
+    if (params?.branchId) qs.set('branchId', params.branchId);
+    if (params?.dateFrom) qs.set('dateFrom', params.dateFrom);
+    if (params?.dateTo) qs.set('dateTo', params.dateTo);
+    const query = qs.toString();
+    const data = await req<{ reservations: BayReservation[] }>(
+      'GET', `/api/bay-reservations${query ? `?${query}` : ''}`
+    );
+    return data.reservations ?? [];
+  },
+
+  /** 409 → the bay slot is already actively booked. */
+  async createBayReservation(reservation: BayReservation): Promise<BayReservation> {
+    const data = await req<{ reservation: BayReservation }>(
+      'POST', '/api/bay-reservations', reservation
+    );
+    return data.reservation;
+  },
+
+  async updateBayReservation(
+    reservationId: string,
+    fields: Partial<BayReservation>
+  ): Promise<void> {
+    await req('PATCH', `/api/bay-reservations/${encodeURIComponent(reservationId)}`, fields);
   },
 
   // ── Point ledger (Phase 1 server promotion) ───────────────────────────────

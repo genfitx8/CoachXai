@@ -638,7 +638,7 @@ R2 스토리지 비용은 영상이 지배한다. 상용화 초기엔 원본 보
 
 ### 8.3 즉시 조치가 필요한 보안 부채 (데이터 신뢰의 전제)
 
-1. `BranchAdminAccount` 평문 비밀번호 → `branch_admins.password_hash`(bcrypt) + 서버 로그인 API로 이전. 클라이언트 사이드 브랜치 로그인 제거.
+1. [x] `BranchAdminAccount` 평문 비밀번호 → `branch_admins.password_hash`(bcrypt) + `POST /api/auth/login/branch-admin`(JWT role `branch_admin`, branchId 스코프). 클라이언트는 서버 로그인 우선, 미이관 계정만 레거시 폴백 — 플랫폼 관리자가 BRANCH_STAFF 탭을 열면 로컬 계정이 자동 이관(서버가 해시만 저장). 지점관리자 포인트 지급도 JWT 기반 원장 경로로 전환됨.
 2. 하드코딩 관리자 폴백 크리덴셜(`admin@coachx.kr/admin1234`) 제거 — env 기반 시드로 대체.
 3. 탈퇴/삭제 요청 처리 절차 정의: 소프트 삭제 → 30일 유예 → 하드 삭제 + 가명 학습 사본 분리. `domain_events`에는 가명 키만 남긴다.
 
@@ -662,11 +662,11 @@ R2 스토리지 비용은 영상이 지배한다. 상용화 초기엔 원본 보
 
 1. **예약 계열** — 다기기 불일치가 사용자 신뢰를 직접 깨는 영역
    - [x] `lesson_reservations` 서버 승격: 문서 원문(JSONB) + 조회 키 컬럼 방식, `/api/reservations` CRUD(역할 스코프 + 타 학생 PII 새니타이즈), 클라이언트 백엔드 스위치(api→firebase→local) + 로그인별 1회 로컬 데이터 업로드 동기화. 상태 전이는 domain_events(`reservation.*`)로 기록
-   - [ ] `branches` / `bays` / `bay_price_rules` / `bay_reservations` 승격 + DB 유니크 제약으로 이중 예약 원천 차단 (bayReservationService 전환)
+   - [x] `branches` / `bays` / `bay_price_rules` / `bay_reservations` 승격: `/api/branches`(+bays/price-rules/admins), `/api/bay-reservations`. 결정적 슬롯 id PK + advisory lock 트랜잭션으로 **이중 예약을 DB 레벨에서 원천 차단**(동일 슬롯·다시간 겹침 모두 409 검증 완료). 클라이언트는 `branchService` 파사드(api→firebase→local) + 관리자 세션에서 1회 로컬 데이터 승격. 타 학생 PII는 서버에서 새니타이즈
 2. **포인트 원장** — 돈과 직결
    - [x] `point_transactions`를 정식 원장으로 확장(grant 메타데이터 + doc 원문 컬럼), `/api/points` 라우트: 조회(역할 스코프), 원장 추가+잔액 원자 적용(id=멱등 키, 클라이언트 자가 적립은 타입·금액 한도 검증, 탑업 타입은 거부), 감사용 로컬 이력 import(잔액 미적용). 서버 `creditPoints`가 결제 확정 시점에 잔액까지 적용하고, 클라이언트 `pointService`는 API 모드에서 탑업이면 행 삽입 없이 잔액만 새로고침 → **이중 적립 원천 차단**. `point.earned/spent` 이벤트 기록
    - [ ] 잔액 대사(reconcile) 잡: SUM(원장) ↔ current_points 비교 (§10.3 대시보드와 함께)
-   - [ ] 지점관리자 포인트 지급(grant)은 지점관리자 서버 인증(§8.3) 전까지 레거시 로컬 경로 유지
+   - [x] 지점관리자 포인트 지급(grant): 지점관리자 서버 인증 도입으로 JWT 기반 원장 경로로 전환 완료
 3. **숙제/퀵로그/진단**
    - [x] `homework` 서버 승격: `/api/homework` (배치 업서트, 완료 토글, 삭제), 코치 권한은 담당 학생 로스터로 판정, `homeworkService` 파사드로 컴포넌트 직접 접근 제거, 로그인별 1회 로컬 동기화. `homework.assigned/self_added/completed/deleted` 이벤트 기록. (기존 apiService.saveHomeworkBatch가 no-op 스텁이라 API 모드에서 코치 숙제 배치가 조용히 유실되던 버그도 함께 해소)
    - [ ] `quick_logs` — 현재 저장 호출부가 없는 미완성 기능(UI만 존재). 쓰기 경로가 생길 때 같은 패턴으로 승격

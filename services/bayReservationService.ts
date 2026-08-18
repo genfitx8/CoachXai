@@ -9,8 +9,7 @@ import {
   DayOfWeek,
   OpeningHourEntry,
 } from '../types';
-import { firebaseService } from './firebase';
-import { storageService } from './storage';
+import { branchService } from './branchService';
 import { pointService } from './pointService';
 import { sendBayReservationNotifications } from './reservationPushNotificationService';
 import { createLogger } from '../utils/logger';
@@ -52,59 +51,38 @@ function parseHour(time: string): number {
 }
 
 // ─── Persistence helpers ───────────────────────────────────────────────────────
+// All storage goes through branchService (api → firebase → localStorage,
+// docs/DATA_ARCHITECTURE.md Phase 1); the booking/validation logic here is
+// backend-agnostic.
 
 async function loadBranches(): Promise<Branch[]> {
-  return firebaseService.isInitialized()
-    ? firebaseService.getBranches()
-    : Promise.resolve(storageService.getBranches());
+  return branchService.getBranches();
 }
 
 async function loadBays(branchId: string): Promise<Bay[]> {
-  return firebaseService.isInitialized()
-    ? firebaseService.getBays(branchId)
-    : Promise.resolve(storageService.getBays(branchId));
+  return branchService.getBays(branchId);
 }
 
 async function loadPriceRules(branchId: string): Promise<BayPriceRule[]> {
-  return firebaseService.isInitialized()
-    ? firebaseService.getBayPriceRules(branchId)
-    : Promise.resolve(storageService.getBayPriceRules(branchId));
+  return branchService.getBayPriceRules(branchId);
 }
 
 async function loadReservationsByBranch(
   branchId: string,
   date: string
 ): Promise<BayReservation[]> {
-  return firebaseService.isInitialized()
-    ? firebaseService.getBayReservationsByBranch(branchId, date, date)
-    : Promise.resolve(storageService.getBayReservationsByBranch(branchId, date, date));
+  return branchService.getBayReservationsByBranch(branchId, date, date);
 }
 
 async function saveReservation(reservation: BayReservation): Promise<void> {
-  if (firebaseService.isInitialized()) {
-    await firebaseService.saveBayReservation(reservation);
-  } else {
-    storageService.saveBayReservation(reservation);
-  }
+  await branchService.saveBayReservation(reservation);
 }
 
 async function updateReservation(
   id: string,
   fields: Partial<BayReservation>
 ): Promise<void> {
-  if (firebaseService.isInitialized()) {
-    await firebaseService.updateBayReservation(id, fields);
-  } else {
-    storageService.updateBayReservation(id, fields);
-  }
-}
-
-async function saveCoach(coach: CoachProfile): Promise<void> {
-  if (firebaseService.isInitialized()) {
-    await firebaseService.saveCoach(coach);
-  } else {
-    storageService.saveCoach(coach);
-  }
+  await branchService.updateBayReservation(id, fields);
 }
 
 // ─── Public API ───────────────────────────────────────────────────────────────
@@ -362,10 +340,7 @@ export const bayReservationService = {
    * Load reservations for a client.
    */
   getClientReservations: async (clientId: string): Promise<BayReservation[]> => {
-    if (firebaseService.isInitialized()) {
-      return firebaseService.getBayReservationsByClient(clientId);
-    }
-    return Promise.resolve(storageService.getBayReservationsByClient(clientId));
+    return branchService.getBayReservationsByClient(clientId);
   },
 
   /**
@@ -377,9 +352,7 @@ export const bayReservationService = {
     clientId: string
   ): Promise<void> => {
     // Load reservation to verify ownership
-    const reservations = await (firebaseService.isInitialized()
-      ? firebaseService.getBayReservationsByClient(clientId)
-      : Promise.resolve(storageService.getBayReservationsByClient(clientId)));
+    const reservations = await branchService.getBayReservationsByClient(clientId);
 
     const reservation = reservations.find((r) => r.id === reservationId);
     if (!reservation) {
@@ -407,12 +380,7 @@ export const bayReservationService = {
     dateFrom?: string, // "YYYY-MM-DD"
     dateTo?: string    // "YYYY-MM-DD"
   ): Promise<BayReservation[]> => {
-    if (firebaseService.isInitialized()) {
-      return firebaseService.getBayReservationsByBranch(branchId, dateFrom, dateTo);
-    }
-    return Promise.resolve(
-      storageService.getBayReservationsByBranch(branchId, dateFrom, dateTo)
-    );
+    return branchService.getBayReservationsByBranch(branchId, dateFrom, dateTo);
   },
 
   /**
@@ -587,8 +555,11 @@ export const bayReservationService = {
 
     let updatedCoach: CoachProfile;
     try {
-      updatedCoach = { ...coach, currentPoints: coachPoints - rule.pricePoints };
-      await saveCoach(updatedCoach);
+      updatedCoach = await pointService.spendCoachPoints(
+        coach,
+        -rule.pricePoints,
+        `타석 예약 - ${branch.name} ${bay.floor}층 ${bay.roomNumber}번 (${date} ${hh}:00)`
+      );
     } catch (pointError) {
       // Rollback reservation on payment failure
       await updateReservation(reservationId, { status: 'CANCELLED' as BayReservationStatus });

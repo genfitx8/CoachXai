@@ -229,6 +229,25 @@ export const authService = {
     }
     const { branchName, username } = parsed;
 
+    // Server auth first (docs/DATA_ARCHITECTURE.md §8.3): issues a real
+    // branch_admin JWT so branch dashboards read/write server data. Falls
+    // back to the legacy client-side check for accounts that haven't been
+    // migrated to the server yet (the platform admin's BRANCH_STAFF tab
+    // migrates them automatically on first load).
+    if (apiService.isAvailable()) {
+      try {
+        const data = await apiService.loginBranchAdmin(loginId, password);
+        return {
+          branchId: data.branchId,
+          branchName: data.branchName,
+          username: data.username,
+          adminId: data.adminId,
+        };
+      } catch (e) {
+        log.warn('Server branch-admin login failed; trying legacy path:', e);
+      }
+    }
+
     try {
       // 2. Look up branch by name
       const branches = firebaseService.isInitialized()

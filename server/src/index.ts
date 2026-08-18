@@ -15,6 +15,8 @@ import curriculumsRouter from './routes/curriculums';
 import reservationsRouter from './routes/reservations';
 import homeworkRouter from './routes/homework';
 import pointsRouter from './routes/points';
+import branchesRouter from './routes/branches';
+import bayReservationsRouter from './routes/bayReservations';
 import curriculumTemplatesRouter from './routes/curriculumTemplates';
 import pushRouter from './routes/push';
 import { startScheduledPushRunner } from './services/scheduledPushRunner';
@@ -70,6 +72,8 @@ app.use('/api/curriculums', curriculumsRouter);
 app.use('/api/reservations', reservationsRouter);
 app.use('/api/homework', homeworkRouter);
 app.use('/api/points', pointsRouter);
+app.use('/api/branches', branchesRouter);
+app.use('/api/bay-reservations', bayReservationsRouter);
 app.use('/api/curriculum-templates', curriculumTemplatesRouter);
 app.use('/api/push', pushRouter);
 
