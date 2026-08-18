@@ -131,10 +131,24 @@ router.post('/transactions', async (req: Request, res: Response) => {
         res.status(400).json({ error: `Amount out of range for ${type}` });
         return;
       }
+    } else if (userRole === 'coach') {
+      // A coach's only self-service ledger write is spending their own
+      // points (bay bookings): PURCHASE, negative, on their own identity.
+      if (clientId !== `coach_${userId}`) {
+        res.status(403).json({ error: 'Not your ledger' });
+        return;
+      }
+      if (type !== 'PURCHASE' || amount >= 0 || amount < -1_000_000) {
+        res.status(403).json({ error: 'Coaches can only spend their own points' });
+        return;
+      }
+    } else if (userRole === 'branch_admin') {
+      // Branch staff grant points to members/coaches at their branch.
+      if (type !== 'BRANCH_ADMIN_GRANT' || amount <= 0 || amount > 1_000_000) {
+        res.status(403).json({ error: 'Branch admins can only grant 1..1,000,000 points' });
+        return;
+      }
     } else if (userRole !== 'admin') {
-      // Coaches have no self-service ledger writes today; branch-admin
-      // grants still run on the legacy local path until branch-admin auth
-      // lands (docs/DATA_ARCHITECTURE.md §8.3).
       res.status(403).json({ error: 'Invalid role for ledger writes' });
       return;
     }
@@ -172,7 +186,7 @@ router.post('/transactions', async (req: Request, res: Response) => {
     if (inserted.rowCount && inserted.rowCount > 0) {
       recordEventSafe({
         actorId: userId,
-        actorRole: userRole as 'client' | 'admin',
+        actorRole: userRole,
         eventType: amount > 0 ? 'point.earned' : 'point.spent',
         entityType: 'point_transaction',
         entityId: id,

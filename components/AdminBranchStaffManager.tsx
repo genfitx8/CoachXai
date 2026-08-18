@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Branch, BranchAdminAccount } from '../types';
 import { Button } from './Button';
-import { firebaseService } from '../services/firebase';
-import { storageService } from '../services/storage';
+import { branchService } from '../services/branchService';
 import {
   Plus,
   Copy,
@@ -52,12 +51,8 @@ export const AdminBranchStaffManager: React.FC<
     setIsLoading(true);
     try {
       const [bData, aData] = await Promise.all([
-        isFirebaseMode
-          ? firebaseService.getBranches()
-          : Promise.resolve(storageService.getBranches()),
-        isFirebaseMode
-          ? firebaseService.getBranchAdminAccounts()
-          : Promise.resolve(storageService.getBranchAdminAccounts()),
+        branchService.getBranches(),
+        branchService.getBranchAdminAccounts(),
       ]);
       setBranches(bData.filter((b) => b.isActive));
       setAccounts(aData);
@@ -115,11 +110,7 @@ export const AdminBranchStaffManager: React.FC<
     };
 
     try {
-      if (isFirebaseMode) {
-        await firebaseService.saveBranchAdminAccount(account);
-      } else {
-        storageService.saveBranchAdminAccount(account);
-      }
+      await branchService.saveBranchAdminAccount(account);
       setGeneratedPw(password);
       setError(null);
       await loadAll();
@@ -144,11 +135,7 @@ export const AdminBranchStaffManager: React.FC<
     };
 
     try {
-      if (isFirebaseMode) {
-        await firebaseService.saveBranchAdminAccount(updated);
-      } else {
-        storageService.saveBranchAdminAccount(updated);
-      }
+      await branchService.saveBranchAdminAccount(updated);
       setResetPw({
         pw: newPw,
         accountLabel: `${account.branchName}:${account.username}`,
@@ -167,11 +154,7 @@ export const AdminBranchStaffManager: React.FC<
       updatedAt: Date.now(),
     };
     try {
-      if (isFirebaseMode) {
-        await firebaseService.saveBranchAdminAccount(updated);
-      } else {
-        storageService.saveBranchAdminAccount(updated);
-      }
+      await branchService.saveBranchAdminAccount(updated);
       await loadAll();
     } catch (e) {
       console.error(e);

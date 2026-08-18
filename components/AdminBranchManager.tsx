@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Branch } from '../types';
 import { Button } from './Button';
-import { firebaseService } from '../services/firebase';
-import { storageService } from '../services/storage';
+import { branchService } from '../services/branchService';
 import {
   Plus,
   Pencil,
@@ -41,9 +40,7 @@ export const AdminBranchManager: React.FC<AdminBranchManagerProps> = ({
   const loadBranches = async () => {
     setIsLoading(true);
     try {
-      const data = isFirebaseMode
-        ? await firebaseService.getBranches()
-        : storageService.getBranches();
+      const data = await branchService.getBranches();
       setBranches(data);
     } catch (e) {
       console.error(e);
@@ -89,11 +86,7 @@ export const AdminBranchManager: React.FC<AdminBranchManagerProps> = ({
         };
 
     try {
-      if (isFirebaseMode) {
-        await firebaseService.saveBranch(branch);
-      } else {
-        storageService.saveBranch(branch);
-      }
+      await branchService.saveBranch(branch);
       setShowForm(false);
       await loadBranches();
     } catch (e) {
@@ -108,11 +101,7 @@ export const AdminBranchManager: React.FC<AdminBranchManagerProps> = ({
       updatedAt: Date.now(),
     };
     try {
-      if (isFirebaseMode) {
-        await firebaseService.saveBranch(updated);
-      } else {
-        storageService.saveBranch(updated);
-      }
+      await branchService.saveBranch(updated);
       await loadBranches();
     } catch (e) {
       console.error(e);

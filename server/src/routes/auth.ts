@@ -42,6 +42,21 @@ const LEGACY_ADMIN_EMAIL = 'admin@coachx.kr';
 const LEGACY_ADMIN_PASSWORD = 'admin1234';
 const ADMIN_SENTINEL_ID = '00000000-0000-0000-0000-000000000000';
 
+const branchAdminLoginLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  limit: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+function signBranchAdminToken(id: string, branchId: string): string {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) throw new Error('JWT_SECRET is not configured');
+  return jwt.sign({ id, role: 'branch_admin', branchId }, secret, {
+    expiresIn: '12h',
+  } as jwt.SignOptions);
+}
+
 function signToken(id: string, role: AuthRole, expiresIn: string = JWT_EXPIRY): string {
   const secret = process.env.JWT_SECRET;
   if (!secret) throw new Error('JWT_SECRET is not configured');
@@ -318,6 +333,72 @@ router.post('/login/admin', adminLoginLimiter, async (req: Request, res: Respons
     res.json({ token });
   } catch (err) {
     console.error('[auth] login/admin error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// POST /api/auth/login/branch-admin — server-side branch staff auth
+// (docs/DATA_ARCHITECTURE.md §8.3). Replaces the fully client-side check
+// that compared plaintext passwords in localStorage. loginId format is the
+// same one the UI already uses: "지점이름:유저이름".
+router.post('/login/branch-admin', branchAdminLoginLimiter, async (req: Request, res: Response) => {
+  const { loginId, password } = req.body as { loginId?: string; password?: string };
+
+  if (!loginId || !password) {
+    res.status(400).json({ error: 'loginId and password are required' });
+    return;
+  }
+  const colonIdx = loginId.indexOf(':');
+  if (colonIdx <= 0 || colonIdx === loginId.length - 1) {
+    res.status(400).json({
+      error: '로그인 아이디 형식이 올바르지 않습니다. "지점이름:유저이름" 형식으로 입력해주세요.',
+    });
+    return;
+  }
+  const branchName = loginId.slice(0, colonIdx).trim();
+  const username = loginId.slice(colonIdx + 1).trim();
+
+  try {
+    const branchRow = await pool.query(
+      `SELECT id, doc FROM branches WHERE name = $1 AND is_active = true LIMIT 1`,
+      [branchName]
+    );
+    const branch = branchRow.rows[0];
+    if (!branch) {
+      res.status(401).json({ error: '존재하지 않거나 비활성화된 지점입니다.' });
+      return;
+    }
+
+    const accountRow = await pool.query(
+      `SELECT id, password_hash, is_active FROM branch_admins
+        WHERE branch_id = $1 AND username = $2`,
+      [branch.id, username]
+    );
+    const account = accountRow.rows[0];
+    if (!account) {
+      res.status(401).json({ error: '아이디 또는 비밀번호가 일치하지 않습니다.' });
+      return;
+    }
+    if (!account.is_active) {
+      res.status(401).json({ error: '비활성화된 계정입니다. 시스템 관리자에게 문의하세요.' });
+      return;
+    }
+    const passwordMatches = await bcrypt.compare(password, account.password_hash);
+    if (!passwordMatches) {
+      res.status(401).json({ error: '아이디 또는 비밀번호가 일치하지 않습니다.' });
+      return;
+    }
+
+    const token = signBranchAdminToken(account.id, branch.id);
+    res.json({
+      token,
+      branchId: branch.id,
+      branchName,
+      username,
+      adminId: account.id,
+    });
+  } catch (err) {
+    console.error('[auth] login/branch-admin error:', err);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

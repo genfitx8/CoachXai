@@ -16,8 +16,7 @@ import {
   Gift,
 } from 'lucide-react';
 import { Branch, DayOfWeek, OpeningHours, OpeningHourEntry } from '../types';
-import { firebaseService } from '../services/firebase';
-import { storageService } from '../services/storage';
+import { branchService } from '../services/branchService';
 import { useLanguage } from './LanguageContext';
 import { BayManager } from './BayManager';
 import { BayPriceRuleManager } from './BayPriceRuleManager';
@@ -131,9 +130,7 @@ export const BranchAdminDashboard: React.FC<BranchAdminDashboardProps> = ({
     setLoading(true);
     setFetchError(null);
     try {
-      const branches = firebaseService.isInitialized()
-        ? await firebaseService.getBranches()
-        : storageService.getBranches();
+      const branches = await branchService.getBranches();
 
       const found = branches.find((b) => b.id === branchId);
       if (!found) {
@@ -167,11 +164,7 @@ export const BranchAdminDashboard: React.FC<BranchAdminDashboardProps> = ({
   // ── update helpers ───────────────────────────────────────────────────────────
 
   const persistBranchFields = async (fields: Partial<Omit<Branch, 'id'>>) => {
-    if (firebaseService.isInitialized()) {
-      await firebaseService.updateBranch(branchId, fields);
-    } else {
-      storageService.updateBranch(branchId, fields);
-    }
+    await branchService.updateBranch(branchId, fields);
     // Reflect locally
     setBranch((prev) => (prev ? { ...prev, ...fields, updatedAt: Date.now() } : prev));
   };

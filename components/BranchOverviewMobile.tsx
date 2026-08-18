@@ -3,6 +3,7 @@ import { Activity, LayoutGrid, TrendingUp, Users } from 'lucide-react';
 import type { Bay, BayReservation, CoachProfile } from '../types';
 import { firebaseService } from '../services/firebase';
 import { storageService } from '../services/storage';
+import { branchService } from '../services/branchService';
 
 /**
  * 7c · Branch admin — mobile-first read-only overview.
@@ -61,10 +62,8 @@ export const BranchOverviewMobile: React.FC<BranchOverviewMobileProps> = ({
     setLoading(true);
     const usingFb = firebaseService.isInitialized();
     Promise.all([
-      usingFb ? firebaseService.getBays(branchId) : Promise.resolve(storageService.getBays(branchId)),
-      usingFb
-        ? firebaseService.getBayReservationsByBranch(branchId, today, today)
-        : Promise.resolve(storageService.getBayReservationsByBranch(branchId, today, today)),
+      branchService.getBays(branchId),
+      branchService.getBayReservationsByBranch(branchId, today, today),
       usingFb ? firebaseService.getCoaches() : Promise.resolve(storageService.getCoaches()),
     ])
       .then(([b, r, c]) => {
