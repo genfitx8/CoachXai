@@ -101,7 +101,11 @@ router.get('/', async (req: Request, res: Response) => {
         ? req.query.coachId.trim()
         : null;
 
-    if (userRole === 'admin') {
+    // branch_admin shares the admin read scope: branch staff confirm lesson
+    // reservations across every coach who teaches at their branch (the rows
+    // don't carry branch_id until a bay is assigned, so no narrower filter
+    // exists yet — Phase 2 tightens this).
+    if (userRole === 'admin' || userRole === 'branch_admin') {
       const result = await pool.query(
         coachIdParam
           ? 'SELECT doc FROM lesson_reservations WHERE coach_id = $1'
@@ -174,7 +178,7 @@ router.get('/:id', async (req: Request, res: Response) => {
       return;
     }
 
-    if (userRole === 'admin') {
+    if (userRole === 'admin' || userRole === 'branch_admin') {
       res.json({ reservation: row.doc });
       return;
     }
@@ -266,7 +270,9 @@ router.put('/:id', async (req: Request, res: Response) => {
         res.status(403).json({ error: 'Not your reservation' });
         return;
       }
-    } else if (userRole !== 'admin') {
+    } else if (userRole !== 'admin' && userRole !== 'branch_admin') {
+      // branch_admin writes cover the 관리자 확정 flow (ADMIN_BLOCK_PENDING →
+      // CONFIRMED with branch/bay assignment).
       res.status(403).json({ error: 'Invalid user role' });
       return;
     }

@@ -8,8 +8,8 @@ import {
 } from 'lucide-react';
 import { ChatAttachment, ChatAttachmentDestination, CoachXChatMessage } from '../services/coachXService';
 import { generateStudentChatResponse } from '../services/geminiService';
-import { apiService } from '../services/apiService';
-import { loadChatHistory, saveChatHistory, clearChatHistory } from '../services/chatHistoryService';
+import { apiService, resolveMediaUrl } from '../services/apiService';
+import { loadChatHistory, saveChatHistory, clearChatHistory, hydrateChatHistoryFromServer } from '../services/chatHistoryService';
 import { reservationService } from '../services/reservationService';
 import { useLanguage } from './LanguageContext';
 import { useTypingReveal } from '../hooks/useTypingReveal';
@@ -295,6 +295,24 @@ export const StudentAIChat: React.FC<StudentAIChatProps> = ({
     if (messages.length <= 1) return; // greeting only — nothing worth keeping
     saveChatHistory(clientId, messages);
   }, [messages, clientId]);
+
+  // New device / reinstalled app: the local store is empty but the server may
+  // hold this student's transcript (Phase 1 server promotion). Hydrate once,
+  // and only while the greeting is still the only message so an in-progress
+  // conversation is never clobbered.
+  useEffect(() => {
+    if (hasRestoredHistory) return;
+    let cancelled = false;
+    hydrateChatHistoryFromServer(clientId).then((restored) => {
+      if (cancelled || !restored || restored.length === 0) return;
+      restoredRef.current = restored;
+      setMessages((prev) => (prev.length <= 1 ? restored : prev));
+    });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clientId]);
 
   // The AI Home resolves its context-aware greeting asynchronously, so the
   // first render seeds a placeholder. Refresh it while it is still the only
@@ -1286,8 +1304,12 @@ export const StudentAIChat: React.FC<StudentAIChatProps> = ({
                 {msg.attachments?.map(att => (
                   <div key={att.id} className="border-b border-white/15">
                     {att.type === 'image' ? (
+                      // Through resolveMediaUrl rather than straight into src:
+                      // the transcript comes back from localStorage or the
+                      // server thread, so a poisoned entry must not be able to
+                      // put a data:/javascript: URL in front of the student.
                       <img
-                        src={att.url}
+                        src={resolveMediaUrl(att.url)}
                         alt={att.name || '첨부 이미지'}
                         className="block w-full max-h-56 object-cover"
                       />

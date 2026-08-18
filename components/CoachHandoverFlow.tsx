@@ -15,6 +15,7 @@ import type { ClientProfile, CoachProfile, Lesson, HandoverSummary } from '../ty
 import { apiService } from '../services/apiService';
 import { generateHandoverSummary } from '../services/geminiService';
 import { storageService } from '../services/storage';
+import { insightService } from '../services/insightService';
 
 /**
  * 7a · 코치 변경 · 인수인계
@@ -147,7 +148,7 @@ export const CoachHandoverFlow: React.FC<CoachHandoverFlowProps> = ({
           caveats: draft.caveats,
           generatedAt: Date.now(),
         };
-        storageService.saveHandoverSummary(summary);
+        await insightService.saveHandoverSummary(summary);
       } catch (e) {
         // Summary is best-effort — never block the coach reassignment
         // itself. The student's move to the new coach is the primary

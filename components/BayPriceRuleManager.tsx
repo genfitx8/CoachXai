@@ -2,8 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Button } from './Button';
 import { Plus, Trash2, ToggleLeft, ToggleRight, Save, X } from 'lucide-react';
 import { BayPriceRule, DAY_OF_WEEK_LABELS } from '../types';
-import { firebaseService } from '../services/firebase';
-import { storageService } from '../services/storage';
+import { branchService } from '../services/branchService';
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
@@ -19,28 +18,17 @@ function ruleLabel(rule: BayPriceRule): string {
   return `${day} ${h}:00 ~ ${String(rule.startHour + 1).padStart(2, '0')}:00`;
 }
 
-// Unified persistence helper
+// Unified persistence helper — branchService picks the backend
+// (server API → Firebase → localStorage).
 const pricePersist = {
   getRules: async (branchId: string): Promise<BayPriceRule[]> =>
-    firebaseService.isInitialized()
-      ? firebaseService.getBayPriceRules(branchId)
-      : Promise.resolve(storageService.getBayPriceRules(branchId)),
+    branchService.getBayPriceRules(branchId),
 
-  saveRule: async (rule: BayPriceRule): Promise<void> => {
-    if (firebaseService.isInitialized()) {
-      await firebaseService.saveBayPriceRule(rule);
-    } else {
-      storageService.saveBayPriceRule(rule);
-    }
-  },
+  saveRule: async (rule: BayPriceRule): Promise<void> =>
+    branchService.saveBayPriceRule(rule),
 
-  deleteRule: async (ruleId: string): Promise<void> => {
-    if (firebaseService.isInitialized()) {
-      await firebaseService.deleteBayPriceRule(ruleId);
-    } else {
-      storageService.deleteBayPriceRule(ruleId);
-    }
-  },
+  deleteRule: async (rule: BayPriceRule): Promise<void> =>
+    branchService.deleteBayPriceRule(rule.branchId, rule.id),
 };
 
 // ─── form state ───────────────────────────────────────────────────────────────
@@ -249,7 +237,7 @@ export const BayPriceRuleManager: React.FC<BayPriceRuleManagerProps> = ({
   const handleDelete = async (rule: BayPriceRule) => {
     if (!window.confirm(`"${ruleLabel(rule)}" 규칙을 삭제하시겠습니까?`)) return;
     try {
-      await pricePersist.deleteRule(rule.id);
+      await pricePersist.deleteRule(rule);
       onSuccess?.('가격 규칙이 삭제되었습니다.');
       await fetchRules();
     } catch (e) {

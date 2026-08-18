@@ -1,11 +1,13 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 
-export type AuthRole = 'coach' | 'client' | 'admin';
+export type AuthRole = 'coach' | 'client' | 'admin' | 'branch_admin';
 
 export interface AuthPayload {
   id: string;
   role: AuthRole;
+  /** Set for branch_admin tokens: the branch the account belongs to. */
+  branchId?: string;
 }
 
 // Extend Express Request to carry the decoded token payload
@@ -42,7 +44,7 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction):
 
   try {
     const payload = jwt.verify(token, secret) as AuthPayload;
-    req.user = { id: payload.id, role: payload.role };
+    req.user = { id: payload.id, role: payload.role, branchId: payload.branchId };
     next();
   } catch {
     res.status(401).json({ error: 'Invalid or expired token' });

@@ -12,8 +12,7 @@ import {
   HardDrive,
 } from 'lucide-react';
 import type { ClientProfile, CoachProfile, Lesson, Branch } from '../types';
-import { firebaseService } from '../services/firebase';
-import { storageService } from '../services/storage';
+import { branchService } from '../services/branchService';
 
 /**
  * 7d · 관리자 웹 콘솔 개요
@@ -66,9 +65,7 @@ export const AdminOverview: React.FC<AdminOverviewProps> = ({
   useEffect(() => {
     let cancelled = false;
     setBranchesLoading(true);
-    const load = firebaseService.isInitialized()
-      ? firebaseService.getBranches()
-      : Promise.resolve(storageService.getBranches());
+    const load = branchService.getBranches();
     load
       .then((rows) => {
         if (!cancelled) setBranches(rows);

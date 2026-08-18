@@ -167,6 +167,44 @@ export const pointService = {
   },
 
   /**
+   * Deduct (or credit) points on a coach's own balance — used by coach bay
+   * bookings. API mode goes through the server ledger; legacy modes keep the
+   * old behavior of writing the balance straight onto the coach profile.
+   */
+  spendCoachPoints: async (
+    coach: CoachProfile,
+    amount: number, // negative for spending
+    description: string
+  ): Promise<CoachProfile> => {
+    if (isApiMode()) {
+      const transaction: PointTransaction = {
+        id: crypto.randomUUID(),
+        clientId: buildCoachId(coach),
+        amount,
+        type: 'PURCHASE',
+        description,
+        createdAt: Date.now(),
+      };
+      const { balance } = await apiService.addPointTransaction(transaction);
+      return {
+        ...coach,
+        currentPoints: balance ?? (coach.currentPoints || 0) + amount,
+      };
+    }
+
+    const updatedCoach = {
+      ...coach,
+      currentPoints: (coach.currentPoints || 0) + amount,
+    };
+    if (firebaseService.isInitialized()) {
+      await firebaseService.saveCoach(updatedCoach);
+    } else {
+      storageService.saveCoach(updatedCoach);
+    }
+    return updatedCoach;
+  },
+
+  /**
    * Grants points to a regular member by a branch admin.
    * Records the granting admin username and optional memo for audit.
    */
@@ -191,6 +229,16 @@ export const pointService = {
       ...(memo ? { memo } : {}),
       createdAt: Date.now(),
     };
+
+    // Branch admins now hold a server session after the Phase 1 auth work —
+    // grants go through the ledger so history and balance live server-side.
+    if (isApiMode()) {
+      const { balance } = await apiService.addPointTransaction(transaction);
+      return {
+        ...client,
+        currentPoints: balance ?? (client.currentPoints || 0) + amount,
+      };
+    }
 
     const newBalance = (client.currentPoints || 0) + amount;
     const updatedClient = { ...client, currentPoints: newBalance };
@@ -239,6 +287,14 @@ export const pointService = {
       ...(memo ? { memo } : {}),
       createdAt: Date.now(),
     };
+
+    if (isApiMode()) {
+      const { balance } = await apiService.addPointTransaction(transaction);
+      return {
+        ...coach,
+        currentPoints: balance ?? (coach.currentPoints || 0) + amount,
+      };
+    }
 
     const newBalance = (coach.currentPoints || 0) + amount;
     const updatedCoach = { ...coach, currentPoints: newBalance };

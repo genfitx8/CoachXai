@@ -29,7 +29,10 @@ vi.mock('../services/geminiService', () => ({
 vi.mock('../services/apiService', () => ({
   apiService: {
     uploadChatAttachment: vi.fn().mockResolvedValue('https://api.test/api/files/lessons/x/main.mp4'),
+    isAvailable: vi.fn().mockReturnValue(false),
+    getToken: vi.fn().mockReturnValue(null),
   },
+  resolveMediaUrl: (url: string) => url,
 }));
 
 vi.mock('../services/reservationService', () => ({

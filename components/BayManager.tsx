@@ -2,8 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Button } from './Button';
 import { LayoutGrid, Plus, Trash2, ToggleLeft, ToggleRight } from 'lucide-react';
 import { Bay } from '../types';
-import { firebaseService } from '../services/firebase';
-import { storageService } from '../services/storage';
+import { branchService } from '../services/branchService';
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
@@ -15,36 +14,18 @@ function generateId(): string {
   return `bay_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
-// Unified persistence helper (Firebase when available, localStorage otherwise)
+// Unified persistence helper — branchService picks the backend
+// (server API → Firebase → localStorage).
 const bayPersist = {
-  getBays: async (branchId: string): Promise<Bay[]> =>
-    firebaseService.isInitialized()
-      ? firebaseService.getBays(branchId)
-      : Promise.resolve(storageService.getBays(branchId)),
+  getBays: async (branchId: string): Promise<Bay[]> => branchService.getBays(branchId),
 
-  saveBay: async (bay: Bay): Promise<void> => {
-    if (firebaseService.isInitialized()) {
-      await firebaseService.saveBay(bay);
-    } else {
-      storageService.saveBay(bay);
-    }
-  },
+  saveBay: async (bay: Bay): Promise<void> => branchService.saveBay(bay),
 
-  updateBay: async (bayId: string, fields: Partial<Omit<Bay, 'id'>>): Promise<void> => {
-    if (firebaseService.isInitialized()) {
-      await firebaseService.updateBay(bayId, fields);
-    } else {
-      storageService.updateBay(bayId, fields);
-    }
-  },
+  updateBay: async (bay: Bay, fields: Partial<Omit<Bay, 'id'>>): Promise<void> =>
+    branchService.updateBay(bay.branchId, bay.id, fields),
 
-  deleteBay: async (bayId: string): Promise<void> => {
-    if (firebaseService.isInitialized()) {
-      await firebaseService.deleteBay(bayId);
-    } else {
-      storageService.deleteBay(bayId);
-    }
-  },
+  deleteBay: async (bay: Bay): Promise<void> =>
+    branchService.deleteBay(bay.branchId, bay.id),
 };
 
 // ─── types ────────────────────────────────────────────────────────────────────
@@ -151,7 +132,7 @@ export const BayManager: React.FC<BayManagerProps> = ({
     setSaving(true);
     try {
       const newActive = !bay.isActive;
-      await bayPersist.updateBay(bay.id, { isActive: newActive });
+      await bayPersist.updateBay(bay, { isActive: newActive });
       await fetchBays();
       onSuccess?.(
         `${bayLabel(bay)} 타석이 ${newActive ? '활성화' : '비활성화'}되었습니다.`
@@ -170,7 +151,7 @@ export const BayManager: React.FC<BayManagerProps> = ({
     if (!window.confirm(`${bayLabel(bay)} 타석을 비활성화하시겠습니까?`)) return;
     setSaving(true);
     try {
-      await bayPersist.deleteBay(bay.id);
+      await bayPersist.deleteBay(bay);
       await fetchBays();
       onSuccess?.(`${bayLabel(bay)} 타석이 비활성화되었습니다.`);
     } catch (e) {

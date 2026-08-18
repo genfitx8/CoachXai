@@ -226,64 +226,24 @@ router.get('/', async (req: Request, res: Response) => {
   }
 });
 
-// POST /api/clients
+// POST /api/clients — permanently removed.
 //
-// Legacy: this backed the coach app's "새 회원 등록" form, which has been
-// removed. Members are now created only by signing up in the student app
-// (POST /api/auth/signup/client) and are linked to a coach only by the
-// student choosing one (PUT /api/clients/me). No current client calls this
-// route; it stays reachable so coach app builds still in the field don't
-// hard-fail, and should be deleted once those have rolled over.
-router.post('/', async (req: Request, res: Response) => {
-  try {
-    const coachId = req.user!.id;
-    const {
-      name,
-      email,
-      phone,
-      designatedCoach,
-      currentPoints,
-      isSubscribed,
-      subscriptionPlan,
-      subscriptionEndDate,
-      pushToken,
-    } = req.body as Record<string, unknown>;
-
-    if (!name) {
-      res.status(400).json({ error: 'name is required' });
-      return;
-    }
-
-    const now = Date.now();
-
-    const result = await pool.query(
-      `INSERT INTO clients (
-        name, email, phone, coach_id, designated_coach,
-        current_points, is_subscribed, subscription_plan,
-        subscription_end_date, push_token, created_at, updated_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-      RETURNING *`,
-      [
-        name,
-        email ?? null,
-        phone ?? null,
-        coachId,
-        designatedCoach ?? null,
-        currentPoints ?? 0,
-        isSubscribed ?? false,
-        subscriptionPlan ?? 'FREE',
-        subscriptionEndDate ?? null,
-        pushToken ?? null,
-        now,
-        now,
-      ]
-    );
-
-    res.status(201).json(mapClientForCoach(result.rows[0]));
-  } catch (err) {
-    console.error('[clients] POST / error:', err);
-    res.status(500).json({ error: 'Internal server error' });
-  }
+// This used to back the coach app's "새 회원 등록" form: it INSERTed a member
+// row with coach_id = the calling coach, i.e. it linked a member to a coach
+// without the student ever signing up or designating anyone. Old builds still
+// in the field (and the former local-cache sync, which POSTed any cached row
+// lacking a server id) could therefore mint phantom password-less members
+// that showed up in a coach's 회원 목록 the moment they signed in.
+//
+// The only way a member exists is POST /api/auth/signup/client, and the only
+// way they become a coach's 회원 is the student designating that coach
+// (PUT /api/clients/me). 410 tells lingering callers this write is gone for
+// good instead of silently creating data.
+router.post('/', (_req: Request, res: Response) => {
+  res.status(410).json({
+    error:
+      '회원은 학생 앱에서 직접 가입하고 담당 코치를 지정해야 등록됩니다. 코치가 회원을 생성하는 기능은 제거되었습니다.',
+  });
 });
 
 // PUT /api/clients/:id
