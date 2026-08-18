@@ -13,7 +13,7 @@
  * History is scoped per client id so two students sharing a device never see
  * each other's conversation.
  */
-import type { CoachXChatMessage } from './coachXService';
+import type { ChatAttachment, CoachXChatMessage } from './coachXService';
 import { createLogger } from '../utils/logger';
 
 const log = createLogger('chatHistory');
@@ -37,7 +37,43 @@ interface PersistedChat {
   messages: CoachXChatMessage[];
 }
 
+/**
+ * Deliberately still 1 even though messages may now carry `attachments`.
+ *
+ * The reader below drops the whole transcript on a version mismatch, so
+ * bumping this would silently wipe every student's conversation on the deploy
+ * that shipped chat uploads. `attachments` is purely additive and optional:
+ * a new build reads an old transcript fine, and an older build reading a new
+ * one just ignores the field. Bump only for a change old readers would
+ * misinterpret.
+ */
 const SCHEMA_VERSION = 1;
+
+/** Newest N attachments kept per message — a defensive cap, not a UI limit. */
+const MAX_ATTACHMENTS_PER_MESSAGE = 10;
+
+function sanitizeAttachments(value: unknown): ChatAttachment[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const cleaned = value.flatMap((entry): ChatAttachment[] => {
+    if (typeof entry !== 'object' || entry === null) return [];
+    const a = entry as Partial<ChatAttachment>;
+    if (typeof a.id !== 'string' || !a.id) return [];
+    if (typeof a.url !== 'string' || !a.url) return [];
+    if (a.type !== 'video' && a.type !== 'image' && a.type !== 'audio') return [];
+    return [{
+      id: a.id,
+      url: a.url,
+      type: a.type,
+      name: typeof a.name === 'string' ? a.name : '',
+      size: typeof a.size === 'number' ? a.size : 0,
+      mimeType: typeof a.mimeType === 'string' ? a.mimeType : '',
+      ...(a.destination === 'practice' || a.destination === 'reservation' || a.destination === 'none'
+        ? { destination: a.destination }
+        : {}),
+    }];
+  });
+  return cleaned.length > 0 ? cleaned.slice(0, MAX_ATTACHMENTS_PER_MESSAGE) : undefined;
+}
 
 const inBrowser = (): boolean =>
   typeof window !== 'undefined' && typeof window.localStorage !== 'undefined';
@@ -49,11 +85,11 @@ export function chatHistoryKey(clientId: string): string {
 function isChatMessage(value: unknown): value is CoachXChatMessage {
   if (typeof value !== 'object' || value === null) return false;
   const m = value as Partial<CoachXChatMessage>;
-  return (
-    (m.role === 'user' || m.role === 'assistant') &&
-    typeof m.content === 'string' &&
-    m.content.length > 0
-  );
+  if (m.role !== 'user' && m.role !== 'assistant') return false;
+  if (typeof m.content !== 'string') return false;
+  // A file sent with no caption is a real turn, so an empty body is only
+  // meaningless when the message carries nothing else either.
+  return m.content.length > 0 || sanitizeAttachments(m.attachments) !== undefined;
 }
 
 function tryRemove(key: string): void {
@@ -99,11 +135,15 @@ export function loadChatHistory(clientId: string): CoachXChatMessage[] {
 
     const messages = parsed.messages
       .filter(isChatMessage)
-      .map(m => ({
-        role: m.role,
-        content: m.content,
-        timestamp: typeof m.timestamp === 'number' ? m.timestamp : 0,
-      }))
+      .map(m => {
+        const attachments = sanitizeAttachments(m.attachments);
+        return {
+          role: m.role,
+          content: m.content,
+          timestamp: typeof m.timestamp === 'number' ? m.timestamp : 0,
+          ...(attachments ? { attachments } : {}),
+        };
+      })
       .slice(-MAX_PERSISTED_MESSAGES);
 
     return messages;
@@ -130,13 +170,17 @@ export function saveChatHistory(clientId: string, messages: CoachXChatMessage[])
   const trimmed = messages
     .filter(isChatMessage)
     .slice(-MAX_PERSISTED_MESSAGES)
-    .map(m => ({
-      role: m.role,
-      content: m.content.length > MAX_CONTENT_CHARS
-        ? m.content.slice(0, MAX_CONTENT_CHARS)
-        : m.content,
-      timestamp: typeof m.timestamp === 'number' ? m.timestamp : Date.now(),
-    }));
+    .map(m => {
+      const attachments = sanitizeAttachments(m.attachments);
+      return {
+        role: m.role,
+        content: m.content.length > MAX_CONTENT_CHARS
+          ? m.content.slice(0, MAX_CONTENT_CHARS)
+          : m.content,
+        timestamp: typeof m.timestamp === 'number' ? m.timestamp : Date.now(),
+        ...(attachments ? { attachments } : {}),
+      };
+    });
 
   if (trimmed.length === 0) {
     clearChatHistory(clientId);

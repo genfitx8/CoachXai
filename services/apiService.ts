@@ -370,6 +370,23 @@ export const apiService = {
     return uploadBlobToR2(videoBlob, `lessons/${lessonId}/main.${ext}`);
   },
 
+  /**
+   * Upload a file the student attached in the AI chat.
+   *
+   * Rides the same `lessons/{uuid}/main.{ext}` key the presign guard already
+   * allows (see server/src/routes/files.ts) rather than a `chat/…` namespace
+   * that would be rejected outright. `attachmentId` is a fresh UUID, which
+   * doubles as the lesson id when the student files the attachment as a
+   * practice record — so the upload and the eventual row always line up.
+   */
+  async uploadChatAttachment(file: Blob, attachmentId: string): Promise<string> {
+    const subtype = file.type.split('/')[1] || '';
+    // Strip codec/parameter suffixes ("quicktime;codecs=…") and any path
+    // separator so the key can never escape the attachment's own prefix.
+    const ext = (subtype.split(';')[0].replace(/[^a-z0-9]/gi, '') || 'bin').toLowerCase();
+    return uploadBlobToR2(file, `lessons/${attachmentId}/main.${ext}`);
+  },
+
   // ── Clients ───────────────────────────────────────────────────────────────
 
   async getMyClientProfile(): Promise<ClientProfile> {

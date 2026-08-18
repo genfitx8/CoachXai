@@ -32,6 +32,8 @@ interface StudentHomeProps {
    * row back down behind the tab bar.
    */
   topSlot?: React.ReactNode;
+  /** Save a record created from a file the student attached in the chat. */
+  onSaveLesson?: (lesson: Lesson) => void | Promise<void>;
 }
 
 /**
@@ -55,6 +57,7 @@ export const StudentHome: React.FC<StudentHomeProps> = ({
   onToggleHomework,
   onUploadPractice,
   topSlot,
+  onSaveLesson,
 }) => {
   const { language } = useLanguage();
   const lang = (language as 'ko' | 'en' | 'ja') ?? 'ko';
@@ -155,6 +158,7 @@ export const StudentHome: React.FC<StudentHomeProps> = ({
       hideBackButton
       headerLeftSlot={menuButton}
       topBannerSlot={homeBanner}
+      onSaveLesson={onSaveLesson}
       // This screen is always the 대화 tab, i.e. it renders underneath the
       // fixed StudentBottomNav. Without this the chat column runs the full
       // 100dvh and its input row lands behind the tab bar.

@@ -25,7 +25,7 @@ import { StudentHamburgerMenu, HamburgerAction } from './StudentHamburgerMenu';
 import { GrowthTimeline } from './GrowthTimeline';
 import { AIToneSettings } from './AIToneSettings';
 import { SwingVideoAnalysis } from './posture/SwingVideoAnalysis';
-import { PlayCircle, Filter, Eye, EyeOff, Target, Menu, UserCheck, ChevronRight } from 'lucide-react';
+import { PlayCircle, Filter, Eye, EyeOff, Target, Menu, UserCheck, ChevronRight, PenLine } from 'lucide-react';
 import { firebaseService } from '../services/firebase';
 import { storageService } from '../services/storage';
 import { apiService } from '../services/apiService';
@@ -503,10 +503,16 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
     : language === 'ja' ? 'レッスン予約'
     : '레슨 예약';
 
+  // The growth tab absorbed the record composer when the student nav dropped
+  // to three tabs, so it is titled for what it now holds: every record, with
+  // the growth timeline on top.
   const growthTabTitle =
-    language === 'en' ? 'Growth log'
-    : language === 'ja' ? '成長ログ'
-    : '성장 기록';
+    language === 'en' ? 'My records'
+    : language === 'ja' ? '記録'
+    : '내 기록';
+
+  const writeRecordLabel =
+    language === 'en' ? 'Write' : language === 'ja' ? '作成' : '직접 작성';
 
   const showBottomNav = !effectiveSubView;
 
@@ -557,6 +563,7 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
             quickLogs={quickLogs}
             coachProfile={designatedCoachProfile ?? undefined}
             topSlot={connectCoachPrompt}
+            onSaveLesson={onSaveNewRecord ? (lesson) => onSaveNewRecord(lesson) : undefined}
             onOpenMenu={() => setHamburgerOpen(true)}
             onOpenLesson={(lessonId) => {
               const target = myLessonsRaw.find((l) => l.id === lessonId);
@@ -637,7 +644,21 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
 
       {!effectiveSubView && tab === 'GROWTH' && (
         <div className="student-nav-clearance">
-          <TabHeader title={growthTabTitle} />
+          {/* The record composer lost its own tab in the three-tab nav, so its
+              entry point lives here — beside the records it creates. */}
+          <TabHeader
+            title={growthTabTitle}
+            right={onSaveNewRecord ? (
+              <button
+                type="button"
+                onClick={handleNewLessonCTA}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] border border-line-subtle text-ink-high text-xs font-semibold transition-colors"
+              >
+                <PenLine className="w-3.5 h-3.5" />
+                {writeRecordLabel}
+              </button>
+            ) : undefined}
+          />
           <main className="max-w-md mx-auto px-4 py-4">
             <GrowthTimeline
               clientProfile={clientProfile}
@@ -961,7 +982,6 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
               onRefreshLessons?.();
             }
           }}
-          onNewRecord={onSaveNewRecord ? handleNewLessonCTA : undefined}
         />
       )}
 

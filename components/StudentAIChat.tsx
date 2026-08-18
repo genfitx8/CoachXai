@@ -4,9 +4,11 @@ import {
   ChevronLeft, Send, Sparkles, Bot, MessageCircle, Target, TrendingUp,
   ListChecks, Dumbbell, HelpCircle, Mic, MicOff, MessageSquare, Volume2, VolumeX,
   Calendar, Clock, CheckCircle, XCircle, AlertCircle, Loader2, RotateCcw,
+  Paperclip, Camera, Image as ImageIcon, Video, ClipboardList, Play, X, RefreshCw,
 } from 'lucide-react';
-import { CoachXChatMessage } from '../services/coachXService';
+import { ChatAttachment, ChatAttachmentDestination, CoachXChatMessage } from '../services/coachXService';
 import { generateStudentChatResponse } from '../services/geminiService';
+import { apiService } from '../services/apiService';
 import { loadChatHistory, saveChatHistory, clearChatHistory } from '../services/chatHistoryService';
 import { reservationService } from '../services/reservationService';
 import { useLanguage } from './LanguageContext';
@@ -68,9 +70,67 @@ interface StudentAIChatProps {
    * the full viewport and takes the bottom inset itself.
    */
   reserveBottomNav?: boolean;
+  /**
+   * Persist a record created from a chat attachment. Wired to ClientApp's
+   * `onSaveNewRecord` so a file filed from the chat lands in the same store
+   * as coach-authored lessons. Omit to hide the "save as record" option — the
+   * chat then only offers analysis without keeping anything.
+   */
+  onSaveLesson?: (lesson: Lesson) => void | Promise<void>;
 }
 
+type UploadStage = 'uploading' | 'ready' | 'error';
+
+/** A file being uploaded, before it is committed to the transcript. */
+interface PendingAttachment {
+  /** Fresh UUID — the R2 key root, and the lesson id if it is filed. */
+  id: string;
+  file: File;
+  type: 'video' | 'image' | 'audio';
+  /** Object URL for the local preview; revoked when the pending item clears. */
+  previewUrl: string;
+  stage: UploadStage;
+  /** Absolute /api/files/… URL, once the upload lands. */
+  url?: string;
+  error?: string;
+}
+
+/**
+ * Client-side mirror of the server's per-type caps
+ * (server/src/routes/files.ts). Checked here so an oversized pick fails
+ * instantly with an explanation instead of after a long doomed upload.
+ */
+const MAX_UPLOAD_BYTES: Record<PendingAttachment['type'], number> = {
+  video: 500 * 1024 * 1024,
+  audio: 50 * 1024 * 1024,
+  image: 20 * 1024 * 1024,
+};
+
+const ATTACHMENT_ACCEPT = 'video/*,image/*';
+
+function attachmentTypeOf(mimeType: string): PendingAttachment['type'] | null {
+  if (mimeType.startsWith('video/')) return 'video';
+  if (mimeType.startsWith('image/')) return 'image';
+  if (mimeType.startsWith('audio/')) return 'audio';
+  return null;
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
+  if (bytes >= 1024) return `${Math.round(bytes / 1024)}KB`;
+  return `${bytes}B`;
+}
+
+function newAttachmentId(): string {
+  // Matches the UUID shape the presign guard requires; the timestamp fallback
+  // is only for environments without crypto.randomUUID (older WebViews).
+  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) return crypto.randomUUID();
+  return `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+/** `action: 'attach'` opens the file sheet instead of sending the text. */
 const SUGGESTED_PROMPTS_KO = [
+  { icon: Video, text: '스윙 영상 분석 받기', action: 'attach' as const },
   { icon: Calendar, text: '레슨 예약하고 싶어요' },
   { icon: TrendingUp, text: '내 최근 레슨 정리해줘' },
   { icon: Target, text: '오늘 연습 뭐 해야 해?' },
@@ -80,6 +140,7 @@ const SUGGESTED_PROMPTS_KO = [
 ];
 
 const SUGGESTED_PROMPTS_EN = [
+  { icon: Video, text: 'Analyse my swing video', action: 'attach' as const },
   { icon: Calendar, text: 'I want to book a lesson' },
   { icon: TrendingUp, text: 'Summarize my recent lessons' },
   { icon: Target, text: "What should I practice today?" },
@@ -89,6 +150,7 @@ const SUGGESTED_PROMPTS_EN = [
 ];
 
 const SUGGESTED_PROMPTS_JA = [
+  { icon: Video, text: 'スイング動画を分析してほしい', action: 'attach' as const },
   { icon: Calendar, text: 'レッスンを予約したい' },
   { icon: TrendingUp, text: '最近のレッスンをまとめて' },
   { icon: Target, text: '今日の練習は何をすべき？' },
@@ -155,6 +217,7 @@ export const StudentAIChat: React.FC<StudentAIChatProps> = ({
   headerLeftSlot,
   topBannerSlot,
   reserveBottomNav = false,
+  onSaveLesson,
 }) => {
   const { language, t } = useLanguage();
   const lang = (language as 'ko' | 'en' | 'ja') ?? 'ko';
@@ -197,8 +260,17 @@ export const StudentAIChat: React.FC<StudentAIChatProps> = ({
   const [selectedSlot, setSelectedSlot] = useState<LessonReservation | null>(null);
   const [bookingNotes, setBookingNotes] = useState('');
 
+  // Attachment state
+  const [attachSheetOpen, setAttachSheetOpen] = useState(false);
+  const [pending, setPending] = useState<PendingAttachment | null>(null);
+  const [attachError, setAttachError] = useState<string | null>(null);
+
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const albumInputRef = useRef<HTMLInputElement>(null);
+  /** Kept so the AI call can read the bytes after the transcript entry exists. */
+  const pendingFileRef = useRef<File | null>(null);
 
   const suggestedPrompts =
     language === 'en' ? SUGGESTED_PROMPTS_EN
@@ -362,13 +434,15 @@ export const StudentAIChat: React.FC<StudentAIChatProps> = ({
   const requestAssistantReply = useCallback(async (
     msgText: string,
     priorHistory: CoachXChatMessage[],
+    media: { blob: Blob; mimeType: string }[] = [],
   ) => {
     setIsTyping(true);
     const historyForAI = priorHistory.map(m => ({ role: m.role, content: m.content }));
 
     try {
       const reply = await generateStudentChatResponse(
-        msgText, myLessons, clientProfile, homeworkList, lang, coachProfile, quickLogs, historyForAI
+        msgText, myLessons, clientProfile, homeworkList, lang, coachProfile, quickLogs, historyForAI,
+        media
       );
       setMessages(prev => [...prev, { role: 'assistant', content: reply, timestamp: Date.now() }]);
       speak(reply);
@@ -404,6 +478,188 @@ export const StudentAIChat: React.FC<StudentAIChatProps> = ({
 
     await requestAssistantReply(msgText, priorHistory);
   };
+
+  // ── Attachments ────────────────────────────────────────────────────────────
+
+  const clearPending = useCallback(() => {
+    setPending(prev => {
+      if (prev) URL.revokeObjectURL(prev.previewUrl);
+      return null;
+    });
+    pendingFileRef.current = null;
+  }, []);
+
+  // An object URL outlives the component unless it is revoked, so a student
+  // who leaves the tab mid-upload doesn't leak the whole clip.
+  useEffect(() => () => {
+    if (pending) URL.revokeObjectURL(pending.previewUrl);
+    // Cleanup only — re-running on every `pending` change would revoke the
+    // URL the current preview is still displaying.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const startUpload = useCallback(async (attachment: PendingAttachment) => {
+    setPending({ ...attachment, stage: 'uploading', error: undefined });
+    try {
+      const url = await apiService.uploadChatAttachment(attachment.file, attachment.id);
+      setPending(prev => (prev && prev.id === attachment.id
+        ? { ...prev, stage: 'ready', url }
+        : prev));
+    } catch (err) {
+      const message = err instanceof Error ? err.message : '';
+      setPending(prev => (prev && prev.id === attachment.id
+        ? { ...prev, stage: 'error', error: message }
+        : prev));
+    }
+  }, []);
+
+  const handleFilePicked = useCallback((file: File | undefined | null) => {
+    setAttachSheetOpen(false);
+    setAttachError(null);
+    if (!file) return;
+
+    const type = attachmentTypeOf(file.type);
+    if (!type) {
+      setAttachError(lang === 'en'
+        ? 'Only videos and photos can be sent here.'
+        : lang === 'ja'
+        ? 'ここに送れるのは動画と写真だけです。'
+        : '여기에는 영상과 사진만 보낼 수 있어요.');
+      return;
+    }
+    const cap = MAX_UPLOAD_BYTES[type];
+    if (file.size > cap) {
+      setAttachError(lang === 'en'
+        ? `That file is ${formatBytes(file.size)} — the limit is ${formatBytes(cap)}. Try trimming the clip to just the swing.`
+        : lang === 'ja'
+        ? `このファイルは${formatBytes(file.size)}で、上限は${formatBytes(cap)}です。スイング部分だけ切り取って送ってください。`
+        : `파일이 ${formatBytes(file.size)}인데 최대 ${formatBytes(cap)}까지 보낼 수 있어요. 스윙 부분만 잘라서 보내주세요.`);
+      return;
+    }
+
+    // Replacing an in-flight pick drops the previous preview URL with it.
+    if (pending) URL.revokeObjectURL(pending.previewUrl);
+    pendingFileRef.current = file;
+    void startUpload({
+      id: newAttachmentId(),
+      file,
+      type,
+      previewUrl: URL.createObjectURL(file),
+      stage: 'uploading',
+    });
+  }, [lang, pending, startUpload]);
+
+  const handleCancelPending = useCallback(() => {
+    clearPending();
+    setAttachError(null);
+  }, [clearPending]);
+
+  /**
+   * Commit the uploaded file to the transcript and act on where the student
+   * filed it. The record row is only written now — never at upload time — so
+   * a cancelled or failed attachment can't leave an empty lesson behind.
+   */
+  const handleDestination = useCallback(async (destination: ChatAttachmentDestination) => {
+    if (!pending || pending.stage !== 'ready' || !pending.url) return;
+
+    const file = pendingFileRef.current;
+    const attachment: ChatAttachment = {
+      id: pending.id,
+      url: pending.url,
+      type: pending.type,
+      name: pending.file.name,
+      size: pending.file.size,
+      mimeType: pending.file.type,
+      destination,
+    };
+    const caption = input.trim();
+
+    clearReveal();
+    stopSpeaking();
+
+    const priorHistory = messages;
+    const userMsg: CoachXChatMessage = {
+      role: 'user',
+      content: caption,
+      timestamp: Date.now(),
+      attachments: [attachment],
+    };
+    setMessages(prev => [...prev, userMsg]);
+    setInput('');
+    clearPending();
+
+    let savedRecord = false;
+    if ((destination === 'practice' || destination === 'reservation') && onSaveLesson) {
+      const now = Date.now();
+      const ext = (pending.file.type.split('/')[1] || 'bin').split(';')[0]
+        .replace(/[^a-z0-9]/gi, '').toLowerCase();
+      const lesson: Lesson = {
+        id: pending.id,
+        clientId,
+        clientName: clientProfile.name,
+        clientPhone: clientProfile.phone,
+        coachId: clientProfile.coachId,
+        createdBy: 'CLIENT',
+        recordType: 'PRACTICE',
+        date: new Date(now).toISOString().slice(0, 10),
+        title: caption || (pending.type === 'image' ? '연습 사진' : '연습 영상'),
+        videoUrl: attachment.url,
+        videoKey: `lessons/${pending.id}/main.${ext}`,
+        mediaType: pending.type,
+        coachNotes: '',
+        tags: ['practice', 'chat'],
+        createdAt: now,
+      };
+      try {
+        await onSaveLesson(lesson);
+        savedRecord = true;
+      } catch {
+        savedRecord = false;
+      }
+    }
+
+    const savedLabel = savedRecord
+      ? (lang === 'en'
+          ? '\n\n(Saved to my records and shared with my coach.)'
+          : lang === 'ja'
+          ? '\n\n(記録に保存し、コーチに共有しました。)'
+          : '\n\n(기록에 저장했고 코치님께 공유했어요.)')
+      : destination === 'none'
+        ? ''
+        : (lang === 'en'
+            ? '\n\n(Could not save this to my records.)'
+            : lang === 'ja'
+            ? '\n\n(記録への保存に失敗しました。)'
+            : '\n\n(기록 저장에 실패했어요.)');
+
+    const promptText = (caption ||
+      (lang === 'en'
+        ? 'I sent a file — please take a look.'
+        : lang === 'ja'
+        ? 'ファイルを送りました。見てください。'
+        : '파일을 보냈어요. 봐주세요.')) + savedLabel;
+
+    // The reservation route files the record first so the coach has something
+    // to open, then hands off to the existing booking flow with the note
+    // pre-filled — the chat has no other way to reach a reservation.
+    if (destination === 'reservation') {
+      setBookingNotes(lang === 'en'
+        ? 'I sent a clip in the chat — please take a look before the lesson.'
+        : lang === 'ja'
+        ? 'チャットで動画を送りました。レッスン前にご確認ください。'
+        : '채팅으로 영상을 보냈어요. 레슨 전에 봐주세요.');
+      await startBookingFlow();
+      return;
+    }
+
+    const media = file && file.size <= MAX_UPLOAD_BYTES[pending.type]
+      ? [{ blob: file, mimeType: file.type }]
+      : [];
+    await requestAssistantReply(promptText, priorHistory, media);
+  }, [
+    pending, input, messages, clientId, clientProfile, lang, onSaveLesson,
+    clearReveal, stopSpeaking, clearPending, requestAssistantReply, startBookingFlow,
+  ]);
 
   // ── Voice STT ──────────────────────────────────────────────────────────────
 
@@ -484,11 +740,14 @@ export const StudentAIChat: React.FC<StudentAIChatProps> = ({
     setMessages([{ role: 'assistant', content: greeting, timestamp: Date.now() }]);
     setInput('');
     setIsTyping(false);
+    clearPending();
+    setAttachError(null);
+    setAttachSheetOpen(false);
     setBookingStep('idle');
     setAvailableSlots([]);
     setSelectedSlot(null);
     setBookingNotes('');
-  }, [lang, clearReveal, stopSpeaking, stopListening, clientId, greeting]);
+  }, [lang, clearReveal, stopSpeaking, stopListening, clientId, greeting, clearPending]);
 
   // ── Render helpers ─────────────────────────────────────────────────────────
 
@@ -628,6 +887,107 @@ export const StudentAIChat: React.FC<StudentAIChatProps> = ({
     </div>
   );
 
+  /**
+   * Where should this file go? Shown once the upload lands. Saving as a record
+   * is the default because it is the only route that reaches the coach; the
+   * option is dropped entirely when the host gave us no save handler.
+   */
+  const renderDestinationCard = () => {
+    const options: {
+      key: ChatAttachmentDestination;
+      icon: React.ComponentType<{ className?: string }>;
+      title: string;
+      desc: string;
+      recommended?: boolean;
+    }[] = [];
+
+    if (onSaveLesson) {
+      options.push({
+        key: 'practice',
+        icon: ClipboardList,
+        recommended: true,
+        title: lang === 'en' ? 'Save to my records' : lang === 'ja' ? '記録に保存' : '기록으로 저장',
+        desc: lang === 'en'
+          ? 'Kept in the records tab and shared with your coach'
+          : lang === 'ja'
+          ? '記録タブに保存され、コーチに共有されます'
+          : '기록 탭에 저장되고, 코치님께 전달돼요',
+      });
+      options.push({
+        key: 'reservation',
+        icon: Calendar,
+        title: lang === 'en' ? 'Save and book a lesson' : lang === 'ja' ? '保存してレッスン予約' : '저장하고 레슨 예약',
+        desc: lang === 'en'
+          ? 'Saves the record, then opens booking with a note'
+          : lang === 'ja'
+          ? '記録を保存し、メモ付きで予約へ進みます'
+          : '기록을 저장하고, 메모와 함께 예약으로 이어져요',
+      });
+    }
+    options.push({
+      key: 'none',
+      icon: Sparkles,
+      title: lang === 'en' ? 'Just analyse it' : lang === 'ja' ? '分析だけ' : '저장 없이 AI 분석만',
+      desc: lang === 'en'
+        ? 'Get feedback without keeping a record'
+        : lang === 'ja'
+        ? '記録を残さずフィードバックだけ受け取ります'
+        : '기록을 남기지 않고 피드백만 받아요',
+    });
+
+    return (
+      <div className="flex-shrink-0 mx-4 mb-3 bg-white/[0.10] border border-emerald-500/30 rounded-2xl overflow-hidden">
+        <div className="flex items-center justify-between px-4 py-3 bg-emerald-900/40 border-b border-emerald-500/20">
+          <div className="flex items-center gap-2">
+            <Paperclip className="w-4 h-4 text-emerald-300" />
+            <span className="text-sm font-bold text-emerald-200">
+              {lang === 'en' ? 'Where should this go?' : lang === 'ja' ? '保存先を選択' : '저장 위치 선택'}
+            </span>
+          </div>
+          <button
+            onClick={handleCancelPending}
+            className="text-ink-muted hover:text-white transition-colors"
+            aria-label={lang === 'en' ? 'Cancel' : '취소'}
+          >
+            <XCircle className="w-4 h-4" />
+          </button>
+        </div>
+        <div className="p-3 space-y-2">
+          {options.map(opt => {
+            const Icon = opt.icon;
+            return (
+              <button
+                key={opt.key}
+                onClick={() => void handleDestination(opt.key)}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-left ${
+                  opt.recommended
+                    ? 'bg-emerald-600/15 border border-emerald-500/40 hover:bg-emerald-900/40'
+                    : 'bg-white/[0.05] border border-white/10 hover:bg-white/[0.08]'
+                }`}
+              >
+                <div className="w-8 h-8 rounded-lg bg-emerald-600/25 flex items-center justify-center flex-shrink-0">
+                  <Icon className="w-4 h-4 text-emerald-300" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-sm font-semibold text-white">{opt.title}</span>
+                    {opt.recommended && (
+                      <span className="text-[10px] font-bold text-emerald-100 bg-emerald-600/60 rounded-full px-2 py-0.5">
+                        {lang === 'en' ? 'Best' : lang === 'ja' ? 'おすすめ' : '추천'}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-ink-muted mt-0.5">{opt.desc}</p>
+                </div>
+                <ChevronLeft className="w-4 h-4 text-emerald-400 rotate-180 flex-shrink-0" />
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
   const modeSelectorTitle = language === 'en'
     ? 'How would you like to talk with CoachX AI?'
     : language === 'ja'
@@ -675,6 +1035,79 @@ export const StudentAIChat: React.FC<StudentAIChatProps> = ({
           toggleListening();
         }}
       />
+      {/* Attach source sheet */}
+      {attachSheetOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/60"
+          role="dialog"
+          aria-modal="true"
+          aria-label={language === 'en' ? 'Send a file' : '파일 보내기'}
+          onClick={() => setAttachSheetOpen(false)}
+        >
+          <div
+            className="w-full max-w-md bg-overlay border-t border-white/10 rounded-t-3xl px-4 pt-2 pb-safe-gutter"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="w-9 h-1 rounded-full bg-white/20 mx-auto mt-1 mb-3.5" />
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-sm font-bold text-ink-high">
+                {language === 'en' ? 'Send a file' : language === 'ja' ? 'ファイルを送る' : '파일 보내기'}
+              </p>
+              <button
+                onClick={() => setAttachSheetOpen(false)}
+                aria-label={language === 'en' ? 'Close' : '닫기'}
+                className="text-ink-muted hover:text-white transition-colors"
+              >
+                <X className="w-4.5 h-4.5" />
+              </button>
+            </div>
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={() => cameraInputRef.current?.click()}
+                className="flex items-center gap-3 p-3 min-h-[56px] bg-white/[0.05] hover:bg-white/[0.10] border border-white/10 rounded-xl transition-colors text-left"
+              >
+                <div className="w-10 h-10 rounded-xl bg-emerald-600/20 flex items-center justify-center flex-shrink-0">
+                  <Camera className="w-4.5 h-4.5 text-emerald-300" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-ink-high">
+                    {language === 'en' ? 'Take a photo or video' : language === 'ja' ? 'カメラで撮影' : '카메라로 촬영'}
+                  </p>
+                  <p className="text-xs text-ink-muted mt-0.5">
+                    {language === 'en' ? 'Record your swing right now' : language === 'ja' ? 'スイングをその場で撮影' : '스윙을 바로 찍어서 보내요'}
+                  </p>
+                </div>
+                <ChevronLeft className="w-4 h-4 text-emerald-400 rotate-180 flex-shrink-0" />
+              </button>
+              <button
+                onClick={() => albumInputRef.current?.click()}
+                className="flex items-center gap-3 p-3 min-h-[56px] bg-white/[0.05] hover:bg-white/[0.10] border border-white/10 rounded-xl transition-colors text-left"
+              >
+                <div className="w-10 h-10 rounded-xl bg-emerald-600/20 flex items-center justify-center flex-shrink-0">
+                  <ImageIcon className="w-4.5 h-4.5 text-emerald-300" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-ink-high">
+                    {language === 'en' ? 'Choose from library' : language === 'ja' ? 'アルバムから選択' : '앨범에서 선택'}
+                  </p>
+                  <p className="text-xs text-ink-muted mt-0.5">
+                    {language === 'en' ? 'Pick a photo or video' : language === 'ja' ? '写真・動画を読み込む' : '사진·영상 불러오기'}
+                  </p>
+                </div>
+                <ChevronLeft className="w-4 h-4 text-emerald-400 rotate-180 flex-shrink-0" />
+              </button>
+            </div>
+            <p className="text-[11px] text-ink-muted text-center mt-3.5">
+              {language === 'en'
+                ? 'Video up to 500MB · Photo up to 20MB'
+                : language === 'ja'
+                ? '動画は最大500MB・写真は最大20MB'
+                : '영상 최대 500MB · 사진 최대 20MB'}
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       {/* gap-2 + the flex-shrink-0 / truncate below keep this row on a single
           line at 360px. Without them "CoachX AI" wrapped one character per
@@ -844,15 +1277,42 @@ export const StudentAIChat: React.FC<StudentAIChatProps> = ({
                 </div>
               )}
               <div
-                className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
+                className={`max-w-[85%] rounded-2xl text-sm leading-relaxed overflow-hidden ${
                   msg.role === 'user'
                     ? 'bg-emerald-600 text-white rounded-br-sm'
                     : 'bg-white/[0.10] text-ink-high rounded-bl-sm'
                 }`}
               >
-                {renderMarkdown(displayContent)}
-                {isRevealing && (
-                  <span className="student-ai-cursor inline-block w-0.5 h-3.5 bg-emerald-400 ml-0.5 align-text-bottom" />
+                {msg.attachments?.map(att => (
+                  <div key={att.id} className="border-b border-white/15">
+                    {att.type === 'image' ? (
+                      <img
+                        src={att.url}
+                        alt={att.name || '첨부 이미지'}
+                        className="block w-full max-h-56 object-cover"
+                      />
+                    ) : (
+                      <div className="flex items-center gap-2.5 px-4 py-3">
+                        <div className="w-9 h-9 rounded-lg bg-black/25 flex items-center justify-center flex-shrink-0">
+                          {att.type === 'video'
+                            ? <Play className="w-4 h-4" />
+                            : <Mic className="w-4 h-4" />}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs font-semibold truncate">{att.name || att.type}</p>
+                          <p className="text-[11px] opacity-70">{formatBytes(att.size)}</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+                {(displayContent || !msg.attachments) && (
+                  <div className="px-4 py-3">
+                    {renderMarkdown(displayContent)}
+                    {isRevealing && (
+                      <span className="student-ai-cursor inline-block w-0.5 h-3.5 bg-emerald-400 ml-0.5 align-text-bottom" />
+                    )}
+                  </div>
                 )}
               </div>
               {msg.role === 'user' && (
@@ -863,6 +1323,74 @@ export const StudentAIChat: React.FC<StudentAIChatProps> = ({
             </div>
           );
         })}
+
+        {/* In-flight attachment — lives outside `messages` so a cancelled or
+            failed upload never reaches the persisted transcript. */}
+        {pending && (
+          <div className="flex gap-3 justify-end">
+            <div className="w-[230px] rounded-2xl rounded-br-sm overflow-hidden border border-white/10 bg-white/[0.06]">
+              {pending.type === 'image' ? (
+                <img
+                  src={pending.previewUrl}
+                  alt={pending.file.name}
+                  className="block w-full h-32 object-cover"
+                />
+              ) : (
+                <div className="w-full h-32 bg-black/40 flex items-center justify-center">
+                  <Video className="w-7 h-7 text-white/70" />
+                </div>
+              )}
+              <div className="p-3 space-y-2">
+                <div className="flex items-center gap-1.5">
+                  {pending.stage === 'error'
+                    ? <AlertCircle className="w-3.5 h-3.5 text-red-400 flex-shrink-0" />
+                    : pending.stage === 'ready'
+                    ? <CheckCircle className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" />
+                    : <Loader2 className="w-3.5 h-3.5 text-emerald-400 animate-spin flex-shrink-0" />}
+                  <span className="flex-1 min-w-0 text-xs text-white truncate">{pending.file.name}</span>
+                  {pending.stage !== 'uploading' && (
+                    <button
+                      onClick={handleCancelPending}
+                      aria-label={lang === 'en' ? 'Remove attachment' : '첨부 취소'}
+                      className="text-ink-muted hover:text-white transition-colors"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className={`text-[11px] font-medium ${
+                    pending.stage === 'error' ? 'text-red-300' : 'text-emerald-300'
+                  }`}>
+                    {pending.stage === 'uploading'
+                      ? (lang === 'en' ? 'Uploading…' : lang === 'ja' ? 'アップロード中…' : '업로드 중…')
+                      : pending.stage === 'ready'
+                      ? (lang === 'en' ? 'Sent' : lang === 'ja' ? '送信済み' : '전송됨')
+                      : (lang === 'en' ? 'Failed' : lang === 'ja' ? '失敗' : '실패')}
+                  </span>
+                  <span className="text-[11px] text-ink-muted">{formatBytes(pending.file.size)}</span>
+                </div>
+                {pending.stage === 'uploading' && (
+                  <div className="h-1 rounded-full bg-white/10 overflow-hidden">
+                    <div className="h-1 w-1/3 rounded-full bg-emerald-500 student-ai-indeterminate" />
+                  </div>
+                )}
+                {pending.stage === 'error' && (
+                  <button
+                    onClick={() => void startUpload(pending)}
+                    className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-colors"
+                  >
+                    <RefreshCw className="w-3 h-3" />
+                    {lang === 'en' ? 'Retry' : lang === 'ja' ? '再試行' : '재시도'}
+                  </button>
+                )}
+              </div>
+            </div>
+            <div className="w-8 h-8 rounded-full bg-emerald-700 flex items-center justify-center flex-shrink-0 mt-0.5">
+              <MessageCircle className="w-4 h-4 text-white" />
+            </div>
+          </div>
+        )}
 
         {isTyping && (
           <div className="flex gap-3 justify-start">
@@ -895,11 +1423,24 @@ export const StudentAIChat: React.FC<StudentAIChatProps> = ({
                 return (
                   <button
                     key={i}
-                    onClick={() => void handleSend(prompt.text)}
-                    className="flex items-center gap-2 text-xs bg-white/[0.10] hover:bg-white/[0.08] border border-white/10 text-ink-muted hover:text-white rounded-xl px-3 py-2.5 transition-colors text-left"
+                    onClick={() => {
+                      if ('action' in prompt && prompt.action === 'attach') {
+                        setAttachSheetOpen(true);
+                        return;
+                      }
+                      void handleSend(prompt.text);
+                    }}
+                    className={`flex items-center gap-2 text-xs rounded-xl px-3 py-2.5 transition-colors text-left ${
+                      'action' in prompt && prompt.action === 'attach'
+                        ? 'bg-white/[0.10] border border-emerald-500/40 text-ink-high'
+                        : 'bg-white/[0.10] hover:bg-white/[0.08] border border-white/10 text-ink-muted hover:text-white'
+                    }`}
                   >
                     <Icon className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" />
-                    <span>{prompt.text}</span>
+                    <span className="flex-1">{prompt.text}</span>
+                    {'action' in prompt && prompt.action === 'attach' && (
+                      <span className="text-[9px] font-bold text-emerald-400 tracking-wide">NEW</span>
+                    )}
                   </button>
                 );
               })}
@@ -918,6 +1459,18 @@ export const StudentAIChat: React.FC<StudentAIChatProps> = ({
           <span className="text-sm text-emerald-300">
             {lang === 'en' ? 'Loading available slots...' : lang === 'ja' ? '空き時間を読み込み中...' : '예약 가능한 시간 불러오는 중...'}
           </span>
+        </div>
+      )}
+
+      {pending?.stage === 'ready' && bookingStep === 'idle' && renderDestinationCard()}
+
+      {attachError && (
+        <div className="flex-shrink-0 mx-4 mb-2 px-3 py-2 bg-red-900/40 border border-red-500/30 rounded-xl text-xs text-red-300 flex items-center gap-2">
+          <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
+          <span className="flex-1">{attachError}</span>
+          <button onClick={() => setAttachError(null)} aria-label="닫기">
+            <X className="w-3.5 h-3.5" />
+          </button>
         </div>
       )}
 
@@ -946,6 +1499,32 @@ export const StudentAIChat: React.FC<StudentAIChatProps> = ({
       >
         {mode === 'chat' ? (
           <div className="flex gap-2 items-end">
+            {/* Two inputs rather than one: `capture` is what opens the camera
+                straight away on mobile, and it can't be toggled per-tap on a
+                single element. */}
+            <input
+              ref={cameraInputRef}
+              type="file"
+              accept={ATTACHMENT_ACCEPT}
+              capture="environment"
+              className="hidden"
+              onChange={e => { handleFilePicked(e.target.files?.[0]); e.target.value = ''; }}
+            />
+            <input
+              ref={albumInputRef}
+              type="file"
+              accept={ATTACHMENT_ACCEPT}
+              className="hidden"
+              onChange={e => { handleFilePicked(e.target.files?.[0]); e.target.value = ''; }}
+            />
+            <button
+              onClick={() => setAttachSheetOpen(true)}
+              disabled={!!pending}
+              aria-label={language === 'en' ? 'Attach a file' : language === 'ja' ? 'ファイルを添付' : '파일 첨부'}
+              className="w-11 h-11 rounded-full bg-white/[0.10] border border-white/10 hover:bg-white/[0.16] disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center transition-colors flex-shrink-0"
+            >
+              <Paperclip className="w-4 h-4 text-ink-medium" />
+            </button>
             <input
               ref={inputRef}
               type="text"
@@ -1074,6 +1653,15 @@ export const StudentAIChat: React.FC<StudentAIChatProps> = ({
         @keyframes student-ai-wave {
           from { transform: scaleY(0.4); }
           to   { transform: scaleY(1); }
+        }
+        /* The R2 PUT reports no progress events, so the bar sweeps rather than
+           filling — an honest "still working" instead of a made-up percentage. */
+        @keyframes student-ai-sweep {
+          0%   { transform: translateX(-100%); }
+          100% { transform: translateX(400%); }
+        }
+        .student-ai-indeterminate {
+          animation: student-ai-sweep 1.4s ease-in-out infinite;
         }
       `}</style>
     </div>
