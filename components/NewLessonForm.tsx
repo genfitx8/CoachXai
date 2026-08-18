@@ -65,6 +65,12 @@ import { storageService } from '../services/storage';
 import { videoStore, IDB_PREFIX, resolveSync } from '../services/videoStore';
 import type { CapturedClip } from './LiveLessonCompanion';
 import {
+  collectSessionNotes,
+  discardLessonAudioSession,
+  generateLessonSummaryFromNotes,
+  type LiveLessonHandoff,
+} from '../services/lessonAudioPipeline';
+import {
   isMediaPermissionError,
   requestMediaStream,
   type MediaKind,
@@ -99,6 +105,12 @@ interface NewLessonFormProps {
   initialClips?: CapturedClip[];
   /** Called once the form has consumed initialClips so the parent can clear its bucket. */
   onInitialClipsConsumed?: () => void;
+  /**
+   * 3c 핸드오프의 라이브 녹음 세션. 존재하면 저장 시 오디오를 다시 AI로
+   * 보내는 대신 레슨 중에 이미 생성된 구간 분석 노트를 수거해 텍스트
+   * map-reduce 로 최종 요약을 만든다 — 30–50분 레슨도 요약이 수 초면 끝난다.
+   */
+  initialLiveSession?: LiveLessonHandoff;
 }
 
 interface PendingMedia {
@@ -237,6 +249,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
   prefilledClient,
   initialClips,
   onInitialClipsConsumed,
+  initialLiveSession,
 }) => {
   const { t } = useLanguage();
   // Coach shell sits at the same z-index as the fixed coach bottom tab bar, so
@@ -460,6 +473,13 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
     });
     onInitialClipsConsumed?.();
   }, [initialClips, onInitialClipsConsumed]);
+
+  // 라이브 세션 핸드오프는 부모가 버킷을 비운 뒤에도 저장 시점까지 필요하다
+  // — 첫 수신 때 ref 에 눌러 담아 prop 이 사라져도 유지한다.
+  const liveSessionRef = useRef<LiveLessonHandoff | null>(null);
+  useEffect(() => {
+    if (initialLiveSession) liveSessionRef.current = initialLiveSession;
+  }, [initialLiveSession]);
 
   useEffect(() => {
     // If Client Mode, auto-fill name and phone
@@ -1457,10 +1477,6 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
               extractedScore = dataResult.score;
             }
           } else {
-            setStatusMessage(
-              '미디어 자료와 코치님 피드백을 바탕으로 레슨 리포트를 정리하고 있습니다...'
-            );
-
             let promptContext = notes;
             if (userRole === 'CLIENT') {
               if (recordType === 'SCORE') {
@@ -1472,16 +1488,60 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
               }
             }
 
-            analysisResult = await analyzeSwingVideo(
-              mediaItems
-                .filter((item) => item.file)
-                .map((item) => ({
-                  data: item.file!,
-                  mimeType: item.file!.type,
-                })),
-              promptContext,
-              undefined
-            );
+            // 빠른 경로: 레슨 중 이미 생성된 구간 분석 노트가 있으면
+            // 오디오를 다시 보내지 않고 텍스트 병합으로 리포트를 만든다.
+            // (30–50분 오디오의 base64 재전송은 서버 바디 한도를 넘기고,
+            // 분석도 처음부터 다시 도는 낭비다.)
+            const liveSession = liveSessionRef.current;
+            let mergedFromLiveNotes = false;
+            if (liveSession) {
+              try {
+                setStatusMessage(
+                  '레슨 중 분석된 구간 노트를 수거하고 있습니다...'
+                );
+                const liveNotes = await collectSessionNotes(
+                  liveSession.sessionId,
+                  { waitMs: 30_000 }
+                );
+                if (liveNotes.some((n) => n.status === 'done')) {
+                  setStatusMessage(
+                    '구간 분석 노트로 레슨 리포트를 작성하고 있습니다...'
+                  );
+                  analysisResult = await generateLessonSummaryFromNotes(
+                    liveNotes,
+                    promptContext,
+                    {
+                      studentName: clientName.split('(')[0].trim(),
+                      totalDurationSec: liveSession.recordedDurationSec,
+                      coachId:
+                        userRole === 'COACH' && currentUser && 'id' in currentUser
+                          ? currentUser.id
+                          : undefined,
+                    }
+                  );
+                  mergedFromLiveNotes = true;
+                }
+              } catch (mergeErr) {
+                // 병합 실패는 아래 단발 경로로 자연 폴백한다.
+                console.error('Live-session merge summary failed', mergeErr);
+              }
+            }
+
+            if (!mergedFromLiveNotes) {
+              setStatusMessage(
+                '미디어 자료와 코치님 피드백을 바탕으로 레슨 리포트를 정리하고 있습니다...'
+              );
+              analysisResult = await analyzeSwingVideo(
+                mediaItems
+                  .filter((item) => item.file)
+                  .map((item) => ({
+                    data: item.file!,
+                    mimeType: item.file!.type,
+                  })),
+                promptContext,
+                undefined
+              );
+            }
           }
         } catch (err) {
           console.error('Analysis failed', err);
@@ -1605,6 +1665,13 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
         newLesson,
         pendingHomeworkBatch.length > 0 ? pendingHomeworkBatch : undefined
       );
+
+      // 레슨이 저장됐으니 라이브 녹음 세션의 복구용 IDB 데이터(청크·노트)는
+      // 더 이상 필요 없다. 남겨두면 다음 동반 진입 때 복구 배너가 뜬다.
+      if (liveSessionRef.current) {
+        void discardLessonAudioSession(liveSessionRef.current.sessionId);
+        liveSessionRef.current = null;
+      }
     } catch (err) {
       console.error(err);
       setError(t('new_lesson_save_error'));

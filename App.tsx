@@ -251,6 +251,14 @@ const AppContent: React.FC = () => {
   const [pendingLiveClips, setPendingLiveClips] = useState<
     import('./components/LiveLessonCompanion').CapturedClip[]
   >([]);
+  /**
+   * 3c 핸드오프의 라이브 세션 정보. 전체-레슨 녹음이 있었으면 세션 id가
+   * 담기고, NewLessonForm 이 이 id로 구간 분석 노트를 수거해 오디오 재전송
+   * 없이 빠른 최종 요약을 생성한다. 클립 버킷과 같은 시점에 비워진다.
+   */
+  const [pendingLiveSession, setPendingLiveSession] = useState<
+    import('./services/lessonAudioPipeline').LiveLessonHandoff | null
+  >(null);
 
   // Training Program State
   const [trainingPrograms, setTrainingPrograms] = useState<TrainingProgram[]>([]);
@@ -2308,7 +2316,7 @@ const AppContent: React.FC = () => {
             lessonDate={new Date().toISOString().slice(0, 10)}
             // 취소하면 학생 선택으로 돌아간다 — 탭 자체는 그대로 유지.
             onCancel={() => setLiveLessonStudent('')}
-            onFinish={(clips) => {
+            onFinish={(clips, liveSession) => {
               // 3c 후속: 캡처된 clip을 pending 버킷에 넣어 NewLessonForm이
               // 마운트되며 첨부로 자동 승격하게 하고, 매칭된 학생을 prefill한
               // 채로 NEW 뷰로 넘긴다. 폼이 clip을 소비하면
@@ -2323,6 +2331,7 @@ const AppContent: React.FC = () => {
                       : undefined,
                 };
               setPendingLiveClips(clips);
+              setPendingLiveSession(liveSession ?? null);
               setIsEditingLesson(false);
               setSelectedLesson(null);
               setPrefilledSuggestionClient(matchedClient);
@@ -2355,7 +2364,11 @@ const AppContent: React.FC = () => {
               initialData={isEditingLesson ? selectedLesson ?? undefined : undefined}
               prefilledClient={prefilledSuggestionClient ?? undefined}
               initialClips={pendingLiveClips.length > 0 ? pendingLiveClips : undefined}
-              onInitialClipsConsumed={() => setPendingLiveClips([])}
+              initialLiveSession={pendingLiveSession ?? undefined}
+              onInitialClipsConsumed={() => {
+                setPendingLiveClips([]);
+                setPendingLiveSession(null);
+              }}
             />
           </>
         )}

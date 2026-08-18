@@ -10,12 +10,29 @@ import {
   Plus,
   Pause,
   Play,
+  Radio,
+  Sparkles,
+  RotateCcw,
+  X,
 } from 'lucide-react';
 import {
   isMediaPermissionError,
   requestMediaStream,
 } from '../utils/mediaPermissions';
 import { PermissionDeniedModal } from './PermissionDeniedModal';
+import {
+  LessonAudioSession,
+  findRecoverableSessions,
+  formatClock,
+  purgeStaleLessonAudioSessions,
+  recoverSessionAudio,
+  discardLessonAudioSession,
+  type LessonSegmentNote,
+  type LiveLessonHandoff,
+  type LiveSessionSnapshot,
+  type RecoverableLessonSession,
+} from '../services/lessonAudioPipeline';
+import { useLiveTranscription } from '../hooks/useLiveTranscription';
 
 /**
  * 3c · 레슨 중 동반 (Live Lesson Companion)
@@ -33,6 +50,12 @@ import { PermissionDeniedModal } from './PermissionDeniedModal';
  * — the coach is already looking at the phone camera, and this avoids
  * the second permission prompt + surface complexity of a live video
  * preview during a live lesson.
+ *
+ * 레슨 전체 녹음(30–50분 연속)은 `lessonAudioPipeline` 의 세션이 담당한다:
+ * 세그먼트 분할 저장(IndexedDB, 크래시 복구 가능) + 레슨 중 세그먼트별
+ * AI 분석이 백그라운드로 돌아, 종료 시점에는 요약 재료(구간 노트)가 이미
+ * 준비돼 있다. 종료하면 전체 오디오가 클립으로 승격되고 세션 핸드오프가
+ * `onFinish` 의 두 번째 인자로 리뷰 화면에 전달된다.
  */
 
 export interface CapturedClip {
@@ -52,8 +75,13 @@ export interface LiveLessonCompanionProps {
   studentName: string;
   /** Lesson date string (e.g. "2025-08-12") for the header. */
   lessonDate?: string;
-  /** Called when the coach hits 종료. Parent uploads + routes to review. */
-  onFinish: (clips: CapturedClip[]) => void;
+  /**
+   * Called when the coach hits 종료. Parent uploads + routes to review.
+   * `liveSession` 은 전체-레슨 녹음이 있었을 때의 세션 핸드오프 — 리뷰
+   * 화면(NewLessonForm)이 이 id로 구간 분석 노트를 수거해 빠른 최종
+   * 요약(map-reduce)을 돌린다.
+   */
+  onFinish: (clips: CapturedClip[], liveSession?: LiveLessonHandoff) => void;
   /** Called when the coach dismisses without finishing (early exit). */
   onCancel: () => void;
 }
@@ -94,6 +122,60 @@ export const LiveLessonCompanion: React.FC<LiveLessonCompanionProps> = ({
     }, 1000);
     return () => window.clearInterval(id);
   }, [lessonStartAt, timerPaused]);
+
+  // ─── 레슨 전체 녹음 (segmented pipeline) ──────────────────────────────────
+  const lessonSessionRef = useRef<LessonAudioSession | null>(null);
+  const [lessonRecState, setLessonRecState] = useState<
+    'idle' | 'recording' | 'paused' | 'finishing'
+  >('idle');
+  const [sessionSnapshot, setSessionSnapshot] =
+    useState<LiveSessionSnapshot | null>(null);
+  /** 세그먼트 분석 노트 사본 — 실시간 필기 미지원 기기의 전사 폴백에 쓴다. */
+  const [liveNotes, setLiveNotes] = useState<LessonSegmentNote[]>([]);
+  const lessonStreamRef = useRef<MediaStream | null>(null);
+
+  /**
+   * 실시간 필기: Web Speech API 로 말하는 즉시 화면에 흘린다. 화면 표시
+   * 전용 보조 채널이고, 저장·요약의 원본은 항상 세그먼트 AI 분석이다.
+   * 미지원/실패(degraded) 기기는 세그먼트 전사 폴백으로 표시한다.
+   */
+  const transcription = useLiveTranscription('ko-KR');
+  const transcriptScrollRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const el = transcriptScrollRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [transcription.lines, transcription.interim, liveNotes]);
+
+  // 크래시/미저장 세션 복구 배너
+  const [recoverable, setRecoverable] = useState<RecoverableLessonSession | null>(
+    null
+  );
+  const [recoveredHandoff, setRecoveredHandoff] = useState<LiveLessonHandoff | null>(
+    null
+  );
+
+  useEffect(() => {
+    if (typeof indexedDB === 'undefined') return;
+    let cancelled = false;
+    void purgeStaleLessonAudioSessions().then(() =>
+      findRecoverableSessions().then((sessions) => {
+        if (!cancelled && sessions.length > 0) setRecoverable(sessions[0]);
+      })
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // 1초 틱으로 세션 스냅샷(녹음 시간·분석 진행 상황)을 UI에 반영한다.
+  useEffect(() => {
+    if (lessonRecState !== 'recording' && lessonRecState !== 'paused') return;
+    const id = window.setInterval(() => {
+      const session = lessonSessionRef.current;
+      if (session) setSessionSnapshot(session.snapshot());
+    }, 1000);
+    return () => window.clearInterval(id);
+  }, [lessonRecState]);
 
   // ─── Voice memo capture ───────────────────────────────────────────────────
   const [isRecording, setIsRecording] = useState(false);
@@ -188,8 +270,119 @@ export const LiveLessonCompanion: React.FC<LiveLessonCompanionProps> = ({
     return () => {
       if (recTimerRef.current) window.clearInterval(recTimerRef.current);
       streamRef.current?.getTracks().forEach((t) => t.stop());
+      lessonStreamRef.current?.getTracks().forEach((t) => t.stop());
     };
   }, []);
+
+  // ─── 레슨 전체 녹음 핸들러 ────────────────────────────────────────────────
+  const startLessonRecording = async () => {
+    try {
+      const stream = await requestMediaStream({ audio: true });
+      lessonStreamRef.current = stream;
+      const session = new LessonAudioSession({
+        studentName,
+        onNotesChanged: (notes) => {
+          const s = lessonSessionRef.current;
+          if (s) setSessionSnapshot(s.snapshot());
+          setLiveNotes(notes);
+        },
+      });
+      lessonSessionRef.current = session;
+      await session.start(stream);
+      setSessionSnapshot(session.snapshot());
+      setLessonRecState('recording');
+      transcription.start();
+    } catch (e) {
+      if (isMediaPermissionError(e) && e.kind === 'denied') {
+        setPermissionModalOpen(true);
+      } else {
+        console.error('[LiveLessonCompanion] lesson mic unavailable', e);
+        alert('마이크를 사용할 수 없습니다.');
+      }
+    }
+  };
+
+  const toggleLessonPause = () => {
+    const session = lessonSessionRef.current;
+    if (!session) return;
+    if (session.isPaused) {
+      session.resume();
+      transcription.resume();
+      setLessonRecState('recording');
+    } else {
+      session.pause();
+      transcription.pause();
+      setLessonRecState('paused');
+    }
+  };
+
+  /**
+   * 세션 종료 공통 경로: 레코더를 닫고 전체 오디오 클립 + 핸드오프를
+   * 돌려준다. 클립은 state 를 거치지 않고 호출자가 직접 handoff 배열에
+   * 합친다 — setState 반영 전에 onFinish 가 실행되면 클립이 유실되기
+   * 때문이다. 마지막 세그먼트 분석은 파이프라인 큐에서 백그라운드로
+   * 계속되므로 여기서 기다리지 않는다 — 리뷰 화면이 요약 직전에 수거한다.
+   */
+  const stopLessonSession = async (): Promise<{
+    handoff: LiveLessonHandoff;
+    clip: CapturedClip | null;
+  } | null> => {
+    const session = lessonSessionRef.current;
+    if (!session) return null;
+    lessonSessionRef.current = null;
+    transcription.stop();
+    try {
+      const result = await session.stop();
+      lessonStreamRef.current?.getTracks().forEach((t) => t.stop());
+      lessonStreamRef.current = null;
+      const clip: CapturedClip | null =
+        result.fullAudioBlob.size > 0
+          ? {
+              id: randomId(),
+              kind: 'voice',
+              blob: result.fullAudioBlob,
+              durationSec: result.durationSec,
+              previewUrl: URL.createObjectURL(result.fullAudioBlob),
+              capturedAt: Date.now(),
+            }
+          : null;
+      return { handoff: result.handoff, clip };
+    } catch (e) {
+      console.error('[LiveLessonCompanion] lesson recording stop failed', e);
+      return null;
+    } finally {
+      setLessonRecState('idle');
+      setSessionSnapshot(null);
+      setLiveNotes([]);
+    }
+  };
+
+  // ─── 복구 배너 핸들러 ─────────────────────────────────────────────────────
+  const handleRecover = async () => {
+    if (!recoverable) return;
+    try {
+      const audio = await recoverSessionAudio(recoverable.id);
+      if (audio) {
+        addClip('voice', audio.blob, audio.durationSec);
+        setRecoveredHandoff({
+          sessionId: recoverable.id,
+          recordedDurationSec: audio.durationSec,
+          noteCount: audio.notes.length,
+          pendingCount: 0,
+        });
+      }
+    } catch (e) {
+      console.error('[LiveLessonCompanion] recovery failed', e);
+      alert('녹음 복구에 실패했습니다.');
+    } finally {
+      setRecoverable(null);
+    }
+  };
+
+  const handleDiscardRecoverable = () => {
+    if (recoverable) void discardLessonAudioSession(recoverable.id);
+    setRecoverable(null);
+  };
 
   // ─── Native camera capture (photo + video) ────────────────────────────────
   const photoInputRef = useRef<HTMLInputElement>(null);
@@ -221,9 +414,24 @@ export const LiveLessonCompanion: React.FC<LiveLessonCompanionProps> = ({
     };
 
   // ─── Finish handoff ──────────────────────────────────────────────────────
-  const handleFinish = () => {
+  const handleFinish = async () => {
     if (isRecording) stopRecording();
-    onFinish(clips);
+    setLessonRecState((s) => (s === 'idle' ? s : 'finishing'));
+    const stopped = await stopLessonSession();
+    const finalClips = stopped?.clip ? [...clips, stopped.clip] : clips;
+    // 라이브 세션이 있으면 그 노트가 최신·최다 — 복구본보다 우선한다.
+    onFinish(finalClips, stopped?.handoff ?? recoveredHandoff ?? undefined);
+  };
+
+  /**
+   * 나가기: 녹음 중이면 레코더만 닫고 IndexedDB 데이터는 남긴다 —
+   * 다음 진입 때 복구 배너로 되살릴 수 있다.
+   */
+  const handleCancel = () => {
+    if (lessonSessionRef.current) {
+      void stopLessonSession();
+    }
+    onCancel();
   };
 
   // The coach bottom nav stays mounted on the 동반 탭 and is fixed at the same
@@ -261,13 +469,47 @@ export const LiveLessonCompanion: React.FC<LiveLessonCompanionProps> = ({
           </div>
           <button
             type="button"
-            onClick={onCancel}
+            onClick={handleCancel}
             className="text-[12px] text-ink-muted hover:text-ink-medium px-3 py-1.5"
           >
             나가기
           </button>
         </div>
       </header>
+
+      {/* 미저장/크래시 녹음 복구 배너 */}
+      {recoverable && (
+        <section className="px-5 pt-3">
+          <div className="rounded-xl border border-amber-400/30 bg-amber-500/10 p-3 flex items-center gap-3">
+            <RotateCcw className="w-4 h-4 text-amber-300 flex-shrink-0" />
+            <div className="min-w-0 flex-1">
+              <div className="text-[12.5px] font-bold text-ink-high">
+                저장되지 않은 레슨 녹음이 있어요
+              </div>
+              <div className="text-[11px] text-ink-muted">
+                {recoverable.studentName} ·{' '}
+                {formatClock(recoverable.recordedSec)} 녹음 · 분석{' '}
+                {recoverable.analyzedCount}/{recoverable.segmentCount}구간
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={handleRecover}
+              className="text-[12px] font-bold text-amber-300 px-2 py-1.5 flex-shrink-0"
+            >
+              복구
+            </button>
+            <button
+              type="button"
+              onClick={handleDiscardRecoverable}
+              className="w-7 h-7 rounded-lg text-ink-muted hover:text-red-400 flex items-center justify-center flex-shrink-0"
+              aria-label="복구 안 함"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </section>
+      )}
 
       {/* Elapsed timer — large, readable across the mat */}
       <section className="px-5 pt-6 pb-4 flex items-center justify-between">
@@ -290,6 +532,198 @@ export const LiveLessonCompanion: React.FC<LiveLessonCompanionProps> = ({
         >
           {timerPaused ? <Play className="w-5 h-5" /> : <Pause className="w-5 h-5" />}
         </button>
+      </section>
+
+      {/* 레슨 전체 녹음 — 30–50분 연속 녹음 + 실시간 구간 분석 */}
+      <section className="px-5 pt-2 pb-2">
+        <div
+          className={`rounded-2xl border p-5 ${
+            lessonRecState === 'recording'
+              ? 'border-red-400/40 bg-red-500/[0.06]'
+              : 'border-line-subtle bg-white/[0.03]'
+          }`}
+        >
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-9 h-9 rounded-lg bg-red-500/15 border border-red-400/30 flex items-center justify-center">
+              <Radio
+                className={`w-4.5 h-4.5 text-red-300 ${
+                  lessonRecState === 'recording' ? 'animate-pulse' : ''
+                }`}
+              />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="text-[14px] font-bold text-ink-high">
+                레슨 전체 녹음
+              </div>
+              <div className="text-[11.5px] text-ink-muted">
+                {lessonRecState === 'idle'
+                  ? '녹음하면 레슨 중에 AI가 구간별로 미리 분석해요'
+                  : lessonRecState === 'paused'
+                  ? '일시정지됨 · 재개하면 이어서 녹음됩니다'
+                  : lessonRecState === 'finishing'
+                  ? '녹음을 마무리하고 있어요…'
+                  : '녹음·분석 진행 중 · 자동 저장되고 있어요'}
+              </div>
+            </div>
+            {sessionSnapshot && lessonRecState !== 'idle' && (
+              <span className="text-[15px] font-mono font-bold text-red-400 tabular-nums">
+                {formatClock(sessionSnapshot.recordedSec)}
+              </span>
+            )}
+          </div>
+
+          {lessonRecState === 'idle' ? (
+            <button
+              type="button"
+              onClick={startLessonRecording}
+              className="w-full h-14 rounded-xl bg-red-500 hover:bg-red-600 text-white flex items-center justify-center gap-2 text-[15px] font-bold transition-colors"
+            >
+              <Radio className="w-5 h-5" /> 레슨 녹음 시작
+            </button>
+          ) : (
+            <>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={toggleLessonPause}
+                  disabled={lessonRecState === 'finishing'}
+                  className="flex-1 h-12 rounded-xl border border-line-subtle bg-white/[0.04] text-ink-high flex items-center justify-center gap-2 text-[14px] font-bold"
+                >
+                  {lessonRecState === 'paused' ? (
+                    <>
+                      <Play className="w-4.5 h-4.5" /> 재개
+                    </>
+                  ) : (
+                    <>
+                      <Pause className="w-4.5 h-4.5" /> 일시정지
+                    </>
+                  )}
+                </button>
+              </div>
+              {sessionSnapshot && (
+                <div className="mt-3 pt-3 border-t border-line-subtle">
+                  <div className="flex items-center gap-1.5 text-[11px] text-ink-muted">
+                    <Sparkles className="w-3.5 h-3.5 text-emerald-300" />
+                    <span className="tabular-nums">
+                      구간 {sessionSnapshot.segmentCount}개 · 분석 완료{' '}
+                      {sessionSnapshot.analyzedCount}개
+                      {sessionSnapshot.failedCount > 0 &&
+                        ` · 실패 ${sessionSnapshot.failedCount}개`}
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {/* 실시간 요약 — 세그먼트 분석이 쌓일 때마다 갱신되는 롤링 요약 */}
+              <div className="mt-3 rounded-xl border border-emerald-400/20 bg-emerald-500/[0.05] p-3">
+                <div className="flex items-center gap-1.5 mb-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-emerald-300" />
+                  <span className="text-[11px] font-mono uppercase tracking-wider text-emerald-300">
+                    실시간 요약
+                  </span>
+                  {sessionSnapshot?.liveSummaryUpdating && (
+                    <span className="text-[10px] text-ink-muted animate-pulse">
+                      갱신 중…
+                    </span>
+                  )}
+                </div>
+                {sessionSnapshot?.liveSummary ? (
+                  <div className="space-y-1">
+                    {sessionSnapshot.liveSummary
+                      .split('\n')
+                      .map((line) => line.trim())
+                      .filter(Boolean)
+                      .map((line, i) => (
+                        <p key={`${i}-${line.slice(0, 16)}`} className="text-[12.5px] leading-snug text-ink-high">
+                          {line}
+                        </p>
+                      ))}
+                  </div>
+                ) : (
+                  <p className="text-[12px] text-ink-muted">
+                    첫 구간 분석이 끝나면 여기에 요약이 표시됩니다 (약 1분)
+                  </p>
+                )}
+              </div>
+
+              {/* 실시간 필기 — 온디바이스 음성 인식 즉시 표시, 미지원 시 AI 전사 폴백 */}
+              <div className="mt-2 rounded-xl border border-line-subtle bg-white/[0.02] p-3">
+                <div className="flex items-center gap-1.5 mb-1.5">
+                  <Mic
+                    className={`w-3.5 h-3.5 ${
+                      transcription.active
+                        ? 'text-red-300 animate-pulse'
+                        : 'text-ink-muted'
+                    }`}
+                  />
+                  <span className="text-[11px] font-mono uppercase tracking-wider text-ink-muted">
+                    실시간 필기
+                  </span>
+                  {(!transcription.supported || transcription.degraded) && (
+                    <span className="text-[10px] text-amber-300">
+                      AI 구간 전사로 표시 중 (1–2분 지연)
+                    </span>
+                  )}
+                </div>
+                <div
+                  ref={transcriptScrollRef}
+                  className="max-h-36 overflow-y-auto space-y-1 pr-1"
+                >
+                  {transcription.supported && !transcription.degraded ? (
+                    <>
+                      {transcription.lines.length === 0 && !transcription.interim && (
+                        <p className="text-[12px] text-ink-muted">
+                          코칭 멘트가 들리면 여기에 바로 적혀요
+                        </p>
+                      )}
+                      {transcription.lines.map((line) => (
+                        <p key={line.id} className="text-[12.5px] leading-snug text-ink-medium">
+                          <span className="text-[10.5px] font-mono text-ink-muted mr-1.5 tabular-nums">
+                            {formatClock(line.atSec)}
+                          </span>
+                          {line.text}
+                        </p>
+                      ))}
+                      {transcription.interim && (
+                        <p className="text-[12.5px] leading-snug text-ink-muted italic">
+                          {transcription.interim}…
+                        </p>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      {liveNotes.filter((n) => n.status === 'done' && n.transcript)
+                        .length === 0 && (
+                        <p className="text-[12px] text-ink-muted">
+                          첫 구간 분석이 끝나면 전사가 표시됩니다
+                        </p>
+                      )}
+                      {liveNotes
+                        .filter((n) => n.status === 'done' && n.transcript)
+                        .map((n) => (
+                          <p
+                            key={n.index}
+                            className="text-[12.5px] leading-snug text-ink-medium"
+                          >
+                            <span className="text-[10.5px] font-mono text-ink-muted mr-1.5 tabular-nums">
+                              {formatClock(n.startSec)}
+                            </span>
+                            {n.transcript}
+                          </p>
+                        ))}
+                    </>
+                  )}
+                </div>
+              </div>
+            </>
+          )}
+
+          {recoveredHandoff && (
+            <div className="mt-3 text-[11px] text-emerald-300">
+              복구된 녹음이 첨부됐어요 · 종료하면 요약에 반영됩니다
+            </div>
+          )}
+        </div>
       </section>
 
       {/* Voice memo — the primary during-lesson affordance */}

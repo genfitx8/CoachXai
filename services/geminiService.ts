@@ -617,12 +617,30 @@ export const analyzeSwingVideo = async (
         return toMediaPart(blob, input.mimeType);
       })
     );
-    const mediaParts = settled
+    const loadedParts = settled
       .filter((r): r is PromiseFulfilledResult<InlineDataPart> => r.status === 'fulfilled')
       .map((r) => r.value);
     settled
       .filter((r) => r.status === 'rejected')
       .forEach((r) => log.error('미디어 로드 실패 (건너뜀):', (r as PromiseRejectedResult).reason));
+
+    // 인라인 base64 총량 예산: 서버 AI 게이트웨이의 JSON 바디 한도(10mb)를
+    // 넘기면 요청 전체가 413으로 죽는다. 예산을 넘기는 파트(예: 30–50분
+    // 레슨 전체 오디오)는 잘라내고 나머지로 진행한다 — 장시간 오디오의
+    // 정식 경로는 lessonAudioPipeline 의 세그먼트 분석이다.
+    const INLINE_BUDGET_CHARS = 7_000_000;
+    let inlineUsed = 0;
+    const mediaParts = loadedParts.filter((part) => {
+      const size = part.inlineData.data.length;
+      if (inlineUsed + size > INLINE_BUDGET_CHARS) {
+        log.warn(
+          `인라인 용량 예산 초과로 미디어 제외 (${Math.round(size / 1024)}KB, ${part.inlineData.mimeType})`
+        );
+        return false;
+      }
+      inlineUsed += size;
+      return true;
+    });
 
     const angleText =
       swingAngle === 'FRONT'
