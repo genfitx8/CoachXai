@@ -68,6 +68,7 @@ import {
   collectSessionNotes,
   discardLessonAudioSession,
   generateLessonSummaryFromNotes,
+  generateLessonSummaryFromTranscript,
   type LiveLessonHandoff,
 } from '../services/lessonAudioPipeline';
 import {
@@ -1494,7 +1495,33 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
             // 분석도 처음부터 다시 도는 낭비다.)
             const liveSession = liveSessionRef.current;
             let mergedFromLiveNotes = false;
-            if (liveSession) {
+            // 코치가 검토 화면에서 확인/수정한 필기·요약이 있으면 그것이
+            // 최우선 재료다 — 세션 노트 수거를 건너뛰고 편집본으로 리포트를
+            // 만든다.
+            if (liveSession?.editedTranscript) {
+              try {
+                setStatusMessage(
+                  '확인된 필기 내용으로 레슨 리포트를 작성하고 있습니다...'
+                );
+                analysisResult = await generateLessonSummaryFromTranscript(
+                  liveSession.editedTranscript,
+                  promptContext,
+                  {
+                    studentName: clientName.split('(')[0].trim(),
+                    totalDurationSec: liveSession.recordedDurationSec,
+                    coachSummary: liveSession.editedSummary,
+                    coachId:
+                      userRole === 'COACH' && currentUser && 'id' in currentUser
+                        ? currentUser.id
+                        : undefined,
+                  }
+                );
+                mergedFromLiveNotes = true;
+              } catch (mergeErr) {
+                console.error('Edited-transcript merge failed', mergeErr);
+              }
+            }
+            if (liveSession && !mergedFromLiveNotes) {
               try {
                 setStatusMessage(
                   '레슨 중 분석된 구간 노트를 수거하고 있습니다...'

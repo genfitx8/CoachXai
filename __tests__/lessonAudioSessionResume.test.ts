@@ -220,6 +220,53 @@ describe('LessonAudioSession — 세션 생존성', () => {
     await resumed!.discard();
   });
 
+  it('speech 모드: 청크 AI 전사는 꺼지고 실시간 음성 노트가 필기가 되며 재개 후에도 복원된다', async () => {
+    const analyzed: number[] = [];
+    const session = new LessonAudioSession({
+      studentName: '김회원',
+      analyzer: makeAnalyzer(analyzed),
+      rollingSummarizer: async () => '- 요약',
+    });
+    await session.start({} as MediaStream);
+    session.setTranscriptSource('speech');
+
+    for (let i = 0; i < 12; i++) {
+      await vi.advanceTimersByTimeAsync(1000);
+    }
+    session.addSpeechNote('그립을 조금 짧게 잡아볼게요');
+    for (let i = 0; i < 13; i++) {
+      await vi.advanceTimersByTimeAsync(1000);
+    }
+    session.addSpeechNote('임팩트에서 헤드업 조심');
+    await vi.advanceTimersByTimeAsync(0);
+
+    // 청크는 계속 아카이브되지만 AI 전사는 호출되지 않는다
+    expect(analyzed).toEqual([]);
+    const notes = session.getNotes();
+    expect(notes.map((n) => n.transcript)).toEqual([
+      '그립을 조금 짧게 잡아볼게요',
+      '임팩트에서 헤드업 조심',
+    ]);
+    expect(notes.map((n) => n.durationSec)).toEqual([0, 0]);
+    // 발화 시점이 필기 타임스탬프가 된다
+    expect(notes[0].startSec).toBeGreaterThanOrEqual(11);
+    expect(notes[1].startSec).toBeGreaterThan(notes[0].startSec);
+
+    // 크래시 후 재개해도 음성 노트가 그대로 살아난다
+    vi.clearAllTimers();
+    const resumed = await LessonAudioSession.resume(session.id, {
+      studentName: '김회원',
+      analyzer: makeAnalyzer([]),
+      rollingSummarizer: async () => '- 요약',
+    });
+    expect(resumed!.getNotes().map((n) => n.transcript)).toEqual([
+      '그립을 조금 짧게 잡아볼게요',
+      '임팩트에서 헤드업 조심',
+    ]);
+
+    await resumed!.discard();
+  });
+
   it('백그라운드 복귀 시 restartRecording 이 같은 세션에 새 런을 이어붙인다', async () => {
     const analyzed: number[] = [];
     const session = new LessonAudioSession({

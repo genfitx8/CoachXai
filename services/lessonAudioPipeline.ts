@@ -132,6 +132,14 @@ export interface LiveLessonHandoff {
   noteCount: number;
   /** 핸드오프 시점에 아직 분석 중이던 세그먼트 수. */
   pendingCount: number;
+  /**
+   * 코치가 검토 화면에서 확인/수정한 필기 전문. 있으면 최종 리포트는
+   * 세션 노트 대신 이 텍스트를 근거로 생성한다 — 코치가 고친 내용이
+   * 항상 이긴다.
+   */
+  editedTranscript?: string;
+  /** 코치가 검토 화면에서 확인/수정한 요약 — 최종 리포트의 참고 자료. */
+  editedSummary?: string;
 }
 
 export interface RecoverableLessonSession {
@@ -429,9 +437,11 @@ export const buildMergePrompt = (
     .filter((n) => !isEmptyDoneNote(n))
     .sort((a, b) => a.index - b.index);
   const blocks = ordered.map((n) => {
-    const window = `${formatClock(n.startSec)}–${formatClock(
-      n.startSec + n.durationSec
-    )}`;
+    // 실시간 음성인식 노트는 발화 시점만 있다(duration 0) — 단일 시각 표기.
+    const window =
+      n.durationSec > 0
+        ? `${formatClock(n.startSec)}–${formatClock(n.startSec + n.durationSec)}`
+        : formatClock(n.startSec);
     if (n.status !== 'done') {
       return `[${window}] (이 구간은 오디오 분석에 실패해 내용이 없습니다)`;
     }
@@ -704,9 +714,10 @@ export const buildRollingSummaryPrompt = (
     .filter((n) => n.status === 'done' && !isEmptyDoneNote(n))
     .sort((a, b) => a.index - b.index);
   const blocks = done.map((n) => {
-    const window = `${formatClock(n.startSec)}–${formatClock(
-      n.startSec + n.durationSec
-    )}`;
+    const window =
+      n.durationSec > 0
+        ? `${formatClock(n.startSec)}–${formatClock(n.startSec + n.durationSec)}`
+        : formatClock(n.startSec);
     const lines = [`[${window}] ${n.transcript || '(대화 없음)'}`];
     if (n.keyPoints.length) lines.push(`  포인트: ${n.keyPoints.join(' / ')}`);
     if (n.metrics.length) lines.push(`  수치: ${n.metrics.join(' / ')}`);
@@ -848,6 +859,14 @@ export class LessonAudioSession {
   private archiveChunks: Blob[] = [];
   private chunkCount = 0;
   private notes: LessonSegmentNote[] = [];
+  /** 노트 식별자 발급기 — 청크 전사와 실시간 음성 노트가 공유한다. */
+  private noteSeq = 0;
+  /**
+   * 필기 소스. 'speech' = 온디바이스 실시간 인식이 addSpeechNote 로 노트를
+   * 넣는 중이므로 청크 AI 전사는 끈다(오디오 아카이브는 계속). 'ai' =
+   * 인식 미지원/실패 기기 폴백 — 10초 청크를 AI 로 전사한다.
+   */
+  private transcriptSource: 'ai' | 'speech' = 'ai';
   /** 녹음 런 경계 — beginRun 마다 하나씩 쌓인다. */
   private runs: RecordingRunMarker[] = [];
   /** 현재 런 첫 청크에서 떼어낸 컨테이너 헤더 — 이후 청크에 접두. */
@@ -867,6 +886,7 @@ export class LessonAudioSession {
           .slice(2, 8)}`;
     if (resumeMeta) {
       this.notes = resumeMeta.notes ?? [];
+      this.noteSeq = this.notes.reduce((max, n) => Math.max(max, n.index + 1), 0);
       this.chunkCount = resumeMeta.chunkCount ?? 0;
       this.recordedSec = resumeMeta.recordedSec ?? 0;
       this.lastSummaryAtSec = resumeMeta.recordedSec ?? 0;
@@ -1013,22 +1033,24 @@ export class LessonAudioSession {
    */
   private handleChunk(chunk: Blob): void {
     const run = this.runs[this.runs.length - 1];
-    const index = this.chunkCount++;
+    const chunkIndex = this.chunkCount++;
     // 타임슬라이스는 녹음 시간 기준으로 균일하므로(일시정지 중에는 청크도
     // 멈춘다) 런 기준 오프셋 + 런 내 청크 서수로 시각을 유도한다 — 1초
     // 틱과의 발화 순서 경합으로 타임스탬프가 밀리지 않는다.
     const target = this.opts.segmentTargetSec ?? SEGMENT_TARGET_SEC;
-    const startSec = run.baseSec + (index - run.firstChunk) * target;
+    const startSec = run.baseSec + (chunkIndex - run.firstChunk) * target;
     const durationSec = Math.max(1, this.recordedSec - startSec);
 
     // 크래시 대비 아카이브 영속화 (런별 파일 = 런 구간 청크 concat).
     this.archiveChunks.push(chunk);
-    void idbPut(BLOB_STORE, chunkKey(this.id, index), chunk)
+    void idbPut(BLOB_STORE, chunkKey(this.id, chunkIndex), chunk)
       .then(() => this.persistMeta())
       .catch((err) => log.warn('archive 청크 저장 실패:', err));
 
-    if (index === run.firstChunk) {
+    if (chunkIndex === run.firstChunk) {
       // 헤더 추출은 비동기(arrayBuffer) — 이후 청크들이 then 으로 기다린다.
+      // speech 모드에서도 추출은 해 둔다: 인식이 도중에 죽어 ai 폴백으로
+      // 전환되면 그 시점 이후 청크에 헤더가 필요하다.
       this.initSegment = chunk
         .arrayBuffer()
         .then((buf) => {
@@ -1040,10 +1062,14 @@ export class LessonAudioSession {
           return chunk.slice(0, end, chunk.type);
         })
         .catch(() => null);
-      // 첫 청크는 헤더를 포함한 완결 파일이므로 그대로 전사한다.
-      this.enqueueSegment(index, startSec, durationSec, chunk);
+      if (this.transcriptSource === 'ai') {
+        // 첫 청크는 헤더를 포함한 완결 파일이므로 그대로 전사한다.
+        this.enqueueSegment(this.noteSeq++, startSec, durationSec, chunk);
+      }
       return;
     }
+
+    if (this.transcriptSource !== 'ai') return;
 
     // 종료 직전의 초단편(<3s) 꼬리는 분석 가치가 없다.
     if (durationSec < 3 && this.stopped) return;
@@ -1053,8 +1079,40 @@ export class LessonAudioSession {
       const blob = header
         ? new Blob([header, chunk], { type: this.mimeType || 'audio/webm' })
         : chunk;
-      this.enqueueSegment(index, startSec, durationSec, blob);
+      this.enqueueSegment(this.noteSeq++, startSec, durationSec, blob);
     });
+  }
+
+  /**
+   * 필기 소스 전환. 컴패니언이 온디바이스 인식 가용 여부에 따라 호출한다
+   * — speech 로 두면 청크 AI 전사를 멈추고(오디오 아카이브는 계속),
+   * 인식이 도중에 죽으면 ai 로 되돌려 다음 청크부터 폴백 전사가 붙는다.
+   */
+  setTranscriptSource(source: 'ai' | 'speech'): void {
+    this.transcriptSource = source;
+  }
+
+  /**
+   * 온디바이스 실시간 인식이 확정한 발화 한 줄을 필기 노트로 넣는다.
+   * 이후의 요약·최종 리포트·복구가 전부 이 노트를 재료로 쓴다.
+   */
+  addSpeechNote(text: string): void {
+    const trimmed = text.trim();
+    if (!trimmed || this.stopped) return;
+    const note: LessonSegmentNote = {
+      index: this.noteSeq++,
+      startSec: this.recordedSec,
+      durationSec: 0,
+      status: 'done',
+      transcript: trimmed,
+      keyPoints: [],
+      drills: [],
+      metrics: [],
+      studentState: '',
+    };
+    this.notes = [...this.notes, note];
+    this.emitNotes();
+    void this.persistMeta();
   }
 
   pause(): void {
@@ -1372,6 +1430,72 @@ export const generateLessonSummaryFromNotes = async (
     ...(opts.imageParts?.length ? { mediaParts: opts.imageParts.slice(0, 4) } : {}),
   });
 
+  const text = getResponseText(result);
+  if (!text) throw new Error('레슨 요약 병합 응답이 비어 있습니다.');
+  return text;
+};
+
+/**
+ * 코치가 검토 화면에서 확인/수정한 필기 전문으로 최종 리포트 프롬프트를
+ * 조립한다. 편집본이 있으면 세션 노트보다 이 텍스트가 우선한다.
+ */
+export const buildMergePromptFromTranscript = (
+  transcript: string,
+  coachNotes: string,
+  opts: { studentName?: string; totalDurationSec?: number; coachSummary?: string } = {}
+): string => {
+  const header = [
+    opts.studentName ? `- **학생**: ${opts.studentName}` : null,
+    opts.totalDurationSec
+      ? `- **레슨 길이**: 약 ${Math.round(opts.totalDurationSec / 60)}분`
+      : null,
+  ]
+    .filter(Boolean)
+    .join('\n');
+
+  return `아래는 레슨 중 실시간으로 받아 적은 뒤 코치가 직접 확인·수정한 레슨 필기 전문입니다. 이 필기만을 근거로 최종 레슨 요약 리포트를 작성하세요.
+
+${header ? `**레슨 정보:**\n${header}\n\n` : ''}**레슨 필기 전문(코치 확인본):**
+${transcript.trim()}
+${
+  opts.coachSummary?.trim()
+    ? `\n**코치가 정리한 요약(참고):**\n${opts.coachSummary.trim()}\n`
+    : ''
+}
+**코치 추가 메모:** "${coachNotes || '(없음)'}"
+
+작성 규칙:
+- 시간 흐름을 따라가되, 같은 교정 포인트가 반복되면 하나로 묶고 변화(개선/악화)를 언급하세요.
+- 필기에 있는 수치는 그대로 인용하세요. 필기에 없는 사실을 추가하지 마세요.
+- 코치가 정리한 요약이 있으면 그 강조점을 리포트에 반영하세요.`;
+};
+
+/**
+ * 검토·편집을 거친 필기 전문 기반 최종 리포트 생성. 코치별 커스텀
+ * `lesson_summary` 시스템 프롬프트를 그대로 써서 리포트 포맷을 유지한다.
+ */
+export const generateLessonSummaryFromTranscript = async (
+  transcript: string,
+  coachNotes: string,
+  opts: {
+    studentName?: string;
+    totalDurationSec?: number;
+    coachSummary?: string;
+    coachId?: string;
+  } = {}
+): Promise<string> => {
+  if (!transcript.trim()) {
+    throw new Error('필기 내용이 비어 있습니다.');
+  }
+  const systemInstruction = await promptService.getActiveSystemPrompt(
+    'lesson_summary',
+    firebaseService.isInitialized(),
+    opts.coachId
+  );
+  const result = await invokeBackendAI<unknown>('lesson_summary_merge', {
+    prompt: buildMergePromptFromTranscript(transcript, coachNotes, opts),
+    systemInstruction,
+  });
   const text = getResponseText(result);
   if (!text) throw new Error('레슨 요약 병합 응답이 비어 있습니다.');
   return text;

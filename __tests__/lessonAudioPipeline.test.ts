@@ -28,6 +28,7 @@ import {
   buildSegmentPrompt,
   buildTranscribePrompt,
   buildMergePrompt,
+  buildMergePromptFromTranscript,
   buildRollingSummaryPrompt,
   formatClock,
   audioExtensionForMime,
@@ -196,6 +197,13 @@ describe('buildMergePrompt', () => {
     expect(prompt).toContain('[6:00–9:00]');
   });
 
+  it('duration 0(실시간 음성 노트)은 단일 시각으로 표기한다', () => {
+    const speechNote = doneNote(1, { durationSec: 0, transcript: '헤드업 조심' });
+    const prompt = buildMergePrompt([speechNote], '');
+    expect(prompt).toContain('[3:00] 헤드업 조심');
+    expect(prompt).not.toContain('3:00–3:00');
+  });
+
   it('drops silent (empty-transcript) segments entirely', () => {
     const silent = doneNote(1, {
       transcript: '',
@@ -301,6 +309,27 @@ describe('RollingSummaryController', () => {
     controller.notify([{ ...doneNote(0), status: 'analyzing' }], 's');
     await new Promise((r) => setTimeout(r, 0));
     expect(summarize).not.toHaveBeenCalled();
+  });
+});
+
+describe('buildMergePromptFromTranscript', () => {
+  it('편집된 필기 전문과 코치 요약을 함께 싣는다', () => {
+    const prompt = buildMergePromptFromTranscript(
+      '[0:10] 그립을 짧게\n[0:40] 캐리 210m',
+      '드라이버 위주 레슨',
+      { studentName: '김회원', totalDurationSec: 1800, coachSummary: '- 오버스윙 교정' }
+    );
+    expect(prompt).toContain('코치가 직접 확인·수정한');
+    expect(prompt).toContain('[0:40] 캐리 210m');
+    expect(prompt).toContain('- 오버스윙 교정');
+    expect(prompt).toContain('김회원');
+    expect(prompt).toContain('약 30분');
+    expect(prompt).toContain('드라이버 위주 레슨');
+  });
+
+  it('코치 요약이 없으면 해당 섹션을 생략한다', () => {
+    const prompt = buildMergePromptFromTranscript('필기', '');
+    expect(prompt).not.toContain('**코치가 정리한 요약(참고):**');
   });
 });
 
