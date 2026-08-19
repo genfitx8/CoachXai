@@ -142,12 +142,35 @@ export const LiveLessonCompanion: React.FC<LiveLessonCompanionProps> = ({
     lang: 'ko-KR',
     onFinal: (text) => lessonSessionRef.current?.addSpeechNote(text),
   });
-  const speechActive = transcription.supported && !transcription.degraded;
+  /**
+   * 필기 모드. 'speech' = 실시간 인식이 마이크를 전담(오디오 녹음 없음 —
+   * 동시 사용 시 인식이 죽는 기기가 많다). 'ai' = 녹음 + 10초 청크 AI
+   * 전사 폴백. 녹음 시작 시 인식 가용 여부로 결정되고, 인식이 도중에
+   * 죽으면 ai 로 넘어간다.
+   */
+  const [noteMode, setNoteMode] = useState<'speech' | 'ai' | null>(null);
+  const noteModeRef = useRef<typeof noteMode>(null);
+  noteModeRef.current = noteMode;
+  const speechActive = noteMode === 'speech' && !transcription.degraded;
 
-  // 인식이 도중에 죽으면(degraded) 세션을 AI 전사 폴백으로 전환한다.
+  // 인식이 도중에 죽으면(degraded) 마이크를 넘겨받아 녹음 + AI 전사로
+  // 전환한다 — 필기가 조용히 멈추는 일이 없게.
   useEffect(() => {
-    if (transcription.degraded) {
-      lessonSessionRef.current?.setTranscriptSource('ai');
+    if (!transcription.degraded) return;
+    const session = lessonSessionRef.current;
+    if (!session) return;
+    session.setTranscriptSource('ai');
+    setNoteMode('ai');
+    if (!session.isRecorderAlive) {
+      requestMediaStream({ audio: true })
+        .then((stream) => {
+          lessonStreamRef.current?.getTracks().forEach((t) => t.stop());
+          lessonStreamRef.current = stream;
+          session.restartRecording(stream);
+        })
+        .catch((e) => {
+          console.error('[LiveLessonCompanion] AI 폴백 마이크 획득 실패', e);
+        });
     }
   }, [transcription.degraded]);
 
@@ -223,7 +246,10 @@ export const LiveLessonCompanion: React.FC<LiveLessonCompanionProps> = ({
         return;
       }
       void acquireWakeLock();
-      if (!session.isRecorderAlive) {
+      if (noteModeRef.current === 'speech') {
+        // speech 모드: 마이크는 인식기 전담 — 인식만 되살린다.
+        void transcription.resume();
+      } else if (!session.isRecorderAlive && !session.isPaused) {
         requestMediaStream({ audio: true })
           .then((stream) => {
             lessonStreamRef.current?.getTracks().forEach((t) => t.stop());
@@ -292,10 +318,14 @@ export const LiveLessonCompanion: React.FC<LiveLessonCompanionProps> = ({
   }, []);
 
   // ─── 레슨 전체 녹음 핸들러 ────────────────────────────────────────────────
+  /**
+   * speech-first 마이크 정책: 실시간 인식이 시작되면 마이크를 인식기에
+   * 전담시키고 오디오 녹음은 켜지 않는다(동시 사용 시 인식이 죽는 기기가
+   * 많다 — 실시간 필기가 "안 되던" 실제 원인). 인식이 불가하면 기존
+   * 녹음 + 10초 AI 전사 모드로 간다.
+   */
   const startLessonRecording = async () => {
     try {
-      const stream = await requestMediaStream({ audio: true });
-      lessonStreamRef.current = stream;
       const session = new LessonAudioSession({
         studentName,
         onNotesChanged: (notes) => {
@@ -305,15 +335,23 @@ export const LiveLessonCompanion: React.FC<LiveLessonCompanionProps> = ({
         },
       });
       lessonSessionRef.current = session;
-      await session.start(stream);
+
+      const speechStarted = await transcription.start();
+      if (speechStarted) {
+        session.setTranscriptSource('speech');
+        await session.start(null); // notes-only — 마이크는 인식기 전담
+        setNoteMode('speech');
+      } else {
+        const stream = await requestMediaStream({ audio: true });
+        lessonStreamRef.current = stream;
+        await session.start(stream);
+        setNoteMode('ai');
+      }
       setSessionSnapshot(session.snapshot());
       setLessonRecState('recording');
       void acquireWakeLock();
-      if (transcription.supported) {
-        session.setTranscriptSource('speech');
-        transcription.start();
-      }
     } catch (e) {
+      lessonSessionRef.current = null;
       if (isMediaPermissionError(e) && e.kind === 'denied') {
         setPermissionModalOpen(true);
       } else {
@@ -328,7 +366,7 @@ export const LiveLessonCompanion: React.FC<LiveLessonCompanionProps> = ({
     if (!session) return;
     if (session.isPaused) {
       session.resume();
-      transcription.resume();
+      void transcription.resume();
       setLessonRecState('recording');
     } else {
       session.pause();
@@ -377,14 +415,14 @@ export const LiveLessonCompanion: React.FC<LiveLessonCompanionProps> = ({
       setLessonRecState('idle');
       setSessionSnapshot(null);
       setLiveNotes([]);
+      setNoteMode(null);
     }
   };
 
-  // ─── 복구 배너 핸들러 — 끊긴 세션을 같은 자리에서 이어서 녹음한다 ────────
+  // ─── 복구 배너 핸들러 — 끊긴 세션을 같은 자리에서 이어서 쓴다 ────────────
   const handleResumeRecoverable = async () => {
     if (!recoverable) return;
     try {
-      const stream = await requestMediaStream({ audio: true });
       const session = await LessonAudioSession.resume(recoverable.id, {
         studentName: recoverable.studentName,
         onNotesChanged: (notes) => {
@@ -394,23 +432,29 @@ export const LiveLessonCompanion: React.FC<LiveLessonCompanionProps> = ({
         },
       });
       if (!session) {
-        stream.getTracks().forEach((t) => t.stop());
         alert('이어서 쓸 녹음 데이터를 찾지 못했습니다.');
         return;
       }
-      lessonStreamRef.current = stream;
       lessonSessionRef.current = session;
-      await session.start(stream);
+
+      // 새 레슨 시작과 같은 speech-first 정책으로 이어간다.
+      const speechStarted = await transcription.start();
+      if (speechStarted) {
+        session.setTranscriptSource('speech');
+        await session.start(null);
+        setNoteMode('speech');
+      } else {
+        const stream = await requestMediaStream({ audio: true });
+        lessonStreamRef.current = stream;
+        await session.start(stream);
+        setNoteMode('ai');
+      }
       // 기존 필기·요약이 노트에 즉시 실린다(재타이핑 없음 — LessonNotebook
       // 이 마운트 시점 줄은 애니메이션 없이 그린다).
       setLiveNotes(session.getNotes());
       setSessionSnapshot(session.snapshot());
       setLessonRecState('recording');
       void acquireWakeLock();
-      if (transcription.supported) {
-        session.setTranscriptSource('speech');
-        transcription.start();
-      }
     } catch (e) {
       if (isMediaPermissionError(e) && e.kind === 'denied') {
         setPermissionModalOpen(true);
@@ -523,7 +567,7 @@ export const LiveLessonCompanion: React.FC<LiveLessonCompanionProps> = ({
     const session = lessonSessionRef.current;
     if (session) {
       session.resume();
-      transcription.resume();
+      void transcription.resume();
       setLessonRecState('recording');
     }
   };
@@ -715,7 +759,12 @@ export const LiveLessonCompanion: React.FC<LiveLessonCompanionProps> = ({
                   <div className="flex items-center gap-1.5 text-[11px] text-ink-muted">
                     <Sparkles className="w-3.5 h-3.5 text-emerald-300" />
                     <span className="tabular-nums">
-                      필기{' '}
+                      {noteMode === 'speech'
+                        ? '실시간 인식'
+                        : noteMode === 'ai'
+                        ? 'AI 전사(10초)'
+                        : ''}
+                      {noteMode ? ' · ' : ''}필기{' '}
                       {
                         liveNotes.filter(
                           (n) => n.status === 'done' && n.transcript

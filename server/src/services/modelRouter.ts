@@ -47,6 +47,23 @@ const FALLBACK_DEFAULT_MODEL = 'gemini-2.5-flash';
  *   slower AND produced shorter output with no observable quality lift
  *   over 2.5-flash. Keeping shot_analysis on 2.5-flash — the eval baseline
  *   model — until either 3.5-flash improves or 3.1-pro-preview stabilises.
+ *
+ * Activation record — 2026-08-19 (레슨 컴패니언 품질 우선 라우팅)
+ *   레슨 컴패니언(실시간 필기 + 요약)은 유료 코치 전용 기능이라 비용보다
+ *   품질을 우선한다는 제품 결정에 따라:
+ *    - lesson_summary / lesson_summary_merge / lesson_live_summary 는
+ *      현행 최상위 추론 모델 `gemini-3.1-pro-preview` 로 라우팅한다.
+ *      레슨 요약은 잡담·레슨 무관 대화가 섞인 전체 필기를 다 읽고
+ *      레슨 내용만 골라내는 장문 맥락 추론 작업이라 pro 티어의 이득이
+ *      가장 큰 경로다. (2.5-pro 는 신규 키에서 404, 3-pro-preview 는
+ *      2026-03 퇴역 → 3.1-pro-preview 가 현행 pro 티어.)
+ *    - lesson_audio_transcribe 는 GA 인 `gemini-3.6-flash` 로 올린다.
+ *      pro 를 쓰지 않는 이유: 10초 받아쓰기는 추론이 아니라 청취 정확도
+ *      문제이고, 레슨당 ~300회 호출되는 실시간 경로라 pro 급의 지연과
+ *      preview rate limit 이 "옆에서 받아 적는" UX 자체를 깨뜨린다.
+ *    - preview 모델은 예고 후 퇴역(404)될 수 있고 rate limit 도 더
+ *      빡빡하다 — routes/ai.ts 가 404/429 시 기본 모델로 1회 폴백해
+ *      유료 레슨 도중 요약이 통째로 죽는 일을 막는다.
  */
 const FEATURE_MODEL_OVERRIDES: Record<string, string> = {
   // OCR / structured extraction — deterministic, benefits from cheap+fast.
@@ -57,14 +74,16 @@ const FEATURE_MODEL_OVERRIDES: Record<string, string> = {
   swing_phase_timestamps: 'gemini-2.5-flash-lite',
   hole_voice_summary: 'gemini-2.5-flash-lite',
 
-  // 레슨 진행 중 롤링 요약 — 5분마다 재생성되는 3~5불릿 텍스트 요약.
-  // 지연이 UX에 직결되고 입력이 이미 필기 노트 텍스트라 lite로 충분하다.
-  // (신규 피처라 기존 eval 베이스라인과 무관하게 lite에서 출발한다.)
-  lesson_live_summary: 'gemini-2.5-flash-lite',
+  // 레슨 요약 3경로 — 노이즈 섞인 전체 필기에서 레슨 내용만 추출하는
+  // 맥락 추론이 품질을 좌우한다. 유료 기능이므로 pro 티어(2026-08-19).
+  lesson_summary: 'gemini-3.1-pro-preview',
+  lesson_summary_merge: 'gemini-3.1-pro-preview',
+  lesson_live_summary: 'gemini-3.1-pro-preview',
 
-  // ~10초 구간 받아쓰기 — 레슨당 수백 회 호출되는 필기 경로. 순수 전사는
-  // hole_voice_summary 와 같은 결의 작업이라 lite가 비용·지연 모두 유리하다.
-  lesson_audio_transcribe: 'gemini-2.5-flash-lite',
+  // ~10초 구간 받아쓰기 — 레슨당 수백 회 호출되는 실시간 필기 경로.
+  // 품질은 최신 GA flash 로 올리되, 지연·rate limit 때문에 pro 는 쓰지
+  // 않는다(위 activation record 참고).
+  lesson_audio_transcribe: 'gemini-3.6-flash',
 };
 
 interface CachedOverrides {

@@ -267,6 +267,48 @@ describe('LessonAudioSession — 세션 생존성', () => {
     await resumed!.discard();
   });
 
+  it('notes-only 모드(start(null)): 레코더 없이 음성 노트·타이머·영속화가 돌아간다', async () => {
+    const analyzed: number[] = [];
+    const session = new LessonAudioSession({
+      studentName: '김회원',
+      analyzer: makeAnalyzer(analyzed),
+      rollingSummarizer: async () => '- 요약',
+    });
+    session.setTranscriptSource('speech');
+    await session.start(null);
+
+    // 레코더가 아예 생성되지 않는다 — 마이크는 인식기 전담
+    expect(FakeMediaRecorder.instances).toHaveLength(0);
+    expect(session.isRecorderAlive).toBe(false);
+
+    for (let i = 0; i < 15; i++) {
+      await vi.advanceTimersByTimeAsync(1000);
+    }
+    session.addSpeechNote('어드레스 정렬 먼저 볼게요');
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(session.recordedDurationSec).toBe(15);
+    expect(session.getNotes().map((n) => n.transcript)).toEqual([
+      '어드레스 정렬 먼저 볼게요',
+    ]);
+    expect(analyzed).toEqual([]);
+
+    // 종료: 오디오 런이 없으므로 클립도 없다 — 필기가 기록의 원본
+    const result = await session.stop();
+    expect(result.runBlobs).toHaveLength(0);
+    expect(result.handoff.noteCount).toBe(1);
+
+    // 크래시 재개 시에도 노트는 IDB 메타에서 살아난다
+    const resumed = await LessonAudioSession.resume(session.id, {
+      studentName: '김회원',
+      analyzer: makeAnalyzer([]),
+      rollingSummarizer: async () => '- 요약',
+    });
+    expect(resumed!.getNotes()).toHaveLength(1);
+
+    await resumed!.discard();
+  });
+
   it('백그라운드 복귀 시 restartRecording 이 같은 세션에 새 런을 이어붙인다', async () => {
     const analyzed: number[] = [];
     const session = new LessonAudioSession({
