@@ -3,7 +3,7 @@ import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useLanguage } from './LanguageContext';
 import { Lesson, MediaItem, SwingSequenceItem, HoleRecord, ScorecardDetail, VideoEditMetadata, CompareVideoMetadata, MotionCaptureMeasurement } from '../types';
 import { Button } from './Button';
-import { ArrowLeft, Calendar, User, Sparkles, Mic, Plus, Video, Image as ImageIcon, X, Camera, Square, Trash2, Mic2, PlayCircle, Lock, PenTool, Save, Target, AlertTriangle, MessageCircle, CheckCircle, AlertCircle, Clock, Volume2, StopCircle, Copy, Check, Film, ChevronRight, FileText, MonitorPlay, Scissors, GripHorizontal, RefreshCw, Maximize2, Zap, Play, Pause, ListChecks, Trophy, Wand2, MapPin, Edit2, TrendingUp, Send, Download, Loader2 } from 'lucide-react';
+import { ArrowLeft, Calendar, User, Sparkles, Mic, Plus, Video, Image as ImageIcon, X, Camera, Square, Trash2, Mic2, PlayCircle, Lock, PenTool, Save, Target, AlertTriangle, MessageCircle, CheckCircle, AlertCircle, Clock, Volume2, StopCircle, Copy, Check, Film, ChevronRight, FileText, MonitorPlay, Scissors, GripHorizontal, RefreshCw, Maximize2, Zap, Play, Pause, ListChecks, Trophy, Wand2, MapPin, Edit2, TrendingUp, Download, Loader2 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { analyzeSwingVideo, analyzeMotionCapture } from '../services/geminiService';
 import { SwingGuideOverlay } from './SwingGuideOverlay';
@@ -12,7 +12,6 @@ import { VideoEditor } from './VideoEditor';
 import { firebaseService } from '../services/firebase';
 import { apiService, resolveMediaUrl } from '../services/apiService';
 import { storageService } from '../services/storage';
-import { sendLessonNoteViaKakao, buildLessonShareUrl } from '../services/kakaoShareService';
 import { videoEditingService } from '../services/videoEditingService';
 import { videoStore, IDB_PREFIX, resolveSync } from '../services/videoStore';
 import {
@@ -131,10 +130,6 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
   const [isGeneratingCompare, setIsGeneratingCompare] = useState(false);
   const [compareProgress, setCompareProgress] = useState(0);
   const [pendingRole, setPendingRole] = useState<'BEFORE' | 'AFTER' | undefined>(undefined);
-
-  // KakaoTalk Share State
-  const [kakaoShareStatus, setKakaoShareStatus] = useState<'idle' | 'loading' | 'no_key' | 'error'>('idle');
-  const [linkCopied, setLinkCopied] = useState(false);
 
   // Edited video actions state
   const [isDownloadingEditedVideo, setIsDownloadingEditedVideo] = useState(false);
@@ -982,42 +977,6 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
 
   const handleViewSequenceImage = (imageUrl: string) => {
       setSelectedSequenceImage(imageUrl);
-  };
-
-  const handleKakaoShare = async () => {
-      setKakaoShareStatus('loading');
-      const result = await sendLessonNoteViaKakao(lesson);
-      if (result === 'success') {
-          setKakaoShareStatus('idle');
-      } else if (result === 'no_key') {
-          setKakaoShareStatus('no_key');
-          setTimeout(() => setKakaoShareStatus('idle'), 6000);
-      } else {
-          setKakaoShareStatus('error');
-          setTimeout(() => setKakaoShareStatus('idle'), 4000);
-      }
-  };
-
-  const handleCopyLink = async () => {
-      const url = buildLessonShareUrl(lesson);
-      try {
-          await navigator.clipboard.writeText(url);
-          setLinkCopied(true);
-          setTimeout(() => setLinkCopied(false), 2500);
-      } catch {
-          // Fallback for browsers without Clipboard API: create a temporary input
-          const input = document.createElement('input');
-          input.value = url;
-          document.body.appendChild(input);
-          input.select();
-          // eslint-disable-next-line @typescript-eslint/no-deprecated
-          const success = document.execCommand('copy');
-          document.body.removeChild(input);
-          if (success) {
-              setLinkCopied(true);
-              setTimeout(() => setLinkCopied(false), 2500);
-          }
-      }
   };
 
   const handleDownloadEditedVideo = async () => {
@@ -2380,40 +2339,6 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
                   </button>
               )}
 
-              {/* KakaoTalk Share Button (Coach only) */}
-              {!isClientView && (
-                  <button
-                      onClick={handleKakaoShare}
-                      disabled={kakaoShareStatus === 'loading'}
-                      className="w-full py-3 rounded-lg text-sm font-bold transition-colors flex items-center justify-center gap-2 bg-[#FEE500] text-[#3C1E1E] hover:bg-[#F5D800] disabled:opacity-60"
-                      data-testid="kakao-share-button"
-                  >
-                      <Send className="w-4 h-4" />
-                      {kakaoShareStatus === 'loading' ? '카카오톡 열기…' : '카카오톡으로 공유하기'}
-                  </button>
-              )}
-
-              {/* KakaoTalk Share Error/Info Messages */}
-              {kakaoShareStatus === 'no_key' && (
-                  <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 space-y-2">
-                      <p className="text-center text-xs text-amber-700">
-                          카카오톡 공유 기능이 설정되지 않았습니다. 링크를 복사하여 직접 전달하세요.
-                      </p>
-                      <button
-                          onClick={handleCopyLink}
-                          data-testid="copy-link-button"
-                          className="w-full py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-2 bg-white/[0.04]/[0.04] border border-amber-500/40 text-amber-200 hover:bg-amber-500/20 transition-colors"
-                      >
-                          {linkCopied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-                          {linkCopied ? '링크 복사됨!' : '레슨 링크 복사하기'}
-                      </button>
-                  </div>
-              )}
-              {kakaoShareStatus === 'error' && (
-                  <p className="text-center text-xs text-red-500 bg-red-50 rounded-lg px-3 py-2">
-                      카카오톡 공유 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.
-                  </p>
-              )}
           </div>
           
           <div className="text-center text-xs text-ink-muted pt-4 pb-8">
