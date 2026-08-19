@@ -57,7 +57,8 @@ const FALLBACK_DEFAULT_MODEL = 'gemini-2.5-flash';
  *      레슨 내용만 골라내는 장문 맥락 추론 작업이라 pro 티어의 이득이
  *      가장 큰 경로다. (2.5-pro 는 신규 키에서 404, 3-pro-preview 는
  *      2026-03 퇴역 → 3.1-pro-preview 가 현행 pro 티어.)
- *    - lesson_audio_transcribe 는 GA 인 `gemini-3.6-flash` 로 올린다.
+ *    - lesson_audio_transcribe / lesson_speaker_label 은 GA 인
+ *      `gemini-3.6-flash` 로 올린다.
  *      pro 를 쓰지 않는 이유: 10초 받아쓰기는 추론이 아니라 청취 정확도
  *      문제이고, 레슨당 ~300회 호출되는 실시간 경로라 pro 급의 지연과
  *      preview rate limit 이 "옆에서 받아 적는" UX 자체를 깨뜨린다.
@@ -84,6 +85,11 @@ const FEATURE_MODEL_OVERRIDES: Record<string, string> = {
   // 품질은 최신 GA flash 로 올리되, 지연·rate limit 때문에 pro 는 쓰지
   // 않는다(위 activation record 참고).
   lesson_audio_transcribe: 'gemini-3.6-flash',
+
+  // 필기 전체를 읽고 줄마다 화자 역할을 배정하는 텍스트 분류. 레슨당
+  // 1~2회뿐이라 지연 예산은 넉넉하지만, 판단 근거가 대화 흐름 하나뿐이라
+  // 맥락을 넓게 보는 능력이 정확도를 좌우한다 — 전사와 같은 GA flash.
+  lesson_speaker_label: 'gemini-3.6-flash',
 };
 
 interface CachedOverrides {

@@ -80,6 +80,58 @@ const SESSION_RETENTION_MS = 3 * 24 * 60 * 60 * 1000;
 
 export type SegmentNoteStatus = 'pending' | 'analyzing' | 'done' | 'failed';
 
+/**
+ * 발화 주체의 **역할**.
+ *
+ * 오디오만으로 "누구의 성대인가"(성문 대조)를 확정하려면 코치 목소리 등록과
+ * 화자 임베딩 대조가 필요하다. 그 전 단계로 여기서는 역할을 추론한다 —
+ * 레슨 대화는 비대칭이라서(코치는 지시·설명·교정, 학생은 질문·응답·자기
+ * 상태 보고) 내용만으로도 역할이 상당 부분 갈린다. 화자 클러스터 ID
+ * (화자A/화자B)를 쓰지 않는 이유가 여기 있다: 10초 세그먼트를 독립 호출로
+ * 전사하는 구조에서는 1번 구간의 "화자A"와 2번 구간의 "화자A"가 같은
+ * 사람이라는 보장이 없지만, 역할은 구간이 바뀌어도 같은 의미를 유지한다.
+ *
+ * - coach   : 코치 발화 — 최종 리포트의 교정 지시·드릴 근거가 된다.
+ * - student : 학생 발화 — 그 지시가 왜 나왔는지 맥락으로만 쓴다.
+ * - other   : 옆 타석·동반자 등 레슨과 무관한 제3자 — 요약에서 배제한다.
+ * - unknown : 판정 불가 — 구버전 노트, 라벨링 전 온디바이스 인식 노트,
+ *             스키마 미지원 런타임의 폴백 응답.
+ */
+export type SpeakerRole = 'coach' | 'student' | 'other' | 'unknown';
+
+/** 한 사람이 이어서 말한 한 덩어리. */
+export interface TranscriptTurn {
+  speaker: SpeakerRole;
+  text: string;
+}
+
+/** 화면·프롬프트 표기. unknown 은 라벨을 붙이지 않는다(모른다고 적지 않는다). */
+export const SPEAKER_LABELS: Record<SpeakerRole, string> = {
+  coach: '코치',
+  student: '학생',
+  other: '주변',
+  unknown: '',
+};
+
+const KNOWN_SPEAKER_ROLES: readonly string[] = ['coach', 'student', 'other', 'unknown'];
+
+/**
+ * 모델이 돌려준 speaker 값을 알려진 역할로 정규화한다. 스키마를 걸어
+ * 보내도 런타임에 따라 한국어 라벨("코치")이나 동의어가 올라오므로
+ * 파싱 쪽에서 흡수하고, 못 알아보면 지어내지 않고 unknown 으로 떨어뜨린다.
+ */
+export const normalizeSpeakerRole = (value: unknown): SpeakerRole => {
+  if (typeof value !== 'string') return 'unknown';
+  const v = value.trim().toLowerCase();
+  if (KNOWN_SPEAKER_ROLES.includes(v)) return v as SpeakerRole;
+  if (['코치', '프로', 'pro', 'instructor', 'teacher'].includes(v)) return 'coach';
+  if (['학생', '회원', 'member', 'client'].includes(v)) return 'student';
+  if (['주변', '제3자', '기타', 'bystander', 'background', 'others'].includes(v)) {
+    return 'other';
+  }
+  return 'unknown';
+};
+
 /** 세그먼트 하나에 대한 AI 분석 노트. transcript 는 압축 전사. */
 export interface LessonSegmentNote {
   index: number;
@@ -88,6 +140,13 @@ export interface LessonSegmentNote {
   durationSec: number;
   status: SegmentNoteStatus;
   transcript: string;
+  /**
+   * 화자 역할이 붙은 발화 목록. `transcript` 는 이 turns 를 이어 붙인
+   * 결과라, turns 를 모르는 기존 소비자(복구·핸드오프·저장)는 그대로
+   * 동작한다. 라벨이 아직 없는 노트(구버전 메타, 온디바이스 인식 원문)
+   * 에는 없다 — 없음은 "화자 미상"이지 "화자 없음"이 아니다.
+   */
+  turns?: TranscriptTurn[];
   /** 코치가 강조한 교정 포인트. */
   keyPoints: string[];
   /** 언급된 드릴/과제. */
@@ -310,13 +369,24 @@ export const PARAGRAPH_GAP_SEC = 12;
 
 /** 문단을 이루는 조각 하나 — 노트 index 를 그대로 물려 받는다. */
 export interface TranscriptSegment {
+  /** 이 조각이 나온 노트의 index — 애니메이션 "신규 여부" 판정 기준. */
   id: number;
+  /**
+   * 리스트 key. 노트 하나가 화자별로 여러 조각이 될 수 있어 id 만으로는
+   * 유일하지 않다.
+   */
+  key: string;
+  speaker: SpeakerRole;
   text: string;
 }
 
 export interface TranscriptParagraph {
-  /** 첫 조각의 id — 리스트 key 이자 "기존/신규" 판정 기준. */
+  /** 첫 조각의 id — "기존/신규" 판정 기준. */
   id: number;
+  /** 리스트 key — 한 노트가 화자 전환으로 두 문단이 될 수 있다. */
+  key: string;
+  /** 문단 전체의 화자. 화자가 바뀌면 문단을 끊으므로 항상 단일하다. */
+  speaker: SpeakerRole;
   segments: TranscriptSegment[];
 }
 
@@ -325,7 +395,21 @@ export interface TranscriptNoteLike {
   index: number;
   startSec: number;
   transcript: string;
+  /** 있으면 화자별로 쪼개 문단을 만든다. 없으면 화자 미상 한 덩어리. */
+  turns?: TranscriptTurn[];
 }
+
+/**
+ * 노트를 발화 목록으로 편다 — turns 가 없으면 화자 미상 한 덩어리.
+ * turns 가 있어도 알맹이가 전부 공백이면 전사로 되돌아간다: 라벨이 깨졌다고
+ * 필기 한 줄이 화면에서 통째로 사라지면 안 된다.
+ */
+const notesTurns = (note: TranscriptNoteLike): TranscriptTurn[] => {
+  const labeled = note.turns?.filter((t) => t.text.trim()) ?? [];
+  return labeled.length
+    ? labeled
+    : [{ speaker: 'unknown' as SpeakerRole, text: note.transcript }];
+};
 
 /**
  * 조각 하나를 앞 문장에 이어 붙인다. 문장부호로 시작하는 조각은 공백 없이
@@ -338,6 +422,13 @@ export const appendTranscriptSegment = (acc: string, next: string): string => {
   if (/^[.,!?;:…)\]}」』]/.test(text)) return `${acc}${text}`;
   return `${acc} ${text}`;
 };
+
+/**
+ * 발화 목록을 한 줄 전사로 잇는다. 노트의 `transcript` 는 항상 이 함수의
+ * 결과라, turns 를 모르는 코드 경로도 예전과 똑같은 텍스트를 본다.
+ */
+export const joinTranscriptTurns = (turns: TranscriptTurn[]): string =>
+  turns.reduce((acc, turn) => appendTranscriptSegment(acc, turn.text), '');
 
 /**
  * 필기 노트를 문단으로 묶는다. 조각 사이 간격이 `gapSec` 이상이면 새 문단.
@@ -354,20 +445,43 @@ export const groupTranscriptParagraphs = (
   const paragraphs: TranscriptParagraph[] = [];
   let prevSec: number | null = null;
   for (const note of ordered) {
-    const segment: TranscriptSegment = {
-      id: note.index,
-      text: note.transcript.trim(),
-    };
-    const last = paragraphs[paragraphs.length - 1];
-    const breaks = prevSec == null || note.startSec - prevSec >= gapSec;
-    if (!last || breaks) {
-      paragraphs.push({ id: note.index, segments: [segment] });
-    } else {
-      last.segments.push(segment);
-    }
+    const timeBreaks = prevSec == null || note.startSec - prevSec >= gapSec;
+    const turns = notesTurns(note)
+      .map((t, turnIndex) => ({ ...t, text: t.text.trim(), turnIndex }))
+      .filter((t) => t.text);
+
+    turns.forEach((turn, i) => {
+      const segment: TranscriptSegment = {
+        id: note.index,
+        key: `${note.index}:${turn.turnIndex}`,
+        speaker: turn.speaker,
+        text: turn.text,
+      };
+      const last = paragraphs[paragraphs.length - 1];
+      // 화자가 바뀌면 시간 간격과 무관하게 문단을 끊는다 — 코치가 필기를
+      // 읽을 때 "내 말"과 "학생 말"이 한 문단에 뒤섞이면 안 된다.
+      const breaks =
+        !last || last.speaker !== turn.speaker || (i === 0 && timeBreaks);
+      if (breaks) {
+        paragraphs.push({
+          id: note.index,
+          key: segment.key,
+          speaker: turn.speaker,
+          segments: [segment],
+        });
+      } else {
+        last.segments.push(segment);
+      }
+    });
     prevSec = note.startSec;
   }
   return paragraphs;
+};
+
+/** 문단 앞에 붙는 화자 표기 ("코치: "). 미상이면 빈 문자열. */
+export const speakerPrefix = (speaker: SpeakerRole): string => {
+  const label = SPEAKER_LABELS[speaker];
+  return label ? `${label}: ` : '';
 };
 
 /** 문단 하나를 한 줄 텍스트로 잇는다. */
@@ -386,7 +500,12 @@ export const buildTranscriptText = (
   gapSec: number = PARAGRAPH_GAP_SEC
 ): string =>
   groupTranscriptParagraphs(notes, gapSec)
-    .map(joinTranscriptParagraph)
+    .map((p) => {
+      const text = joinTranscriptParagraph(p);
+      // 화자가 판정된 문단만 "코치: " 를 붙인다. 라벨이 없는 필기에
+      // 억지로 이름을 달면 코치가 검토하며 고칠 근거가 사라진다.
+      return text ? `${speakerPrefix(p.speaker)}${text}` : '';
+    })
     .filter(Boolean)
     .join('\n');
 
@@ -482,6 +601,12 @@ export interface SegmentPromptContext {
   durationSec: number;
   /** 직전 세그먼트까지 누적된 핵심 포인트 — 중복 서술을 줄이는 컨텍스트. */
   previousKeyPoints: string[];
+  /**
+   * 직전 세그먼트의 마지막 발화들. 10초 구간은 문장 중간에서 잘리는 일이
+   * 잦아, 앞 구간에서 누가 말하고 있었는지를 알려주면 경계에 걸친 발화의
+   * 역할이 구간마다 뒤집히는 것을 크게 줄인다.
+   */
+  previousTurns?: TranscriptTurn[];
 }
 
 export const buildSegmentPrompt = (ctx: SegmentPromptContext): string => {
@@ -513,6 +638,32 @@ export const buildSegmentPrompt = (ctx: SegmentPromptContext): string => {
  * 분석 실패 구간은 공백으로 숨기지 않고 명시해 리포트가 과잉 일반화하지
  * 않도록 한다.
  */
+/**
+ * 노트 하나를 요약 프롬프트용 전사 줄로 만든다. 화자 라벨이 있으면
+ * 대화 형식으로 펼치고, 없으면(구버전·미라벨 노트) 예전처럼 한 줄로 둔다.
+ */
+const renderNoteTranscript = (n: LessonSegmentNote, window: string): string => {
+  const labeled = n.turns?.filter((t) => t.text.trim()) ?? [];
+  if (!labeled.length) return `[${window}] ${n.transcript || '(대화 없음)'}`;
+  return [
+    `[${window}]`,
+    ...labeled.map((t) => `  ${SPEAKER_LABELS[t.speaker] || '미상'}: ${t.text.trim()}`),
+  ].join('\n');
+};
+
+/**
+ * 요약 계열 프롬프트가 공유하는 화자 라벨 해석 규칙.
+ *
+ * 마지막 항목이 핵심이다: 라벨은 성문 대조가 아니라 대화 내용으로 추정한
+ * 값이라 틀릴 수 있다. 모델이 라벨을 사실로 믿고 학생 발언을 코치 지시로
+ * 승격시키는 것보다, 어긋날 때 내용을 따르게 두는 편이 리포트가 덜 망가진다.
+ */
+const SPEAKER_RULES = `- 발화 앞의 "코치:/학생:/주변:" 은 화자 역할입니다.
+- 교정 지시·드릴·처방은 **코치 발화에서만** 가져오세요. 학생의 말을 코치의 지시처럼 적지 마세요.
+- 학생 발화는 그 지시가 왜 나왔는지(호소한 증상·질문·반응)를 설명하는 맥락으로만 쓰세요.
+- "주변" 으로 표시된 발화는 옆 타석·동반자의 잡담입니다 — 리포트에 반영하지 마세요.
+- 화자 라벨은 목소리가 아니라 대화 내용으로 추정한 것이라 틀릴 수 있습니다. 라벨과 내용이 명백히 어긋나면 내용을 따르세요.`;
+
 const isEmptyDoneNote = (n: LessonSegmentNote): boolean =>
   n.status === 'done' &&
   !n.transcript &&
@@ -540,7 +691,7 @@ export const buildMergePrompt = (
     if (n.status !== 'done') {
       return `[${window}] (이 구간은 오디오 분석에 실패해 내용이 없습니다)`;
     }
-    const lines = [`[${window}] ${n.transcript || '(대화 없음)'}`];
+    const lines = [renderNoteTranscript(n, window)];
     if (n.keyPoints.length) lines.push(`  포인트: ${n.keyPoints.join(' / ')}`);
     if (n.drills.length) lines.push(`  드릴: ${n.drills.join(' / ')}`);
     if (n.metrics.length) lines.push(`  수치: ${n.metrics.join(' / ')}`);
@@ -573,7 +724,8 @@ ${blocks.join('\n\n')}
 작성 규칙:
 - 시간 흐름을 따라가되, 같은 교정 포인트가 여러 구간에 반복되면 하나로 묶고 변화(개선/악화)를 언급하세요.
 - 노트에 있는 수치는 그대로 인용하세요. 노트에 없는 사실을 추가하지 마세요.
-- 분석 실패 구간이 있으면 리포트 말미에 한 줄로 알려주세요.`;
+- 분석 실패 구간이 있으면 리포트 말미에 한 줄로 알려주세요.
+${SPEAKER_RULES}`;
 };
 
 // ─── Micro-segment transcription (필기 기본 경로) ────────────────────────────
@@ -582,23 +734,53 @@ ${blocks.join('\n\n')}
  * `lesson_audio_transcribe` 응답을 전사 텍스트로 정규화한다. 스키마를 걸어
  * 보내지만 스키마 미지원 런타임에서는 평문이 올 수 있어 방어적으로 파싱한다.
  */
-export const parseTranscriptResponse = (text: string): string => {
+/** 무음 구간을 모델이 굳이 문장으로 알려온 경우 — 빈 필기로 취급한다. */
+const isSilenceMarker = (text: string): boolean =>
+  /^\(?\s*(대화|말|음성)\s*없음\)?\.?$/.test(text);
+
+/**
+ * `lesson_audio_transcribe` 응답을 화자별 발화 목록으로 정규화한다.
+ * 스키마를 걸어 보내지만 스키마 미지원 런타임에서는 `{"text": "..."}` 나
+ * 평문이 올라올 수 있어, 그런 응답은 화자 미상 발화 하나로 받아들인다 —
+ * 라벨을 못 뽑았다고 필기 자체를 버리면 안 된다.
+ */
+export const parseTranscriptTurns = (text: string): TranscriptTurn[] => {
   const match = text.match(/\{[\s\S]*\}/);
   if (match) {
     try {
-      const parsed = JSON.parse(match[0]);
-      if (parsed && typeof parsed === 'object' && typeof parsed.text === 'string') {
-        return parsed.text.trim();
+      const parsed = JSON.parse(match[0]) as Record<string, unknown>;
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        if (Array.isArray(parsed.turns)) {
+          return parsed.turns
+            .filter(
+              (t): t is Record<string, unknown> =>
+                !!t && typeof t === 'object' && typeof (t as { text?: unknown }).text === 'string'
+            )
+            .map((t) => ({
+              speaker: normalizeSpeakerRole(t.speaker),
+              text: String(t.text).trim(),
+            }))
+            .filter((t) => t.text && !isSilenceMarker(t.text));
+        }
+        if (typeof parsed.text === 'string') {
+          const plain = parsed.text.trim();
+          return plain && !isSilenceMarker(plain)
+            ? [{ speaker: 'unknown', text: plain }]
+            : [];
+        }
       }
     } catch {
       // JSON 이 아니면 아래 평문 경로로.
     }
   }
   const trimmed = text.trim();
-  // 무음 구간을 모델이 굳이 문장으로 알려온 경우는 빈 필기로 취급한다.
-  if (/^\(?\s*(대화|말|음성)\s*없음\)?\.?$/.test(trimmed)) return '';
-  return trimmed;
+  if (!trimmed || isSilenceMarker(trimmed)) return [];
+  return [{ speaker: 'unknown', text: trimmed }];
 };
+
+/** 전사 응답 → 한 줄 텍스트. 화자 라벨이 필요 없는 호출부용. */
+export const parseTranscriptResponse = (text: string): string =>
+  joinTranscriptTurns(parseTranscriptTurns(text));
 
 /**
  * 직전 세그먼트 전사와 새 전사 사이의 겹침을 잘라 "새로 들린 말"만 남긴다.
@@ -638,28 +820,87 @@ export const trimTranscriptOverlap = (prevRaw: string, nextRaw: string): string 
   return next;
 };
 
+/**
+ * `trimTranscriptOverlap` 의 발화 목록 버전. 겹침은 구간 **머리**에서만
+ * 생기므로(앞 구간의 꼬리가 다시 들린 경우), 살아남은 발화가 처음 나올
+ * 때까지만 잘라내고 그 뒤는 손대지 않는다 — 구간 안쪽 발화는 앞 구간과
+ * 겹칠 이유가 없고, 우연한 문자열 일치로 정상 대화를 지우면 안 된다.
+ */
+export const trimTurnsOverlap = (
+  prevRaw: string,
+  nextTurns: TranscriptTurn[]
+): TranscriptTurn[] => {
+  if (!prevRaw.trim()) return nextTurns;
+  const out: TranscriptTurn[] = [];
+  let trimming = true;
+  for (const turn of nextTurns) {
+    if (!trimming) {
+      out.push(turn);
+      continue;
+    }
+    const trimmed = trimTranscriptOverlap(prevRaw, turn.text);
+    if (!trimmed) continue; // 통째로 직전 구간과 중복 — 다음 발화도 검사한다.
+    out.push({ ...turn, text: trimmed });
+    trimming = false;
+  }
+  return out;
+};
+
 export const buildTranscribePrompt = (ctx: SegmentPromptContext): string => {
   const window = `${formatClock(ctx.startSec)}–${formatClock(
     ctx.startSec + ctx.durationSec
   )}`;
+  // 앞 구간의 꼬리를 붙여 주면 (a) 문장 중간에서 잘린 발화의 화자가
+  // 구간마다 뒤집히는 것을 줄이고 (b) 같은 말을 다시 적는 겹침도 준다.
+  const prior = ctx.previousTurns?.length
+    ? `\n\n직전 구간의 마지막 발화 (화자 판단의 참고용입니다. 다시 적지 마세요):\n${ctx.previousTurns
+        .slice(-3)
+        .map((t) => `- ${SPEAKER_LABELS[t.speaker] || '미상'}: ${t.text}`)
+        .join('\n')}`
+    : '';
   return `골프 레슨 현장 녹음의 짧은 구간(${window}, 학생: ${ctx.studentName})입니다.
-이 구간에서 들리는 말을 받아 적으세요. JSON 하나만 반환합니다: {"text": "..."}
+이 구간에서 들리는 말을 **화자별로 나눠** 받아 적으세요. JSON 하나만 반환합니다:
+{"turns":[{"speaker":"coach","text":"..."},{"speaker":"student","text":"..."}]}
+
+speaker 는 셋 중 하나입니다:
+- "coach": 레슨을 진행하는 코치. 동작을 지시·교정·설명하고, 드릴을 시키고, 수치나 시범을 말합니다.
+- "student": 레슨을 받는 학생(${ctx.studentName}). 질문하거나 짧게 대답하고("네", "이렇게요?"), 자기 느낌·통증·어려움을 말합니다.
+- "other": 옆 타석·동반자·지나가는 사람 등 이 레슨과 무관한 제3자.
+
 규칙:
-- 코치와 학생의 발화를 들리는 그대로, 자연스러운 한국어 문장으로 적으세요. 요약하지 마세요.
-- 잡음·타구음뿐이고 발화가 없으면 {"text": ""} 를 반환하세요.
-- 들리지 않는 내용을 지어내지 마세요.`;
+- 들리는 그대로, 자연스러운 한국어 문장으로 적으세요. 요약하지 마세요.
+- 화자가 바뀔 때마다 turns 항목을 새로 만들고, 같은 사람이 이어 말하면 한 항목에 담으세요.
+- 목소리 구분이 확실하지 않으면 **말의 내용**으로 판단하세요 — 지시·설명은 코치, 질문·응답은 학생.
+- 이 레슨과 무관한 잡담이나 멀리서 들리는 목소리는 "other" 로 표시하세요. 지우지 말고 표시만 하세요.
+- 들리지 않는 내용을 지어내지 마세요.
+- 잡음·타구음뿐이고 발화가 없으면 {"turns":[]} 를 반환하세요.${prior}`;
 };
 
 const transcribeSchema = {
   type: 'OBJECT',
-  properties: { text: { type: 'STRING' } },
-  required: ['text'],
+  properties: {
+    turns: {
+      type: 'ARRAY',
+      items: {
+        type: 'OBJECT',
+        properties: {
+          // enum 을 걸지 않는다 — 레거시 런타임이 enum 있는 스키마를 거부해
+          // 전사 경로 전체가 죽는 것보다, 값이 흔들리면
+          // normalizeSpeakerRole 이 흡수하는 편이 안전하다.
+          speaker: { type: 'STRING' },
+          text: { type: 'STRING' },
+        },
+        required: ['speaker', 'text'],
+      },
+    },
+  },
+  required: ['turns'],
 } as const;
 
 /**
  * 기본 필기 분석기 — ~10초 구간을 전사만 한다(요약·구조화 없음).
- * 결과는 transcript 만 채워진 LessonSegmentNote 로 흘러들어, 병합 요약·
- * 복구·핸드오프 등 기존 노트 경로를 그대로 탄다.
+ * 결과는 transcript(+화자 라벨이 붙은 turns)만 채워진 LessonSegmentNote
+ * 로 흘러들어, 병합 요약·복구·핸드오프 등 기존 노트 경로를 그대로 탄다.
  */
 export const transcribeLessonAudioSegment: SegmentAnalyzer = async (
   blob,
@@ -675,17 +916,184 @@ export const transcribeLessonAudioSegment: SegmentAnalyzer = async (
   });
   const text = getResponseText(result);
   if (text == null) throw new Error('전사 응답이 비어 있습니다.');
+  const turns = parseTranscriptTurns(text);
   return {
     index: ctx.index,
     startSec: ctx.startSec,
     durationSec: ctx.durationSec,
     status: 'done',
-    transcript: parseTranscriptResponse(text),
+    transcript: joinTranscriptTurns(turns),
+    turns,
     keyPoints: [],
     drills: [],
     metrics: [],
     studentState: '',
   };
+};
+
+// ─── 화자 역할 라벨링 (텍스트 경로) ─────────────────────────────────────────
+
+/**
+ * 온디바이스 실시간 인식(`addSpeechNote`)은 텍스트만 주고 화자 정보가 없다.
+ * 이 경로가 기본값인 기기(Web Speech API 지원 기기)에서는 오디오 전사가
+ * 아예 돌지 않으므로, 화자 라벨을 붙이려면 필기 전체를 텍스트로 한 번 더
+ * 읽는 수밖에 없다.
+ *
+ * 왜 발화 단위가 아니라 묶음 단위인가: "네, 알겠습니다" 한 줄만 떼어 보면
+ * 누구 말인지 알 수 없지만, 앞뒤 열 줄과 함께 보면 거의 확정된다. 그래서
+ * 실시간으로 한 줄씩 라벨링하지 않고 레슨이 끝난 뒤(검토 화면을 여는
+ * 시점) 한 번에 돌린다 — 비용은 텍스트 호출 몇 번, 지연은 검토 초안을
+ * 만드는 몇 초 안에 흡수된다.
+ *
+ * 한계: 목소리를 듣지 않으므로 정확도가 전적으로 내용 단서에 달려 있다.
+ * 오디오 전사 경로(turns 가 이미 있는 노트)는 건드리지 않는다.
+ */
+
+/**
+ * 한 번의 라벨링 호출에 담는 필기 줄 수. 발화 한 줄은 대개 아주 짧아
+ * (온디바이스 인식이 한 문장을 여러 조각으로 확정한다) 250줄이어도
+ * 프롬프트는 몇 천 토큰 수준이다. 크게 잡을수록 대화 문맥을 넓게 보고,
+ * 묶음 경계에서 화자 흐름이 끊기는 지점도 줄어든다.
+ */
+export const SPEAKER_LABEL_BATCH = 250;
+/** 다음 묶음에 넘겨 줄 직전 문맥 줄 수 — 화자 교대 흐름을 잇는다. */
+const SPEAKER_LABEL_CONTEXT = 4;
+
+export interface SpeakerLabelLine {
+  index: number;
+  text: string;
+}
+
+export const buildSpeakerLabelPrompt = (
+  lines: SpeakerLabelLine[],
+  studentName: string,
+  context: TranscriptTurn[] = []
+): string => {
+  const prior = context.length
+    ? `\n이 묶음 직전의 대화(이미 배정 끝. 흐름 참고용이며 다시 라벨링하지 마세요):\n${context
+        .map((t) => `- ${SPEAKER_LABELS[t.speaker] || '미상'}: ${t.text}`)
+        .join('\n')}\n`
+    : '';
+  return `아래는 골프 레슨 현장에서 받아 적은 필기입니다. 목소리 정보 없이 텍스트만 있습니다.
+각 줄이 누구의 말인지 **대화 흐름과 내용**으로 판단해 역할을 배정하세요.
+
+역할:
+- "coach": 레슨을 진행하는 코치. 동작을 지시·교정·설명하고, 드릴을 시키고, 수치나 시범을 말하고, 질문을 던집니다.
+- "student": 레슨을 받는 학생(${studentName}). 질문하거나 짧게 대답하고("네", "이렇게요?"), 자기 느낌·통증·어려움을 말합니다.
+- "other": 옆 타석·동반자·지나가는 사람 등 이 레슨과 무관한 제3자의 잡담.
+${prior}
+필기(번호는 줄 번호입니다):
+${lines.map((l) => `${l.index}. ${l.text}`).join('\n')}
+
+JSON 하나만 반환하세요: {"labels":[{"i":<줄 번호>,"speaker":"coach"}]}
+규칙:
+- 모든 줄에 라벨을 하나씩 배정하세요. 줄 번호는 위에 적힌 번호를 그대로 쓰세요.
+- 레슨은 코치의 발화가 대부분입니다. 지시·설명·교정은 기본적으로 코치입니다.
+- 질문에 대한 짧은 수긍·호소("네", "아 그렇구나", "손목이 아파요")는 학생입니다.
+- 골프 레슨과 아무 상관 없는 대화만 "other" 로 하세요. 애매하면 "other" 대신 대화 흐름상 더 그럴듯한 쪽을 고르세요.
+- 필기 내용을 고치거나 다시 적지 마세요. 라벨만 반환합니다.`;
+};
+
+/** 라벨링 응답을 줄 번호 → 역할 맵으로 정규화한다. */
+export const parseSpeakerLabelResponse = (text: string): Map<number, SpeakerRole> => {
+  const out = new Map<number, SpeakerRole>();
+  const match = text.match(/\{[\s\S]*\}/);
+  if (!match) return out;
+  try {
+    const parsed = JSON.parse(match[0]) as { labels?: unknown };
+    if (!Array.isArray(parsed?.labels)) return out;
+    for (const entry of parsed.labels) {
+      if (!entry || typeof entry !== 'object') continue;
+      const { i, speaker } = entry as { i?: unknown; speaker?: unknown };
+      const index = typeof i === 'number' ? i : Number(i);
+      if (!Number.isInteger(index)) continue;
+      const role = normalizeSpeakerRole(speaker);
+      // unknown 은 굳이 기록하지 않는다 — 라벨 없음과 같은 뜻이고,
+      // 기록해 두면 "판정했는데 미상" 처럼 보인다.
+      if (role !== 'unknown') out.set(index, role);
+    }
+  } catch {
+    // 파싱 실패 = 라벨 없음. 필기는 그대로 살아남는다.
+  }
+  return out;
+};
+
+/** 라벨링 1회분 호출. 테스트에서 주입할 수 있게 분리한다. */
+export type SpeakerLabeler = (prompt: string) => Promise<string>;
+
+const defaultSpeakerLabeler: SpeakerLabeler = async (prompt) => {
+  const result = await invokeBackendAI<unknown>('lesson_speaker_label', {
+    prompt,
+    responseMimeType: 'application/json',
+    responseSchema: {
+      type: 'OBJECT',
+      properties: {
+        labels: {
+          type: 'ARRAY',
+          items: {
+            type: 'OBJECT',
+            properties: { i: { type: 'INTEGER' }, speaker: { type: 'STRING' } },
+            required: ['i', 'speaker'],
+          },
+        },
+      },
+      required: ['labels'],
+    },
+  });
+  return getResponseText(result) ?? '';
+};
+
+/**
+ * 아직 화자 라벨이 없는 노트에 역할을 배정한 **새 노트 배열**을 돌려준다.
+ * 원본은 건드리지 않으며, 라벨을 못 받은 노트는 라벨 없이 그대로 남는다 —
+ * 라벨링 실패가 필기 유실이 되어서는 안 된다.
+ */
+export const labelTranscriptSpeakers = async (
+  notes: LessonSegmentNote[],
+  studentName: string,
+  labeler: SpeakerLabeler = defaultSpeakerLabeler
+): Promise<LessonSegmentNote[]> => {
+  const pending = notes
+    .filter((n) => n.status === 'done' && n.transcript.trim() && !n.turns?.length)
+    .sort((a, b) => a.index - b.index);
+  if (!pending.length) return notes;
+
+  const assigned = new Map<number, SpeakerRole>();
+  let context: TranscriptTurn[] = [];
+
+  for (let i = 0; i < pending.length; i += SPEAKER_LABEL_BATCH) {
+    const batch = pending.slice(i, i + SPEAKER_LABEL_BATCH);
+    const lines: SpeakerLabelLine[] = batch.map((n) => ({
+      index: n.index,
+      text: n.transcript.trim(),
+    }));
+    try {
+      const raw = await labeler(buildSpeakerLabelPrompt(lines, studentName, context));
+      const labels = parseSpeakerLabelResponse(raw);
+      for (const [index, role] of labels) assigned.set(index, role);
+      context = batch
+        .slice(-SPEAKER_LABEL_CONTEXT)
+        .map((n) => ({
+          speaker: assigned.get(n.index) ?? 'unknown',
+          text: n.transcript.trim(),
+        }));
+    } catch (err) {
+      // 한 묶음이 실패해도 나머지는 계속 시도한다. 이어지는 묶음의 문맥은
+      // 라벨 없이라도 흐름을 잇도록 그대로 넘긴다.
+      log.warn('화자 라벨링 실패(묶음 유지):', err);
+      context = batch.slice(-SPEAKER_LABEL_CONTEXT).map((n) => ({
+        speaker: 'unknown' as SpeakerRole,
+        text: n.transcript.trim(),
+      }));
+    }
+  }
+
+  if (!assigned.size) return notes;
+  return notes.map((n) => {
+    const role = assigned.get(n.index);
+    if (!role || n.turns?.length) return n;
+    return { ...n, turns: [{ speaker: role, text: n.transcript.trim() }] };
+  });
 };
 
 // ─── Segment analysis (AI call) ──────────────────────────────────────────────
@@ -851,7 +1259,7 @@ export const buildRollingSummaryPrompt = (
       n.durationSec > 0
         ? `${formatClock(n.startSec)}–${formatClock(n.startSec + n.durationSec)}`
         : formatClock(n.startSec);
-    const lines = [`[${window}] ${n.transcript || '(대화 없음)'}`];
+    const lines = [renderNoteTranscript(n, window)];
     if (n.keyPoints.length) lines.push(`  포인트: ${n.keyPoints.join(' / ')}`);
     if (n.metrics.length) lines.push(`  수치: ${n.metrics.join(' / ')}`);
     return lines.join('\n');
@@ -866,7 +1274,8 @@ ${blocks.join('\n\n')}
 - "- " 로 시작하는 불릿 3~5개, 각 불릿은 한 문장(한국어).
 - 가장 중요한 교정 포인트부터. 반복 언급된 포인트는 하나로 묶고 진행 상황(개선/유지)을 덧붙이세요.
 - 노트에 있는 수치는 그대로 인용하고, 노트에 없는 내용은 만들지 마세요.
-- 머리말·맺음말 없이 불릿만 출력하세요.`;
+- 머리말·맺음말 없이 불릿만 출력하세요.
+${SPEAKER_RULES}`;
 };
 
 export type RollingSummarizer = (
@@ -1008,6 +1417,8 @@ export class LessonAudioSession {
    * 세션 메모리에만 있으면 되므로 영속화하지 않는다.
    */
   private rawTranscripts = new Map<number, string>();
+  /** 겹침 제거 전 원본 발화 목록 — 재적용 시 라벨을 잃지 않으려면 필요하다. */
+  private rawTurns = new Map<number, TranscriptTurn[]>();
   /** 직전 음성 인식 노트의 원본 — addSpeechNote 겹침 판정용. */
   private lastSpeechRaw = '';
   /** 녹음 런 경계 — beginRun 마다 하나씩 쌓인다. */
@@ -1347,6 +1758,8 @@ export class LessonAudioSession {
       previousKeyPoints: this.notes
         .filter((n) => n.status === 'done')
         .flatMap((n) => n.keyPoints),
+      // 직전 구간의 원본 발화(겹침 제거 전) — 잘린 문장의 화자를 잇는 단서.
+      previousTurns: this.rawTurns.get(index - 1),
     };
 
     this.queue.enqueue(
@@ -1354,13 +1767,14 @@ export class LessonAudioSession {
       async () => {
         const analyzed = await this.analyzer(blob, this.mimeType || 'audio/webm', ctx);
         this.rawTranscripts.set(index, analyzed.transcript);
+        if (analyzed.turns) this.rawTurns.set(index, analyzed.turns);
         this.updateNote(index, {
           ...analyzed,
           index,
           startSec,
           durationSec,
           status: 'done',
-          transcript: this.dedupedTranscript(index, analyzed.transcript),
+          ...this.dedupedContent(index, analyzed),
         });
         // 분석 동시성이 2라 (index+1) 세그먼트가 먼저 끝났을 수 있다 —
         // 지금 도착한 원본을 기준으로 다음 노트의 겹침을 재적용한다.
@@ -1372,10 +1786,25 @@ export class LessonAudioSession {
     );
   }
 
-  /** 직전 세그먼트의 원본 전사와 비교해 겹친 머리를 잘라낸 전사를 돌려준다. */
-  private dedupedTranscript(index: number, raw: string): string {
+  /**
+   * 직전 세그먼트의 원본 전사와 비교해 겹친 머리를 잘라낸 전사(+발화 목록)를
+   * 돌려준다. 발화 목록이 있으면 그쪽을 잘라 내고 전사를 다시 조립한다 —
+   * 전사만 자르면 turns 와 transcript 가 어긋나 화면과 요약이 갈라진다.
+   */
+  private dedupedContent(
+    index: number,
+    raw: { transcript: string; turns?: TranscriptTurn[] }
+  ): { transcript: string; turns?: TranscriptTurn[] } {
     const prevRaw = this.rawTranscripts.get(index - 1);
-    return prevRaw ? trimTranscriptOverlap(prevRaw, raw) : raw;
+    if (!prevRaw) return { transcript: raw.transcript, turns: raw.turns };
+    if (raw.turns?.length) {
+      const turns = trimTurnsOverlap(prevRaw, raw.turns);
+      return { transcript: joinTranscriptTurns(turns), turns };
+    }
+    return {
+      transcript: trimTranscriptOverlap(prevRaw, raw.transcript),
+      turns: raw.turns,
+    };
   }
 
   /** index 노트가 이미 완료됐다면(선착) 지금의 원본 기준으로 겹침을 다시 적용한다. */
@@ -1384,10 +1813,32 @@ export class LessonAudioSession {
     if (raw == null) return;
     const note = this.notes.find((n) => n.index === index && n.status === 'done');
     if (!note) return;
-    const trimmed = this.dedupedTranscript(index, raw);
-    if (trimmed !== note.transcript) {
-      this.updateNote(index, { ...note, transcript: trimmed });
+    const next = this.dedupedContent(index, {
+      transcript: raw,
+      turns: this.rawTurns.get(index),
+    });
+    if (next.transcript !== note.transcript) {
+      this.updateNote(index, { ...note, ...next });
     }
+  }
+
+  /**
+   * 종료 직전 텍스트 라벨링(labelTranscriptSpeakers)의 결과를 세션 노트에
+   * 되반영한다. 전사 텍스트는 그대로 두고 화자 라벨만 얹으므로, 복구·핸드
+   * 오프·최종 리포트가 모두 같은 라벨을 보게 된다.
+   */
+  applySpeakerTurns(labeled: LessonSegmentNote[]): void {
+    const byIndex = new Map(labeled.map((n) => [n.index, n.turns]));
+    let changed = false;
+    this.notes = this.notes.map((n) => {
+      const turns = byIndex.get(n.index);
+      if (!turns?.length || n.turns?.length) return n;
+      changed = true;
+      return { ...n, turns };
+    });
+    if (!changed) return;
+    this.emitNotes();
+    void this.persistMeta();
   }
 
   private updateNote(index: number, next: LessonSegmentNote): void {
@@ -1697,7 +2148,8 @@ ${
 작성 규칙:
 - 시간 흐름을 따라가되, 같은 교정 포인트가 반복되면 하나로 묶고 변화(개선/악화)를 언급하세요.
 - 필기에 있는 수치는 그대로 인용하세요. 필기에 없는 사실을 추가하지 마세요.
-- 코치가 정리한 요약이 있으면 그 강조점을 리포트에 반영하세요.`;
+- 코치가 정리한 요약이 있으면 그 강조점을 리포트에 반영하세요.
+${SPEAKER_RULES}`;
 };
 
 /**

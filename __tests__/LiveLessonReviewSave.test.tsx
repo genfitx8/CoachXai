@@ -41,6 +41,7 @@ const sessionStub = {
   checkpoint: vi.fn(async () => {}),
   settleAnalyses: vi.fn(async () => {}),
   setTranscriptSource: vi.fn(),
+  applySpeakerTurns: vi.fn(),
   getNotes: () => notes,
   snapshot: () => ({
     recordedSec: 63,
@@ -64,6 +65,8 @@ vi.mock('../services/lessonAudioPipeline', async () => ({
   purgeStaleLessonAudioSessions: vi.fn(async () => {}),
   discardLessonAudioSession: vi.fn(async () => {}),
   generateRollingLessonSummary: vi.fn(async () => '요약'),
+  // 화자 라벨링은 네트워크를 타므로 스텁 — 라벨 없이 진행하는 경로를 본다.
+  labelTranscriptSpeakers: vi.fn(async (given: unknown) => given),
   formatClock: (sec: number) =>
     `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`,
 }));

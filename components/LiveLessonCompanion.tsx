@@ -22,6 +22,7 @@ import { PermissionDeniedModal } from './PermissionDeniedModal';
 import {
   LessonAudioSession,
   buildTranscriptText,
+  labelTranscriptSpeakers,
   findRecoverableSessions,
   formatClock,
   purgeStaleLessonAudioSessions,
@@ -104,6 +105,12 @@ const formatElapsed = (totalSec: number): string => {
 
 /** 검토 화면을 여는 데 요약 응답을 기다려 줄 최대 시간. */
 const REVIEW_SUMMARY_TIMEOUT_MS = 12_000;
+/**
+ * 화자 라벨링 대기 한도. 요약보다 조금 넉넉한 이유는 필기가 긴 레슨이면
+ * 묶음을 두어 번 나눠 호출하기 때문이다. 요약과 동시에 돌리므로 검토
+ * 화면까지의 대기는 둘 중 긴 쪽 하나로 끝난다.
+ */
+const REVIEW_LABEL_TIMEOUT_MS = 15_000;
 
 const randomId = () =>
   `clip_${Math.random().toString(36).slice(2, 10)}_${performance.now().toFixed(0)}`;
@@ -549,13 +556,22 @@ export const LiveLessonCompanion: React.FC<LiveLessonCompanionProps> = ({
 
     // 진행 중이던 전사(AI 폴백 경로)를 잠깐 기다렸다가 초안을 만든다.
     await session.settleAnalyses(10_000);
-    const notes = session
+    let notes = session
       .getNotes()
       .filter((n) => n.status === 'done' && n.transcript);
-    // 타임스탬프 없이 문단 단위로 이어 붙인다 — 코치가 읽는 것은 시각이
-    // 아니라 대화 흐름이고, 실시간 인식이 한 문장을 여러 조각으로 끊어
-    // 확정하므로 조각을 그대로 나열하면 단어 목록처럼 보인다.
-    const transcriptText = buildTranscriptText(notes);
+
+    // 화자 역할 라벨링. 오디오 전사 경로는 구간마다 라벨이 붙어 오지만
+    // 온디바이스 인식 경로는 텍스트뿐이라, 여기서 필기 전체를 한 번 읽어
+    // 코치/학생/주변을 배정한다. 요약 생성과 **동시에** 띄운다 — 둘은
+    // 서로를 기다릴 이유가 없고, 직렬로 붙이면 검토 화면이 열리기까지의
+    // 대기가 두 배가 된다. 늘어지면 라벨 없이 진행한다: 검토 화면이
+    // '정리 중'에 갇히면(저장 버튼 비활성) 필기를 아예 못 쓴다.
+    const labelPromise = Promise.race([
+      labelTranscriptSpeakers(notes, studentName),
+      new Promise<null>((resolve) =>
+        window.setTimeout(() => resolve(null), REVIEW_LABEL_TIMEOUT_MS)
+      ),
+    ]).catch(() => null);
 
     let summaryText = session.snapshot().liveSummary;
     if (!summaryText && notes.length > 0) {
@@ -574,6 +590,19 @@ export const LiveLessonCompanion: React.FC<LiveLessonCompanionProps> = ({
         summaryText = '';
       }
     }
+
+    const labeled = await labelPromise;
+    if (labeled) {
+      notes = labeled;
+      // 검토 화면과 최종 리포트, 복구 세션이 모두 같은 라벨을 보게 한다.
+      session.applySpeakerTurns(labeled);
+    }
+
+    // 타임스탬프 없이 문단 단위로 이어 붙인다 — 코치가 읽는 것은 시각이
+    // 아니라 대화 흐름이고, 실시간 인식이 한 문장을 여러 조각으로 끊어
+    // 확정하므로 조각을 그대로 나열하면 단어 목록처럼 보인다. 화자가
+    // 판정된 문단에는 "코치: " 표기가 붙는다.
+    const transcriptText = buildTranscriptText(notes);
 
     setReviewDraft({ transcriptText, summaryText, preparing: false, saving: false });
   };
@@ -825,6 +854,7 @@ export const LiveLessonCompanion: React.FC<LiveLessonCompanionProps> = ({
                     id: n.index,
                     atSec: n.startSec,
                     text: n.transcript,
+                    turns: n.turns,
                   }))}
                 writing={
                   lessonRecState === 'recording' ||
