@@ -51,7 +51,7 @@ describe('NewLessonForm – body analysis only save', () => {
     fireEvent.click(screen.getByRole('button', { name: /레슨 기록/i }));
 
     expect(screen.queryByText('회원 신체 분석')).not.toBeInTheDocument();
-    expect(screen.getByText('레슨 요약 리포트')).toBeInTheDocument();
+    expect(screen.queryByText('레슨 요약 리포트')).not.toBeInTheDocument();
   });
 
   it('saves when only memo is provided without media', async () => {

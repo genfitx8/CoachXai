@@ -42,7 +42,6 @@ import {
   Radio,
 } from 'lucide-react';
 import {
-  analyzeSwingVideo,
   extractGolfData,
   summarizeHoleVoice,
 } from '../services/geminiService';
@@ -290,7 +289,6 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
   const [targetDistance, setTargetDistance] = useState<number | ''>('');
   const [score, setScore] = useState<number | ''>('');
   const [notes, setNotes] = useState('');
-  const [enableAI, setEnableAI] = useState(false); // Toggle for AI Analysis
 
   // Golf Data Extraction Mode
   const [isDataExtractionMode, setIsDataExtractionMode] = useState(false);
@@ -1280,28 +1278,18 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
       return;
     }
 
-    const shouldRunAI = enableAI || isDataExtractionMode;
-
     // Validation: Require Club Selection for Shot Data Analysis
-    if (
-      shouldRunAI &&
-      isDataExtractionMode &&
-      recordType !== 'SCORE' &&
-      !club
-    ) {
+    if (isDataExtractionMode && recordType !== 'SCORE' && !club) {
       setError(t('new_lesson_club_required'));
       return;
     }
 
     setError(null);
 
-    if (shouldRunAI) {
-      setIsAnalyzing(true);
-      setStatusMessage('레슨 요약 리포트 준비 중...');
-    } else {
-      setIsAnalyzing(true);
-      setStatusMessage('저장 중...');
-    }
+    setIsAnalyzing(true);
+    setStatusMessage(
+      isDataExtractionMode ? '데이터 추출 준비 중...' : '저장 중...'
+    );
 
     try {
       let analysisResult = initialData?.aiAnalysis || '';
@@ -1317,8 +1305,8 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
       // ── 레슨 동반(LIVE_LESSON) 전용 저장 형태 ──────────────────────────
       // 이 카테고리는 음성/사진/영상 원본만 남기는 게 아니라 레슨 내용
       // 텍스트(필기 노트)와 요약본이 함께 저장되는 것이 핵심이다. 그래서
-      // AI 토글과 무관하게 라이브 세션의 구간 노트를 수거해 transcript 로
-      // 저장하고, 노트가 있으면 요약본까지 항상 생성한다.
+      // 라이브 세션의 구간 노트를 수거해 transcript 로 저장하고, 노트가
+      // 있으면 요약본까지 항상 생성한다.
       let liveLessonDetail: LiveLessonDetail | undefined =
         initialData?.liveLessonDetail;
       const liveSession = liveSessionRef.current;
@@ -1415,93 +1403,42 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
         };
 
         extractedScore = totalScore;
-
-        // Generate simple round summary if AI enabled
-        if (enableAI) {
-          const badHoles = holeRecords.filter((h) => h.score >= h.par + 2);
-          const goodHoles = holeRecords.filter((h) => h.score < h.par);
-          analysisResult = `### ⛳ 오늘의 라운드 요약\n\n**${courseName}**에서의 라운드 기록입니다.\n- **총 타수**: ${totalScore}타\n- **총 퍼팅수**: ${totalPutts}개\n\n`;
-          if (goodHoles.length > 0) {
-            analysisResult += `👍 **흐름이 좋았던 홀**: ${goodHoles
-              .map((h) => `${h.holeNumber}번(${h.score})`)
-              .join(', ')}\n`;
-          }
-          if (badHoles.length > 0) {
-            analysisResult += `🎯 **중점 확인 홀**: ${badHoles
-              .map((h) => `${h.holeNumber}번(${h.score})`)
-              .join(', ')}\n`;
-          }
-          analysisResult += `\n홀별 상세 기록은 아래 기록표에서 확인해주세요.`;
-        }
       }
-      // Logic for SIMPLE Scorecard / Other Modes
+      // Logic for AI shot/scorecard data extraction
       // (레슨 동반은 위 전용 경로가 필기·요약을 이미 처리했으므로 제외)
-      else if (recordType !== 'LIVE_LESSON' && mainMedia && shouldRunAI && mainMedia.file) {
-        // Only run AI if there is a NEW file. If editing and no new file, skip (or maybe prompt).
-        // For now, if editing and no new file, we keep existing analysis unless explicitly re-triggered which is complex here.
-        // Assuming `shouldRunAI` is set fresh, we might re-run if it's a new upload.
-
+      else if (recordType !== 'LIVE_LESSON' && extractionTargetImage?.file) {
         try {
-          if (isDataExtractionMode && extractionTargetImage?.file) {
-              setStatusMessage(
-                recordType === 'SCORE'
-                  ? '스코어카드 데이터를 정리하고 있습니다...'
-                  : '이미지에서 데이터를 추출하고 있습니다...'
-              );
+          setStatusMessage(
+            recordType === 'SCORE'
+              ? '스코어카드 데이터를 정리하고 있습니다...'
+              : '이미지에서 데이터를 추출하고 있습니다...'
+          );
 
-            const nameToSearch = clientName.split('(')[0].trim();
+          const nameToSearch = clientName.split('(')[0].trim();
 
-            const dataResult = await extractGolfData(
-              {
-                data: extractionTargetImage.file,
-                mimeType: extractionTargetImage.file.type,
-              },
-              nameToSearch
-            );
+          const dataResult = await extractGolfData(
+            {
+              data: extractionTargetImage.file,
+              mimeType: extractionTargetImage.file.type,
+            },
+            nameToSearch
+          );
 
-            analysisResult = dataResult.textAnalysis;
-            // Only replace existing golfData when the AI actually read at
-            // least one numeric field. An empty object (all nulls stripped)
-            // would silently overwrite whatever the coach had entered.
-            if (dataResult.golfData && Object.keys(dataResult.golfData).length > 0) {
-              extractedGolfData = dataResult.golfData;
-            }
-            // Use `!= null` so a legitimate 0-score (rare but possible) is
-            // not treated as "no score".
-            if (dataResult.score != null) {
-              extractedScore = dataResult.score;
-            }
-          } else {
-            let promptContext = notes;
-            if (userRole === 'CLIENT') {
-              if (recordType === 'SCORE') {
-                promptContext = `[필드/스크린 스코어 기록] 사용자가 스코어카드를 업로드했습니다. 점수(${score})와 내용을 정리해주세요. 메모: ${notes}`;
-              } else if (recordType === 'LESSON') {
-                promptContext = `[레슨 복기 기록] 사용자가 레슨 받은 내용을 직접 정리한 것입니다. 메모: ${notes}`;
-              } else {
-                promptContext = `[자율 연습 기록] 사용자가 스스로 연습한 내용입니다. 메모: ${notes}`;
-              }
-            }
-
-            // (레슨 동반 핸드오프의 필기·요약 병합은 위 LIVE_LESSON
-            // 전용 경로가 담당한다 — 여기는 일반 업로드 분석 경로.)
-            setStatusMessage(
-              '미디어 자료와 코치님 피드백을 바탕으로 레슨 리포트를 정리하고 있습니다...'
-            );
-            analysisResult = await analyzeSwingVideo(
-              mediaItems
-                .filter((item) => item.file)
-                .map((item) => ({
-                  data: item.file!,
-                  mimeType: item.file!.type,
-                })),
-              promptContext,
-              undefined
-            );
+          analysisResult = dataResult.textAnalysis;
+          // Only replace existing golfData when the AI actually read at
+          // least one numeric field. An empty object (all nulls stripped)
+          // would silently overwrite whatever the coach had entered.
+          if (dataResult.golfData && Object.keys(dataResult.golfData).length > 0) {
+            extractedGolfData = dataResult.golfData;
+          }
+          // Use `!= null` so a legitimate 0-score (rare but possible) is
+          // not treated as "no score".
+          if (dataResult.score != null) {
+            extractedScore = dataResult.score;
           }
         } catch (err) {
           console.error('Analysis failed', err);
-          if (!analysisResult) analysisResult = '레슨 요약 리포트 생성에 실패했습니다.';
+          if (!analysisResult) analysisResult = '데이터 추출에 실패했습니다.';
         }
       }
 
@@ -1527,7 +1464,6 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
 
       // Auto-tagging based on record type
       const tags = [];
-      if (shouldRunAI) tags.push('AI요약');
 
       if (recordType === 'SCORE')
         tags.push('스코어', '필드기록', courseName || '코스미정');
@@ -2035,7 +1971,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
 
   // STEP: FORM (레슨 동반 전용)
   // 레슨 동반 기록은 일반 레슨 기록과 저장 형태가 다르다: 클럽 지정,
-  // 코치 메모, 샷데이터 입력, AI 리포트 토글 같은 일반 폼
+  // 코치 메모, 샷데이터 입력 같은 일반 폼
   // 항목 없이 — 동반 화면에서 기록된 것(캡처된 음성·사진·영상)만 확인해
   // 저장한다. 필기(레슨 내용 텍스트)와 요약본은 handleSubmit 의 전용
   // 경로가 저장 시 자동으로 수거·생성한다.
@@ -3240,14 +3176,9 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
           scoreMode === 'SIMPLE' &&
           mediaItems.some((m) => m.type === 'image') && (
             <div
-              onClick={() => {
-                const newState = !isDataExtractionMode;
-                setIsDataExtractionMode(newState);
-                // Force AI enable if turning on data extraction
-                if (newState) {
-                  setEnableAI(true);
-                }
-              }}
+              onClick={() =>
+                setIsDataExtractionMode(!isDataExtractionMode)
+              }
               className={`p-4 rounded-xl border-2 cursor-pointer transition-all flex items-center gap-4 ${
                 isDataExtractionMode
                   ? 'border-blue-500 bg-blue-900/30'
@@ -3283,11 +3214,9 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
         {recordType !== 'SCORE' &&
           mediaItems.some((m) => m.type === 'image') && (
             <div
-              onClick={() => {
-                const newState = !isDataExtractionMode;
-                setIsDataExtractionMode(newState);
-                if (newState) setEnableAI(true);
-              }}
+              onClick={() =>
+                setIsDataExtractionMode(!isDataExtractionMode)
+              }
               className={`p-4 rounded-xl border-2 cursor-pointer transition-all flex items-center gap-4 ${
                 isDataExtractionMode
                   ? 'border-blue-500 bg-blue-900/30'
@@ -3337,45 +3266,6 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
           />
         </div>
 
-        {/* AI Analysis Toggle */}
-        <div className="flex items-center justify-between bg-white/[0.04]/[0.04] p-4 rounded-xl border border-line-subtle">
-          <div className="flex items-center gap-3">
-            <div
-              className={`p-2 rounded-full ${
-                enableAI || isDataExtractionMode
-                  ? 'bg-emerald-900/60 text-emerald-400'
-                  : 'bg-white/[0.06] text-ink-muted'
-              }`}
-            >
-              <Sparkles className="w-5 h-5" />
-            </div>
-            <div>
-              <h4 className="font-bold text-ink-high text-sm">레슨 요약 리포트</h4>
-              <p className="text-xs text-ink-muted">
-                {recordType === 'SCORE' && scoreMode === 'DETAILED'
-                  ? '18홀 기록을 바탕으로 라운드를 요약합니다.'
-                  : '업로드한 미디어를 바탕으로 회원용 레슨 요약 리포트를 생성합니다.'}
-              </p>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={() => setEnableAI(!enableAI)}
-            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-              enableAI || isDataExtractionMode
-                ? 'bg-emerald-600'
-                : 'bg-white/[0.08]'
-            }`}
-          >
-            <span
-              className={`inline-block h-4 w-4 transform rounded-full bg-white/[0.04] transition-transform ${
-                enableAI || isDataExtractionMode
-                  ? 'translate-x-6'
-                  : 'translate-x-1'
-              }`}
-            />
-          </button>
-        </div>
         </div>{/* end scrollable area */}
 
         {/* Sticky footer with error/status and save button */}
