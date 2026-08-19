@@ -211,11 +211,25 @@ router.get('/', async (req: Request, res: Response) => {
   try {
     // Admin console reads the whole member table; coaches stay scoped to
     // the members assigned to them.
+    //
+    // 내 회원 = 가입한 학생이 나를 담당 코치로 지정한 회원 — and designating a
+    // coach (PUT /me) requires a signed-in student account, so every real
+    // 내 회원 row has a password_hash. Rows without one are legacy phantoms:
+    // the removed POST / route minted them with coach_id = the calling coach,
+    // and the old local-cache upward sync stamped whole cached member tables
+    // (admin/demo/other accounts) onto whichever coach signed in next. Those
+    // rows are still in the table, so without this guard they flood every
+    // coach-side member surface (학생 탭, 레슨 동반 학생 선택, 스윙 검색)
+    // with members that were never the coach's. A phantom that later signs
+    // up gains a password_hash via the signup merge and reappears here.
     const result =
       req.user!.role === 'admin'
         ? await pool.query('SELECT * FROM clients ORDER BY created_at DESC')
         : await pool.query(
-            'SELECT * FROM clients WHERE coach_id = $1 ORDER BY created_at DESC',
+            `SELECT * FROM clients
+              WHERE coach_id = $1
+                AND password_hash IS NOT NULL
+              ORDER BY created_at DESC`,
             [req.user!.id]
           );
     // Coach/admin surface — carries coachMemo, which GET /me never does.
