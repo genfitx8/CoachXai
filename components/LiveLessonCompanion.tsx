@@ -32,6 +32,7 @@ import {
   type LiveSessionSnapshot,
   type RecoverableLessonSession,
 } from '../services/lessonAudioPipeline';
+import { LessonNotebook } from './LessonNotebook';
 
 /**
  * 3c · 레슨 중 동반 (Live Lesson Companion)
@@ -129,16 +130,9 @@ export const LiveLessonCompanion: React.FC<LiveLessonCompanionProps> = ({
   >('idle');
   const [sessionSnapshot, setSessionSnapshot] =
     useState<LiveSessionSnapshot | null>(null);
-  /** ~10초 단위 필기(전사) 노트 — 화면의 필기 피드가 이 배열을 그린다. */
+  /** ~10초 단위 필기(전사) 노트 — 종이 노트(LessonNotebook)가 이 배열을 그린다. */
   const [liveNotes, setLiveNotes] = useState<LessonSegmentNote[]>([]);
   const lessonStreamRef = useRef<MediaStream | null>(null);
-
-  // 새 필기 줄이 붙을 때마다 노트를 맨 아래로 스크롤한다.
-  const transcriptScrollRef = useRef<HTMLDivElement | null>(null);
-  useEffect(() => {
-    const el = transcriptScrollRef.current;
-    if (el) el.scrollTop = el.scrollHeight;
-  }, [liveNotes]);
 
   // 크래시/미저장 세션 복구 배너
   const [recoverable, setRecoverable] = useState<RecoverableLessonSession | null>(
@@ -609,86 +603,22 @@ export const LiveLessonCompanion: React.FC<LiveLessonCompanionProps> = ({
                 </div>
               )}
 
-              {/* 필기 노트 — ~10초 단위로 음성이 텍스트로 받아 적힌다 */}
-              <div className="mt-3 rounded-xl border border-line-subtle bg-white/[0.02] p-3">
-                <div className="flex items-center gap-1.5 mb-1.5">
-                  <Mic
-                    className={`w-3.5 h-3.5 ${
-                      lessonRecState === 'recording'
-                        ? 'text-red-300 animate-pulse'
-                        : 'text-ink-muted'
-                    }`}
-                  />
-                  <span className="text-[11px] font-mono uppercase tracking-wider text-ink-muted">
-                    필기 노트
-                  </span>
-                  {liveNotes.some((n) => n.status === 'analyzing') && (
-                    <span className="text-[10px] text-ink-muted animate-pulse">
-                      적는 중…
-                    </span>
-                  )}
-                </div>
-                <div
-                  ref={transcriptScrollRef}
-                  className="max-h-56 min-h-[6rem] overflow-y-auto space-y-1.5 pr-1"
-                >
-                  {liveNotes.filter((n) => n.status === 'done' && n.transcript)
-                    .length === 0 && (
-                    <p className="text-[12px] text-ink-muted">
-                      코칭 멘트가 들리면 약 10초 단위로 여기에 받아 적혀요
-                    </p>
-                  )}
-                  {liveNotes
-                    .filter((n) => n.status === 'done' && n.transcript)
-                    .map((n) => (
-                      <p
-                        key={n.index}
-                        className="text-[13px] leading-snug text-ink-high"
-                      >
-                        <span className="text-[10.5px] font-mono text-ink-muted mr-1.5 tabular-nums">
-                          {formatClock(n.startSec)}
-                        </span>
-                        {n.transcript}
-                      </p>
-                    ))}
-                </div>
-              </div>
-
-              {/* 요약 노트 — 5분마다 지금까지의 필기를 다시 요약 */}
-              <div className="mt-2 rounded-xl border border-emerald-400/20 bg-emerald-500/[0.05] p-3">
-                <div className="flex items-center gap-1.5 mb-1.5">
-                  <Sparkles className="w-3.5 h-3.5 text-emerald-300" />
-                  <span className="text-[11px] font-mono uppercase tracking-wider text-emerald-300">
-                    요약 노트
-                  </span>
-                  <span className="text-[10px] text-ink-muted">5분마다 갱신</span>
-                  {sessionSnapshot?.liveSummaryUpdating && (
-                    <span className="text-[10px] text-ink-muted animate-pulse">
-                      갱신 중…
-                    </span>
-                  )}
-                </div>
-                {sessionSnapshot?.liveSummary ? (
-                  <div className="space-y-1">
-                    {sessionSnapshot.liveSummary
-                      .split('\n')
-                      .map((line) => line.trim())
-                      .filter(Boolean)
-                      .map((line, i) => (
-                        <p
-                          key={`${i}-${line.slice(0, 16)}`}
-                          className="text-[12.5px] leading-snug text-ink-high"
-                        >
-                          {line}
-                        </p>
-                      ))}
-                  </div>
-                ) : (
-                  <p className="text-[12px] text-ink-muted">
-                    필기가 5분쯤 쌓이면 여기에 요약이 정리됩니다
-                  </p>
-                )}
-              </div>
+              {/* 종이 노트 — ~10초 단위 받아쓰기 + 하단 형광펜 요약 */}
+              <LessonNotebook
+                lines={liveNotes
+                  .filter((n) => n.status === 'done' && n.transcript)
+                  .map((n) => ({
+                    id: n.index,
+                    atSec: n.startSec,
+                    text: n.transcript,
+                  }))}
+                writing={
+                  lessonRecState === 'recording' ||
+                  liveNotes.some((n) => n.status === 'analyzing')
+                }
+                summary={sessionSnapshot?.liveSummary ?? ''}
+                summaryUpdating={sessionSnapshot?.liveSummaryUpdating ?? false}
+              />
             </>
           )}
 
