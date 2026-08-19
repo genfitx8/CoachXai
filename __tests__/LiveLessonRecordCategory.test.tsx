@@ -229,11 +229,11 @@ describe('레슨 동반(LIVE_LESSON) 기록 카테고리', () => {
     expect(saved.liveLessonDetail!.summary).toBe('## 오늘 레슨 요약본');
     expect(saved.aiAnalysis).toBe('## 오늘 레슨 요약본');
 
-    // 세션 노트는 핸드오프 sessionId 로 수거된다.
-    expect(collectSessionNotes).toHaveBeenCalledWith(
-      'session_live_1',
-      expect.anything()
-    );
+    // 세션 노트는 핸드오프 sessionId 로 수거된다. 검토를 거치지 않은
+    // 핸드오프는 아직 분석 중인 구간이 있을 수 있어 큐를 기다린다.
+    expect(collectSessionNotes).toHaveBeenCalledWith('session_live_1', {
+      waitMs: 30_000,
+    });
 
     // 저장이 끝나면 복구용 IDB 세션은 폐기된다.
     await waitFor(() => {
@@ -275,5 +275,11 @@ describe('레슨 동반(LIVE_LESSON) 기록 카테고리', () => {
       { startSec: 0, text: '어드레스에서 그립 압력을 부드럽게' },
       { startSec: 10, text: '백스윙 템포 유지' },
     ]);
+
+    // 본문이 이미 손에 있으므로 분석 큐가 비기를 기다리지 않는다 —
+    // 저장 버튼을 누른 뒤 "정리 중"이 수십 초 도는 일이 없어야 한다.
+    expect(collectSessionNotes).toHaveBeenCalledWith('session_live_1', {
+      waitMs: 0,
+    });
   });
 });
