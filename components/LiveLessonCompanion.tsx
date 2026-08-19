@@ -132,6 +132,13 @@ export const LiveLessonCompanion: React.FC<LiveLessonCompanionProps> = ({
   /** 필기 노트 — 종이 노트(LessonNotebook)가 이 배열을 그린다. */
   const [liveNotes, setLiveNotes] = useState<LessonSegmentNote[]>([]);
   const lessonStreamRef = useRef<MediaStream | null>(null);
+  /**
+   * 백그라운드 복귀 재시작이 진행 중인지. visibilitychange 는 짧은 시간에
+   * 여러 번 올 수 있는데(화면 껐다 켜기, 앱 전환), getUserMedia 가 끝나기
+   * 전에 두 번째 재시작이 겹치면 레코더가 중복 생성되거나 살아 있는
+   * 레코더의 스트림을 끊어 필기가 중복/유실된다.
+   */
+  const restartInFlightRef = useRef(false);
 
   /**
    * 실시간 받아쓰기: 온디바이스 음성 인식이 말하는 즉시 잠정 텍스트를
@@ -249,15 +256,31 @@ export const LiveLessonCompanion: React.FC<LiveLessonCompanionProps> = ({
       if (noteModeRef.current === 'speech') {
         // speech 모드: 마이크는 인식기 전담 — 인식만 되살린다.
         void transcription.resume();
-      } else if (!session.isRecorderAlive && !session.isPaused) {
+      } else if (
+        !session.isRecorderAlive &&
+        !session.isPaused &&
+        !restartInFlightRef.current
+      ) {
+        restartInFlightRef.current = true;
         requestMediaStream({ audio: true })
           .then((stream) => {
+            const s = lessonSessionRef.current;
+            // getUserMedia 대기 중 레코더가 이미 복구됐다면(연속 visible
+            // 이벤트 레이스) 새 스트림은 쓰지 않고 반납한다 — 살아 있는
+            // 레코더의 스트림을 끊으면 재시작 루프가 돈다.
+            if (!s || s.isRecorderAlive) {
+              stream.getTracks().forEach((t) => t.stop());
+              return;
+            }
             lessonStreamRef.current?.getTracks().forEach((t) => t.stop());
             lessonStreamRef.current = stream;
-            session.restartRecording(stream);
+            s.restartRecording(stream);
           })
           .catch((e) => {
             console.error('[LiveLessonCompanion] 복귀 후 녹음 재개 실패', e);
+          })
+          .finally(() => {
+            restartInFlightRef.current = false;
           });
       }
     };

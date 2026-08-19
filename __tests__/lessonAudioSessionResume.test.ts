@@ -267,6 +267,34 @@ describe('LessonAudioSession — 세션 생존성', () => {
     await resumed!.discard();
   });
 
+  it('speech 모드: 누적 반복 확정("드라이버"→"드라이버 슬라이스를"…)은 새로 들린 말만 남는다', async () => {
+    // 실제 장애 패턴(2026-08): 인식 엔진 재시작·지연 이벤트로 같은 발화가
+    // 자라나는 형태로 반복 확정돼 필기가 수십 줄 중복됐다.
+    const session = new LessonAudioSession({
+      studentName: '김회원',
+      analyzer: makeAnalyzer([]),
+      rollingSummarizer: async () => '- 요약',
+    });
+    session.setTranscriptSource('speech');
+    await session.start(null);
+
+    session.addSpeechNote('드라이버');
+    session.addSpeechNote('드라이버'); // 완전 중복 — 노트가 생기면 안 된다
+    session.addSpeechNote('드라이버 슬라이스를');
+    session.addSpeechNote('드라이버 슬라이스를 교정하는');
+    session.addSpeechNote('드라이버 슬라이스를 교정하는 레슨 좀 할 건데요');
+    session.addSpeechNote('어제 라운딩은 어땠어요'); // 새 발화는 그대로
+
+    expect(session.getNotes().map((n) => n.transcript)).toEqual([
+      '드라이버',
+      '슬라이스를',
+      '교정하는',
+      '레슨 좀 할 건데요',
+      '어제 라운딩은 어땠어요',
+    ]);
+    await session.discard();
+  });
+
   it('notes-only 모드(start(null)): 레코더 없이 음성 노트·타이머·영속화가 돌아간다', async () => {
     const analyzed: number[] = [];
     const session = new LessonAudioSession({
@@ -343,6 +371,79 @@ describe('LessonAudioSession — 세션 생존성', () => {
 
     // 살아 있는 레코더에는 재시작이 no-op 이어야 한다 (이중 녹음 방지 —
     // 종료 전에 확인)
+    await session.discard();
+  });
+
+  it('start() 가 중복 호출돼도 레코더는 하나만 산다 (이중 녹음 방지)', async () => {
+    const session = new LessonAudioSession({
+      studentName: '김회원',
+      analyzer: makeAnalyzer([]),
+      rollingSummarizer: async () => '- 요약',
+    });
+    await session.start({} as MediaStream);
+    await session.start({} as MediaStream); // 재렌더·레이스로 두 번 불려도
+    expect(FakeMediaRecorder.instances).toHaveLength(1);
+    await session.discard();
+  });
+
+  it('레코더 재시작 시 이전 레코더의 늦은 flush 가 새 런을 오염시키지 않는다', async () => {
+    const session = new LessonAudioSession({
+      studentName: '김회원',
+      analyzer: makeAnalyzer([]),
+      rollingSummarizer: async () => '- 요약',
+    });
+    await session.start({} as MediaStream);
+    FakeMediaRecorder.instances[0].killSilently();
+    session.restartRecording({} as MediaStream);
+    // 폐기된 레코더는 핸들러가 떼어져 있어야 한다 — 남은 dataavailable 이
+    // 새 런의 인덱스/헤더 경계에 끼어들면 필기가 중복된다.
+    expect(FakeMediaRecorder.instances[0].ondataavailable).toBeNull();
+    expect(FakeMediaRecorder.instances[1].ondataavailable).not.toBeNull();
+    await session.discard();
+  });
+
+  it('누적형 겹침 전사가 와도 노트에는 새로 들린 말만 남는다', async () => {
+    // 실제 장애 패턴: 인접 세그먼트 오디오가 같은 발화를 반복 포함해
+    // 전사가 "드라이버" → "드라이버 슬라이스를" → … 로 계속 자란다.
+    const cumulative = [
+      '드라이버',
+      '드라이버 슬라이스를',
+      '드라이버 슬라이스를 교정하는',
+      '드라이버 슬라이스를 교정하는 레슨 좀 할 건데요',
+    ];
+    const analyzer: SegmentAnalyzer = async (_blob, _mime, ctx) => ({
+      index: ctx.index,
+      startSec: ctx.startSec,
+      durationSec: ctx.durationSec,
+      status: 'done',
+      transcript: cumulative[Math.min(ctx.index, cumulative.length - 1)],
+      keyPoints: [],
+      drills: [],
+      metrics: [],
+      studentState: '',
+    });
+    const session = new LessonAudioSession({
+      studentName: '김회원',
+      analyzer,
+      rollingSummarizer: async () => '- 요약',
+    });
+    await session.start({} as MediaStream);
+    for (let i = 0; i < 45; i++) {
+      await vi.advanceTimersByTimeAsync(1000);
+    }
+    await vi.advanceTimersByTimeAsync(0);
+
+    const transcripts = session
+      .getNotes()
+      .filter((n) => n.status === 'done')
+      .sort((a, b) => a.index - b.index)
+      .map((n) => n.transcript);
+    expect(transcripts.slice(0, 4)).toEqual([
+      '드라이버',
+      '슬라이스를',
+      '교정하는',
+      '레슨 좀 할 건데요',
+    ]);
     await session.discard();
   });
 });
