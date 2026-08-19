@@ -12,6 +12,32 @@ const MAX_RETRY_ATTEMPTS = 3;
 const INITIAL_BACKOFF_MS = 500;
 const RETRYABLE_STATUS_CODES = new Set([408, 429, 500, 502, 503, 504]);
 
+/**
+ * Upstream HTTP failure with the status preserved, so callers can make
+ * status-dependent decisions (e.g. the ai route falls back to the default
+ * model when a routed preview model 404s after retirement or exhausts its
+ * 429 retries) without parsing the message.
+ */
+export class GeminiApiError extends Error {
+  readonly status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = 'GeminiApiError';
+    this.status = status;
+  }
+}
+
+/**
+ * True when a failed invocation is worth retrying once on the default
+ * model instead of the routed one: the routed model no longer exists
+ * (404 — preview models retire on short notice) or its stricter preview
+ * quota is exhausted (429, already retried with backoff by the runtime).
+ */
+export const isModelFallbackError = (error: unknown): boolean =>
+  error instanceof GeminiApiError &&
+  (error.status === 404 || error.status === 429);
+
 const getApiKey = () => (process.env.GEMINI_API_KEY ?? '').trim();
 const getModel = () => (process.env.GEMINI_MODEL ?? DEFAULT_MODEL).trim() || DEFAULT_MODEL;
 
@@ -122,11 +148,11 @@ export const invokeGeminiApi = async (
       const fullMessage = `Gemini API request failed (${response.status}): ${message}`;
 
       if (RETRYABLE_STATUS_CODES.has(response.status) && attempt < MAX_RETRY_ATTEMPTS - 1) {
-        lastError = new Error(fullMessage);
+        lastError = new GeminiApiError(fullMessage, response.status);
         await sleep(backoffDelay(attempt));
         continue;
       }
-      throw new Error(fullMessage);
+      throw new GeminiApiError(fullMessage, response.status);
     }
 
     // Extract text from the standard Gemini generateContent response shape:
@@ -249,7 +275,10 @@ export const streamGeminiApi = async function* (
       typeof err?.message === 'string'
         ? err.message
         : JSON.stringify(errPayload).slice(0, MAX_ERROR_DETAIL_LENGTH);
-    throw new Error(`Gemini stream failed (${response.status}): ${message}`);
+    throw new GeminiApiError(
+      `Gemini stream failed (${response.status}): ${message}`,
+      response.status
+    );
   }
 
   // Announce the chosen model up-front so the caller can propagate it

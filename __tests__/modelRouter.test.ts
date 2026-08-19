@@ -46,6 +46,20 @@ describe('modelRouter.resolveModel', () => {
     expect(resolveModel('hole_voice_summary')).toBe('gemini-2.5-flash-lite');
   });
 
+  it('routes lesson summarization features to the pro tier (quality over cost)', () => {
+    // Activated 2026-08-19: 레슨 요약은 유료 코치 기능이라 품질 우선.
+    // Regression-guard — downgrading these is a product decision, not a tweak.
+    expect(resolveModel('lesson_summary')).toBe('gemini-3.1-pro-preview');
+    expect(resolveModel('lesson_summary_merge')).toBe('gemini-3.1-pro-preview');
+    expect(resolveModel('lesson_live_summary')).toBe('gemini-3.1-pro-preview');
+  });
+
+  it('routes live transcription to the latest GA flash, not pro', () => {
+    // ~300 calls per lesson on the realtime note path — pro-tier latency
+    // and preview rate limits would break the live-notes UX.
+    expect(resolveModel('lesson_audio_transcribe')).toBe('gemini-3.6-flash');
+  });
+
   it('respects GEMINI_MODEL env for the default', () => {
     process.env[DEFAULT_MODEL_ENV] = 'gemini-2.5-pro';
     expect(resolveModel('coachx_chat')).toBe('gemini-2.5-pro');

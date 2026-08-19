@@ -13,8 +13,9 @@ import {
   isGeminiApiConfigured,
   invokeGeminiApi,
   streamGeminiApi,
+  isModelFallbackError,
 } from '../services/geminiApiRuntime';
-import { resolveModel } from '../services/modelRouter';
+import { getDefaultModel, resolveModel } from '../services/modelRouter';
 import { optionalAuth } from '../middleware/auth';
 import {
   AiInteractionEntry,
@@ -198,7 +199,32 @@ router.post('/invoke', async (req: Request, res: Response) => {
 
     if (isGeminiApiConfigured()) {
       telemetry.runtime = 'gemini_api';
-      const result = await invokeGeminiApi(runtimeRequest);
+      // 라우터가 고른 모델(특히 preview 티어)이 404(퇴역) 또는 429(preview
+      // quota 소진, 런타임의 백오프 재시도 이후)로 실패하면 기본 모델로 딱
+      // 한 번 폴백한다. 레슨 요약처럼 pro-preview 로 라우팅된 유료 경로가
+      // 모델 사정으로 통째로 죽는 것보다 기본 모델 품질로라도 응답하는
+      // 쪽이 낫다. 폴백 발동은 status='fallback' 텔레메트리로 남으므로
+      // 관측 대시보드에서 preview 모델 이상을 바로 알 수 있다.
+      let result: Awaited<ReturnType<typeof invokeGeminiApi>>;
+      try {
+        result = await invokeGeminiApi(runtimeRequest);
+      } catch (error) {
+        const fallbackModel = getDefaultModel();
+        const routedModel = runtimeRequest.model ?? '';
+        if (!isModelFallbackError(error) || routedModel === fallbackModel) {
+          throw error;
+        }
+        logAiInteraction({
+          ...telemetry,
+          latencyMs: Date.now() - startedAt,
+          status: 'fallback',
+          errorMessage: error instanceof Error ? error.message : String(error),
+        });
+        result = await invokeGeminiApi({
+          ...runtimeRequest,
+          model: fallbackModel,
+        });
+      }
       logAiInteraction({
         ...telemetry,
         model: result.model ?? telemetry.model,
