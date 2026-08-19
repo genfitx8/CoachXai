@@ -379,7 +379,7 @@ const RecordsTab: React.FC<{
               <span className="text-[10px] font-mono text-amber-300">초안</span>
             )}
             <span className="ml-auto text-[11px] text-ink-muted">
-              {l.recordType ?? 'LESSON'}
+              {l.recordType === 'LIVE_LESSON' ? '레슨 동반' : l.recordType ?? 'LESSON'}
             </span>
           </div>
           <div className="text-[14px] font-bold text-ink-high mt-1">{l.title}</div>

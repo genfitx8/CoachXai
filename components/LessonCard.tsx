@@ -1,7 +1,7 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { Lesson } from '../types';
-import { Calendar, PlayCircle, ChevronRight, Image as ImageIcon, Mic, User, Send, Target, Award, AlertCircle, MessageCircle, CheckCircle, Trash2, Flag, BookOpen, Trophy } from 'lucide-react';
+import { Calendar, PlayCircle, ChevronRight, Image as ImageIcon, Mic, User, Send, Target, Award, AlertCircle, MessageCircle, CheckCircle, Trash2, Flag, BookOpen, Trophy, Radio } from 'lucide-react';
 import { useLanguage } from './LanguageContext';
 import { resolveMediaUrl } from '../services/apiService';
 import { videoStore, IDB_PREFIX } from '../services/videoStore';
@@ -130,6 +130,16 @@ export const LessonCard: React.FC<LessonCardProps> = ({ lesson, onClick, onShare
   const recordType = lesson.recordType || (isSelfRecord ? 'PRACTICE' : 'LESSON');
 
   const renderBadge = () => {
+      // 레슨 동반 기록은 코치 생성이어도 일반 Pro Lesson 이 아닌 전용
+      // 카테고리 배지를 단다 — 기록함에서 한눈에 구분되는 별도 유형이다.
+      if (recordType === 'LIVE_LESSON') {
+          return (
+             <div className="absolute top-2 left-2 z-20 px-2.5 py-1 rounded-lg text-xs font-bold shadow-lg flex items-center gap-1 bg-gradient-to-r from-rose-600 to-rose-700 text-white border border-white/20">
+                <Radio className="w-3 h-3" /> {t('record_type_live_lesson')}
+             </div>
+          );
+      }
+
       if (!isSelfRecord) {
           return (
              <div className="absolute top-2 left-2 z-20 px-2.5 py-1 rounded-lg text-xs font-bold shadow-lg flex items-center gap-1 bg-gradient-to-r from-emerald-800 to-emerald-700 text-white border border-white/20">

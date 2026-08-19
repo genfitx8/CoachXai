@@ -1162,6 +1162,8 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
       ? '라운드 기록'
       : lesson.recordType === 'PRACTICE'
       ? '연습 기록'
+      : lesson.recordType === 'LIVE_LESSON'
+      ? '레슨 동반 기록'
       : '레슨 기록';
 
   return (
@@ -1996,8 +1998,8 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
             <div className="bg-white/[0.04]/[0.04] rounded-xl shadow-sm shadow-black/20 border border-emerald-500/20 overflow-hidden">
                 <div className="bg-emerald-500/[0.08] px-4 py-3 border-b border-emerald-500/20 flex justify-between items-center">
                     <h3 className="font-bold text-emerald-800 flex items-center gap-2">
-                        <Sparkles className="w-5 h-5 text-emerald-200" /> 
-                        레슨 리포트 요약
+                        <Sparkles className="w-5 h-5 text-emerald-200" />
+                        {lesson.recordType === 'LIVE_LESSON' ? '레슨 동반 요약본' : '레슨 리포트 요약'}
                     </h3>
                     <div className="flex gap-2">
                         {/* Audio Synthesis Controls */}
@@ -2042,6 +2044,63 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
                             )}
                         </div>
                     )}
+                </div>
+            </div>
+          )}
+
+          {/* 레슨 동반 — 레슨 내용 텍스트(필기 노트). 레슨 동반 기록은 음성이
+              ~10초 단위로 받아 적힌 필기가 요약본과 함께 저장되는 것이 저장
+              형태의 핵심이라, 전용 카드로 시간순 필기를 그대로 보여준다. */}
+          {lesson.liveLessonDetail && lesson.liveLessonDetail.transcript.length > 0 && (
+            <div className="bg-white/[0.04]/[0.04] rounded-xl shadow-sm shadow-black/20 border border-rose-500/20 overflow-hidden">
+                <div className="bg-rose-500/[0.08] px-4 py-3 border-b border-rose-500/20 flex justify-between items-center">
+                    <h3 className="font-bold text-rose-300 flex items-center gap-2">
+                        <Mic className="w-5 h-5" />
+                        레슨 내용 (필기 노트)
+                    </h3>
+                    <span className="text-xs text-ink-muted flex items-center gap-1 tabular-nums">
+                        <Clock className="w-3.5 h-3.5" />
+                        {Math.floor(lesson.liveLessonDetail.recordedDurationSec / 60)}분 녹음
+                        · {lesson.liveLessonDetail.transcript.length}줄
+                    </span>
+                </div>
+                <div className="p-5 space-y-4">
+                    <div className="max-h-72 overflow-y-auto space-y-1.5 pr-1 custom-scrollbar">
+                        {lesson.liveLessonDetail.transcript.map((entry, i) => {
+                            const m = Math.floor(entry.startSec / 60);
+                            const s = Math.floor(entry.startSec % 60);
+                            return (
+                                <p key={`${entry.startSec}-${i}`} className="text-sm leading-snug text-ink-medium">
+                                    <span className="text-[11px] font-mono text-ink-muted mr-1.5 tabular-nums">
+                                        {m}:{s.toString().padStart(2, '0')}
+                                    </span>
+                                    {entry.text}
+                                </p>
+                            );
+                        })}
+                    </div>
+                    {(lesson.liveLessonDetail.keyPoints?.length || lesson.liveLessonDetail.drills?.length) ? (
+                        <div className="pt-3 border-t border-line-subtle space-y-2">
+                            {lesson.liveLessonDetail.keyPoints && lesson.liveLessonDetail.keyPoints.length > 0 && (
+                                <div className="flex flex-wrap gap-1.5">
+                                    {lesson.liveLessonDetail.keyPoints.map((kp) => (
+                                        <span key={kp} className="text-[11px] px-2 py-0.5 rounded-full bg-rose-500/10 border border-rose-400/20 text-rose-200">
+                                            {kp}
+                                        </span>
+                                    ))}
+                                </div>
+                            )}
+                            {lesson.liveLessonDetail.drills && lesson.liveLessonDetail.drills.length > 0 && (
+                                <div className="flex flex-wrap gap-1.5">
+                                    {lesson.liveLessonDetail.drills.map((d) => (
+                                        <span key={d} className="text-[11px] px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-400/20 text-emerald-200">
+                                            드릴 · {d}
+                                        </span>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    ) : null}
                 </div>
             </div>
           )}
