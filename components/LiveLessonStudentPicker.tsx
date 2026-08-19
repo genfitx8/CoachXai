@@ -96,7 +96,7 @@ export const LiveLessonStudentPicker: React.FC<LiveLessonStudentPickerProps> = (
         </h2>
       </div>
       <p className="text-sm text-ink-medium">
-        동반을 시작할 학생을 선택하세요. 레슨 중 음성 메모와 스윙 사진·영상을 모아
+        동반을 시작할 학생을 선택하세요. 레슨 전체 녹음과 스윙 사진·영상을 모아
         두었다가, 종료하면 레슨 기록 작성으로 이어집니다.
       </p>
 
