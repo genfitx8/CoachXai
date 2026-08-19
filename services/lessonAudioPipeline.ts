@@ -507,6 +507,44 @@ export const parseTranscriptResponse = (text: string): string => {
   return trimmed;
 };
 
+/**
+ * 직전 세그먼트 전사와 새 전사 사이의 겹침을 잘라 "새로 들린 말"만 남긴다.
+ *
+ * 왜 필요한가: 레코더가 겹쳐 돌거나(중복 start·백그라운드 복귀 레이스),
+ * 일부 기기가 타임슬라이스 청크를 누적 버퍼로 내려주면 인접 세그먼트
+ * 오디오가 같은 발화를 반복 포함해 필기가 "드라이버" → "드라이버
+ * 슬라이스를" → "드라이버 슬라이스를 교정하는" 처럼 계속 자라며 반복된다.
+ * 오디오 쪽 원인(beginRun 중복 방어)을 고치더라도 세그먼트 경계에 걸친
+ * 발화는 원래도 양쪽 구간에 들릴 수 있으므로, 전사 텍스트 차원의 겹침
+ * 제거가 최종 방어선이다.
+ *
+ * 규칙:
+ * - 새 전사가 직전 전사와 같거나 그 안에 통째로 들어 있으면 전부 중복 → ''.
+ * - 직전 전사의 꼬리와 새 전사의 머리가 겹치면 겹친 머리를 잘라낸다.
+ *   단, 우연한 부분 일치로 정상 발화를 자르지 않도록 겹침은 4자 이상이고
+ *   양쪽 모두 단어 경계에 맞아야 한다("…드라이버" + "드라이버는…"은 유지).
+ * - 그 외에는 손대지 않는다 — 정상 필기를 보존하는 쪽이 우선이다.
+ */
+export const trimTranscriptOverlap = (prevRaw: string, nextRaw: string): string => {
+  const norm = (s: string) => s.replace(/\s+/g, ' ').trim();
+  const prev = norm(prevRaw);
+  const next = norm(nextRaw);
+  if (!prev || !next) return next;
+  if (prev === next || prev.includes(next)) return '';
+  const MIN_OVERLAP = 4;
+  const max = Math.min(prev.length, next.length);
+  for (let len = max; len >= MIN_OVERLAP; len--) {
+    const headEndsAtBoundary = len === next.length || next[len] === ' ';
+    const tailStartsAtBoundary =
+      len === prev.length || prev[prev.length - len - 1] === ' ';
+    if (!headEndsAtBoundary || !tailStartsAtBoundary) continue;
+    if (prev.slice(prev.length - len) === next.slice(0, len)) {
+      return next.slice(len).trim();
+    }
+  }
+  return next;
+};
+
 export const buildTranscribePrompt = (ctx: SegmentPromptContext): string => {
   const window = `${formatClock(ctx.startSec)}–${formatClock(
     ctx.startSec + ctx.durationSec
@@ -869,6 +907,16 @@ export class LessonAudioSession {
    * 인식 미지원/실패 기기 폴백 — 10초 청크를 AI 로 전사한다.
    */
   private transcriptSource: 'ai' | 'speech' = 'ai';
+  /**
+   * 노트별 원본(겹침 제거 전) 전사. 인접 노트 겹침 판정은 항상 원본끼리
+   * 비교해야 한다 — 노트에 저장된(이미 잘린) 텍스트와 비교하면 누적형
+   * 겹침("드라이버" → "드라이버 슬라이스를" → …)을 놓친다. 음성 인식
+   * 노트(addSpeechNote)와 청크 AI 전사가 같은 맵을 쓴다.
+   * 세션 메모리에만 있으면 되므로 영속화하지 않는다.
+   */
+  private rawTranscripts = new Map<number, string>();
+  /** 직전 음성 인식 노트의 원본 — addSpeechNote 겹침 판정용. */
+  private lastSpeechRaw = '';
   /** 녹음 런 경계 — beginRun 마다 하나씩 쌓인다. */
   private runs: RecordingRunMarker[] = [];
   /** 현재 런 첫 청크에서 떼어낸 컨테이너 헤더 — 이후 청크에 접두. */
@@ -964,7 +1012,9 @@ export class LessonAudioSession {
    */
   async start(stream: MediaStream | null): Promise<void> {
     registry.set(this.id, this);
-    if (stream) this.beginRun(stream);
+    // 중복 start 방어: 이미 살아 있는 레코더 위에 새 레코더를 얹으면 같은
+    // 마이크를 두 레코더가 겹쳐 녹음해 같은 발화가 반복 필기된다.
+    if (stream && !this.isRecorderAlive) this.beginRun(stream);
     await this.persistMeta();
 
     // 1초 틱: 녹음 시간 적산 + 요약 노트 주기 판정. (청크 분할은 레코더의
@@ -987,6 +1037,21 @@ export class LessonAudioSession {
 
   /** 새 녹음 런 시작 — 최초 start() 와 재개(restartRecording) 공용 경로. */
   private beginRun(stream: MediaStream): void {
+    // 방어: 이전 레코더가 아직 살아 있으면 조용히 폐기한다. 두 레코더가
+    // 같은 마이크를 동시에 녹음하면 세그먼트 오디오가 서로 겹쳐 같은
+    // 발화가 여러 노트에 반복 필기된다. 폐기 레코더의 마지막 flush 청크는
+    // 새 런의 인덱스/헤더 경계를 오염시키지 않도록 핸들러를 떼고 버린다.
+    if (this.recorder) {
+      this.recorder.ondataavailable = null;
+      if (this.recorder.state !== 'inactive') {
+        try {
+          this.recorder.stop();
+        } catch {
+          // 이미 죽은 레코더 — 무시.
+        }
+      }
+      this.recorder = null;
+    }
     this.stream = stream;
     this.runs.push({ firstChunk: this.chunkCount, baseSec: this.recordedSec });
     this.archiveChunks = [];
@@ -1108,14 +1173,23 @@ export class LessonAudioSession {
    * 이후의 요약·최종 리포트·복구가 전부 이 노트를 재료로 쓴다.
    */
   addSpeechNote(text: string): void {
-    const trimmed = text.trim();
-    if (!trimmed || this.stopped) return;
+    const raw = text.trim();
+    if (!raw || this.stopped) return;
+    // 인식 엔진의 재시작·지연 이벤트로 같은 발화가 누적 반복 확정되는
+    // 기기가 있다("드라이버" → "드라이버 슬라이스를" → "드라이버
+    // 슬라이스를 교정하는" …). 직전 원본과의 겹침을 잘라 새로 들린 말만
+    // 남기고, 전부 중복이면 노트를 만들지 않는다.
+    const deduped = this.lastSpeechRaw
+      ? trimTranscriptOverlap(this.lastSpeechRaw, raw)
+      : raw;
+    this.lastSpeechRaw = raw;
+    if (!deduped) return;
     const note: LessonSegmentNote = {
       index: this.noteSeq++,
       startSec: this.recordedSec,
       durationSec: 0,
       status: 'done',
-      transcript: trimmed,
+      transcript: deduped,
       keyPoints: [],
       drills: [],
       metrics: [],
@@ -1186,18 +1260,41 @@ export class LessonAudioSession {
       index,
       async () => {
         const analyzed = await this.analyzer(blob, this.mimeType || 'audio/webm', ctx);
+        this.rawTranscripts.set(index, analyzed.transcript);
         this.updateNote(index, {
           ...analyzed,
           index,
           startSec,
           durationSec,
           status: 'done',
+          transcript: this.dedupedTranscript(index, analyzed.transcript),
         });
+        // 분석 동시성이 2라 (index+1) 세그먼트가 먼저 끝났을 수 있다 —
+        // 지금 도착한 원본을 기준으로 다음 노트의 겹침을 재적용한다.
+        this.reapplyTranscriptDedup(index + 1);
       },
       () => {
         this.updateNote(index, { ...note, status: 'failed' });
       }
     );
+  }
+
+  /** 직전 세그먼트의 원본 전사와 비교해 겹친 머리를 잘라낸 전사를 돌려준다. */
+  private dedupedTranscript(index: number, raw: string): string {
+    const prevRaw = this.rawTranscripts.get(index - 1);
+    return prevRaw ? trimTranscriptOverlap(prevRaw, raw) : raw;
+  }
+
+  /** index 노트가 이미 완료됐다면(선착) 지금의 원본 기준으로 겹침을 다시 적용한다. */
+  private reapplyTranscriptDedup(index: number): void {
+    const raw = this.rawTranscripts.get(index);
+    if (raw == null) return;
+    const note = this.notes.find((n) => n.index === index && n.status === 'done');
+    if (!note) return;
+    const trimmed = this.dedupedTranscript(index, raw);
+    if (trimmed !== note.transcript) {
+      this.updateNote(index, { ...note, transcript: trimmed });
+    }
   }
 
   private updateNote(index: number, next: LessonSegmentNote): void {
