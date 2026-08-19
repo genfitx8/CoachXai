@@ -29,9 +29,7 @@ import {
   PenTool,
   Play,
   ListChecks,
-  CheckSquare,
   Calendar as CalendarIcon,
-  Repeat,
   Clock,
   MapPin,
   FlagTriangleRight,
@@ -140,23 +138,6 @@ const getLocalISODate = () => {
   const day = String(d.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
 };
-
-const WEEK_DAYS = [
-  { label: '일', value: 0 },
-  { label: '월', value: 1 },
-  { label: '화', value: 2 },
-  { label: '수', value: 3 },
-  { label: '목', value: 4 },
-  { label: '금', value: 5 },
-  { label: '토', value: 6 },
-];
-
-const DURATION_OPTIONS = [
-  { label: '1주 (7일)', value: 1 },
-  { label: '2주 (14일)', value: 2 },
-  { label: '4주 (1개월)', value: 4 },
-  { label: '8주 (2개월)', value: 8 },
-];
 
 // `pt-safe` keeps the header clear of the status bar / notch. It lives on the
 // shell rather than the header because the header already owns a `py-4` and
@@ -310,21 +291,6 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
   const [score, setScore] = useState<number | ''>('');
   const [notes, setNotes] = useState('');
   const [enableAI, setEnableAI] = useState(false); // Toggle for AI Analysis
-
-  // Homework State
-  const [pendingHomeworkBatch, setPendingHomeworkBatch] = useState<Homework[]>(
-    []
-  );
-  const [homeworkSummaries, setHomeworkSummaries] = useState<
-    { title: string; summary: string; count: number }[]
-  >([]);
-
-  // Homework Input State
-  const [newHomeworkTitle, setNewHomeworkTitle] = useState('');
-  const [hwStartDate, setHwStartDate] = useState(getLocalISODate());
-  const [hwDuration, setHwDuration] = useState(1);
-  const [hwDays, setHwDays] = useState<number[]>([1, 3, 5]); // Default Mon, Wed, Fri
-  const [showHwOptions, setShowHwOptions] = useState(false);
 
   // Golf Data Extraction Mode
   const [isDataExtractionMode, setIsDataExtractionMode] = useState(false);
@@ -1270,95 +1236,6 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
     }
   };
 
-  // --- Homework Logic ---
-
-  const toggleDay = (dayValue: number) => {
-    setHwDays((prev) =>
-      prev.includes(dayValue)
-        ? prev.filter((d) => d !== dayValue)
-        : [...prev, dayValue].sort()
-    );
-  };
-
-  const generateHomeworkBatch = (): Homework[] => {
-    if (!clientName.trim() || !clientPhone.trim()) return [];
-
-    const clientId = `${clientName}_${clientPhone}`;
-    const batch: Homework[] = [];
-
-    const [y, m, d] = hwStartDate.split('-').map(Number);
-    const cursor = new Date(y, m - 1, d, 12, 0, 0);
-    const totalDays = hwDuration * 7;
-
-    for (let i = 0; i < totalDays; i++) {
-      const currentDayOfWeek = cursor.getDay();
-      if (hwDays.includes(currentDayOfWeek)) {
-        const cy = cursor.getFullYear();
-        const cm = String(cursor.getMonth() + 1).padStart(2, '0');
-        const cd = String(cursor.getDate()).padStart(2, '0');
-        const dateStr = `${cy}-${cm}-${cd}`;
-
-        batch.push({
-          id: crypto.randomUUID(),
-          clientId,
-          title: newHomeworkTitle.trim(),
-          date: dateStr,
-          isCompleted: false,
-          createdAt: Date.now() + i,
-        });
-      }
-      cursor.setDate(cursor.getDate() + 1);
-    }
-    return batch;
-  };
-
-  const addHomework = () => {
-    if (!newHomeworkTitle.trim()) {
-      setError(t('new_lesson_homework_required'));
-      return;
-    }
-    if (hwDays.length === 0) {
-      setError(t('new_lesson_day_required'));
-      return;
-    }
-
-    const newBatch = generateHomeworkBatch();
-    if (newBatch.length === 0) {
-      setError(t('new_lesson_no_dates'));
-      return;
-    }
-
-    setPendingHomeworkBatch((prev) => [...prev, ...newBatch]);
-
-    const daysLabel =
-      hwDays.length === 7
-        ? '매일'
-        : hwDays
-            .map((d) => WEEK_DAYS.find((wd) => wd.value === d)?.label)
-            .join(',');
-    const summaryStr = `${newHomeworkTitle} (${daysLabel}, ${hwDuration}주간)`;
-
-    setHomeworkSummaries((prev) => [
-      ...prev,
-      {
-        title: newHomeworkTitle,
-        summary: summaryStr,
-        count: newBatch.length,
-      },
-    ]);
-
-    setNewHomeworkTitle('');
-    setError(null);
-  };
-
-  const removeHomeworkSummary = (index: number) => {
-    const summaryToRemove = homeworkSummaries[index];
-    setHomeworkSummaries((prev) => prev.filter((_, i) => i !== index));
-    setPendingHomeworkBatch((prev) =>
-      prev.filter((h) => h.title !== summaryToRemove.title)
-    );
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -1672,8 +1549,6 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
         }
       }
 
-      const homeworkTitles = homeworkSummaries.map((s) => s.title);
-
       const trimmedClientName = clientName.trim();
       const trimmedClientPhone = clientPhone.trim();
       const newLesson: Lesson = {
@@ -1711,10 +1586,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
         createdAt: initialData ? initialData.createdAt : Date.now(), // Preserve creation date
         shareOption: 'FULL',
         feedbackStatus: initialData ? initialData.feedbackStatus : 'NONE',
-        assignedHomework:
-          homeworkTitles.length > 0
-            ? homeworkTitles
-            : initialData?.assignedHomework,
+        assignedHomework: initialData?.assignedHomework,
         // 레슨 동반 전용 자료 — 필기(레슨 내용 텍스트)와 요약본
         liveLessonDetail,
         // Preserve other fields if editing
@@ -1743,10 +1615,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
         });
       }
 
-      await onSave(
-        newLesson,
-        pendingHomeworkBatch.length > 0 ? pendingHomeworkBatch : undefined
-      );
+      await onSave(newLesson);
 
       // 레슨이 저장됐으니 라이브 녹음 세션의 복구용 IDB 데이터(청크·노트)는
       // 더 이상 필요 없다. 남겨두면 다음 동반 진입 때 복구 배너가 뜬다.
@@ -2166,7 +2035,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
 
   // STEP: FORM (레슨 동반 전용)
   // 레슨 동반 기록은 일반 레슨 기록과 저장 형태가 다르다: 클럽 지정,
-  // 코치 메모, 샷데이터 입력, AI 리포트 토글, 숙제 지정 같은 일반 폼
+  // 코치 메모, 샷데이터 입력, AI 리포트 토글 같은 일반 폼
   // 항목 없이 — 동반 화면에서 기록된 것(캡처된 음성·사진·영상)만 확인해
   // 저장한다. 필기(레슨 내용 텍스트)와 요약본은 handleSubmit 의 전용
   // 경로가 저장 시 자동으로 수거·생성한다.
@@ -3466,138 +3335,6 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
             rows={4}
             className="w-full px-4 py-3 border border-line-subtle rounded-xl bg-white/[0.04]/[0.04] text-ink-high placeholder:text-ink-muted focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-all resize-none"
           />
-        </div>
-
-        {/* Homework Input Section (Inside Lesson Form) */}
-        <div className="bg-emerald-500/[0.08] p-4 rounded-xl border border-emerald-500/20 space-y-4">
-          <div className="flex items-center justify-between">
-            <label className="text-sm font-bold text-emerald-800 flex items-center gap-2">
-              <ListChecks className="w-4 h-4" />{' '}
-              {userRole === 'COACH' ? '숙제/미션 부여' : '다음 연습 계획'}
-            </label>
-            <button
-              type="button"
-              onClick={() => setShowHwOptions(!showHwOptions)}
-              className="text-xs text-emerald-300 hover:underline flex items-center gap-1"
-            >
-              {showHwOptions ? '간편 입력' : '상세 설정(기간/빈도)'}
-            </button>
-          </div>
-
-          {/* Simple Input */}
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={newHomeworkTitle}
-              onChange={(e) => setNewHomeworkTitle(e.target.value)}
-              placeholder={
-                userRole === 'COACH'
-                  ? '예: 벽대고 빈스윙 20회'
-                  : '예: 7번 아이언 리듬 연습'
-              }
-              className="flex-1 px-4 py-3 border border-line-subtle rounded-xl bg-white/[0.05] text-ink-high placeholder:text-ink-muted text-sm focus:ring-2 focus:ring-emerald-700 focus:border-emerald-700 outline-none transition-all"
-              onKeyDown={(e) =>
-                e.key === 'Enter' && (e.preventDefault(), addHomework())
-              }
-            />
-            <button
-              type="button"
-              onClick={addHomework}
-              className="bg-white/[0.06] text-white px-3 py-2 rounded-lg text-sm font-bold hover:bg-white/[0.05] transition-colors"
-            >
-              추가
-            </button>
-          </div>
-
-          {/* Advanced Options (Frequency, Duration) */}
-          {showHwOptions && (
-            <div className="bg-white/[0.04]/[0.04] p-3 rounded-lg border border-emerald-500/20 animate-fade-in space-y-3">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-ink-muted mb-1">
-                    시작일
-                  </label>
-                  <input
-                    type="date"
-                    value={hwStartDate}
-                    onChange={(e) => setHwStartDate(e.target.value)}
-                    className="w-full text-xs p-2 border border-line-subtle rounded bg-white/[0.05] text-ink-high focus:border-emerald-500 outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-ink-muted mb-1">
-                    기간
-                  </label>
-                  <select
-                    value={hwDuration}
-                    onChange={(e) => setHwDuration(Number(e.target.value))}
-                    className="w-full text-xs p-2 border border-line-subtle rounded bg-white/[0.05] text-ink-high focus:border-emerald-500 outline-none"
-                  >
-                    {DURATION_OPTIONS.map((opt) => (
-                      <option key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-ink-muted mb-1">
-                  반복 요일
-                </label>
-                <div className="flex justify-between gap-1">
-                  {WEEK_DAYS.map((day) => (
-                    <button
-                      key={day.value}
-                      type="button"
-                      onClick={() => toggleDay(day.value)}
-                      className={`w-8 h-8 rounded-full text-xs font-bold transition-all ${
-                        hwDays.includes(day.value)
-                          ? 'bg-white/[0.06] text-white shadow-sm'
-                          : 'bg-white/[0.06] text-ink-muted hover:bg-white/[0.08]'
-                      }`}
-                    >
-                      {day.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Added Homework List */}
-          {homeworkSummaries.length > 0 && (
-            <ul className="space-y-2">
-              {homeworkSummaries.map((item, idx) => (
-                <li
-                  key={idx}
-                  className="bg-white/[0.04]/[0.04] px-3 py-2 rounded-lg border border-emerald-500/20 shadow-sm"
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <CheckSquare className="w-4 h-4 text-emerald-500" />
-                      <span className="text-sm font-bold text-ink-high">
-                        {item.title}
-                      </span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => removeHomeworkSummary(idx)}
-                      className="text-ink-muted hover:text-red-500 p-1"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  </div>
-                  <div className="flex items-center gap-2 mt-1 ml-6 text-xs text-ink-muted">
-                    <Repeat className="w-3 h-3" /> {item.summary}
-                    <span className="bg-emerald-500/[0.08] text-emerald-300 px-1.5 rounded-full font-bold">
-                      Total {item.count}
-                    </span>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
         </div>
 
         {/* AI Analysis Toggle */}
