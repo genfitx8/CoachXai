@@ -54,7 +54,9 @@ const log = createLogger('lessonAudio');
  * 목표라 ~10초마다 그 구간 음성을 전사해 노트에 이어 붙인다. 전사 호출
  * 지연(1~3초)을 더하면 말한 내용이 약 12–13초 뒤 화면에 적힌다.
  * 50분 레슨 기준 ~300회의 전사 호출이 생기지만 개별 호출은 10초짜리
- * 오디오(base64 ~80KB) + flash-lite 라 저비용이다.
+ * 오디오(base64 ~80KB)라 저비용이다. 모델은 서버 modelRouter 가 경로별로
+ * 고른다 — 전사는 최신 GA flash, 요약(lesson_live_summary /
+ * lesson_summary_merge)은 pro 티어(유료 코치 기능이라 품질 우선).
  */
 export const SEGMENT_TARGET_SEC = 10;
 /**

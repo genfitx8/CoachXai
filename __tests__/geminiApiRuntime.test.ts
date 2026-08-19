@@ -2,6 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   isGeminiApiConfigured,
   invokeGeminiApi,
+  GeminiApiError,
+  isModelFallbackError,
 } from '../server/src/services/geminiApiRuntime';
 import type { AgentRuntimeInvokeRequest } from '../server/src/services/agentPlatformRuntime';
 
@@ -186,6 +188,23 @@ describe('geminiApiRuntime', () => {
       ).rejects.toThrow(/400.*API key invalid/);
     });
 
+    it('throws GeminiApiError carrying the upstream status code', async () => {
+      process.env.GEMINI_API_KEY = FAKE_KEY;
+      const fetchMock = vi.fn().mockResolvedValue({
+        ok: false,
+        status: 404,
+        json: async () => ({ error: { message: 'model not found' } }),
+      });
+      vi.stubGlobal('fetch', fetchMock);
+
+      const error = await invokeGeminiApi({
+        operation: 'test',
+        prompt: 'hi',
+      }).catch((e: unknown) => e);
+      expect(error).toBeInstanceOf(GeminiApiError);
+      expect((error as GeminiApiError).status).toBe(404);
+    });
+
     it('throws when response has no candidates', async () => {
       process.env.GEMINI_API_KEY = FAKE_KEY;
       const fetchMock = vi.fn().mockResolvedValue({
@@ -367,6 +386,20 @@ describe('geminiApiRuntime', () => {
         generationConfig: { responseSchema: unknown };
       };
       expect(callBody.generationConfig.responseSchema).toEqual(schema);
+    });
+  });
+
+  describe('isModelFallbackError', () => {
+    it('is true for 404 (retired model) and 429 (preview quota exhausted)', () => {
+      expect(isModelFallbackError(new GeminiApiError('gone', 404))).toBe(true);
+      expect(isModelFallbackError(new GeminiApiError('quota', 429))).toBe(true);
+    });
+
+    it('is false for other statuses and non-GeminiApiError values', () => {
+      expect(isModelFallbackError(new GeminiApiError('bad request', 400))).toBe(false);
+      expect(isModelFallbackError(new GeminiApiError('down', 503))).toBe(false);
+      expect(isModelFallbackError(new Error('ECONNRESET'))).toBe(false);
+      expect(isModelFallbackError(undefined)).toBe(false);
     });
   });
 });
