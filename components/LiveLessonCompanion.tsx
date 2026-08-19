@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Mic,
-  Square,
   Camera,
   Video,
   Trash2,
@@ -39,17 +38,16 @@ import { useLiveTranscription } from '../hooks/useLiveTranscription';
  *
  * A dedicated during-lesson surface for the coach. The redesign asks
  * for something the coach can prop up on the mat and glance at with
- * dirty hands: a big rolling timer, one enormous "voice memo" button,
- * and a lightweight capture pane for swing photos/videos. When the
- * lesson ends the coach hands the captured artifacts off to the review
- * screen (8b) via `onFinish` — this component never persists on its
- * own, so the parent decides how to upload/store the artifacts.
+ * dirty hands: a big rolling timer, a whole-lesson recording card, and
+ * a lightweight capture pane for swing photos/videos. When the lesson
+ * ends the coach hands the captured artifacts off to the review screen
+ * (8b) via `onFinish` — this component never persists on its own, so
+ * the parent decides how to upload/store the artifacts.
  *
- * Voice memos use the browser's MediaRecorder in webm/opus. Photos and
- * clips fall through to a native camera input (`capture="environment"`)
- * — the coach is already looking at the phone camera, and this avoids
- * the second permission prompt + surface complexity of a live video
- * preview during a live lesson.
+ * Photos and clips fall through to a native camera input
+ * (`capture="environment"`) — the coach is already looking at the phone
+ * camera, and this avoids the second permission prompt + surface
+ * complexity of a live video preview during a live lesson.
  *
  * 레슨 전체 녹음(30–50분 연속)은 `lessonAudioPipeline` 의 세션이 담당한다:
  * 세그먼트 분할 저장(IndexedDB, 크래시 복구 가능) + 레슨 중 세그먼트별
@@ -177,14 +175,7 @@ export const LiveLessonCompanion: React.FC<LiveLessonCompanionProps> = ({
     return () => window.clearInterval(id);
   }, [lessonRecState]);
 
-  // ─── Voice memo capture ───────────────────────────────────────────────────
-  const [isRecording, setIsRecording] = useState(false);
-  const [recSec, setRecSec] = useState(0);
   const [permissionModalOpen, setPermissionModalOpen] = useState(false);
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const chunksRef = useRef<Blob[]>([]);
-  const recTimerRef = useRef<number | null>(null);
-  const streamRef = useRef<MediaStream | null>(null);
 
   // ─── Captured clip list ───────────────────────────────────────────────────
   const [clips, setClips] = useState<CapturedClip[]>([]);
@@ -218,58 +209,9 @@ export const LiveLessonCompanion: React.FC<LiveLessonCompanionProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const startRecording = async () => {
-    try {
-      const stream = await requestMediaStream({ audio: true });
-      streamRef.current = stream;
-      chunksRef.current = [];
-
-      const mr = new MediaRecorder(stream, { mimeType: 'audio/webm;codecs=opus' });
-      mr.ondataavailable = (e) => {
-        if (e.data.size > 0) chunksRef.current.push(e.data);
-      };
-      const startedAt = performance.now();
-      mr.onstop = () => {
-        const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
-        const dur = Math.round((performance.now() - startedAt) / 1000);
-        addClip('voice', blob, dur);
-        stream.getTracks().forEach((t) => t.stop());
-        streamRef.current = null;
-      };
-      mr.start();
-      mediaRecorderRef.current = mr;
-      setIsRecording(true);
-      setRecSec(0);
-      recTimerRef.current = window.setInterval(
-        () => setRecSec((s) => s + 1),
-        1000
-      );
-    } catch (e) {
-      if (isMediaPermissionError(e) && e.kind === 'denied') {
-        setPermissionModalOpen(true);
-      } else {
-        console.error('[LiveLessonCompanion] mic unavailable', e);
-        alert('마이크를 사용할 수 없습니다.');
-      }
-    }
-  };
-
-  const stopRecording = () => {
-    if (mediaRecorderRef.current && isRecording) {
-      mediaRecorderRef.current.stop();
-      setIsRecording(false);
-      if (recTimerRef.current) {
-        window.clearInterval(recTimerRef.current);
-        recTimerRef.current = null;
-      }
-    }
-  };
-
   // Best-effort teardown if the coach navigates away mid-record.
   useEffect(() => {
     return () => {
-      if (recTimerRef.current) window.clearInterval(recTimerRef.current);
-      streamRef.current?.getTracks().forEach((t) => t.stop());
       lessonStreamRef.current?.getTracks().forEach((t) => t.stop());
     };
   }, []);
@@ -415,7 +357,6 @@ export const LiveLessonCompanion: React.FC<LiveLessonCompanionProps> = ({
 
   // ─── Finish handoff ──────────────────────────────────────────────────────
   const handleFinish = async () => {
-    if (isRecording) stopRecording();
     setLessonRecState((s) => (s === 'idle' ? s : 'finishing'));
     const stopped = await stopLessonSession();
     const finalClips = stopped?.clip ? [...clips, stopped.clip] : clips;
@@ -449,7 +390,7 @@ export const LiveLessonCompanion: React.FC<LiveLessonCompanionProps> = ({
         onClose={() => setPermissionModalOpen(false)}
         onRetry={() => {
           setPermissionModalOpen(false);
-          startRecording();
+          void startLessonRecording();
         }}
       />
 
@@ -726,51 +667,8 @@ export const LiveLessonCompanion: React.FC<LiveLessonCompanionProps> = ({
         </div>
       </section>
 
-      {/* Voice memo — the primary during-lesson affordance */}
-      <section className="px-5 py-4">
-        <div className="rounded-2xl border border-line-subtle bg-white/[0.03] p-5">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-9 h-9 rounded-lg bg-emerald-500/15 border border-emerald-400/30 flex items-center justify-center">
-              <Mic className="w-4.5 h-4.5 text-emerald-300" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="text-[14px] font-bold text-ink-high">음성 메모</div>
-              <div className="text-[11.5px] text-ink-muted">
-                {isRecording
-                  ? '녹음 중 · 멈추면 클립으로 추가됩니다'
-                  : '레슨 중 코칭 포인트를 기록해두세요'}
-              </div>
-            </div>
-            {isRecording && (
-              <span className="text-[13px] font-mono font-bold text-red-400 tabular-nums">
-                {formatDuration(recSec)}
-              </span>
-            )}
-          </div>
-          <button
-            type="button"
-            onClick={isRecording ? stopRecording : startRecording}
-            className={`w-full h-14 rounded-xl flex items-center justify-center gap-2 text-[15px] font-bold transition-colors ${
-              isRecording
-                ? 'bg-red-500 hover:bg-red-600 text-white'
-                : 'bg-emerald-500 hover:bg-emerald-600 text-[#04150e]'
-            }`}
-          >
-            {isRecording ? (
-              <>
-                <Square className="w-5 h-5" /> 녹음 정지
-              </>
-            ) : (
-              <>
-                <Mic className="w-5 h-5" /> 녹음 시작
-              </>
-            )}
-          </button>
-        </div>
-      </section>
-
       {/* Photo / video capture — native camera fall-through */}
-      <section className="px-5 pb-4">
+      <section className="px-5 pt-2 pb-4">
         <div className="grid grid-cols-2 gap-3">
           <button
             type="button"
