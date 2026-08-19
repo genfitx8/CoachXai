@@ -2,9 +2,12 @@
  * LessonNotebook — 종이 노트 필기 뷰.
  *
  * 핵심 계약:
- *  - 마운트 시점에 이미 있던 줄은 애니메이션 없이 즉시 전부 보인다
+ *  - 타임스탬프는 표시하지 않는다 — 코치가 읽는 것은 시각이 아니라 흐름.
+ *  - 가까운 조각들은 한 문단으로 이어져 대화 문장처럼 읽힌다. 발화 사이가
+ *    크게 벌어지면(PARAGRAPH_GAP_SEC) 문단이 끊긴다.
+ *  - 마운트 시점에 이미 있던 조각은 애니메이션 없이 즉시 전부 보인다
  *    (복구/재진입 시 우르르 재타이핑되면 안 된다).
- *  - 마운트 후 도착한 줄은 글자 단위로 드러난다(받아 적기 애니메이션).
+ *  - 마운트 후 도착한 조각은 글자 단위로 드러난다(받아 적기 애니메이션).
  *  - 요약 불릿과 "정리 중…" 상태가 하단 요약 노트에 표시된다.
  */
 import React from 'react';
@@ -12,9 +15,10 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, act, cleanup } from '@testing-library/react';
 import { LessonNotebook, type NotebookLine } from '../components/LessonNotebook';
 
-const line = (id: number, text: string): NotebookLine => ({
+/** 기본은 5초 간격 — 같은 문단으로 이어지는 연속 발화. */
+const line = (id: number, text: string, atSec = id * 5): NotebookLine => ({
   id,
-  atSec: id * 10,
+  atSec,
   text,
 });
 
@@ -35,8 +39,66 @@ describe('LessonNotebook', () => {
     );
     expect(screen.getByText('그립을 조금 짧게 잡아볼게요')).toBeInTheDocument();
     expect(screen.getByText('백스윙 탑에서 멈췄다가')).toBeInTheDocument();
-    // 마진 타임스탬프
-    expect(screen.getByText('0:10')).toBeInTheDocument();
+    // 타임스탬프는 더 이상 그리지 않는다
+    expect(screen.queryByText('0:05')).toBeNull();
+    expect(screen.queryByText('0:10')).toBeNull();
+  });
+
+  it('가까운 조각들은 한 문단으로 이어져 문장처럼 읽힌다', () => {
+    const { container } = render(
+      <LessonNotebook
+        lines={[
+          line(0, '드라이버 슬라이스를', 20),
+          line(1, '교정하는', 24),
+          line(2, '레슨 좀 할 건데요', 28),
+        ]}
+        writing={false}
+        summary=""
+        summaryUpdating={false}
+      />
+    );
+    const paragraphs = container.querySelectorAll('p');
+    const body = Array.from(paragraphs).find((p) =>
+      p.textContent?.includes('드라이버')
+    );
+    expect(body?.textContent).toBe('드라이버 슬라이스를 교정하는 레슨 좀 할 건데요');
+  });
+
+  it('발화 사이가 크게 벌어지면 문단이 끊긴다', () => {
+    const { container } = render(
+      <LessonNotebook
+        lines={[
+          line(0, '드라이버 슬라이스를 교정할게요', 10),
+          // 60초 침묵 뒤 새 화제 — 앞 문단에 붙으면 안 된다
+          line(1, '어제 라운딩은 어땠어요', 70),
+        ]}
+        writing={false}
+        summary=""
+        summaryUpdating={false}
+      />
+    );
+    const texts = Array.from(container.querySelectorAll('p')).map(
+      (p) => p.textContent
+    );
+    expect(texts).toContain('드라이버 슬라이스를 교정할게요');
+    expect(texts).toContain('어제 라운딩은 어땠어요');
+  });
+
+  it('잠정 텍스트는 진행 중인 문단 끝에 이어 붙는다', () => {
+    const { container } = render(
+      <LessonNotebook
+        lines={[line(0, '그립을 짧게 잡고', 10)]}
+        writing
+        interim="스윙 해볼게요"
+        animateNewLines={false}
+        summary=""
+        summaryUpdating={false}
+      />
+    );
+    const body = Array.from(container.querySelectorAll('p')).find((p) =>
+      p.textContent?.includes('그립을')
+    );
+    expect(body?.textContent).toBe('그립을 짧게 잡고 스윙 해볼게요');
   });
 
   it('마운트 후 도착한 줄은 글자 단위로 적힌다', async () => {

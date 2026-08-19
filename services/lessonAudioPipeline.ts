@@ -297,6 +297,99 @@ export const formatClock = (totalSec: number): string => {
   return `${m}:${String(s).padStart(2, '0')}`;
 };
 
+// ─── 필기 문단 조립 ──────────────────────────────────────────────────────────
+
+/**
+ * 필기 문단을 나누는 침묵 길이(초). 실시간 인식은 한 문장을 여러 조각으로
+ * 끊어 확정하므로(“드라이버 슬라이스를” / “교정하는 레슨 좀 할 건데요”)
+ * 조각 하나를 한 줄로 그리면 필기가 단어 나열처럼 보인다. 조각 사이가
+ * 이만큼 벌어졌을 때만 화제가 바뀐 것으로 보고 문단을 끊고, 그 안쪽은
+ * 한 문단으로 이어 붙여 사람이 말한 문장처럼 읽히게 한다.
+ */
+export const PARAGRAPH_GAP_SEC = 12;
+
+/** 문단을 이루는 조각 하나 — 노트 index 를 그대로 물려 받는다. */
+export interface TranscriptSegment {
+  id: number;
+  text: string;
+}
+
+export interface TranscriptParagraph {
+  /** 첫 조각의 id — 리스트 key 이자 "기존/신규" 판정 기준. */
+  id: number;
+  segments: TranscriptSegment[];
+}
+
+/** 필기 조각 하나 — 노트에서 필요한 필드만 받는 구조적 타입. */
+export interface TranscriptNoteLike {
+  index: number;
+  startSec: number;
+  transcript: string;
+}
+
+/**
+ * 조각 하나를 앞 문장에 이어 붙인다. 문장부호로 시작하는 조각은 공백 없이
+ * 붙이고, 그 외에는 공백 하나로 잇는다.
+ */
+export const appendTranscriptSegment = (acc: string, next: string): string => {
+  const text = next.trim();
+  if (!text) return acc;
+  if (!acc) return text;
+  if (/^[.,!?;:…)\]}」』]/.test(text)) return `${acc}${text}`;
+  return `${acc} ${text}`;
+};
+
+/**
+ * 필기 노트를 문단으로 묶는다. 조각 사이 간격이 `gapSec` 이상이면 새 문단.
+ * 빈 전사는 버린다.
+ */
+export const groupTranscriptParagraphs = (
+  notes: TranscriptNoteLike[],
+  gapSec: number = PARAGRAPH_GAP_SEC
+): TranscriptParagraph[] => {
+  const ordered = [...notes]
+    .filter((n) => n.transcript && n.transcript.trim())
+    .sort((a, b) => a.index - b.index);
+
+  const paragraphs: TranscriptParagraph[] = [];
+  let prevSec: number | null = null;
+  for (const note of ordered) {
+    const segment: TranscriptSegment = {
+      id: note.index,
+      text: note.transcript.trim(),
+    };
+    const last = paragraphs[paragraphs.length - 1];
+    const breaks = prevSec == null || note.startSec - prevSec >= gapSec;
+    if (!last || breaks) {
+      paragraphs.push({ id: note.index, segments: [segment] });
+    } else {
+      last.segments.push(segment);
+    }
+    prevSec = note.startSec;
+  }
+  return paragraphs;
+};
+
+/** 문단 하나를 한 줄 텍스트로 잇는다. */
+export const joinTranscriptParagraph = (paragraph: TranscriptParagraph): string =>
+  paragraph.segments.reduce(
+    (acc, seg) => appendTranscriptSegment(acc, seg.text),
+    ''
+  );
+
+/**
+ * 필기 노트 전체를 사람이 읽는 필기 텍스트로 만든다 — 타임스탬프 없이
+ * 문단마다 한 줄. 검토 화면의 "레슨 필기 전문" 초안이 이 형식을 쓴다.
+ */
+export const buildTranscriptText = (
+  notes: TranscriptNoteLike[],
+  gapSec: number = PARAGRAPH_GAP_SEC
+): string =>
+  groupTranscriptParagraphs(notes, gapSec)
+    .map(joinTranscriptParagraph)
+    .filter(Boolean)
+    .join('\n');
+
 /**
  * 타임슬라이스 첫 청크에서 컨테이너 헤더(init segment)가 끝나는 오프셋을
  * 찾는다. 이 지점 앞부분을 이후 청크에 접두하면 청크 하나하나가 독립
