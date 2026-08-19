@@ -307,6 +307,36 @@ const AppContent: React.FC = () => {
       cancelled = true;
     };
   }, [coachView, liveLessonStudent, currentUser]);
+
+  /**
+   * 로그인/앱 재실행 직후 "방금 끊긴" 레슨 녹음 감지. 30분 내에 활동이
+   * 있던 미저장 세션이 있으면 — 십중팔구 레슨 도중 앱이 죽은 것 —
+   * 동반 화면으로 바로 데려가 "이어서 쓰기" 배너를 만나게 한다.
+   * 녹음은 재개 전까지 멈춰 있으므로 코치가 헤매는 시간이 곧 유실이다.
+   */
+  useEffect(() => {
+    if (userRole !== 'COACH' || typeof indexedDB === 'undefined') return;
+    let cancelled = false;
+    import('./services/lessonAudioPipeline')
+      .then(({ findRecoverableSessions }) => findRecoverableSessions())
+      .then((sessions) => {
+        if (cancelled) return;
+        const fresh = sessions.find(
+          (s) => Date.now() - s.updatedAt < 30 * 60 * 1000
+        );
+        if (fresh) {
+          setLiveLessonStudent(fresh.studentName);
+          setCoachView('LIVE_LESSON');
+        }
+      })
+      .catch(() => {
+        // 감지는 best-effort — 실패해도 동반 탭의 배너가 한 번 더 잡아준다.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [userRole]);
+
   const initialDiagnosisGolferProfile = useMemo<Partial<GolferProfile> | undefined>(() => {
     if (!selectedDiagnosisClient) return undefined;
     return {
