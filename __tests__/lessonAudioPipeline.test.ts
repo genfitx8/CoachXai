@@ -24,7 +24,9 @@ vi.mock('../services/firebase', () => ({
 
 import {
   parseSegmentNoteResponse,
+  parseTranscriptResponse,
   buildSegmentPrompt,
+  buildTranscribePrompt,
   buildMergePrompt,
   buildRollingSummaryPrompt,
   formatClock,
@@ -97,6 +99,39 @@ describe('parseSegmentNoteResponse', () => {
   });
 });
 
+describe('parseTranscriptResponse', () => {
+  it('parses the JSON text field', () => {
+    expect(parseTranscriptResponse('{"text":"백스윙에서 힘 빼세요."}')).toBe(
+      '백스윙에서 힘 빼세요.'
+    );
+  });
+
+  it('returns empty string for silent segments', () => {
+    expect(parseTranscriptResponse('{"text":""}')).toBe('');
+    expect(parseTranscriptResponse('(대화 없음)')).toBe('');
+  });
+
+  it('falls back to plain text when no JSON is present', () => {
+    expect(parseTranscriptResponse('그립을 조금 더 짧게 잡아볼게요.')).toBe(
+      '그립을 조금 더 짧게 잡아볼게요.'
+    );
+  });
+});
+
+describe('buildTranscribePrompt', () => {
+  it('carries the time window and forbids summarizing', () => {
+    const prompt = buildTranscribePrompt({
+      studentName: '김회원',
+      index: 12,
+      startSec: 120,
+      durationSec: 10,
+      previousKeyPoints: [],
+    });
+    expect(prompt).toContain('2:00–2:10');
+    expect(prompt).toContain('요약하지 마세요');
+  });
+});
+
 describe('buildSegmentPrompt', () => {
   it('includes the time window and prior key points', () => {
     const prompt = buildSegmentPrompt({
@@ -159,6 +194,19 @@ describe('buildMergePrompt', () => {
   it('renders time windows for each segment', () => {
     const prompt = buildMergePrompt([doneNote(2)], '');
     expect(prompt).toContain('[6:00–9:00]');
+  });
+
+  it('drops silent (empty-transcript) segments entirely', () => {
+    const silent = doneNote(1, {
+      transcript: '',
+      keyPoints: [],
+      drills: [],
+      metrics: [],
+      studentState: '',
+    });
+    const prompt = buildMergePrompt([doneNote(0), silent], '');
+    expect(prompt).not.toContain('(대화 없음)');
+    expect(prompt).toContain('분석 구간**: 1/1');
   });
 });
 
