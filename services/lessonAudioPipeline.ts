@@ -96,6 +96,18 @@ export interface LessonSegmentNote {
   studentState: string;
 }
 
+/**
+ * 녹음 런(run) — 한 번의 연속 녹음 구간. 앱 전환·종료로 레코더가 죽었다가
+ * 같은 세션으로 재개되면 새 런이 시작된다. 런마다 독립된 컨테이너
+ * 헤더를 가지므로, 최종 오디오는 런 단위로 하나씩 유효한 파일이 된다.
+ */
+export interface RecordingRunMarker {
+  /** 이 런의 첫 archive 청크 인덱스. */
+  firstChunk: number;
+  /** 이 런이 시작된 시점의 누적 녹음 시간(초). */
+  baseSec: number;
+}
+
 export interface LessonAudioSessionMeta {
   id: string;
   studentName: string;
@@ -107,6 +119,10 @@ export interface LessonAudioSessionMeta {
   chunkCount: number;
   recordedSec: number;
   notes: LessonSegmentNote[];
+  /** 녹음 런 경계 — 재개(resume)가 만든 구간들. 구버전 메타에는 없다. */
+  runs?: RecordingRunMarker[];
+  /** 마지막 롤링 요약 — 재개 시 요약 노트를 그대로 복원한다. */
+  liveSummary?: string;
 }
 
 /** 컴패니언 → 레슨 폼 핸드오프 페이로드. 노트 원본은 파이프라인이 들고 있다. */
@@ -122,6 +138,8 @@ export interface RecoverableLessonSession {
   id: string;
   studentName: string;
   startedAt: number;
+  /** 마지막 활동 시각 — "방금 끊긴" 세션 판정(로그인 직후 자동 안내)용. */
+  updatedAt: number;
   recordedSec: number;
   analyzedCount: number;
   segmentCount: number;
@@ -793,9 +811,16 @@ export interface LessonAudioSessionOptions {
 }
 
 export interface StopResult {
-  /** archive 레코더가 만든 전체 레슨 오디오(단일 유효 파일). */
-  fullAudioBlob: Blob;
+  /**
+   * 녹음 런별 오디오 파일. 중단 없이 끝난 레슨은 1개, 앱 전환·종료 후
+   * 재개된 레슨은 런 수만큼 나온다. 런마다 독립 헤더를 가진 유효한
+   * 파일이라 각각 그대로 재생·저장할 수 있다(서로 다른 컨테이너 파일을
+   * 이어붙인 단일 blob 은 대부분의 플레이어가 첫 런까지만 재생하므로
+   * 합치지 않는다).
+   */
+  runBlobs: Array<{ blob: Blob; durationSec: number }>;
   mimeType: string;
+  /** 전체 누적 녹음 시간(모든 런 합). */
   durationSec: number;
   handoff: LiveLessonHandoff;
 }
@@ -819,10 +844,13 @@ export class LessonAudioSession {
   private stream: MediaStream | null = null;
   private recorder: MediaRecorder | null = null;
 
+  /** 현재 런의 archive 청크(메모리). 이전 런의 청크는 IDB 에만 있다. */
   private archiveChunks: Blob[] = [];
   private chunkCount = 0;
   private notes: LessonSegmentNote[] = [];
-  /** 첫 청크에서 떼어낸 컨테이너 헤더 — 이후 청크에 접두해 독립 파일화. */
+  /** 녹음 런 경계 — beginRun 마다 하나씩 쌓인다. */
+  private runs: RecordingRunMarker[] = [];
+  /** 현재 런 첫 청크에서 떼어낸 컨테이너 헤더 — 이후 청크에 접두. */
   private initSegment: Promise<Blob | null> | null = null;
   private recordedSec = 0;
   private lastSummaryAtSec = 0;
@@ -831,10 +859,21 @@ export class LessonAudioSession {
   private tickTimer: number | null = null;
   private startedAt = Date.now();
 
-  constructor(opts: LessonAudioSessionOptions) {
-    this.id = `la_${Date.now().toString(36)}_${Math.random()
-      .toString(36)
-      .slice(2, 8)}`;
+  constructor(opts: LessonAudioSessionOptions, resumeMeta?: LessonAudioSessionMeta) {
+    this.id = resumeMeta
+      ? resumeMeta.id
+      : `la_${Date.now().toString(36)}_${Math.random()
+          .toString(36)
+          .slice(2, 8)}`;
+    if (resumeMeta) {
+      this.notes = resumeMeta.notes ?? [];
+      this.chunkCount = resumeMeta.chunkCount ?? 0;
+      this.recordedSec = resumeMeta.recordedSec ?? 0;
+      this.lastSummaryAtSec = resumeMeta.recordedSec ?? 0;
+      this.startedAt = resumeMeta.startedAt ?? Date.now();
+      this.runs = resumeMeta.runs ?? [{ firstChunk: 0, baseSec: 0 }];
+      this.liveSummary = resumeMeta.liveSummary ?? '';
+    }
     this.opts = opts;
     this.analyzer = opts.analyzer ?? transcribeLessonAudioSegment;
     this.mimeType = pickAudioMimeType();
@@ -875,32 +914,31 @@ export class LessonAudioSession {
     return [...this.notes];
   }
 
+  /**
+   * 크래시·앱 종료로 끊긴 세션을 같은 id 로 복원한다. 필기 노트·요약·
+   * 누적 녹음 시간이 그대로 살아나고, 이후 `start()` 가 새 녹음 런을
+   * 이어붙인다. 메타가 없으면(이미 저장·폐기됨) null.
+   */
+  static async resume(
+    sessionId: string,
+    opts: LessonAudioSessionOptions
+  ): Promise<LessonAudioSession | null> {
+    const meta = await idbGet<LessonAudioSessionMeta>(
+      SESSION_STORE,
+      sessionId
+    ).catch(() => undefined);
+    if (!meta) return null;
+    return new LessonAudioSession({ ...opts, studentName: meta.studentName }, meta);
+  }
+
   async start(stream: MediaStream): Promise<void> {
-    this.stream = stream;
-    this.startedAt = Date.now();
     registry.set(this.id, this);
-
-    const recorderOpts: MediaRecorderOptions = {
-      audioBitsPerSecond: AUDIO_BITS_PER_SECOND,
-      ...(this.mimeType ? { mimeType: this.mimeType } : {}),
-    };
-
-    // 단일 레코더 + 타임슬라이스: 매 청크가 아카이브(IDB 영속)이자 필기
-    // 세그먼트다. 레코더를 재생성하지 않으므로 모바일에서 재생성이 실패해
-    // 필기가 멈추는 문제가 구조적으로 없다.
-    const recorder = new MediaRecorder(stream, recorderOpts);
-    recorder.ondataavailable = (e) => {
-      if (e.data.size === 0) return;
-      this.handleChunk(e.data);
-    };
-    recorder.start(
-      (this.opts.segmentTargetSec ?? SEGMENT_TARGET_SEC) * 1000
-    );
-    this.recorder = recorder;
+    this.beginRun(stream);
     await this.persistMeta();
 
     // 1초 틱: 녹음 시간 적산 + 요약 노트 주기 판정. (청크 분할은 레코더의
     // 타임슬라이스가 담당하므로 여기서 할 일이 없다.)
+    if (this.tickTimer != null) window.clearInterval(this.tickTimer);
     this.tickTimer = window.setInterval(() => {
       if (this.paused || this.stopped) return;
       this.recordedSec += 1;
@@ -916,27 +954,80 @@ export class LessonAudioSession {
     }, 1000);
   }
 
+  /** 새 녹음 런 시작 — 최초 start() 와 재개(restartRecording) 공용 경로. */
+  private beginRun(stream: MediaStream): void {
+    this.stream = stream;
+    this.runs.push({ firstChunk: this.chunkCount, baseSec: this.recordedSec });
+    this.archiveChunks = [];
+    this.initSegment = null;
+
+    const recorderOpts: MediaRecorderOptions = {
+      audioBitsPerSecond: AUDIO_BITS_PER_SECOND,
+      ...(this.mimeType ? { mimeType: this.mimeType } : {}),
+    };
+
+    // 단일 레코더 + 타임슬라이스: 매 청크가 아카이브(IDB 영속)이자 필기
+    // 세그먼트다. 런 도중에는 레코더를 재생성하지 않으므로 모바일에서
+    // 재생성이 실패해 필기가 멈추는 문제가 구조적으로 없다.
+    const recorder = new MediaRecorder(stream, recorderOpts);
+    recorder.ondataavailable = (e) => {
+      if (e.data.size === 0) return;
+      this.handleChunk(e.data);
+    };
+    recorder.start((this.opts.segmentTargetSec ?? SEGMENT_TARGET_SEC) * 1000);
+    this.recorder = recorder;
+  }
+
+  /** 레코더가 살아 있는가 — 백그라운드 복귀 시 자동 재개 판정용. */
+  get isRecorderAlive(): boolean {
+    return this.recorder != null && this.recorder.state !== 'inactive';
+  }
+
+  /**
+   * 죽은 레코더를 같은 세션의 새 런으로 되살린다(백그라운드 복귀 경로).
+   * 이미 살아 있거나 종료된 세션이면 아무것도 하지 않는다.
+   */
+  restartRecording(stream: MediaStream): void {
+    if (this.stopped || this.isRecorderAlive) return;
+    this.beginRun(stream);
+    if (this.paused) {
+      // 일시정지 중 죽었다면 재개도 일시정지 상태로 — 코치의 의도 유지.
+      try {
+        this.recorder?.pause();
+      } catch {
+        this.paused = false;
+      }
+    }
+    void this.persistMeta();
+  }
+
+  /** 백그라운드 진입 등 위험 신호에 메타를 즉시 영속화한다. */
+  checkpoint(): Promise<void> {
+    return this.persistMeta();
+  }
+
   /**
    * 타임슬라이스 청크 하나 = 아카이브 조각 + 필기 세그먼트.
-   * 첫 청크에서 컨테이너 헤더를 떼어 두고, 이후 청크는 그 헤더를 접두해
-   * 독립 디코딩 가능한 조각으로 만들어 전사 큐에 넣는다.
+   * 런의 첫 청크에서 컨테이너 헤더를 떼어 두고, 이후 청크는 그 헤더를
+   * 접두해 독립 디코딩 가능한 조각으로 만들어 전사 큐에 넣는다.
    */
   private handleChunk(chunk: Blob): void {
+    const run = this.runs[this.runs.length - 1];
     const index = this.chunkCount++;
     // 타임슬라이스는 녹음 시간 기준으로 균일하므로(일시정지 중에는 청크도
-    // 멈춘다) 청크 인덱스에서 시각을 유도한다 — 1초 틱과의 발화 순서
-    // 경합으로 타임스탬프가 밀리지 않는다.
+    // 멈춘다) 런 기준 오프셋 + 런 내 청크 서수로 시각을 유도한다 — 1초
+    // 틱과의 발화 순서 경합으로 타임스탬프가 밀리지 않는다.
     const target = this.opts.segmentTargetSec ?? SEGMENT_TARGET_SEC;
-    const startSec = index * target;
+    const startSec = run.baseSec + (index - run.firstChunk) * target;
     const durationSec = Math.max(1, this.recordedSec - startSec);
 
-    // 크래시 대비 아카이브 영속화 (전체 파일 = 청크 순서대로 concat).
+    // 크래시 대비 아카이브 영속화 (런별 파일 = 런 구간 청크 concat).
     this.archiveChunks.push(chunk);
     void idbPut(BLOB_STORE, chunkKey(this.id, index), chunk)
       .then(() => this.persistMeta())
       .catch((err) => log.warn('archive 청크 저장 실패:', err));
 
-    if (index === 0) {
+    if (index === run.firstChunk) {
       // 헤더 추출은 비동기(arrayBuffer) — 이후 청크들이 then 으로 기다린다.
       this.initSegment = chunk
         .arrayBuffer()
@@ -1063,6 +1154,8 @@ export class LessonAudioSession {
       chunkCount: this.chunkCount,
       recordedSec: this.recordedSec,
       notes: this.notes,
+      runs: this.runs,
+      liveSummary: this.liveSummary,
     };
     return idbPut(SESSION_STORE, this.id, meta).catch((err) => {
       log.warn('세션 메타 저장 실패:', err);
@@ -1091,13 +1184,37 @@ export class LessonAudioSession {
     });
     await this.persistMeta();
 
-    const fullAudioBlob = new Blob(this.archiveChunks, {
-      type: this.mimeType || 'audio/webm',
-    });
+    // 런별 오디오 조립: 마지막(현재) 런은 메모리 청크로, 이전 런들은
+    // (재개 전 데이터라 메모리에 없으므로) IDB 아카이브에서 읽는다.
+    const mime = this.mimeType || 'audio/webm';
+    const runBlobs: Array<{ blob: Blob; durationSec: number }> = [];
+    for (let i = 0; i < this.runs.length; i++) {
+      const run = this.runs[i];
+      const isLast = i === this.runs.length - 1;
+      const endChunk = isLast ? this.chunkCount : this.runs[i + 1].firstChunk;
+      const endSec = isLast ? this.recordedSec : this.runs[i + 1].baseSec;
+      let chunks: Blob[];
+      if (isLast) {
+        chunks = this.archiveChunks;
+      } else {
+        chunks = [];
+        for (let c = run.firstChunk; c < endChunk; c++) {
+          const blob = await idbGet<Blob>(BLOB_STORE, chunkKey(this.id, c)).catch(
+            () => undefined
+          );
+          if (blob) chunks.push(blob);
+        }
+      }
+      if (chunks.length === 0) continue;
+      runBlobs.push({
+        blob: new Blob(chunks, { type: mime }),
+        durationSec: Math.max(1, endSec - run.baseSec),
+      });
+    }
 
     return {
-      fullAudioBlob,
-      mimeType: this.mimeType || 'audio/webm',
+      runBlobs,
+      mimeType: mime,
       durationSec: this.recordedSec,
       handoff: {
         sessionId: this.id,
@@ -1193,6 +1310,7 @@ export const findRecoverableSessions = async (): Promise<
         id: m.id,
         studentName: m.studentName,
         startedAt: m.startedAt,
+        updatedAt: m.updatedAt,
         recordedSec: m.recordedSec,
         analyzedCount: m.notes.filter((n) => n.status === 'done').length,
         segmentCount: m.notes.length,
@@ -1201,39 +1319,6 @@ export const findRecoverableSessions = async (): Promise<
     log.warn('복구 세션 조회 실패:', err);
     return [];
   }
-};
-
-export interface RecoveredSessionAudio {
-  blob: Blob;
-  mimeType: string;
-  durationSec: number;
-  notes: LessonSegmentNote[];
-}
-
-/**
- * 크래시 세션의 전체 오디오를 archive 청크에서 재조립한다. 청크는 단일
- * MediaRecorder 산출물이므로 순서대로 이어붙이면 유효한 파일이 된다.
- */
-export const recoverSessionAudio = async (
-  sessionId: string
-): Promise<RecoveredSessionAudio | null> => {
-  const meta = await idbGet<LessonAudioSessionMeta>(SESSION_STORE, sessionId).catch(
-    () => undefined
-  );
-  if (!meta) return null;
-  const keys = (await idbKeysByPrefix(BLOB_STORE, `chunk:${sessionId}:`)).sort();
-  const chunks: Blob[] = [];
-  for (const key of keys) {
-    const blob = await idbGet<Blob>(BLOB_STORE, key);
-    if (blob) chunks.push(blob);
-  }
-  if (chunks.length === 0) return null;
-  return {
-    blob: new Blob(chunks, { type: meta.mimeType }),
-    mimeType: meta.mimeType,
-    durationSec: meta.recordedSec,
-    notes: meta.notes,
-  };
 };
 
 /** 보존 기한이 지난 세션 정리 — 컴패니언 마운트 시 best-effort 로 호출. */

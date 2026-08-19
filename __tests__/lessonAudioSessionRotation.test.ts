@@ -162,8 +162,9 @@ describe('LessonAudioSession — 타임슬라이스 필기 파이프라인', () 
     const result = await session.stop();
     await vi.advanceTimersByTimeAsync(0);
 
-    // 청크 2개(10s 정규 + 5s 꼬리)가 아카이브에 합쳐진다
-    expect(result.fullAudioBlob.size).toBeGreaterThan(0);
+    // 중단 없는 레슨은 런 1개 — 청크 2개(10s 정규 + 5s 꼬리)가 합쳐진다
+    expect(result.runBlobs).toHaveLength(1);
+    expect(result.runBlobs[0].blob.size).toBeGreaterThan(0);
     expect(result.durationSec).toBe(15);
     expect(result.handoff.sessionId).toBe(session.id);
     // 꼬리 청크(5s, ≥3s)도 필기로 들어간다

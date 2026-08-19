@@ -25,7 +25,6 @@ import {
   findRecoverableSessions,
   formatClock,
   purgeStaleLessonAudioSessions,
-  recoverSessionAudio,
   discardLessonAudioSession,
   type LessonSegmentNote,
   type LiveLessonHandoff,
@@ -134,11 +133,8 @@ export const LiveLessonCompanion: React.FC<LiveLessonCompanionProps> = ({
   const [liveNotes, setLiveNotes] = useState<LessonSegmentNote[]>([]);
   const lessonStreamRef = useRef<MediaStream | null>(null);
 
-  // 크래시/미저장 세션 복구 배너
+  // 크래시/미저장 세션 복구 배너 — "이어서 쓰기"로 같은 세션을 재개한다.
   const [recoverable, setRecoverable] = useState<RecoverableLessonSession | null>(
-    null
-  );
-  const [recoveredHandoff, setRecoveredHandoff] = useState<LiveLessonHandoff | null>(
     null
   );
 
@@ -154,6 +150,65 @@ export const LiveLessonCompanion: React.FC<LiveLessonCompanionProps> = ({
       cancelled = true;
     };
   }, []);
+
+  /**
+   * Screen Wake Lock — 레슨 녹음 중 화면이 잠들며 WebView 가 정지되는 것이
+   * 현장에서 녹음이 끊기는 1순위 원인이라, 녹음하는 동안은 화면을 깨워
+   * 둔다. 미지원 브라우저에서는 조용히 무시된다.
+   */
+  const wakeLockRef = useRef<{ release?: () => Promise<void> } | null>(null);
+  const acquireWakeLock = useCallback(async () => {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const wl = (navigator as any).wakeLock;
+      if (wl?.request) wakeLockRef.current = await wl.request('screen');
+    } catch {
+      // 배터리 세이버 등으로 거부될 수 있다 — 기능 자체는 계속 동작.
+    }
+  }, []);
+  const releaseWakeLock = useCallback(() => {
+    try {
+      void wakeLockRef.current?.release?.();
+    } catch {
+      // best-effort
+    }
+    wakeLockRef.current = null;
+  }, []);
+  useEffect(() => releaseWakeLock, [releaseWakeLock]);
+
+  /**
+   * 백그라운드 전환/복귀 대응 — 레슨 동반의 생존성 핵심.
+   *  - 숨겨질 때: 세션 메타를 즉시 체크포인트(앱이 그대로 죽어도 필기·
+   *    청크는 IndexedDB 에 남아 재진입 시 이어갈 수 있다).
+   *  - 돌아올 때: OS 가 레코더를 죽였으면 마이크를 다시 잡아 같은 세션에
+   *    새 녹음 런을 이어붙이고, wake lock 을 재획득한다(백그라운드 전환
+   *    시 OS 가 wake lock 을 자동 해제한다).
+   */
+  useEffect(() => {
+    const onVisibilityChange = () => {
+      const session = lessonSessionRef.current;
+      if (!session) return;
+      if (document.visibilityState === 'hidden') {
+        void session.checkpoint();
+        return;
+      }
+      void acquireWakeLock();
+      if (!session.isRecorderAlive) {
+        requestMediaStream({ audio: true })
+          .then((stream) => {
+            lessonStreamRef.current?.getTracks().forEach((t) => t.stop());
+            lessonStreamRef.current = stream;
+            session.restartRecording(stream);
+          })
+          .catch((e) => {
+            console.error('[LiveLessonCompanion] 복귀 후 녹음 재개 실패', e);
+          });
+      }
+    };
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    return () =>
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+  }, [acquireWakeLock]);
 
   // 1초 틱으로 세션 스냅샷(녹음 시간·분석 진행 상황)을 UI에 반영한다.
   useEffect(() => {
@@ -279,6 +334,7 @@ export const LiveLessonCompanion: React.FC<LiveLessonCompanionProps> = ({
       await session.start(stream);
       setSessionSnapshot(session.snapshot());
       setLessonRecState('recording');
+      void acquireWakeLock();
     } catch (e) {
       if (isMediaPermissionError(e) && e.kind === 'denied') {
         setPermissionModalOpen(true);
@@ -310,27 +366,29 @@ export const LiveLessonCompanion: React.FC<LiveLessonCompanionProps> = ({
    */
   const stopLessonSession = async (): Promise<{
     handoff: LiveLessonHandoff;
-    clip: CapturedClip | null;
+    audioClips: CapturedClip[];
   } | null> => {
     const session = lessonSessionRef.current;
     if (!session) return null;
     lessonSessionRef.current = null;
+    releaseWakeLock();
     try {
       const result = await session.stop();
       lessonStreamRef.current?.getTracks().forEach((t) => t.stop());
       lessonStreamRef.current = null;
-      const clip: CapturedClip | null =
-        result.fullAudioBlob.size > 0
-          ? {
-              id: randomId(),
-              kind: 'voice',
-              blob: result.fullAudioBlob,
-              durationSec: result.durationSec,
-              previewUrl: URL.createObjectURL(result.fullAudioBlob),
-              capturedAt: Date.now(),
-            }
-          : null;
-      return { handoff: result.handoff, clip };
+      // 녹음 런(연속 구간)마다 유효한 오디오 파일 하나 — 중단 없이 끝난
+      // 레슨은 1개, 재개된 레슨은 런 수만큼 클립이 된다.
+      const audioClips: CapturedClip[] = result.runBlobs
+        .filter((r) => r.blob.size > 0)
+        .map((r) => ({
+          id: randomId(),
+          kind: 'voice' as const,
+          blob: r.blob,
+          durationSec: r.durationSec,
+          previewUrl: URL.createObjectURL(r.blob),
+          capturedAt: Date.now(),
+        }));
+      return { handoff: result.handoff, audioClips };
     } catch (e) {
       console.error('[LiveLessonCompanion] lesson recording stop failed', e);
       return null;
@@ -341,23 +399,40 @@ export const LiveLessonCompanion: React.FC<LiveLessonCompanionProps> = ({
     }
   };
 
-  // ─── 복구 배너 핸들러 ─────────────────────────────────────────────────────
-  const handleRecover = async () => {
+  // ─── 복구 배너 핸들러 — 끊긴 세션을 같은 자리에서 이어서 녹음한다 ────────
+  const handleResumeRecoverable = async () => {
     if (!recoverable) return;
     try {
-      const audio = await recoverSessionAudio(recoverable.id);
-      if (audio) {
-        addClip('voice', audio.blob, audio.durationSec);
-        setRecoveredHandoff({
-          sessionId: recoverable.id,
-          recordedDurationSec: audio.durationSec,
-          noteCount: audio.notes.length,
-          pendingCount: 0,
-        });
+      const stream = await requestMediaStream({ audio: true });
+      const session = await LessonAudioSession.resume(recoverable.id, {
+        studentName: recoverable.studentName,
+        onNotesChanged: (notes) => {
+          const s = lessonSessionRef.current;
+          if (s) setSessionSnapshot(s.snapshot());
+          setLiveNotes(notes);
+        },
+      });
+      if (!session) {
+        stream.getTracks().forEach((t) => t.stop());
+        alert('이어서 쓸 녹음 데이터를 찾지 못했습니다.');
+        return;
       }
+      lessonStreamRef.current = stream;
+      lessonSessionRef.current = session;
+      await session.start(stream);
+      // 기존 필기·요약이 노트에 즉시 실린다(재타이핑 없음 — LessonNotebook
+      // 이 마운트 시점 줄은 애니메이션 없이 그린다).
+      setLiveNotes(session.getNotes());
+      setSessionSnapshot(session.snapshot());
+      setLessonRecState('recording');
+      void acquireWakeLock();
     } catch (e) {
-      console.error('[LiveLessonCompanion] recovery failed', e);
-      alert('녹음 복구에 실패했습니다.');
+      if (isMediaPermissionError(e) && e.kind === 'denied') {
+        setPermissionModalOpen(true);
+      } else {
+        console.error('[LiveLessonCompanion] resume failed', e);
+        alert('녹음을 이어가지 못했습니다.');
+      }
     } finally {
       setRecoverable(null);
     }
@@ -402,9 +477,8 @@ export const LiveLessonCompanion: React.FC<LiveLessonCompanionProps> = ({
     if (isRecording) stopRecording();
     setLessonRecState((s) => (s === 'idle' ? s : 'finishing'));
     const stopped = await stopLessonSession();
-    const finalClips = stopped?.clip ? [...clips, stopped.clip] : clips;
-    // 라이브 세션이 있으면 그 노트가 최신·최다 — 복구본보다 우선한다.
-    onFinish(finalClips, stopped?.handoff ?? recoveredHandoff ?? undefined);
+    const finalClips = stopped ? [...clips, ...stopped.audioClips] : clips;
+    onFinish(finalClips, stopped?.handoff ?? undefined);
   };
 
   /**
@@ -468,20 +542,20 @@ export const LiveLessonCompanion: React.FC<LiveLessonCompanionProps> = ({
             <RotateCcw className="w-4 h-4 text-amber-300 flex-shrink-0" />
             <div className="min-w-0 flex-1">
               <div className="text-[12.5px] font-bold text-ink-high">
-                저장되지 않은 레슨 녹음이 있어요
+                끊긴 레슨 녹음이 있어요
               </div>
               <div className="text-[11px] text-ink-muted">
                 {recoverable.studentName} ·{' '}
-                {formatClock(recoverable.recordedSec)} 녹음 · 분석{' '}
-                {recoverable.analyzedCount}/{recoverable.segmentCount}구간
+                {formatClock(recoverable.recordedSec)} 녹음 · 필기{' '}
+                {recoverable.analyzedCount}줄 · 이어서 계속 쓸 수 있어요
               </div>
             </div>
             <button
               type="button"
-              onClick={handleRecover}
+              onClick={handleResumeRecoverable}
               className="text-[12px] font-bold text-amber-300 px-2 py-1.5 flex-shrink-0"
             >
-              복구
+              이어서 쓰기
             </button>
             <button
               type="button"
@@ -622,11 +696,6 @@ export const LiveLessonCompanion: React.FC<LiveLessonCompanionProps> = ({
             </>
           )}
 
-          {recoveredHandoff && (
-            <div className="mt-3 text-[11px] text-emerald-300">
-              복구된 녹음이 첨부됐어요 · 종료하면 요약에 반영됩니다
-            </div>
-          )}
         </div>
       </section>
 
