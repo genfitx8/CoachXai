@@ -1312,9 +1312,21 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
       const liveSession = liveSessionRef.current;
       if (recordType === 'LIVE_LESSON' && liveSession) {
         try {
-          setStatusMessage('레슨 동반 필기 노트를 수거하고 있습니다...');
+          // 검토 화면("레슨 기록 확인")에서 코치가 필기와 요약을 이미
+          // 확인·수정하고 넘어왔다면 저장에 필요한 본문은 전부 손에 있다.
+          // 이때는 분석 큐가 비기를 기다리지 않는다 — 기다려 봐야 얻는 건
+          // keyPoints/drills 뿐인데, 코치 눈에는 저장 버튼을 누른 뒤 수십
+          // 초간 "정리 중"이 도는 것이 요약을 다시 하는 것으로 보인다.
+          const reviewed =
+            !!liveSession.editedTranscript?.trim() &&
+            !!liveSession.editedSummary?.trim();
+          setStatusMessage(
+            reviewed
+              ? '레슨 기록을 저장하고 있습니다...'
+              : '레슨 동반 필기 노트를 수거하고 있습니다...'
+          );
           const liveNotes = await collectSessionNotes(liveSession.sessionId, {
-            waitMs: 30_000,
+            waitMs: reviewed ? 0 : 30_000,
           });
           const doneNotes = liveNotes.filter(
             (n) => n.status === 'done' && n.transcript
