@@ -173,8 +173,11 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
     (role === 'CLIENT' && lesson.createdBy === 'CLIENT') ||  // 클라이언트는 본인 기록만 수정 가능
     (role === 'COACH' && lesson.createdBy === 'COACH');      // 코치는 코치가 작성한 레슨만 수정 가능
 
-  // Check if this record is suitable for Swing Sequence (Not a Scorecard)
-  const isSwingRecord = lesson.recordType !== 'SCORE';
+  // Check if this record is suitable for Swing Sequence (Not a Scorecard).
+  // 레슨 동반 기록도 제외 — 동반 기록 상세는 필기·요약본·캡처 미디어만
+  // 보여주는 전용 형태라 스윙 시퀀스 추출 칸이 어울리지 않는다.
+  const isSwingRecord =
+    lesson.recordType !== 'SCORE' && lesson.recordType !== 'LIVE_LESSON';
 
   useEffect(() => {
     const defaultMedia = mainMediaUrl
