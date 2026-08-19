@@ -785,7 +785,7 @@ const AppContent: React.FC = () => {
     initializePush().catch(() => { /* logged inside */ });
   };
 
-  // Deep-link: when the URL contains #lesson=<id> (e.g. from a KakaoTalk share),
+  // Deep-link: when the URL contains #lesson=<id> (e.g. from a shared lesson link),
   // navigate a coach directly to that lesson record once data is loaded.
   useEffect(() => {
     if (userRole !== 'COACH' || lessons.length === 0 || isLoading) return;
