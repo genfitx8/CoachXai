@@ -22,7 +22,9 @@ import { PermissionDeniedModal } from './PermissionDeniedModal';
 import {
   LessonAudioSession,
   buildTranscriptText,
+  generateRollingLessonSummary,
   labelTranscriptSpeakers,
+  repairTranscriptTerms,
   findRecoverableSessions,
   formatClock,
   purgeStaleLessonAudioSessions,
@@ -32,7 +34,6 @@ import {
   type LiveSessionSnapshot,
   type RecoverableLessonSession,
 } from '../services/lessonAudioPipeline';
-import { generateRollingLessonSummary } from '../services/lessonAudioPipeline';
 import { LessonNotebook } from './LessonNotebook';
 import { useLiveTranscription } from '../hooks/useLiveTranscription';
 
@@ -104,13 +105,44 @@ const formatElapsed = (totalSec: number): string => {
 };
 
 /** 검토 화면을 여는 데 요약 응답을 기다려 줄 최대 시간. */
-const REVIEW_SUMMARY_TIMEOUT_MS = 12_000;
+const REVIEW_SUMMARY_TIMEOUT_MS = 15_000;
 /**
- * 화자 라벨링 대기 한도. 요약보다 조금 넉넉한 이유는 필기가 긴 레슨이면
- * 묶음을 두어 번 나눠 호출하기 때문이다. 요약과 동시에 돌리므로 검토
- * 화면까지의 대기는 둘 중 긴 쪽 하나로 끝난다.
+ * 화자 라벨링 대기 한도. 필기가 긴 레슨이면 묶음을 두어 번 나눠 호출한다.
  */
 const REVIEW_LABEL_TIMEOUT_MS = 15_000;
+/**
+ * 용어 교정 대기 한도. 교정은 줄마다 본문을 다시 받아 오는 작업이라
+ * 라벨링보다 응답이 길고, 긴 레슨이면 묶음을 여러 번 나눠 호출한다.
+ * 그래서 시간이 다 되면 **새 묶음을 시작하지 않는** 선(deadline)을 함께
+ * 넘겨, 앞부분 교정까지는 살려서 돌려받는다. 아래 race 는 호출 하나가
+ * 통째로 멎었을 때를 위한 최후 방어선이라 조금 더 길게 잡는다.
+ */
+const REVIEW_REPAIR_TIMEOUT_MS = 15_000;
+const REVIEW_REPAIR_HARD_TIMEOUT_MS = 20_000;
+
+/**
+ * 검토 초안을 만드는 단계. 뒤 단계가 앞 단계의 결과를 근거로 삼기 때문에
+ * 순서대로 돈다 — 잘못 적힌 용어를 먼저 되돌려야 화자 판단의 단서(지시
+ * 어휘)가 산다.
+ */
+type ReviewStage = 'repair' | 'speaker' | 'summary';
+
+const REVIEW_STAGE_LABELS: Record<ReviewStage, string> = {
+  repair: '필기를 코칭 용어로 다듬고 있어요…',
+  speaker: '코치와 학생의 말을 구분하고 있어요…',
+  summary: '마지막 필기를 정리하고 있어요…',
+};
+
+/**
+ * 검토 초안 단계 하나를 시간 제한 아래 돌린다. 어느 단계가 늘어지거나
+ * 실패해도 검토 화면이 '정리 중'에 갇히면(저장 버튼 비활성) 코치는 레슨
+ * 기록을 아예 못 쓰므로, 못 받으면 그 단계만 건너뛴다.
+ */
+const withReviewTimeout = <T,>(work: Promise<T>, ms: number, fallback: T): Promise<T> =>
+  Promise.race([
+    work,
+    new Promise<T>((resolve) => window.setTimeout(() => resolve(fallback), ms)),
+  ]).catch(() => fallback);
 
 const randomId = () =>
   `clip_${Math.random().toString(36).slice(2, 10)}_${performance.now().toFixed(0)}`;
@@ -200,6 +232,8 @@ export const LiveLessonCompanion: React.FC<LiveLessonCompanionProps> = ({
   const [reviewDraft, setReviewDraft] = useState<{
     transcriptText: string;
     summaryText: string;
+    /** 준비 중일 때 지금 돌고 있는 단계 — 화면의 진행 문구가 이걸 읽는다. */
+    stage: ReviewStage;
     preparing: boolean;
     saving: boolean;
   } | null>(null);
@@ -552,7 +586,15 @@ export const LiveLessonCompanion: React.FC<LiveLessonCompanionProps> = ({
     session.pause();
     transcription.pause();
     setLessonRecState('paused');
-    setReviewDraft({ transcriptText: '', summaryText: '', preparing: true, saving: false });
+    const setStage = (stage: ReviewStage) =>
+      setReviewDraft((d) => (d ? { ...d, stage } : d));
+    setReviewDraft({
+      transcriptText: '',
+      summaryText: '',
+      stage: 'repair',
+      preparing: true,
+      saving: false,
+    });
 
     // 진행 중이던 전사(AI 폴백 경로)를 잠깐 기다렸다가 초안을 만든다.
     await session.settleAnalyses(10_000);
@@ -560,42 +602,48 @@ export const LiveLessonCompanion: React.FC<LiveLessonCompanionProps> = ({
       .getNotes()
       .filter((n) => n.status === 'done' && n.transcript);
 
-    // 화자 역할 라벨링. 오디오 전사 경로는 구간마다 라벨이 붙어 오지만
-    // 온디바이스 인식 경로는 텍스트뿐이라, 여기서 필기 전체를 한 번 읽어
-    // 코치/학생/주변을 배정한다. 요약 생성과 **동시에** 띄운다 — 둘은
-    // 서로를 기다릴 이유가 없고, 직렬로 붙이면 검토 화면이 열리기까지의
-    // 대기가 두 배가 된다. 늘어지면 라벨 없이 진행한다: 검토 화면이
-    // '정리 중'에 갇히면(저장 버튼 비활성) 필기를 아예 못 쓴다.
-    const labelPromise = Promise.race([
-      labelTranscriptSpeakers(notes, studentName),
-      new Promise<null>((resolve) =>
-        window.setTimeout(() => resolve(null), REVIEW_LABEL_TIMEOUT_MS)
-      ),
-    ]).catch(() => null);
-
-    let summaryText = session.snapshot().liveSummary;
-    if (!summaryText && notes.length > 0) {
-      // 5분이 안 된 짧은 레슨 — 검토용 요약을 즉석에서 한 번 생성한다.
-      // 네트워크가 늘어져도 검토 화면이 '정리 중'에 갇히면 안 된다(저장
-      // 버튼이 계속 비활성). 요약은 12초까지만 기다리고, 못 받으면 빈 채로
-      // 열어 코치가 직접 적고 저장할 수 있게 한다.
-      try {
-        summaryText = await Promise.race([
-          generateRollingLessonSummary(notes, studentName),
-          new Promise<string>((resolve) =>
-            window.setTimeout(() => resolve(''), REVIEW_SUMMARY_TIMEOUT_MS)
-          ),
-        ]);
-      } catch {
-        summaryText = '';
-      }
+    // ── 1단계: 코칭 언어 교정 ────────────────────────────────────────────
+    // 필기의 원천은 음성 인식이고, 골프 용어는 일반 어휘 모델이 가장 많이
+    // 틀리는 부분이다. 뒤 단계(화자 분류)가 이 텍스트를 근거로 삼으므로
+    // 교정이 맨 앞에 온다. 늘어지면 원문 그대로 다음 단계로 간다.
+    const repaired = await withReviewTimeout(
+      repairTranscriptTerms(notes, studentName, undefined, {
+        deadlineAt: Date.now() + REVIEW_REPAIR_TIMEOUT_MS,
+      }),
+      REVIEW_REPAIR_HARD_TIMEOUT_MS,
+      null as LessonSegmentNote[] | null
+    );
+    if (repaired) {
+      notes = repaired;
+      // 검토 화면·최종 리포트·복구 세션이 모두 같은 교정본을 보게 한다.
+      session.applyRepairedNotes(repaired);
     }
 
-    const labeled = await labelPromise;
+    // ── 2단계: 화자 역할 분류 ────────────────────────────────────────────
+    // 오디오 전사 경로는 구간마다 라벨이 붙어 오지만 온디바이스 인식 경로는
+    // 텍스트뿐이라, 여기서 필기 전체를 한 번 읽어 코치/학생/주변을 배정한다.
+    setStage('speaker');
+    const labeled = await withReviewTimeout(
+      labelTranscriptSpeakers(notes, studentName),
+      REVIEW_LABEL_TIMEOUT_MS,
+      null as LessonSegmentNote[] | null
+    );
     if (labeled) {
       notes = labeled;
-      // 검토 화면과 최종 리포트, 복구 세션이 모두 같은 라벨을 보게 한다.
       session.applySpeakerTurns(labeled);
+    }
+
+    // 요약은 레슨 중 5분마다 갱신된 롤링 요약을 그대로 쓴다. 5분이 안 된
+    // 짧은 레슨이라 요약이 아직 없으면 이 자리에서 한 번 만든다 — 못 받으면
+    // 빈 채로 열어 코치가 직접 적고 저장할 수 있게 한다.
+    setStage('summary');
+    let summaryText = session.snapshot().liveSummary;
+    if (!summaryText && notes.length > 0) {
+      summaryText = await withReviewTimeout(
+        generateRollingLessonSummary(notes, studentName),
+        REVIEW_SUMMARY_TIMEOUT_MS,
+        ''
+      );
     }
 
     // 타임스탬프 없이 문단 단위로 이어 붙인다 — 코치가 읽는 것은 시각이
@@ -604,7 +652,13 @@ export const LiveLessonCompanion: React.FC<LiveLessonCompanionProps> = ({
     // 판정된 문단에는 "코치: " 표기가 붙는다.
     const transcriptText = buildTranscriptText(notes);
 
-    setReviewDraft({ transcriptText, summaryText, preparing: false, saving: false });
+    setReviewDraft({
+      transcriptText,
+      summaryText,
+      stage: 'summary',
+      preparing: false,
+      saving: false,
+    });
   };
 
   /** 검토 확정: 여기서 비로소 녹음을 완전히 닫고 저장 흐름으로 넘긴다. */
@@ -1017,7 +1071,7 @@ export const LiveLessonCompanion: React.FC<LiveLessonCompanionProps> = ({
             <div className="flex-1 flex flex-col items-center justify-center gap-2">
               <Sparkles className="w-6 h-6 text-emerald-300 animate-pulse" />
               <p className="text-[13px] text-ink-muted">
-                마지막 필기를 정리하고 있어요…
+                {REVIEW_STAGE_LABELS[reviewDraft.stage]}
               </p>
             </div>
           ) : (

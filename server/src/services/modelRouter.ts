@@ -90,6 +90,11 @@ const FEATURE_MODEL_OVERRIDES: Record<string, string> = {
   // 1~2회뿐이라 지연 예산은 넉넉하지만, 판단 근거가 대화 흐름 하나뿐이라
   // 맥락을 넓게 보는 능력이 정확도를 좌우한다 — 전사와 같은 GA flash.
   lesson_speaker_label: 'gemini-3.6-flash',
+
+  // 오인식된 골프 용어를 코칭 언어로 되돌리는 텍스트 교정. 추론이 아니라
+  // 어휘 문제이고(어느 단어가 무엇의 오인식인지) 레슨당 몇 회뿐이라
+  // 화자 라벨링과 같은 GA flash 로 둔다.
+  lesson_transcript_repair: 'gemini-3.6-flash',
 };
 
 interface CachedOverrides {
