@@ -90,6 +90,8 @@ function mapLesson(row: Record<string, unknown>, viewerRole?: AuthRole) {
     media: reSignMediaTree(row.media),
     lessonPackageId: row.lesson_package_id,
     sessionNumber: row.session_number,
+    // 레슨 동반(LIVE_LESSON) 전용 자료 — 필기(transcript)와 요약본.
+    liveLessonDetail: row.live_lesson_detail ?? undefined,
     // Data ownership 3-tier (#309). Defaults match the DB defaults so a
     // client that hasn't updated its types yet still sees sensible values.
     ownership: (row.ownership as string | null) ?? 'shared',
@@ -228,6 +230,7 @@ router.post('/', async (req: Request, res: Response) => {
       editedVideoUrl, videoEditMetadata,
       compareVideoUrl, compareVideoMetadata,
       media, lessonPackageId, sessionNumber,
+      liveLessonDetail,
       visibility,
     } = req.body as Record<string, unknown>;
     const lessonId =
@@ -303,6 +306,7 @@ router.post('/', async (req: Request, res: Response) => {
         edited_video_url, video_edit_metadata,
         compare_video_url, compare_video_metadata,
         media, lesson_package_id, session_number,
+        live_lesson_detail,
         ownership, visibility, original_coach_id,
         created_at, updated_at
       ) VALUES (
@@ -319,8 +323,9 @@ router.post('/', async (req: Request, res: Response) => {
         $31, $32,
         $33, $34,
         $35, $36, $37,
-        'shared', $38, $5,
-        $39, $40
+        $38,
+        'shared', $39, $5,
+        $40, $41
       ) RETURNING *`,
       [
         lessonId,
@@ -348,6 +353,7 @@ router.post('/', async (req: Request, res: Response) => {
         compareVideoMetadata ? JSON.stringify(compareVideoMetadata) : null,
         media ? JSON.stringify(media) : null,
         lessonPackageId ?? null, sessionNumber ?? null,
+        liveLessonDetail ? JSON.stringify(liveLessonDetail) : null,
         resolvedVisibility,
         now, now,
       ]
@@ -447,9 +453,15 @@ router.put('/:id', async (req: Request, res: Response) => {
       editedVideoUrl, videoEditMetadata,
       compareVideoUrl, compareVideoMetadata,
       media, lessonPackageId, sessionNumber,
+      liveLessonDetail,
       visibility,
       approvalStatus, approvedAt, sharedToStudent, reviewSections,
     } = req.body as Record<string, unknown>;
+
+    // 레슨 동반 자료(필기·요약본)는 폼이 통째로 되보내지 않는 부분 업데이트
+    // 경로에서 유실되지 않도록 기존 값을 보존한다.
+    const nextLiveLessonDetail =
+      liveLessonDetail ?? existing.live_lesson_detail ?? null;
 
     // Visibility (#309): the student can downgrade to 'self' (본인만); the
     // coach can raise to 'branch' (지점까지) via UI. Both roles may set
@@ -527,6 +539,7 @@ router.put('/:id', async (req: Request, res: Response) => {
         approved_at = $40,
         shared_to_student = $41,
         review_sections = $42,
+        live_lesson_detail = $43,
         updated_at = $37
       WHERE id = $38
       RETURNING *`,
@@ -561,6 +574,7 @@ router.put('/:id', async (req: Request, res: Response) => {
         nextApprovedAt,
         nextSharedToStudent,
         nextReviewSections ? JSON.stringify(nextReviewSections) : null,
+        nextLiveLessonDetail ? JSON.stringify(nextLiveLessonDetail) : null,
       ]
     );
 

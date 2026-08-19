@@ -178,6 +178,32 @@ export interface MotionCaptureData {
   analyzedAt: number;
 }
 
+/** 레슨 동반 필기 한 줄 — 레슨 시작 기준 오프셋(초)과 받아 적은 텍스트. */
+export interface LiveLessonTranscriptEntry {
+  startSec: number;
+  text: string;
+}
+
+/**
+ * 레슨 동반(LIVE_LESSON) 기록 전용 구조. 레슨 중 동반 화면에서 녹음·촬영한
+ * 자료는 일반 레슨 기록과 저장 형태가 다르다: 음성이 ~10초 단위로 받아
+ * 적힌 필기(레슨 내용 텍스트)와 그 필기를 정리한 요약본이 함께 남아야
+ * 한다. 이 구조가 그 텍스트 자료를 담고, 음성/사진/영상 원본은 기존
+ * videoUrl / additionalMedia(source: 'live_lesson')로 함께 저장된다.
+ */
+export interface LiveLessonDetail {
+  /** 전체 레슨 녹음 길이(초). */
+  recordedDurationSec: number;
+  /** 레슨 내용 텍스트 — 시간순 필기 노트. */
+  transcript: LiveLessonTranscriptEntry[];
+  /** 필기를 정리한 최종 요약본 (aiAnalysis 와 동일 내용을 구조에도 보관). */
+  summary?: string;
+  /** 레슨 중 강조된 교정 포인트 모음. */
+  keyPoints?: string[];
+  /** 레슨 중 언급된 드릴/과제 모음. */
+  drills?: string[];
+}
+
 export interface Lesson {
   id: string;
   /** Composite key: `${clientName}_${clientPhone}` — the app-wide student identifier. */
@@ -186,7 +212,12 @@ export interface Lesson {
   clientPhone: string; // Added: Phone number for unique identification
   coachId?: string; // Added: ID of the coach associated with this lesson
   createdBy: 'COACH' | 'CLIENT'; // Added: Who created this record
-  recordType?: 'PRACTICE' | 'SCORE' | 'LESSON'; // Added: Type of the record
+  /**
+   * Type of the record. 'LIVE_LESSON' (레슨 동반) marks a record created from
+   * the 레슨 중 동반 flow — stored as its own category with transcript text
+   * and a summary in `liveLessonDetail`, separate from regular lesson records.
+   */
+  recordType?: 'PRACTICE' | 'SCORE' | 'LESSON' | 'LIVE_LESSON';
   date: string;
   title: string;
   club?: string; // Added: Golf club used (e.g., '7 Iron', 'Driver')
@@ -218,6 +249,11 @@ export interface Lesson {
   /** 1-based session number within the lesson package. Always set together with `lessonPackageId`. */
   sessionNumber?: number;
   motionCaptureData?: MotionCaptureData;
+  /**
+   * 레슨 동반(LIVE_LESSON) 전용 자료 — 필기(레슨 내용 텍스트)와 요약본.
+   * recordType === 'LIVE_LESSON' 인 기록에만 채워진다.
+   */
+  liveLessonDetail?: LiveLessonDetail;
   /**
    * Structured record sections the coach reviews before releasing to the
    * student (redesign screen `8b`). Populated by the agent when it drafts

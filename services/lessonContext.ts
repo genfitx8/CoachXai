@@ -17,6 +17,7 @@ const RECORD_TYPE_LABELS: Record<string, string> = {
   SCORE: '라운드',
   PRACTICE: '연습',
   LESSON: '레슨',
+  LIVE_LESSON: '레슨 동반',
 };
 
 export interface FormatLessonEntryOptions {
@@ -50,6 +51,22 @@ export const formatLessonEntry = (
   }
   if (lesson.aiAnalysis) {
     parts.push(`  AI 분석: ${lesson.aiAnalysis.substring(0, maxNoteLength)}`);
+  }
+
+  // 레슨 동반 기록: 필기(레슨 내용 텍스트) 발췌를 함께 실어 코칭 멘트
+  // 원문까지 모델이 그라운딩할 수 있게 한다.
+  if (lesson.liveLessonDetail?.transcript?.length) {
+    const detail = lesson.liveLessonDetail;
+    const joined = detail.transcript.map((entry) => entry.text).join(' ');
+    parts.push(
+      `  레슨 동반 필기(${detail.transcript.length}줄): ${joined.substring(0, maxNoteLength)}`
+    );
+    if (detail.keyPoints?.length) {
+      parts.push(`  교정 포인트: ${detail.keyPoints.slice(0, 6).join(', ')}`);
+    }
+    if (detail.drills?.length) {
+      parts.push(`  드릴: ${detail.drills.slice(0, 6).join(', ')}`);
+    }
   }
 
   if (lesson.golfData) {
