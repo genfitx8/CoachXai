@@ -6,6 +6,7 @@ import { reservationService } from '../services/reservationService';
 import { bayReservationService } from '../services/bayReservationService';
 import { firebaseService } from '../services/firebase';
 import { storageService } from '../services/storage';
+import { apiService } from '../services/apiService';
 import { CoachProfile, ClientProfile, Branch, Bay } from '../types';
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
@@ -13,6 +14,7 @@ import { CoachProfile, ClientProfile, Branch, Bay } from '../types';
 vi.mock('../services/reservationService', () => ({
   reservationService: {
     createCoachMadeLessonReservation: vi.fn(),
+    isUsingLocalFallback: vi.fn(),
   },
 }));
 
@@ -34,6 +36,14 @@ vi.mock('../services/firebase', () => ({
 
 vi.mock('../services/storage', () => ({
   storageService: {
+    getClients: vi.fn(),
+  },
+}));
+
+vi.mock('../services/apiService', () => ({
+  apiService: {
+    isAvailable: vi.fn(),
+    getToken: vi.fn(),
     getClients: vi.fn(),
   },
 }));
@@ -104,13 +114,26 @@ const DEFAULT_PROPS = {
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function setupStorage(clients: ClientProfile[] = [MEMBER_KIM, MEMBER_LEE]) {
+  vi.mocked(apiService.isAvailable).mockReturnValue(false);
+  vi.mocked(apiService.getToken).mockReturnValue(null);
   vi.mocked(firebaseService.isInitialized).mockReturnValue(false);
   vi.mocked(storageService.getClients).mockReturnValue(clients);
 }
 
 function setupFirebase(clients: ClientProfile[] = [MEMBER_KIM, MEMBER_LEE]) {
+  vi.mocked(apiService.isAvailable).mockReturnValue(false);
+  vi.mocked(apiService.getToken).mockReturnValue(null);
   vi.mocked(firebaseService.isInitialized).mockReturnValue(true);
   vi.mocked(firebaseService.getClients).mockResolvedValue(clients);
+}
+
+/** Server session present: members come from GET /api/clients. */
+function setupApi(clients: ClientProfile[] = [MEMBER_KIM, MEMBER_LEE]) {
+  vi.mocked(apiService.isAvailable).mockReturnValue(true);
+  vi.mocked(apiService.getToken).mockReturnValue('token1');
+  vi.mocked(apiService.getClients).mockResolvedValue(clients);
+  vi.mocked(firebaseService.isInitialized).mockReturnValue(false);
+  vi.mocked(storageService.getClients).mockReturnValue([]);
 }
 
 /**
@@ -344,6 +367,34 @@ describe('CoachLessonReservationModal – member search', () => {
     });
     expect(firebaseService.getClients).toHaveBeenCalled();
   });
+
+  it('loads members from the server when a session exists', async () => {
+    setupApi([MEMBER_KIM]);
+    render(<CoachLessonReservationModal {...DEFAULT_PROPS} />);
+
+    const searchInput = screen.getByPlaceholderText('이름 또는 전화번호로 검색');
+    fireEvent.change(searchInput, { target: { value: '김' } });
+
+    await waitFor(() => {
+      expect(screen.getByText('김회원')).toBeInTheDocument();
+    });
+    expect(apiService.getClients).toHaveBeenCalled();
+    expect(storageService.getClients).not.toHaveBeenCalled();
+  });
+
+  it('falls back to the local member cache when the server list fails', async () => {
+    setupApi();
+    vi.mocked(apiService.getClients).mockRejectedValue(new Error('HTTP 500'));
+    vi.mocked(storageService.getClients).mockReturnValue([MEMBER_LEE]);
+    render(<CoachLessonReservationModal {...DEFAULT_PROPS} />);
+
+    const searchInput = screen.getByPlaceholderText('이름 또는 전화번호로 검색');
+    fireEvent.change(searchInput, { target: { value: '이' } });
+
+    await waitFor(() => {
+      expect(screen.getByText('이회원')).toBeInTheDocument();
+    });
+  });
 });
 
 // ── Reservation creation ──────────────────────────────────────────────────────
@@ -440,6 +491,41 @@ describe('CoachLessonReservationModal – reservation creation', () => {
 
     await waitFor(() => {
       expect(screen.getByText(/레슨 예약이 완료되었습니다/)).toBeInTheDocument();
+    });
+    expect(screen.queryByText(/이 기기에만 저장되었습니다/)).not.toBeInTheDocument();
+  });
+
+  it('warns when the booking only reached this device', async () => {
+    vi.mocked(reservationService.isUsingLocalFallback).mockReturnValue(true);
+    render(<CoachLessonReservationModal {...DEFAULT_PROPS} />);
+
+    const searchInput = screen.getByPlaceholderText('이름 또는 전화번호로 검색');
+    fireEvent.change(searchInput, { target: { value: '김' } });
+    await waitFor(() => expect(screen.getByText('김회원')).toBeInTheDocument());
+    fireEvent.click(screen.getByText('김회원'));
+    fireEvent.click(screen.getByText('예약 등록'));
+
+    await waitFor(() => {
+      expect(screen.getByText(/이 기기에만 저장되었습니다/)).toBeInTheDocument();
+    });
+  });
+
+  it('turns an opaque HTTP status into an actionable message', async () => {
+    vi.mocked(reservationService.createCoachMadeLessonReservation).mockRejectedValue(
+      new Error('HTTP 500')
+    );
+    render(<CoachLessonReservationModal {...DEFAULT_PROPS} />);
+
+    const searchInput = screen.getByPlaceholderText('이름 또는 전화번호로 검색');
+    fireEvent.change(searchInput, { target: { value: '김' } });
+    await waitFor(() => expect(screen.getByText('김회원')).toBeInTheDocument());
+    fireEvent.click(screen.getByText('김회원'));
+    fireEvent.click(screen.getByText('예약 등록'));
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(/예약 등록에 실패했습니다. 잠시 후 다시 시도해주세요\. \(서버 응답 HTTP 500\)/)
+      ).toBeInTheDocument();
     });
   });
 

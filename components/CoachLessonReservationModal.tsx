@@ -4,6 +4,7 @@ import { reservationService } from '../services/reservationService';
 import { bayReservationService, AvailableBay, TimeSlot } from '../services/bayReservationService';
 import { firebaseService } from '../services/firebase';
 import { storageService } from '../services/storage';
+import { apiService } from '../services/apiService';
 import { X, Search, User, Clock, MapPin, ChevronDown, ChevronUp } from 'lucide-react';
 import { Button } from './Button';
 
@@ -68,7 +69,16 @@ export const CoachLessonReservationModal: React.FC<CoachLessonReservationModalPr
       setSearchLoading(true);
       try {
         let clients: ClientProfile[];
-        if (firebaseService.isInitialized()) {
+        // Members live on the server whenever there is a session (Firestore is
+        // legacy); the localStorage copy is only a cache of what this device
+        // has seen, so it must not be the first choice any more.
+        if (apiService.isAvailable() && apiService.getToken()) {
+          try {
+            clients = await apiService.getClients();
+          } catch {
+            clients = storageService.getClients();
+          }
+        } else if (firebaseService.isInitialized()) {
           clients = await firebaseService.getClients();
         } else {
           clients = storageService.getClients();
@@ -224,10 +234,21 @@ export const CoachLessonReservationModal: React.FC<CoachLessonReservationModalPr
       if (bayResult) {
         parts.push('타석 예약도 함께 완료되었습니다.');
       }
+      if (reservationService.isUsingLocalFallback()) {
+        parts.push(
+          '\n※ 서버에 연결하지 못해 이 기기에만 저장되었습니다. 서버가 복구되면 자동으로 동기화됩니다.'
+        );
+      }
       setSuccessMsg(parts.join(' '));
       setLoading(false);
     } catch (err: any) {
-      setError(err.message || '예약 생성에 실패했습니다.');
+      // A bare "HTTP 500" tells the coach nothing about what to do next.
+      const raw: string = err?.message ?? '';
+      setError(
+        /^HTTP \d{3}$/.test(raw)
+          ? `예약 등록에 실패했습니다. 잠시 후 다시 시도해주세요. (서버 응답 ${raw})`
+          : raw || '예약 생성에 실패했습니다.'
+      );
       setLoading(false);
     }
   };

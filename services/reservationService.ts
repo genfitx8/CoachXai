@@ -1,7 +1,7 @@
 import { LessonReservation, ReservationStatus, DayOfWeek, CoachProfile } from '../types';
 import { firebaseService } from './firebase';
 import { storageService } from './storage';
-import { apiService } from './apiService';
+import { apiService, isEndpointMissingError } from './apiService';
 import {
   sendLessonReservationNotifications,
   sendLessonReservationStatusNotifications,
@@ -84,6 +84,59 @@ class ReservationService {
   }
 
   /**
+   * Set once the reservation endpoints answer a bodyless 404 — the deployed
+   * backend does not serve `/api/reservations` (it predates the Phase 1
+   * promotion, or the request landed on the SPA host instead of the API).
+   * Before this guard existed every read silently returned an empty calendar
+   * and every write failed with an opaque "HTTP 404": a coach could not
+   * register a member's lesson at all. Now the legacy device-local backend
+   * takes over for the session and the rows are promoted to the server as soon
+   * as the endpoint exists.
+   */
+  private serverEndpointMissing = false;
+
+  /**
+   * True when reservations are being written to this device only because the
+   * server has no reservation endpoint. The UI warns the coach so a booking
+   * that other devices cannot see yet is never mistaken for a synced one.
+   */
+  isUsingLocalFallback(): boolean {
+    return this.serverEndpointMissing;
+  }
+
+  /**
+   * Handles an error from a server reservation call. Returns true when it was
+   * a missing endpoint (caller should fall through to the legacy backend);
+   * false for every real API failure, which must keep propagating.
+   */
+  private handleMissingEndpoint(operation: string, error: unknown): boolean {
+    if (!isEndpointMissingError(error)) return false;
+    if (!this.serverEndpointMissing) {
+      log.warn(
+        `Server reservation endpoint is unavailable (${operation}); ` +
+          'falling back to local storage until it responds again.'
+      );
+      this.serverEndpointMissing = true;
+    }
+    // Re-arm the local → server promotion so everything written while the
+    // endpoint was missing is uploaded on the next successful read.
+    this.localSyncPromise = null;
+    try {
+      localStorage.removeItem(RESERVATION_SYNC_FLAG);
+    } catch { /* ignore */ }
+    return true;
+  }
+
+  /** Legacy (pre-server) read path, shared by the fallback branches. */
+  private async legacyListReservations(
+    coachId?: string,
+    clientId?: string
+  ): Promise<LessonReservation[]> {
+    if (this.isFirebaseMode()) return firebaseService.getReservations(coachId, clientId);
+    return storageService.getReservations();
+  }
+
+  /**
    * One-time promotion of reservations this device accumulated while it was
    * localStorage-only. Runs before the first server read of a login session;
    * upserts are id-keyed so re-running is harmless. Rows the current account
@@ -120,9 +173,17 @@ class ReservationService {
         await apiService.upsertReservation(r);
       } catch (e) {
         const status = (e as { status?: number }).status;
-        // 4xx = not ours / invalid → skip forever. 0/5xx = transient → retry
-        // the whole sync on a later read instead of marking it done.
-        if (status === undefined || status === 0 || status >= 500) transientFailure = true;
+        // 4xx = not ours / invalid → skip forever. 0/5xx and a missing
+        // endpoint = transient → retry the whole sync on a later read instead
+        // of marking it done.
+        if (
+          status === undefined ||
+          status === 0 ||
+          status >= 500 ||
+          isEndpointMissingError(e)
+        ) {
+          transientFailure = true;
+        }
         log.warn(`Skipping local reservation ${r.id} during sync:`, e);
       }
     }
@@ -138,14 +199,17 @@ class ReservationService {
   }): Promise<LessonReservation[]> {
     const coachId = filter?.coachId;
     const clientId = filter?.clientId;
-    let reservations: LessonReservation[];
+    let reservations: LessonReservation[] | null = null;
     if (this.isApiMode()) {
-      await this.syncLocalReservationsOnce();
-      reservations = await apiService.getReservations(coachId);
-    } else if (this.isFirebaseMode()) {
-      reservations = await firebaseService.getReservations(coachId, clientId);
-    } else {
-      reservations = storageService.getReservations();
+      try {
+        await this.syncLocalReservationsOnce();
+        reservations = await apiService.getReservations(coachId);
+      } catch (e) {
+        if (!this.handleMissingEndpoint('list', e)) throw e;
+      }
+    }
+    if (reservations === null) {
+      reservations = await this.legacyListReservations(coachId, clientId);
     }
     if (coachId) reservations = reservations.filter((r) => r.coachId === coachId);
     if (clientId) reservations = reservations.filter((r) => r.clientId === clientId);
@@ -154,22 +218,26 @@ class ReservationService {
 
   private async loadReservationById(reservationId: string): Promise<LessonReservation | undefined> {
     if (this.isApiMode()) {
-      await this.syncLocalReservationsOnce();
-      return (await apiService.getReservation(reservationId)) ?? undefined;
+      try {
+        await this.syncLocalReservationsOnce();
+        return (await apiService.getReservation(reservationId)) ?? undefined;
+      } catch (e) {
+        if (!this.handleMissingEndpoint('get', e)) throw e;
+      }
     }
-    if (this.isFirebaseMode()) {
-      const allReservations = await firebaseService.getReservations();
-      return allReservations.find((r) => r.id === reservationId);
-    }
-    const allReservations = storageService.getReservations();
+    const allReservations = await this.legacyListReservations();
     return allReservations.find((r) => r.id === reservationId);
   }
 
   /** Create a brand-new reservation row in the active backend. */
   private async saveNewReservation(reservation: LessonReservation): Promise<void> {
     if (this.isApiMode()) {
-      await apiService.upsertReservation(reservation);
-      return;
+      try {
+        await apiService.upsertReservation(reservation);
+        return;
+      } catch (e) {
+        if (!this.handleMissingEndpoint('create', e)) throw e;
+      }
     }
     if (this.isFirebaseMode()) {
       await firebaseService.saveReservation(reservation);
@@ -181,20 +249,38 @@ class ReservationService {
   /** Write an updated reservation without touching push reminders. */
   private async writeReservation(reservation: LessonReservation): Promise<void> {
     if (this.isApiMode()) {
-      await apiService.upsertReservation(reservation);
-      return;
+      try {
+        await apiService.upsertReservation(reservation);
+        return;
+      } catch (e) {
+        if (!this.handleMissingEndpoint('update', e)) throw e;
+      }
     }
     if (this.isFirebaseMode()) {
       await firebaseService.updateReservation(reservation);
       return;
     }
-    storageService.updateReservation(reservation);
+    // A row that was read from the server has no local copy yet, and
+    // storageService.updateReservation silently drops a write whose id it
+    // cannot find — upsert so a fallback update is never lost.
+    const existsLocally = storageService
+      .getReservations()
+      .some((r) => r.id === reservation.id);
+    if (existsLocally) {
+      storageService.updateReservation(reservation);
+    } else {
+      storageService.saveReservation(reservation);
+    }
   }
 
   private async removeReservation(reservationId: string): Promise<void> {
     if (this.isApiMode()) {
-      await apiService.deleteReservation(reservationId);
-      return;
+      try {
+        await apiService.deleteReservation(reservationId);
+        return;
+      } catch (e) {
+        if (!this.handleMissingEndpoint('delete', e)) throw e;
+      }
     }
     if (this.isFirebaseMode()) {
       await firebaseService.deleteReservation(reservationId);
