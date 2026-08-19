@@ -1,30 +1,42 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { PenLine, Sparkles } from 'lucide-react';
-import { formatClock } from '../services/lessonAudioPipeline';
+import {
+  groupTranscriptParagraphs,
+  type TranscriptParagraph,
+} from '../services/lessonAudioPipeline';
 
 /**
  * LessonNotebook — 레슨 동반 화면의 "종이 노트" 필기 뷰.
  *
- * 다크 테마 화면 위에 밝은 줄노트 종이 카드를 한 장 올려, 10초 단위로
- * 도착하는 전사 텍스트가 코치가 옆에서 받아 적는 것처럼 한 글자씩
- * 적히게 한다. 시각 요소는 전부 CSS 로 그린다(이미지 없음):
+ * 다크 테마 화면 위에 밝은 줄노트 종이 카드를 한 장 올려, 도착하는 전사
+ * 텍스트가 코치가 옆에서 받아 적는 것처럼 적히게 한다. 시각 요소는 전부
+ * CSS 로 그린다(이미지 없음):
  *
  *  - 괘선: repeating-linear-gradient. 글줄이 괘선 위에 정확히 앉도록
  *    LINE_HEIGHT 상수 하나가 배경과 타이포를 동시에 지배한다.
- *  - 왼쪽 마진: 세로 빨간 선 + 그 영역에 연필 톤의 타임스탬프.
+ *  - 왼쪽 마진: 세로 빨간 선. 본문은 그 오른쪽에서 시작한다.
  *  - 손글씨: Gaegu(구글 폰트, index.html 에서 로드). 오프라인이면
  *    cursive 폴백으로 떨어진다 — 기능에는 영향 없음.
- *  - 아날로그 디테일: 줄마다 미세하게 다른 기울기·잉크 농도를 라인 id
- *    시드로 결정해(렌더마다 흔들리지 않게) 손맛을 낸다.
+ *  - 아날로그 디테일: 문단마다 미세하게 다른 기울기, 조각마다 다른 잉크
+ *    농도를 id 시드로 결정해(렌더마다 흔들리지 않게) 손맛을 낸다.
  *
- * 애니메이션은 마운트 이후에 "새로 도착한" 줄에만 건다 — 복구/재진입으로
+ * 문단 조립
+ * ---------
+ * 실시간 인식은 한 문장을 여러 조각으로 끊어 확정한다("드라이버
+ * 슬라이스를" / "교정하는 레슨 좀 할 건데요"). 조각 하나를 한 줄로 그리면
+ * 필기가 단어 나열처럼 보이므로, 조각들을 인라인으로 이어 붙여 한 문단이
+ * 종이 위를 자연스럽게 흐르게 한다. 발화 사이가 크게 벌어졌을 때만
+ * (PARAGRAPH_GAP_SEC) 문단을 끊는다. 타임스탬프는 표시하지 않는다 —
+ * 코치가 읽는 것은 시각이 아니라 대화 흐름이다.
+ *
+ * 애니메이션은 마운트 이후에 "새로 도착한" 조각에만 건다 — 복구/재진입으로
  * 한꺼번에 실린 기존 필기가 우르르 다시 타이핑되면 오히려 가짜같다.
  * prefers-reduced-motion 이면 애니메이션을 생략한다.
  */
 
 export interface NotebookLine {
   id: number;
-  /** 레슨 시작 기준 오프셋(초) — 마진의 연필 타임스탬프로 표시. */
+  /** 레슨 시작 기준 오프셋(초) — 문단을 끊는 기준(표시하지는 않는다). */
   atSec: number;
   text: string;
 }
@@ -35,11 +47,12 @@ interface LessonNotebookProps {
   writing: boolean;
   /**
    * 실시간 음성 인식의 잠정 텍스트 — 말하는 도중 그대로 화면에 적힌다.
-   * 확정되면 lines 로 넘어오므로 잠정 줄은 연한 잉크로 구분한다.
+   * 확정되면 lines 로 넘어오므로 잠정 조각은 연한 잉크로 구분하고,
+   * 진행 중인 문단 끝에 이어 붙여 말이 그대로 흐르는 것처럼 보이게 한다.
    */
   interim?: string;
   /**
-   * 새로 도착한 확정 줄에 글자 단위 타이핑 애니메이션을 걸지 여부.
+   * 새로 도착한 확정 조각에 글자 단위 타이핑 애니메이션을 걸지 여부.
    * 실시간 인식 경로에서는 interim 이 이미 "적히는 중" 을 보여줬으므로
    * false 로 꺼서 같은 문장이 두 번 적히는 느낌을 없앤다. AI 전사
    * 폴백(잠정 표시 없음)에서는 true.
@@ -54,12 +67,16 @@ interface LessonNotebookProps {
 const LINE_HEIGHT = 28;
 /** 한 글자 적히는 간격(ms). 한글 음절 기준 ~이 속도가 "받아 적기" 체감. */
 const TYPE_INTERVAL_MS = 45;
+/** 본문 시작 위치 — 마진 빨간 선(2.9rem) 바로 오른쪽. */
+const BODY_INDENT = '3.25rem';
 
 const INK = '#2b3547';
 const PENCIL = '#8a8272';
 const PAPER = '#fbf6e9';
 const RULE = '#dfd4b8';
 const MARGIN_LINE = '#e8a9a0';
+
+const HAND_FONT = "'Gaegu', 'Nanum Pen Script', cursive";
 
 /** 라인 id 시드 기반 유사난수(0~1) — 렌더마다 흔들리지 않는 손맛용. */
 const seeded = (seed: number, salt: number): number => {
@@ -72,70 +89,89 @@ const prefersReducedMotion = (): boolean =>
   typeof window.matchMedia === 'function' &&
   window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-/** 한 줄 — animate 면 글자 단위로 드러나고 쓰는 자리에 펜이 붙는다. */
-const HandwrittenLine: React.FC<{
-  line: NotebookLine;
+/**
+ * 문단 안의 조각 하나. animate 면 글자 단위로 드러나고, 쓰는 자리에 펜이
+ * 붙는다. 인라인 span 이라 앞 조각에 자연스럽게 이어진다.
+ */
+const HandwrittenSegment: React.FC<{
+  id: number;
+  text: string;
+  /** 앞 조각과 띄어 쓸지 — 문단의 첫 조각만 false. */
+  spaced: boolean;
   animate: boolean;
   onGrow: () => void;
-}> = ({ line, animate, onGrow }) => {
-  const [shown, setShown] = useState(animate ? 0 : line.text.length);
-  const done = shown >= line.text.length;
+}> = ({ id, text, spaced, animate, onGrow }) => {
+  const [shown, setShown] = useState(animate ? 0 : text.length);
+  const done = shown >= text.length;
 
   useEffect(() => {
     if (!animate || done) return;
     const timer = window.setInterval(() => {
-      setShown((prev) => {
-        const next = Math.min(line.text.length, prev + 1);
-        return next;
-      });
+      setShown((prev) => Math.min(text.length, prev + 1));
       onGrow();
     }, TYPE_INTERVAL_MS);
     return () => window.clearInterval(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [animate, done, line.text.length]);
-
-  const tilt = (seeded(line.id, 1) - 0.5) * 0.8; // ±0.4deg
-  const inkOpacity = 0.86 + seeded(line.id, 2) * 0.14;
+  }, [animate, done, text.length]);
 
   return (
-    <div className="relative" style={{ paddingLeft: '3.25rem' }}>
-      <span
-        className="absolute left-0 top-0 text-[10px] tabular-nums select-none"
-        style={{
-          width: '2.75rem',
-          textAlign: 'right',
-          paddingRight: '0.4rem',
-          lineHeight: `${LINE_HEIGHT}px`,
-          color: PENCIL,
-          fontFamily: "'Space Grotesk', monospace",
-        }}
-      >
-        {formatClock(line.atSec)}
-      </span>
-      <p
-        style={{
-          fontFamily: "'Gaegu', 'Nanum Pen Script', cursive",
-          fontSize: '17px',
-          lineHeight: `${LINE_HEIGHT}px`,
-          color: INK,
-          opacity: inkOpacity,
-          transform: `rotate(${tilt}deg)`,
-          transformOrigin: 'left center',
-          wordBreak: 'keep-all',
-          overflowWrap: 'anywhere',
-        }}
-      >
-        {line.text.slice(0, shown)}
-        {!done && (
-          <PenLine
-            className="inline-block w-3.5 h-3.5 ml-0.5 align-baseline animate-pulse"
-            style={{ color: INK }}
-          />
-        )}
-      </p>
-    </div>
+    <span style={{ opacity: 0.86 + seeded(id, 2) * 0.14 }}>
+      {spaced ? ' ' : ''}
+      {text.slice(0, shown)}
+      {!done && (
+        <PenLine
+          className="inline-block w-3.5 h-3.5 ml-0.5 align-baseline animate-pulse"
+          style={{ color: INK }}
+        />
+      )}
+    </span>
   );
 };
+
+/** 문단 하나 — 조각들이 인라인으로 흐르고, 끝에 잠정 텍스트가 붙는다. */
+const HandwrittenParagraph: React.FC<{
+  paragraph: TranscriptParagraph;
+  /** 이 조각을 타이핑 애니메이션으로 그릴지 판정. */
+  shouldAnimate: (segmentId: number) => boolean;
+  /** 문단 끝에 이어 붙일 잠정 텍스트(마지막 문단에만). */
+  trailingInterim?: string;
+  onGrow: () => void;
+}> = ({ paragraph, shouldAnimate, trailingInterim, onGrow }) => (
+  <p
+    style={{
+      fontFamily: HAND_FONT,
+      fontSize: '17px',
+      lineHeight: `${LINE_HEIGHT}px`,
+      color: INK,
+      paddingLeft: BODY_INDENT,
+      transform: `rotate(${(seeded(paragraph.id, 1) - 0.5) * 0.5}deg)`,
+      transformOrigin: 'left center',
+      wordBreak: 'keep-all',
+      overflowWrap: 'anywhere',
+    }}
+  >
+    {paragraph.segments.map((seg, i) => (
+      <HandwrittenSegment
+        key={seg.id}
+        id={seg.id}
+        text={seg.text}
+        spaced={i > 0}
+        animate={shouldAnimate(seg.id)}
+        onGrow={onGrow}
+      />
+    ))}
+    {trailingInterim && (
+      <span style={{ opacity: 0.45 }}>
+        {paragraph.segments.length > 0 ? ' ' : ''}
+        {trailingInterim}
+        <PenLine
+          className="inline-block w-3.5 h-3.5 ml-0.5 align-baseline animate-pulse"
+          style={{ color: INK }}
+        />
+      </span>
+    )}
+  </p>
+);
 
 export const LessonNotebook: React.FC<LessonNotebookProps> = ({
   lines,
@@ -148,17 +184,33 @@ export const LessonNotebook: React.FC<LessonNotebookProps> = ({
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const reducedMotion = useMemo(prefersReducedMotion, []);
 
-  // 마운트 시점에 이미 있던 줄(복구·재진입)은 애니메이션 없이 그린다.
+  // 마운트 시점에 이미 있던 조각(복구·재진입)은 애니메이션 없이 그린다.
   const preexistingRef = useRef<Set<number> | null>(null);
   if (preexistingRef.current === null) {
     preexistingRef.current = new Set(lines.map((l) => l.id));
   }
+
+  // 조각을 문단으로 묶는다 — 검토 화면의 필기 전문과 같은 규칙을 쓴다.
+  const paragraphs = useMemo(
+    () =>
+      groupTranscriptParagraphs(
+        lines.map((l) => ({
+          index: l.id,
+          startSec: l.atSec,
+          transcript: l.text,
+        }))
+      ),
+    [lines]
+  );
 
   const scrollToBottom = () => {
     const el = scrollRef.current;
     if (el) el.scrollTop = el.scrollHeight;
   };
   useEffect(scrollToBottom, [lines.length, interim]);
+
+  const shouldAnimate = (segmentId: number) =>
+    animateNewLines && !reducedMotion && !preexistingRef.current!.has(segmentId);
 
   const summaryLines = summary
     .split('\n')
@@ -192,14 +244,14 @@ export const LessonNotebook: React.FC<LessonNotebookProps> = ({
           backgroundClip: 'content-box',
         }}
       >
-        {lines.length === 0 && !interim ? (
+        {paragraphs.length === 0 && !interim ? (
           <p
             style={{
-              fontFamily: "'Gaegu', 'Nanum Pen Script', cursive",
+              fontFamily: HAND_FONT,
               fontSize: '16px',
               lineHeight: `${LINE_HEIGHT}px`,
               color: PENCIL,
-              paddingLeft: '3.25rem',
+              paddingLeft: BODY_INDENT,
             }}
           >
             {writing
@@ -207,41 +259,31 @@ export const LessonNotebook: React.FC<LessonNotebookProps> = ({
               : '코칭 멘트가 들리면 여기에 받아 적혀요'}
           </p>
         ) : (
-          lines.map((line) => (
-            <HandwrittenLine
-              key={line.id}
-              line={line}
-              animate={
-                animateNewLines &&
-                !reducedMotion &&
-                !preexistingRef.current!.has(line.id)
-              }
-              onGrow={scrollToBottom}
-            />
-          ))
+          <div className="space-y-1">
+            {paragraphs.map((paragraph, i) => (
+              <HandwrittenParagraph
+                key={paragraph.id}
+                paragraph={paragraph}
+                shouldAnimate={shouldAnimate}
+                // 잠정 텍스트는 진행 중인(마지막) 문단 끝에 이어 붙인다.
+                trailingInterim={
+                  i === paragraphs.length - 1 ? interim : undefined
+                }
+                onGrow={scrollToBottom}
+              />
+            ))}
+            {/* 필기가 아직 없는데 말이 시작된 경우 — 잠정 텍스트만 그린다 */}
+            {paragraphs.length === 0 && interim && (
+              <HandwrittenParagraph
+                paragraph={{ id: -1, segments: [] }}
+                shouldAnimate={() => false}
+                trailingInterim={interim}
+                onGrow={scrollToBottom}
+              />
+            )}
+          </div>
         )}
-        {/* 실시간 인식 잠정 텍스트 — 말하는 그 순간 연한 잉크로 적힌다 */}
-        {interim && (
-          <p
-            style={{
-              fontFamily: "'Gaegu', 'Nanum Pen Script', cursive",
-              fontSize: '17px',
-              lineHeight: `${LINE_HEIGHT}px`,
-              color: INK,
-              opacity: 0.45,
-              paddingLeft: '3.25rem',
-              wordBreak: 'keep-all',
-              overflowWrap: 'anywhere',
-            }}
-          >
-            {interim}
-            <PenLine
-              className="inline-block w-3.5 h-3.5 ml-0.5 align-baseline animate-pulse"
-              style={{ color: INK }}
-            />
-          </p>
-        )}
-        {writing && !interim && lines.length > 0 && (
+        {writing && !interim && paragraphs.length > 0 && (
           <p
             className="animate-pulse select-none"
             style={{
@@ -249,7 +291,7 @@ export const LessonNotebook: React.FC<LessonNotebookProps> = ({
               fontSize: '15px',
               lineHeight: `${LINE_HEIGHT}px`,
               color: PENCIL,
-              paddingLeft: '3.25rem',
+              paddingLeft: BODY_INDENT,
             }}
           >
             ✎ …
@@ -295,7 +337,7 @@ export const LessonNotebook: React.FC<LessonNotebookProps> = ({
               <p
                 key={`${i}-${l.slice(0, 12)}`}
                 style={{
-                  fontFamily: "'Gaegu', 'Nanum Pen Script', cursive",
+                  fontFamily: HAND_FONT,
                   fontSize: '15.5px',
                   lineHeight: '22px',
                   color: INK,

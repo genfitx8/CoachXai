@@ -21,6 +21,7 @@ import {
 import { PermissionDeniedModal } from './PermissionDeniedModal';
 import {
   LessonAudioSession,
+  buildTranscriptText,
   findRecoverableSessions,
   formatClock,
   purgeStaleLessonAudioSessions,
@@ -548,9 +549,10 @@ export const LiveLessonCompanion: React.FC<LiveLessonCompanionProps> = ({
     const notes = session
       .getNotes()
       .filter((n) => n.status === 'done' && n.transcript);
-    const transcriptText = notes
-      .map((n) => `[${formatClock(n.startSec)}] ${n.transcript}`)
-      .join('\n');
+    // 타임스탬프 없이 문단 단위로 이어 붙인다 — 코치가 읽는 것은 시각이
+    // 아니라 대화 흐름이고, 실시간 인식이 한 문장을 여러 조각으로 끊어
+    // 확정하므로 조각을 그대로 나열하면 단어 목록처럼 보인다.
+    const transcriptText = buildTranscriptText(notes);
 
     let summaryText = session.snapshot().liveSummary;
     if (!summaryText && notes.length > 0) {

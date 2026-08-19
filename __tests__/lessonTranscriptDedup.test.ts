@@ -19,7 +19,12 @@ vi.mock('../services/firebase', () => ({
   firebaseService: { isInitialized: () => false },
 }));
 
-import { trimTranscriptOverlap } from '../services/lessonAudioPipeline';
+import {
+  appendTranscriptSegment,
+  buildTranscriptText,
+  groupTranscriptParagraphs,
+  trimTranscriptOverlap,
+} from '../services/lessonAudioPipeline';
 
 describe('trimTranscriptOverlap', () => {
   it('누적형 겹침 체인에서 새로 들린 말만 남긴다 (실제 장애 패턴)', () => {
@@ -76,5 +81,65 @@ describe('trimTranscriptOverlap', () => {
     expect(
       trimTranscriptOverlap('드라이버  슬라이스를', '드라이버 슬라이스를   교정')
     ).toBe('교정');
+  });
+});
+
+describe('groupTranscriptParagraphs / buildTranscriptText', () => {
+  const note = (index: number, startSec: number, transcript: string) => ({
+    index,
+    startSec,
+    transcript,
+  });
+
+  it('가까운 조각들을 한 문단으로 잇는다 — 조각 나열이 아니라 문장', () => {
+    const text = buildTranscriptText([
+      note(0, 20, '드라이버 슬라이스를'),
+      note(1, 24, '교정하는'),
+      note(2, 28, '레슨 좀 할 건데요'),
+    ]);
+    expect(text).toBe('드라이버 슬라이스를 교정하는 레슨 좀 할 건데요');
+  });
+
+  it('타임스탬프를 붙이지 않는다', () => {
+    const text = buildTranscriptText([note(0, 23, '드라이버 슬라이스를 교정할게요')]);
+    expect(text).not.toMatch(/\d+:\d\d/);
+    expect(text).toBe('드라이버 슬라이스를 교정할게요');
+  });
+
+  it('발화 사이가 크게 벌어지면 문단을 끊는다', () => {
+    const text = buildTranscriptText([
+      note(0, 10, '드라이버 슬라이스를 교정할게요'),
+      note(1, 70, '어제 라운딩은 어땠어요'),
+    ]);
+    expect(text).toBe('드라이버 슬라이스를 교정할게요\n어제 라운딩은 어땠어요');
+  });
+
+  it('index 순으로 정렬하고 빈 전사는 버린다', () => {
+    const paragraphs = groupTranscriptParagraphs([
+      note(2, 28, '레슨 좀 할 건데요'),
+      note(0, 20, '드라이버 슬라이스를'),
+      note(1, 24, '   '),
+    ]);
+    expect(paragraphs).toHaveLength(1);
+    expect(paragraphs[0].segments.map((s) => s.text)).toEqual([
+      '드라이버 슬라이스를',
+      '레슨 좀 할 건데요',
+    ]);
+    // 문단 id 는 첫 조각의 노트 index
+    expect(paragraphs[0].id).toBe(0);
+  });
+
+  it('문장부호로 시작하는 조각은 공백 없이 붙인다', () => {
+    expect(appendTranscriptSegment('그립을 짧게', ', 그리고 어깨를')).toBe(
+      '그립을 짧게, 그리고 어깨를'
+    );
+    expect(appendTranscriptSegment('그립을 짧게', '잡으세요')).toBe(
+      '그립을 짧게 잡으세요'
+    );
+    expect(appendTranscriptSegment('', '드라이버')).toBe('드라이버');
+  });
+
+  it('필기가 없으면 빈 문자열', () => {
+    expect(buildTranscriptText([])).toBe('');
   });
 });
