@@ -9,14 +9,16 @@
  * 넘겨 413 으로 죽고, 탭이 죽으면 녹음 전체가 유실됐다. 이 모듈은 그 두
  * 문제를 구조적으로 없앤다:
  *
- *  1. **세그먼트 분할 녹음** — 하나의 MediaStream 에 MediaRecorder 두 개를
- *     붙인다. `archive` 레코더는 타임슬라이스 청크를 IndexedDB 에 계속
- *     흘려 써서(청크 단위 append) 크래시가 나도 마지막 몇 초만 잃는
- *     전체-레슨 아카이브를 만든다. `segment` 레코더는 SEGMENT_TARGET_SEC
- *     마다 정지→재시작해 **독립적으로 디코딩 가능한** 짧은 파일을 만든다.
- *     (한 레코더의 타임슬라이스 청크는 헤더가 첫 청크에만 있어 단독으로는
- *     못 쓰기 때문에 레코더를 둘로 나눈다. 저비트레이트 opus 인코더 두 개
- *     정도는 모바일에서도 무시할 수준의 비용이다.)
+ *  1. **단일 레코더 + 타임슬라이스 분할** — MediaRecorder **하나**를
+ *     SEGMENT_TARGET_SEC 타임슬라이스로 계속 돌린다. 매 청크는 (a) IndexedDB
+ *     에 순서대로 영속화되는 크래시 대비 아카이브이자 (b) 필기용 세그먼트다.
+ *     타임슬라이스 청크는 첫 청크에만 컨테이너 헤더(init segment)가 있어
+ *     단독으로는 디코딩이 안 되므로, 첫 청크에서 헤더를 바이트 스캔으로
+ *     떼어내(webm Cluster / mp4 moof 경계) 이후 청크 앞에 붙여 독립 재생
+ *     가능한 조각을 만든다(MSE 세그먼트 방식). 과거에는 세그먼트용 레코더를
+ *     10초마다 정지→재생성하는 방식을 썼는데, 모바일 브라우저에서 레코더
+ *     재생성이 조용히 실패해 첫 세그먼트 이후 필기가 멈추는 버그가 있었다
+ *     — 이 설계는 레코더를 한 번만 만들므로 그 문제가 원천적으로 없다.
  *
  *  2. **실시간 필기(전사)** — ~10초 세그먼트가 닫히는 즉시 동시성 제한
  *     큐를 통해 `lesson_audio_transcribe` 로 받아쓰기하고, 그 텍스트가
@@ -60,11 +62,9 @@ export const SEGMENT_TARGET_SEC = 10;
  * 쌓여야 의미가 있어 5분에 한 번 전체 필기를 다시 요약한다.
  */
 export const SUMMARY_INTERVAL_SEC = 300;
-/** archive 레코더의 청크 주기 — 크래시 시 최대 유실 폭. */
-export const ARCHIVE_TIMESLICE_MS = 5000;
 /**
  * 음성 위주 콘텐츠에 충분한 비트레이트. 48kbps opus 기준 50분 ≈ 18MB
- * (아카이브), 3분 세그먼트 ≈ 1.1MB → base64 후에도 서버 10mb 한도 안쪽.
+ * (아카이브), 10초 청크 ≈ 60KB → base64 후에도 서버 10mb 한도에 여유.
  */
 export const AUDIO_BITS_PER_SECOND = 48_000;
 /** 세그먼트 분석 동시 실행 한도. */
@@ -267,6 +267,41 @@ export const formatClock = (totalSec: number): string => {
     return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
   }
   return `${m}:${String(s).padStart(2, '0')}`;
+};
+
+/**
+ * 타임슬라이스 첫 청크에서 컨테이너 헤더(init segment)가 끝나는 오프셋을
+ * 찾는다. 이 지점 앞부분을 이후 청크에 접두하면 청크 하나하나가 독립
+ * 디코딩 가능한 파일이 된다(MSE 세그먼트 방식).
+ *
+ * - webm(opus): 첫 Cluster 엘리먼트 ID `1F 43 B6 75` 의 시작 오프셋.
+ * - fMP4(Safari): 첫 `moof` 박스의 시작(= 'moof' 문자열 4바이트 앞).
+ *
+ * 못 찾으면 -1 — 호출부는 헤더 없이 청크를 그대로 쓰는 폴백을 택한다.
+ */
+export const findInitSegmentEnd = (bytes: Uint8Array): number => {
+  for (let i = 0; i + 3 < bytes.length; i++) {
+    if (
+      bytes[i] === 0x1f &&
+      bytes[i + 1] === 0x43 &&
+      bytes[i + 2] === 0xb6 &&
+      bytes[i + 3] === 0x75
+    ) {
+      return i;
+    }
+  }
+  // mp4 박스 헤더는 [size:4]['moof':4] — 'moof' 는 6D 6F 6F 66.
+  for (let i = 4; i + 3 < bytes.length; i++) {
+    if (
+      bytes[i] === 0x6d &&
+      bytes[i + 1] === 0x6f &&
+      bytes[i + 2] === 0x6f &&
+      bytes[i + 3] === 0x66
+    ) {
+      return i - 4;
+    }
+  }
+  return -1;
 };
 
 const toStringArray = (value: unknown, max = 8): string[] => {
@@ -782,15 +817,13 @@ export class LessonAudioSession {
   private liveSummaryUpdating = false;
 
   private stream: MediaStream | null = null;
-  private archiveRecorder: MediaRecorder | null = null;
-  private segmentRecorder: MediaRecorder | null = null;
+  private recorder: MediaRecorder | null = null;
 
   private archiveChunks: Blob[] = [];
   private chunkCount = 0;
   private notes: LessonSegmentNote[] = [];
-  private segmentIndex = 0;
-  private segmentStartSec = 0;
-  private segmentActiveSec = 0;
+  /** 첫 청크에서 떼어낸 컨테이너 헤더 — 이후 청크에 접두해 독립 파일화. */
+  private initSegment: Promise<Blob | null> | null = null;
   private recordedSec = 0;
   private lastSummaryAtSec = 0;
   private paused = false;
@@ -852,33 +885,25 @@ export class LessonAudioSession {
       ...(this.mimeType ? { mimeType: this.mimeType } : {}),
     };
 
-    // archive: 청크를 IDB 로 흘려 써서 크래시 내성을 확보한다.
-    const archive = new MediaRecorder(stream, recorderOpts);
-    archive.ondataavailable = (e) => {
+    // 단일 레코더 + 타임슬라이스: 매 청크가 아카이브(IDB 영속)이자 필기
+    // 세그먼트다. 레코더를 재생성하지 않으므로 모바일에서 재생성이 실패해
+    // 필기가 멈추는 문제가 구조적으로 없다.
+    const recorder = new MediaRecorder(stream, recorderOpts);
+    recorder.ondataavailable = (e) => {
       if (e.data.size === 0) return;
-      this.archiveChunks.push(e.data);
-      const n = this.chunkCount++;
-      void idbPut(BLOB_STORE, chunkKey(this.id, n), e.data)
-        .then(() => this.persistMeta())
-        .catch((err) => log.warn('archive 청크 저장 실패:', err));
+      this.handleChunk(e.data);
     };
-    archive.start(ARCHIVE_TIMESLICE_MS);
-    this.archiveRecorder = archive;
-
-    this.startSegmentRecorder();
+    recorder.start(
+      (this.opts.segmentTargetSec ?? SEGMENT_TARGET_SEC) * 1000
+    );
+    this.recorder = recorder;
     await this.persistMeta();
 
-    // 1초 틱: 녹음 시간 적산 + 세그먼트 회전 판정.
+    // 1초 틱: 녹음 시간 적산 + 요약 노트 주기 판정. (청크 분할은 레코더의
+    // 타임슬라이스가 담당하므로 여기서 할 일이 없다.)
     this.tickTimer = window.setInterval(() => {
       if (this.paused || this.stopped) return;
       this.recordedSec += 1;
-      this.segmentActiveSec += 1;
-      if (
-        this.segmentActiveSec >=
-        (this.opts.segmentTargetSec ?? SEGMENT_TARGET_SEC)
-      ) {
-        this.rotateSegment();
-      }
       // 하단 "요약 노트"는 필기와 별개의 5분 주기 — 매 전사마다 요약을
       // 다시 돌리면 낭비이고, 코치도 5분 단위 정리를 원한다.
       if (
@@ -891,12 +916,61 @@ export class LessonAudioSession {
     }, 1000);
   }
 
+  /**
+   * 타임슬라이스 청크 하나 = 아카이브 조각 + 필기 세그먼트.
+   * 첫 청크에서 컨테이너 헤더를 떼어 두고, 이후 청크는 그 헤더를 접두해
+   * 독립 디코딩 가능한 조각으로 만들어 전사 큐에 넣는다.
+   */
+  private handleChunk(chunk: Blob): void {
+    const index = this.chunkCount++;
+    // 타임슬라이스는 녹음 시간 기준으로 균일하므로(일시정지 중에는 청크도
+    // 멈춘다) 청크 인덱스에서 시각을 유도한다 — 1초 틱과의 발화 순서
+    // 경합으로 타임스탬프가 밀리지 않는다.
+    const target = this.opts.segmentTargetSec ?? SEGMENT_TARGET_SEC;
+    const startSec = index * target;
+    const durationSec = Math.max(1, this.recordedSec - startSec);
+
+    // 크래시 대비 아카이브 영속화 (전체 파일 = 청크 순서대로 concat).
+    this.archiveChunks.push(chunk);
+    void idbPut(BLOB_STORE, chunkKey(this.id, index), chunk)
+      .then(() => this.persistMeta())
+      .catch((err) => log.warn('archive 청크 저장 실패:', err));
+
+    if (index === 0) {
+      // 헤더 추출은 비동기(arrayBuffer) — 이후 청크들이 then 으로 기다린다.
+      this.initSegment = chunk
+        .arrayBuffer()
+        .then((buf) => {
+          const end = findInitSegmentEnd(new Uint8Array(buf));
+          if (end <= 0) {
+            log.warn('init segment 경계를 찾지 못함 — 청크 단독 전사로 폴백');
+            return null;
+          }
+          return chunk.slice(0, end, chunk.type);
+        })
+        .catch(() => null);
+      // 첫 청크는 헤더를 포함한 완결 파일이므로 그대로 전사한다.
+      this.enqueueSegment(index, startSec, durationSec, chunk);
+      return;
+    }
+
+    // 종료 직전의 초단편(<3s) 꼬리는 분석 가치가 없다.
+    if (durationSec < 3 && this.stopped) return;
+
+    const init = this.initSegment ?? Promise.resolve(null);
+    void init.then((header) => {
+      const blob = header
+        ? new Blob([header, chunk], { type: this.mimeType || 'audio/webm' })
+        : chunk;
+      this.enqueueSegment(index, startSec, durationSec, blob);
+    });
+  }
+
   pause(): void {
     if (this.paused || this.stopped) return;
     this.paused = true;
     try {
-      this.archiveRecorder?.pause();
-      this.segmentRecorder?.pause();
+      this.recorder?.pause();
     } catch (err) {
       log.warn('pause 실패:', err);
     }
@@ -906,8 +980,7 @@ export class LessonAudioSession {
     if (!this.paused || this.stopped) return;
     this.paused = false;
     try {
-      this.archiveRecorder?.resume();
-      this.segmentRecorder?.resume();
+      this.recorder?.resume();
     } catch (err) {
       log.warn('resume 실패:', err);
     }
@@ -917,55 +990,12 @@ export class LessonAudioSession {
     return this.paused;
   }
 
-  /**
-   * 세그먼트 레코더를 닫고(완결 파일 생성) 즉시 새로 시작한다.
-   * onstop 은 비동기라 다음 레코더는 바로 띄운다 — 경계에서 수십 ms 겹치거나
-   * 빌 수 있지만 전사 품질에는 영향이 없다.
-   */
-  private rotateSegment(): void {
-    const closing = this.segmentRecorder;
-    this.segmentRecorder = null;
-    if (closing && closing.state !== 'inactive') closing.stop();
-    if (!this.stopped) this.startSegmentRecorder();
-  }
-
-  private startSegmentRecorder(): void {
-    if (!this.stream) return;
-    const startSec = this.recordedSec;
-    this.segmentStartSec = startSec;
-    this.segmentActiveSec = 0;
-    const index = this.segmentIndex++;
-
-    const chunks: Blob[] = [];
-    const recorderOpts: MediaRecorderOptions = {
-      audioBitsPerSecond: AUDIO_BITS_PER_SECOND,
-      ...(this.mimeType ? { mimeType: this.mimeType } : {}),
-    };
-    const rec = new MediaRecorder(this.stream, recorderOpts);
-    rec.ondataavailable = (e) => {
-      if (e.data.size > 0) chunks.push(e.data);
-    };
-    rec.onstop = () => {
-      const durationSec = Math.max(1, this.recordedSec - startSec);
-      const blob = new Blob(chunks, { type: this.mimeType || 'audio/webm' });
-      // 잡음만 있는 초단편(<3s)은 분석 가치가 없다.
-      if (blob.size === 0 || durationSec < 3) return;
-      this.onSegmentClosed(index, startSec, durationSec, blob);
-    };
-    rec.start();
-    this.segmentRecorder = rec;
-  }
-
-  private onSegmentClosed(
+  private enqueueSegment(
     index: number,
     startSec: number,
     durationSec: number,
     blob: Blob
   ): void {
-    void idbPut(BLOB_STORE, segmentKey(this.id, index), blob).catch((err) =>
-      log.warn('세그먼트 저장 실패:', err)
-    );
-
     const note: LessonSegmentNote = {
       index,
       startSec,
@@ -1003,9 +1033,6 @@ export class LessonAudioSession {
           durationSec,
           status: 'done',
         });
-        // 세그먼트 분석 결과는 이미 노트로 영속화되므로 오디오 원본은
-        // 정리해 IDB 사용량을 낮춘다. (전체 아카이브 청크는 유지)
-        void idbDelete(BLOB_STORE, segmentKey(this.id, index)).catch(() => {});
       },
       () => {
         this.updateNote(index, { ...note, status: 'failed' });
@@ -1050,34 +1077,18 @@ export class LessonAudioSession {
       this.tickTimer = null;
     }
 
-    // 마지막 세그먼트 마감 (onstop 이 큐에 분석을 넣는다)
-    const seg = this.segmentRecorder;
-    this.segmentRecorder = null;
-    const segStopped = new Promise<void>((resolve) => {
-      if (!seg || seg.state === 'inactive') {
+    // 레코더 정지 — onstop 직전에 마지막 부분 청크의 dataavailable 이
+    // 먼저 도착하므로, onstop 을 기다리면 꼬리 청크까지 처리된 상태다.
+    const recorder = this.recorder;
+    this.recorder = null;
+    await new Promise<void>((resolve) => {
+      if (!recorder || recorder.state === 'inactive') {
         resolve();
         return;
       }
-      const prev = seg.onstop;
-      seg.onstop = (e) => {
-        prev?.call(seg, e);
-        resolve();
-      };
-      seg.stop();
+      recorder.onstop = () => resolve();
+      recorder.stop();
     });
-
-    const archive = this.archiveRecorder;
-    this.archiveRecorder = null;
-    const archiveStopped = new Promise<void>((resolve) => {
-      if (!archive || archive.state === 'inactive') {
-        resolve();
-        return;
-      }
-      archive.onstop = () => resolve();
-      archive.stop();
-    });
-
-    await Promise.all([segStopped, archiveStopped]);
     await this.persistMeta();
 
     const fullAudioBlob = new Blob(this.archiveChunks, {
@@ -1102,13 +1113,10 @@ export class LessonAudioSession {
     this.stopped = true;
     if (this.tickTimer != null) window.clearInterval(this.tickTimer);
     try {
-      if (this.segmentRecorder && this.segmentRecorder.state !== 'inactive') {
-        this.segmentRecorder.onstop = null;
-        this.segmentRecorder.stop();
-      }
-      if (this.archiveRecorder && this.archiveRecorder.state !== 'inactive') {
-        this.archiveRecorder.onstop = null;
-        this.archiveRecorder.stop();
+      if (this.recorder && this.recorder.state !== 'inactive') {
+        this.recorder.onstop = null;
+        this.recorder.ondataavailable = null;
+        this.recorder.stop();
       }
     } catch {
       // teardown은 best-effort
