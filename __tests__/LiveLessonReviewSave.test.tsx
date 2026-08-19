@@ -51,7 +51,12 @@ const sessionStub = {
   }),
 };
 
-vi.mock('../services/lessonAudioPipeline', () => ({
+// 실제 모듈의 순수 헬퍼(buildTranscriptText·groupTranscriptParagraphs 등)는
+// 그대로 쓰고, 녹음 세션과 네트워크를 타는 것만 스텁으로 갈아 끼운다.
+vi.mock('../services/lessonAudioPipeline', async () => ({
+  ...(await vi.importActual<
+    typeof import('../services/lessonAudioPipeline')
+  >('../services/lessonAudioPipeline')),
   LessonAudioSession: vi.fn(function LessonAudioSessionMock() {
     return sessionStub;
   }),

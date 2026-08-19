@@ -1340,7 +1340,17 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
           };
           const hasMaterial =
             (editedLines?.length ?? 0) > 0 || doneNotes.length > 0;
-          if (hasMaterial) {
+          // 검토 화면에서 코치가 이미 확인·수정하고 저장한 요약이 있으면
+          // 그것이 최종 요약본이다 — 저장할 때 AI 요약을 한 번 더 돌리지
+          // 않는다. 같은 레슨을 두 번 요약할 이유가 없고, 코치가 고친
+          // 문장이 새 리포트로 덮여서도 안 된다.
+          const confirmedSummary = liveSession.editedSummary?.trim();
+          if (confirmedSummary) {
+            liveLessonDetail.summary = confirmedSummary;
+            analysisResult = confirmedSummary;
+          } else if (hasMaterial) {
+            // 검토 요약이 비어 있는 경우(요약 생성 실패·코치가 지움)에만
+            // 필기를 근거로 요약본을 한 번 만든다.
             try {
               setStatusMessage('필기 노트로 레슨 동반 요약본을 작성하고 있습니다...');
               analysisResult = liveSession.editedTranscript
@@ -1350,7 +1360,6 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
                     {
                       studentName: clientName.split('(')[0].trim(),
                       totalDurationSec: liveSession.recordedDurationSec,
-                      coachSummary: liveSession.editedSummary,
                       coachId:
                         userRole === 'COACH' && currentUser && 'id' in currentUser
                           ? currentUser.id
@@ -1365,19 +1374,11 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
                         ? currentUser.id
                         : undefined,
                   });
-              // 요약본은 코치 확인본이 있으면 그것을, 없으면 생성 리포트를.
-              liveLessonDetail.summary =
-                liveSession.editedSummary?.trim() || analysisResult;
+              liveLessonDetail.summary = analysisResult;
             } catch (summaryErr) {
               // 요약 실패해도 필기(transcript)는 저장된다 — 기록 자체를 막지 않는다.
               console.error('Live lesson summary failed', summaryErr);
-              if (liveSession.editedSummary?.trim()) {
-                liveLessonDetail.summary = liveSession.editedSummary.trim();
-                if (!analysisResult) analysisResult = liveSession.editedSummary.trim();
-              }
             }
-          } else if (liveSession.editedSummary?.trim()) {
-            liveLessonDetail.summary = liveSession.editedSummary.trim();
           }
         } catch (collectErr) {
           console.error('Live lesson note collection failed', collectErr);

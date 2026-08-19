@@ -21,10 +21,12 @@ import { NewLessonForm } from '../components/NewLessonForm';
 import { LanguageProvider } from '../components/LanguageContext';
 import { ClientProfile, CoachProfile, Lesson } from '../types';
 import type { CapturedClip } from '../components/LiveLessonCompanion';
+import type { LiveLessonHandoff } from '../services/lessonAudioPipeline';
 import {
   collectSessionNotes,
   discardLessonAudioSession,
   generateLessonSummaryFromNotes,
+  generateLessonSummaryFromTranscript,
 } from '../services/lessonAudioPipeline';
 
 vi.mock('../services/lessonAudioPipeline', () => ({
@@ -64,6 +66,13 @@ vi.mock('../services/lessonAudioPipeline', () => ({
     },
   ]),
   generateLessonSummaryFromNotes: vi.fn(async () => '## 오늘 레슨 요약본'),
+  generateLessonSummaryFromTranscript: vi.fn(async () => '## 재생성된 요약본'),
+  parseReviewedTranscript: (text: string) =>
+    text
+      .split('\n')
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .map((line, i) => ({ startSec: i * 10, text: line })),
   discardLessonAudioSession: vi.fn(async () => {}),
 }));
 
@@ -92,7 +101,7 @@ const makeClip = (): CapturedClip => ({
   capturedAt: Date.now(),
 });
 
-const LIVE_SESSION = {
+const LIVE_SESSION: LiveLessonHandoff = {
   sessionId: 'session_live_1',
   recordedDurationSec: 1800,
   noteCount: 2,
@@ -101,7 +110,7 @@ const LIVE_SESSION = {
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-const renderHandoffForm = () => {
+const renderHandoffForm = (liveSession = LIVE_SESSION) => {
   const onSave = vi.fn();
   const onCancel = vi.fn();
   const onInitialClipsConsumed = vi.fn();
@@ -118,7 +127,7 @@ const renderHandoffForm = () => {
         onCancel={onCancel}
         prefilledClient={CLIENT}
         initialClips={[makeClip()]}
-        initialLiveSession={LIVE_SESSION}
+        initialLiveSession={liveSession}
         onInitialClipsConsumed={onInitialClipsConsumed}
       />
     </LanguageProvider>
@@ -230,5 +239,41 @@ describe('레슨 동반(LIVE_LESSON) 기록 카테고리', () => {
     await waitFor(() => {
       expect(discardLessonAudioSession).toHaveBeenCalledWith('session_live_1');
     });
+  });
+
+  it('검토 화면에서 확인한 요약이 있으면 저장 때 요약을 다시 만들지 않는다', async () => {
+    const { onSave } = renderHandoffForm({
+      ...LIVE_SESSION,
+      editedTranscript: '어드레스에서 그립 압력을 부드럽게\n백스윙 템포 유지',
+      editedSummary: '- 그립 압력 교정\n- 백스윙 템포 일정하게',
+    });
+
+    await waitFor(() => {
+      expect(screen.getAllByText(/레슨 동반 기록/).length).toBeGreaterThan(0);
+    });
+
+    fireEvent.click(
+      screen.getByRole('button', { name: /레슨 등록하기|기록 저장하기|저장/i })
+    );
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalled();
+    });
+
+    // 코치가 이미 확인·수정한 요약이 그대로 최종 요약본이 된다 —
+    // 저장 시점의 재요약 호출은 없다.
+    expect(generateLessonSummaryFromTranscript).not.toHaveBeenCalled();
+    expect(generateLessonSummaryFromNotes).not.toHaveBeenCalled();
+
+    const saved: Lesson = onSave.mock.calls[0][0];
+    expect(saved.liveLessonDetail!.summary).toBe(
+      '- 그립 압력 교정\n- 백스윙 템포 일정하게'
+    );
+    expect(saved.aiAnalysis).toBe('- 그립 압력 교정\n- 백스윙 템포 일정하게');
+    // 필기는 코치 확인본이 그대로 저장된다.
+    expect(saved.liveLessonDetail!.transcript).toEqual([
+      { startSec: 0, text: '어드레스에서 그립 압력을 부드럽게' },
+      { startSec: 10, text: '백스윙 템포 유지' },
+    ]);
   });
 });
