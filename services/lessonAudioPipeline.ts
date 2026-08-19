@@ -1436,6 +1436,35 @@ export const generateLessonSummaryFromNotes = async (
 };
 
 /**
+ * 검토 화면의 필기 전문("[m:ss] 내용" 줄 형식, 코치가 자유 편집 가능)을
+ * 타임스탬프 붙은 라인 배열로 되돌린다. 시각 표기가 없거나 깨진 줄은
+ * 직전 줄의 시각을 물려받는다 — 코치가 중간에 새 줄을 끼워 넣어도
+ * 기록 구조가 무너지지 않게.
+ */
+export const parseReviewedTranscript = (
+  text: string
+): Array<{ startSec: number; text: string }> => {
+  const out: Array<{ startSec: number; text: string }> = [];
+  let lastSec = 0;
+  for (const raw of text.split('\n')) {
+    const line = raw.trim();
+    if (!line) continue;
+    const match = line.match(/^\[(\d+(?::\d{2}){1,2})\]\s*(.*)$/);
+    if (match) {
+      const parts = match[1].split(':').map(Number);
+      lastSec =
+        parts.length === 3
+          ? parts[0] * 3600 + parts[1] * 60 + parts[2]
+          : parts[0] * 60 + parts[1];
+      if (match[2].trim()) out.push({ startSec: lastSec, text: match[2].trim() });
+    } else {
+      out.push({ startSec: lastSec, text: line });
+    }
+  }
+  return out;
+};
+
+/**
  * 코치가 검토 화면에서 확인/수정한 필기 전문으로 최종 리포트 프롬프트를
  * 조립한다. 편집본이 있으면 세션 노트보다 이 텍스트가 우선한다.
  */

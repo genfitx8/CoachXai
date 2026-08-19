@@ -1,11 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { BarChart3, Video, MapPin, Dumbbell, BookOpen, ChevronRight, Sparkles } from 'lucide-react';
+import { BarChart3, Video, MapPin, Dumbbell, BookOpen, ChevronRight, Sparkles, Radio } from 'lucide-react';
 import { ClientProfile, Lesson, StudentContext } from '../types';
 import { useLanguage } from './LanguageContext';
 import { getStudentContext } from '../services/studentContextService';
 import { StudentGrowthOverview } from './StudentGrowthOverview';
 
-type GrowthFilter = 'ALL' | 'SWING' | 'ROUND' | 'PRACTICE' | 'LESSON';
+type GrowthFilter = 'ALL' | 'SWING' | 'ROUND' | 'PRACTICE' | 'LESSON' | 'LIVE_LESSON';
 
 interface GrowthTimelineProps {
   clientProfile: ClientProfile;
@@ -59,6 +59,7 @@ export const GrowthTimeline: React.FC<GrowthTimelineProps> = ({
       const t = l.recordType ?? (l.mediaType === 'video' ? 'PRACTICE' : 'LESSON');
       if (filter === 'SWING') return l.mediaType === 'video';
       if (filter === 'LESSON') return t === 'LESSON';
+      if (filter === 'LIVE_LESSON') return t === 'LIVE_LESSON';
       if (filter === 'PRACTICE') return t === 'PRACTICE';
       if (filter === 'ROUND') return t === 'SCORE';
       return true;
@@ -197,6 +198,7 @@ const STRINGS = {
       ROUND: '라운드',
       PRACTICE: '연습',
       LESSON: '레슨',
+      LIVE_LESSON: '레슨 동반',
     } as Record<GrowthFilter, string>,
   },
   en: {
@@ -211,6 +213,7 @@ const STRINGS = {
       ROUND: 'Round',
       PRACTICE: 'Practice',
       LESSON: 'Lesson',
+      LIVE_LESSON: 'Live lesson',
     } as Record<GrowthFilter, string>,
   },
   ja: {
@@ -225,12 +228,14 @@ const STRINGS = {
       ROUND: 'ラウンド',
       PRACTICE: '練習',
       LESSON: 'レッスン',
+      LIVE_LESSON: 'ライブレッスン',
     } as Record<GrowthFilter, string>,
   },
 } as const;
 
 const iconForLesson = (lesson: Lesson) => {
   const t = lesson.recordType ?? (lesson.mediaType === 'video' ? 'PRACTICE' : 'LESSON');
+  if (t === 'LIVE_LESSON') return <Radio className="w-4 h-4 text-rose-300" />;
   if (lesson.mediaType === 'video') return <Video className="w-4 h-4 text-emerald-300" />;
   if (t === 'SCORE') return <MapPin className="w-4 h-4 text-emerald-300" />;
   if (t === 'PRACTICE') return <Dumbbell className="w-4 h-4 text-cyan-300" />;
@@ -243,6 +248,7 @@ const labelForLesson = (lesson: Lesson, lang: 'ko' | 'en' | 'ja'): string => {
     SCORE: { ko: '라운드', en: 'Round', ja: 'ラウンド' },
     PRACTICE: { ko: '연습', en: 'Practice', ja: '練習' },
     LESSON: { ko: '레슨', en: 'Lesson', ja: 'レッスン' },
+    LIVE_LESSON: { ko: '레슨 동반', en: 'Live lesson', ja: 'ライブレッスン' },
   };
   return table[t]?.[lang] ?? '';
 };

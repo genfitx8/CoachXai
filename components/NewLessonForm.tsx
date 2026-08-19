@@ -41,6 +41,7 @@ import {
   CheckCircle,
   Circle,
   Scissors,
+  Radio,
 } from 'lucide-react';
 import {
   analyzeSwingVideo,
@@ -59,6 +60,7 @@ import {
   GolfCourse,
   LessonPackage,
   VideoEditMetadata,
+  LiveLessonDetail,
 } from '../types';
 import { firebaseService } from '../services/firebase';
 import { storageService } from '../services/storage';
@@ -69,6 +71,7 @@ import {
   discardLessonAudioSession,
   generateLessonSummaryFromNotes,
   generateLessonSummaryFromTranscript,
+  parseReviewedTranscript,
   type LiveLessonHandoff,
 } from '../services/lessonAudioPipeline';
 import {
@@ -127,7 +130,7 @@ interface PendingMedia {
   source?: 'live_lesson';
 }
 
-type RecordType = 'PRACTICE' | 'SCORE' | 'LESSON';
+type RecordType = 'PRACTICE' | 'SCORE' | 'LESSON' | 'LIVE_LESSON';
 
 // Helper to get local YYYY-MM-DD
 const getLocalISODate = () => {
@@ -261,17 +264,27 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
   // their own `p-5` gutter, instead of a bottom-inset utility on the same
   // element overwriting it.
   const bottomNavPadClass = userRole === 'COACH' ? ' above-coach-bottom-nav' : ' pb-safe';
+  // 레슨 동반(3c) 핸드오프로 열렸는가 — 이 경우 기록 유형은 코치가 고르는
+  // 것이 아니라 'LIVE_LESSON'(레슨 동반 기록)으로 고정되고, 필기·요약본이
+  // 함께 저장되는 전용 형태로 남는다.
+  const isLiveLessonHandoff = !!(initialClips?.length || initialLiveSession);
+
   // Wizard State: COACH starts at CLIENT_SELECT, CLIENT starts at TYPE_SELECT
-  // When prefilledClient is provided, skip CLIENT_SELECT and jump to TYPE_SELECT
+  // When prefilledClient is provided, skip CLIENT_SELECT and jump to TYPE_SELECT.
+  // 레슨 동반 핸드오프는 유형이 정해져 있으므로 TYPE_SELECT 를 건너뛴다.
   const [step, setStep] = useState<'CLIENT_SELECT' | 'PACKAGE_SELECT' | 'TYPE_SELECT' | 'FORM'>(
     initialData
       ? 'FORM'
       : userRole === 'COACH' && !prefilledClient
       ? 'CLIENT_SELECT'
+      : isLiveLessonHandoff
+      ? 'FORM'
       : 'TYPE_SELECT'
   );
 
-  const [recordType, setRecordType] = useState<RecordType>('PRACTICE');
+  const [recordType, setRecordType] = useState<RecordType>(
+    isLiveLessonHandoff ? 'LIVE_LESSON' : 'PRACTICE'
+  );
 
   // Media State
   const [mediaItems, setMediaItems] = useState<PendingMedia[]>([]);
@@ -482,6 +495,18 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
     if (initialLiveSession) liveSessionRef.current = initialLiveSession;
   }, [initialLiveSession]);
 
+  // 레슨 동반 핸드오프는 TYPE_SELECT(제목 프리필 지점)를 건너뛰고 바로
+  // FORM 으로 들어오므로 기본 제목을 여기서 채운다. 마운트 시 한 번만.
+  useEffect(() => {
+    if (!isLiveLessonHandoff || initialData) return;
+    setTitle((prev) => {
+      if (prev) return prev;
+      const today = new Date();
+      return `${today.getMonth() + 1}월 ${today.getDate()}일 레슨 동반 기록`;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   useEffect(() => {
     // If Client Mode, auto-fill name and phone
     if (userRole === 'CLIENT' && currentUser) {
@@ -684,11 +709,12 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
     }
 
     setError(null);
-    setRecordType('LESSON');
+    // 레슨 동반 핸드오프로 열린 폼은 유형이 '레슨 동반 기록'으로 고정된다.
+    setRecordType(isLiveLessonHandoff ? 'LIVE_LESSON' : 'LESSON');
 
     const today = new Date();
     const dateStr = `${today.getMonth() + 1}월 ${today.getDate()}일`;
-    setTitle(`${dateStr} 레슨 기록`);
+    setTitle(`${dateStr} ${isLiveLessonHandoff ? '레슨 동반 기록' : '레슨 기록'}`);
 
     // If the selected client has packages, go to PACKAGE_SELECT step first
     const clientId = `${clientName.trim()}_${clientPhone.trim()}`;
@@ -921,6 +947,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
       let typeStr = '기록';
       if (recordType === 'SCORE') typeStr = '스코어';
       else if (recordType === 'LESSON') typeStr = '레슨';
+      else if (recordType === 'LIVE_LESSON') typeStr = '레슨 동반';
       else typeStr = '연습';
 
       if (type === 'audio') typeStr += ' (음성)';
@@ -1339,6 +1366,12 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
     const hasSimpleScore =
       recordType === 'SCORE' && scoreMode === 'SIMPLE' && score !== '';
 
+    // 레슨 동반: 캡처 미디어가 없어도 필기(라이브 세션 또는 기존 기록의
+    // transcript)가 있으면 그 자체로 의미 있는 기록이다.
+    const hasLiveLessonContent =
+      recordType === 'LIVE_LESSON' &&
+      !!(liveSessionRef.current || initialData?.liveLessonDetail);
+
     // Validation for Media
     // In Simple Mode, media or memo is required — except for round records
     // where the user typed a total score directly (score alone is enough).
@@ -1349,6 +1382,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
         mediaItems.length === 0 &&
         !hasMeaningfulMemo &&
         !hasSimpleScore &&
+        !hasLiveLessonContent &&
         !(recordType !== 'SCORE' && hasManualGolfData)
       ) {
         setError(t('new_lesson_media_required'));
@@ -1403,6 +1437,88 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
         ? mediaItems.find((item) => item.type === 'image' && item.file)
         : undefined;
 
+      // ── 레슨 동반(LIVE_LESSON) 전용 저장 형태 ──────────────────────────
+      // 이 카테고리는 음성/사진/영상 원본만 남기는 게 아니라 레슨 내용
+      // 텍스트(필기 노트)와 요약본이 함께 저장되는 것이 핵심이다. 그래서
+      // AI 토글과 무관하게 라이브 세션의 구간 노트를 수거해 transcript 로
+      // 저장하고, 노트가 있으면 요약본까지 항상 생성한다.
+      let liveLessonDetail: LiveLessonDetail | undefined =
+        initialData?.liveLessonDetail;
+      const liveSession = liveSessionRef.current;
+      if (recordType === 'LIVE_LESSON' && liveSession) {
+        try {
+          setStatusMessage('레슨 동반 필기 노트를 수거하고 있습니다...');
+          const liveNotes = await collectSessionNotes(liveSession.sessionId, {
+            waitMs: 30_000,
+          });
+          const doneNotes = liveNotes.filter(
+            (n) => n.status === 'done' && n.transcript
+          );
+          const dedup = (values: string[]) =>
+            Array.from(new Set(values.map((v) => v.trim()).filter(Boolean)));
+          // 코치가 검토 화면에서 확인/수정한 필기 전문이 있으면 그것이
+          // 저장되는 기록의 원본이다 — 코치가 고친 내용이 항상 이긴다.
+          const editedLines = liveSession.editedTranscript
+            ? parseReviewedTranscript(liveSession.editedTranscript)
+            : null;
+          liveLessonDetail = {
+            recordedDurationSec: liveSession.recordedDurationSec,
+            transcript:
+              editedLines && editedLines.length > 0
+                ? editedLines
+                : doneNotes.map((n) => ({
+                    startSec: n.startSec,
+                    text: n.transcript,
+                  })),
+            keyPoints: dedup(doneNotes.flatMap((n) => n.keyPoints)).slice(0, 12),
+            drills: dedup(doneNotes.flatMap((n) => n.drills)).slice(0, 12),
+          };
+          const hasMaterial =
+            (editedLines?.length ?? 0) > 0 || doneNotes.length > 0;
+          if (hasMaterial) {
+            try {
+              setStatusMessage('필기 노트로 레슨 동반 요약본을 작성하고 있습니다...');
+              analysisResult = liveSession.editedTranscript
+                ? await generateLessonSummaryFromTranscript(
+                    liveSession.editedTranscript,
+                    notes,
+                    {
+                      studentName: clientName.split('(')[0].trim(),
+                      totalDurationSec: liveSession.recordedDurationSec,
+                      coachSummary: liveSession.editedSummary,
+                      coachId:
+                        userRole === 'COACH' && currentUser && 'id' in currentUser
+                          ? currentUser.id
+                          : undefined,
+                    }
+                  )
+                : await generateLessonSummaryFromNotes(liveNotes, notes, {
+                    studentName: clientName.split('(')[0].trim(),
+                    totalDurationSec: liveSession.recordedDurationSec,
+                    coachId:
+                      userRole === 'COACH' && currentUser && 'id' in currentUser
+                        ? currentUser.id
+                        : undefined,
+                  });
+              // 요약본은 코치 확인본이 있으면 그것을, 없으면 생성 리포트를.
+              liveLessonDetail.summary =
+                liveSession.editedSummary?.trim() || analysisResult;
+            } catch (summaryErr) {
+              // 요약 실패해도 필기(transcript)는 저장된다 — 기록 자체를 막지 않는다.
+              console.error('Live lesson summary failed', summaryErr);
+              if (liveSession.editedSummary?.trim()) {
+                liveLessonDetail.summary = liveSession.editedSummary.trim();
+                if (!analysisResult) analysisResult = liveSession.editedSummary.trim();
+              }
+            }
+          } else if (liveSession.editedSummary?.trim()) {
+            liveLessonDetail.summary = liveSession.editedSummary.trim();
+          }
+        } catch (collectErr) {
+          console.error('Live lesson note collection failed', collectErr);
+        }
+      }
+
       // Logic for DETAILED Scorecard
       if (recordType === 'SCORE' && scoreMode === 'DETAILED') {
         const totalScore = holeRecords.reduce(
@@ -1442,7 +1558,8 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
         }
       }
       // Logic for SIMPLE Scorecard / Other Modes
-      else if (mainMedia && shouldRunAI && mainMedia.file) {
+      // (레슨 동반은 위 전용 경로가 필기·요약을 이미 처리했으므로 제외)
+      else if (recordType !== 'LIVE_LESSON' && mainMedia && shouldRunAI && mainMedia.file) {
         // Only run AI if there is a NEW file. If editing and no new file, skip (or maybe prompt).
         // For now, if editing and no new file, we keep existing analysis unless explicitly re-triggered which is complex here.
         // Assuming `shouldRunAI` is set fresh, we might re-run if it's a new upload.
@@ -1489,86 +1606,21 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
               }
             }
 
-            // 빠른 경로: 레슨 중 이미 생성된 구간 분석 노트가 있으면
-            // 오디오를 다시 보내지 않고 텍스트 병합으로 리포트를 만든다.
-            // (30–50분 오디오의 base64 재전송은 서버 바디 한도를 넘기고,
-            // 분석도 처음부터 다시 도는 낭비다.)
-            const liveSession = liveSessionRef.current;
-            let mergedFromLiveNotes = false;
-            // 코치가 검토 화면에서 확인/수정한 필기·요약이 있으면 그것이
-            // 최우선 재료다 — 세션 노트 수거를 건너뛰고 편집본으로 리포트를
-            // 만든다.
-            if (liveSession?.editedTranscript) {
-              try {
-                setStatusMessage(
-                  '확인된 필기 내용으로 레슨 리포트를 작성하고 있습니다...'
-                );
-                analysisResult = await generateLessonSummaryFromTranscript(
-                  liveSession.editedTranscript,
-                  promptContext,
-                  {
-                    studentName: clientName.split('(')[0].trim(),
-                    totalDurationSec: liveSession.recordedDurationSec,
-                    coachSummary: liveSession.editedSummary,
-                    coachId:
-                      userRole === 'COACH' && currentUser && 'id' in currentUser
-                        ? currentUser.id
-                        : undefined,
-                  }
-                );
-                mergedFromLiveNotes = true;
-              } catch (mergeErr) {
-                console.error('Edited-transcript merge failed', mergeErr);
-              }
-            }
-            if (liveSession && !mergedFromLiveNotes) {
-              try {
-                setStatusMessage(
-                  '레슨 중 분석된 구간 노트를 수거하고 있습니다...'
-                );
-                const liveNotes = await collectSessionNotes(
-                  liveSession.sessionId,
-                  { waitMs: 30_000 }
-                );
-                if (liveNotes.some((n) => n.status === 'done')) {
-                  setStatusMessage(
-                    '구간 분석 노트로 레슨 리포트를 작성하고 있습니다...'
-                  );
-                  analysisResult = await generateLessonSummaryFromNotes(
-                    liveNotes,
-                    promptContext,
-                    {
-                      studentName: clientName.split('(')[0].trim(),
-                      totalDurationSec: liveSession.recordedDurationSec,
-                      coachId:
-                        userRole === 'COACH' && currentUser && 'id' in currentUser
-                          ? currentUser.id
-                          : undefined,
-                    }
-                  );
-                  mergedFromLiveNotes = true;
-                }
-              } catch (mergeErr) {
-                // 병합 실패는 아래 단발 경로로 자연 폴백한다.
-                console.error('Live-session merge summary failed', mergeErr);
-              }
-            }
-
-            if (!mergedFromLiveNotes) {
-              setStatusMessage(
-                '미디어 자료와 코치님 피드백을 바탕으로 레슨 리포트를 정리하고 있습니다...'
-              );
-              analysisResult = await analyzeSwingVideo(
-                mediaItems
-                  .filter((item) => item.file)
-                  .map((item) => ({
-                    data: item.file!,
-                    mimeType: item.file!.type,
-                  })),
-                promptContext,
-                undefined
-              );
-            }
+            // (레슨 동반 핸드오프의 필기·요약 병합은 위 LIVE_LESSON
+            // 전용 경로가 담당한다 — 여기는 일반 업로드 분석 경로.)
+            setStatusMessage(
+              '미디어 자료와 코치님 피드백을 바탕으로 레슨 리포트를 정리하고 있습니다...'
+            );
+            analysisResult = await analyzeSwingVideo(
+              mediaItems
+                .filter((item) => item.file)
+                .map((item) => ({
+                  data: item.file!,
+                  mimeType: item.file!.type,
+                })),
+              promptContext,
+              undefined
+            );
           }
         } catch (err) {
           console.error('Analysis failed', err);
@@ -1603,6 +1655,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
       if (recordType === 'SCORE')
         tags.push('스코어', '필드기록', courseName || '코스미정');
       else if (recordType === 'LESSON') tags.push('레슨복기', '프로레슨');
+      else if (recordType === 'LIVE_LESSON') tags.push('레슨동반', '라이브레슨');
       else tags.push('자율연습', '스윙기록');
 
       if (club) tags.push(club);
@@ -1662,6 +1715,8 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
           homeworkTitles.length > 0
             ? homeworkTitles
             : initialData?.assignedHomework,
+        // 레슨 동반 전용 자료 — 필기(레슨 내용 텍스트)와 요약본
+        liveLessonDetail,
         // Preserve other fields if editing
         swingSequence: initialData?.swingSequence,
         clientFeedback: initialData?.clientFeedback,
@@ -2105,6 +2160,198 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
             </div>
           </button>
         </div>
+      </div>
+    );
+  }
+
+  // STEP: FORM (레슨 동반 전용)
+  // 레슨 동반 기록은 일반 레슨 기록과 저장 형태가 다르다: 클럽 지정,
+  // 코치 메모, 샷데이터 입력, AI 리포트 토글, 숙제 지정 같은 일반 폼
+  // 항목 없이 — 동반 화면에서 기록된 것(캡처된 음성·사진·영상)만 확인해
+  // 저장한다. 필기(레슨 내용 텍스트)와 요약본은 handleSubmit 의 전용
+  // 경로가 저장 시 자동으로 수거·생성한다.
+  if (step === 'FORM' && recordType === 'LIVE_LESSON') {
+    const liveInfo = liveSessionRef.current;
+    const formatMin = (sec: number) => Math.max(1, Math.round(sec / 60));
+    return (
+      <div className={`fixed inset-0 z-50 bg-[#070b12] text-ink-high flex flex-col overflow-hidden pt-safe${bottomNavPadClass}`}>
+        {/* Header */}
+        <div className="px-5 py-4 flex justify-between items-center flex-shrink-0 bg-rose-900/80 border-b border-rose-800">
+          <h2 className="text-xl font-bold text-white flex items-center gap-2">
+            <Radio className="w-6 h-6" />
+            {initialData ? '레슨 동반 기록 수정' : '레슨 동반 기록'}
+          </h2>
+          <button
+            onClick={onCancel}
+            className="rounded-full p-3 text-white/80 hover:text-white hover:bg-white/[0.04]/10 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="flex-1 flex flex-col overflow-hidden">
+          <div className="flex-1 overflow-y-auto p-5 space-y-5">
+            {/* 안내 — 저장되는 것: 캡처 미디어 + 필기 + 요약본 */}
+            <div className="rounded-xl border border-rose-400/30 bg-rose-500/10 p-3 text-[12.5px] leading-relaxed text-ink-medium">
+              <span className="font-bold text-rose-300">레슨 동반 기록</span> —
+              레슨 중 캡처한 음성·사진·영상과 필기 노트(레슨 내용 텍스트),
+              요약본만 저장됩니다.
+            </div>
+
+            {/* Title */}
+            <div>
+              <label className="block text-sm font-bold text-ink-medium mb-2">
+                제목 <span className="text-red-400">*</span>
+              </label>
+              <input
+                type="text"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="예: 8월 19일 레슨 동반 기록"
+                className="w-full px-4 py-3 border border-line-subtle rounded-xl bg-white/[0.04]/[0.04] text-ink-high placeholder:text-ink-muted focus:ring-2 focus:ring-rose-500 focus:border-rose-500 outline-none transition-all"
+                required
+              />
+            </div>
+
+            {/* 필기·요약 자동 저장 안내 카드 */}
+            <div className="rounded-xl border border-line-subtle bg-white/[0.03] p-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-rose-500/15 border border-rose-400/30 flex items-center justify-center flex-shrink-0">
+                  <Sparkles className="w-5 h-5 text-rose-300" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="text-[14px] font-bold text-ink-high">
+                    필기 노트 · 요약본
+                  </div>
+                  <div className="text-[12px] text-ink-muted">
+                    {liveInfo
+                      ? `녹음 ${formatMin(liveInfo.recordedDurationSec)}분 · 필기 ${liveInfo.noteCount}구간 — 저장하면 필기와 요약본이 자동으로 정리돼 함께 남습니다.`
+                      : initialData?.liveLessonDetail
+                      ? `필기 ${initialData.liveLessonDetail.transcript.length}줄이 저장되어 있습니다.`
+                      : '저장하면 레슨 중 필기와 요약본이 자동으로 정리돼 함께 남습니다.'}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* 캡처된 미디어 — 동반 화면에서 기록된 것만 */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-sm font-bold text-ink-medium">
+                  캡처된 미디어
+                </label>
+                <span className="text-[11px] text-ink-muted">
+                  {mediaItems.length}건
+                </span>
+              </div>
+              {mediaItems.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-line-subtle bg-white/[0.02] py-8 text-center text-[12px] text-ink-muted">
+                  레슨 중 캡처된 미디어가 없어요
+                </div>
+              ) : (
+                <ul className="space-y-2">
+                  {mediaItems.map((item, idx) => (
+                    <li
+                      key={item.id}
+                      className="rounded-xl border border-line-subtle bg-white/[0.03] p-3"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-lg bg-white/[0.04] border border-line-subtle flex items-center justify-center flex-shrink-0">
+                          {item.type === 'audio' ? (
+                            <Mic className="w-5 h-5 text-emerald-300" />
+                          ) : item.type === 'image' ? (
+                            <Camera className="w-5 h-5 text-sky-300" />
+                          ) : (
+                            <Video className="w-5 h-5 text-purple-300" />
+                          )}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="text-[13px] font-bold text-ink-high">
+                            #{idx + 1}{' '}
+                            {item.type === 'audio'
+                              ? '레슨 음성'
+                              : item.type === 'image'
+                              ? '스윙 사진'
+                              : '스윙 영상'}
+                          </div>
+                          {item.duration ? (
+                            <div className="text-[11px] text-ink-muted tabular-nums">
+                              {Math.floor(item.duration / 60)}:
+                              {String(Math.round(item.duration % 60)).padStart(2, '0')}
+                            </div>
+                          ) : null}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={(e) => removeMediaItem(item.id, e)}
+                          className="w-9 h-9 rounded-lg text-ink-muted hover:text-red-400 flex items-center justify-center"
+                          aria-label="삭제"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                      {item.type === 'image' && (
+                        <img
+                          src={item.previewUrl}
+                          alt="스윙 사진"
+                          className="mt-2 rounded-lg w-full max-h-56 object-cover"
+                        />
+                      )}
+                      {item.type === 'video' && (
+                        <video
+                          src={item.previewUrl}
+                          controls
+                          preload="metadata"
+                          className="mt-2 rounded-lg w-full max-h-56 bg-black"
+                        />
+                      )}
+                      {item.type === 'audio' && (
+                        <audio
+                          src={item.previewUrl}
+                          controls
+                          className="mt-2 w-full"
+                        />
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </div>
+
+          {/* Sticky footer */}
+          <div className="flex-shrink-0 px-5 pb-5 pt-4 border-t border-line-subtle bg-[#070b12] space-y-3">
+            {error && (
+              <div className="flex items-center gap-2 text-red-400 bg-red-900/20 border border-red-800/50 p-3 rounded-lg text-sm font-medium">
+                <AlertCircle className="w-5 h-5 flex-shrink-0" />
+                {error}
+              </div>
+            )}
+            {statusMessage && (
+              <div className="flex items-center gap-2 text-emerald-400 bg-emerald-900/20 border border-emerald-800/50 p-3 rounded-lg text-sm font-medium">
+                <div className="w-4 h-4 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin flex-shrink-0" />
+                {statusMessage}
+              </div>
+            )}
+            <div className="flex gap-3">
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={onCancel}
+                className="flex-1 py-3 text-ink-muted"
+              >
+                취소
+              </Button>
+              <Button
+                type="submit"
+                className="flex-[2] py-3 text-lg font-bold"
+                isLoading={isAnalyzing}
+              >
+                {initialData ? '수정 내용 저장' : '레슨 동반 기록 저장'}
+              </Button>
+            </div>
+          </div>
+        </form>
       </div>
     );
   }

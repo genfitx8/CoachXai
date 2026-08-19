@@ -312,6 +312,33 @@ describe('RollingSummaryController', () => {
   });
 });
 
+describe('parseReviewedTranscript', () => {
+  it('"[m:ss] 내용" 줄을 타임스탬프 라인으로 되돌린다 (h:mm:ss 포함)', async () => {
+    const { parseReviewedTranscript } = await import(
+      '../services/lessonAudioPipeline'
+    );
+    expect(
+      parseReviewedTranscript('[0:10] 그립 교정\n[1:02:05] 마무리 정리')
+    ).toEqual([
+      { startSec: 10, text: '그립 교정' },
+      { startSec: 3725, text: '마무리 정리' },
+    ]);
+  });
+
+  it('시각 없는 줄(코치가 끼워 넣은 새 줄)은 직전 시각을 물려받는다', async () => {
+    const { parseReviewedTranscript } = await import(
+      '../services/lessonAudioPipeline'
+    );
+    expect(
+      parseReviewedTranscript('[0:30] 백스윙\n코치가 추가한 메모\n\n[1:00] 임팩트')
+    ).toEqual([
+      { startSec: 30, text: '백스윙' },
+      { startSec: 30, text: '코치가 추가한 메모' },
+      { startSec: 60, text: '임팩트' },
+    ]);
+  });
+});
+
 describe('buildMergePromptFromTranscript', () => {
   it('편집된 필기 전문과 코치 요약을 함께 싣는다', () => {
     const prompt = buildMergePromptFromTranscript(
