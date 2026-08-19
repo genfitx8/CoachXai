@@ -535,6 +535,11 @@ export const LiveLessonCompanion: React.FC<LiveLessonCompanionProps> = ({
         </div>
       </header>
 
+      {/* 스크롤 본문 — 필기 노트가 길어져도 하단 '레슨 종료' CTA 는 푸터로
+          항상 화면에 남고, 이 영역만 위아래로 스크롤된다. min-h-0 이 없으면
+          flex 자식의 기본 min-height:auto 때문에 줄어들지 못해 푸터가
+          화면 밖으로 밀려난다(저장 버튼을 못 누르던 버그의 원인). */}
+      <div className="flex-1 min-h-0 overflow-y-auto">
       {/* 미저장/크래시 녹음 복구 배너 */}
       {recoverable && (
         <section className="px-5 pt-3">
@@ -786,8 +791,8 @@ export const LiveLessonCompanion: React.FC<LiveLessonCompanionProps> = ({
         />
       </section>
 
-      {/* Captured clip list */}
-      <section className="flex-1 min-h-0 px-5 pb-4 overflow-y-auto">
+      {/* Captured clip list — 자체 스크롤 대신 본문 스크롤에 편승한다 */}
+      <section className="px-5 pb-4">
         <div className="flex items-center justify-between mb-3">
           <div className="text-[11px] font-mono uppercase tracking-wider text-ink-muted">
             캡처된 항목
@@ -847,9 +852,10 @@ export const LiveLessonCompanion: React.FC<LiveLessonCompanionProps> = ({
           </ul>
         )}
       </section>
+      </div>
 
-      {/* Finish CTA */}
-      <footer className="sticky bottom-0 z-10 backdrop-blur-md bg-base/85 border-t border-line-subtle px-5 py-3">
+      {/* Finish CTA — 스크롤 본문 밖의 고정 푸터라 항상 보인다 */}
+      <footer className="z-10 backdrop-blur-md bg-base/85 border-t border-line-subtle px-5 py-3 flex-shrink-0">
         <button
           type="button"
           onClick={handleFinish}
