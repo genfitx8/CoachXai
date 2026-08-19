@@ -3,6 +3,8 @@ import pool from '../services/db';
 import { authMiddleware, AuthRole } from '../middleware/auth';
 import { signMediaUrl, reSignIfMedia } from '../services/mediaAccess';
 import { recordEventSafe } from '../services/events';
+import { recordAiFeedbackSafe } from '../services/aiFeedback';
+import { reviewSectionsToText } from '../services/reviewSections';
 
 const router = Router();
 const UUID_PATTERN =
@@ -103,6 +105,15 @@ function mapLesson(row: Record<string, unknown>, viewerRole?: AuthRole) {
     approvedAt: row.approved_at ?? undefined,
     sharedToStudent: row.shared_to_student ?? undefined,
     reviewSections: reviewSections ?? undefined,
+    // AI 초안(§6.1 가치 1위 페어의 왼쪽 항)은 코치의 작업 흔적이다 —
+    // 학생에게는 보내지 않는다. 코치 UI는 "AI 원안 보기"에만 쓴다.
+    reviewSectionsDraft:
+      viewerRole === 'client'
+        ? undefined
+        : (reSignMediaTree(row.review_sections_draft) as
+            | Record<string, unknown>
+            | null) ?? undefined,
+    reviewDraftAt: viewerRole === 'client' ? undefined : row.review_draft_at ?? undefined,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -456,6 +467,7 @@ router.put('/:id', async (req: Request, res: Response) => {
       liveLessonDetail,
       visibility,
       approvalStatus, approvedAt, sharedToStudent, reviewSections,
+      reviewSectionsDraft,
     } = req.body as Record<string, unknown>;
 
     // 레슨 동반 자료(필기·요약본)는 폼이 통째로 되보내지 않는 부분 업데이트
@@ -499,6 +511,33 @@ router.put('/:id', async (req: Request, res: Response) => {
       ? reviewSections ?? existing.review_sections ?? null
       : existing.review_sections ?? null;
 
+    // AI 초안 보존 (docs/DATA_ARCHITECTURE.md §6.1 — 가치 1위 데이터).
+    //
+    // review_sections 한 칸만 두면 코치의 수정본이 AI 원안을 덮어써서
+    // "초안 vs 최종본" 학습쌍이 매 레슨 사라진다. 초안은 **write-once**:
+    // 한 번 적힌 뒤로는 어떤 PUT 도 이 칸을 건드리지 못한다.
+    //
+    // 클라이언트가 드래프터 출력을 명시적으로 보내주면 그것이 정확한
+    // 원안('agent')이다. 아직 보내지 않는 경로를 위해, 초안이 비어 있는
+    // 레슨에 처음 들어온 review_sections 를 초안으로 갈무리하되
+    // 출처를 'first_save' 로 구분해 둔다 — 이쪽은 레거시 필드에서
+    // 파생됐을 수 있어 추출 단계에서 따로 걸러야 한다.
+    const existingDraft = existing.review_sections_draft ?? null;
+    let nextDraft = existingDraft;
+    let nextDraftSource = (existing.review_draft_source as string | null) ?? null;
+    let nextDraftAt = (existing.review_draft_at as number | null) ?? null;
+    if (isCoach && !existingDraft) {
+      if (reviewSectionsDraft) {
+        nextDraft = reviewSectionsDraft;
+        nextDraftSource = 'agent';
+        nextDraftAt = Date.now();
+      } else if (!existing.review_sections && reviewSections) {
+        nextDraft = reviewSections;
+        nextDraftSource = 'first_save';
+        nextDraftAt = Date.now();
+      }
+    }
+
     // Preserve immutable ownership fields — clients cannot reassign a lesson
     // to another student or change its coach linkage via PUT.
     const preservedClientId =
@@ -540,6 +579,9 @@ router.put('/:id', async (req: Request, res: Response) => {
         shared_to_student = $41,
         review_sections = $42,
         live_lesson_detail = $43,
+        review_sections_draft = $44,
+        review_draft_source = $45,
+        review_draft_at = $46,
         updated_at = $37
       WHERE id = $38
       RETURNING *`,
@@ -575,6 +617,9 @@ router.put('/:id', async (req: Request, res: Response) => {
         nextSharedToStudent,
         nextReviewSections ? JSON.stringify(nextReviewSections) : null,
         nextLiveLessonDetail ? JSON.stringify(nextLiveLessonDetail) : null,
+        nextDraft ? JSON.stringify(nextDraft) : null,
+        nextDraftSource,
+        nextDraftAt,
       ]
     );
 
@@ -584,6 +629,30 @@ router.put('/:id', async (req: Request, res: Response) => {
     const wasApproved =
       (existing.approval_status as string | null) !== 'approved' &&
       updated.approval_status === 'approved';
+
+    // 승인 순간이 라벨이 확정되는 지점이다(§6.2 — 행동 자체를 라벨로).
+    // AI 원안과 코치가 실제로 내보낸 최종본이 다르면, 그 두 문서가 그대로
+    // 선호 학습쌍(rejected/chosen)이 된다. 클라이언트가 따로 보고하지
+    // 않아도 서버가 상태 전이에서 알아채므로 구버전 앱에서도 새지 않는다.
+    if (wasApproved) {
+      const draftText = reviewSectionsToText(updated.review_sections_draft);
+      const finalText = reviewSectionsToText(updated.review_sections);
+      if (draftText && finalText && draftText !== finalText) {
+        recordAiFeedbackSafe({
+          userId,
+          userRole,
+          kind: 'edited',
+          target: 'lesson_summary',
+          entityType: 'lesson',
+          entityId: id,
+          originalOutput: draftText,
+          finalOutput: finalText,
+          // 코치가 AI 초안을 고쳐서 승인 = tier 2(암묵적 수용) 신호.
+          tier: 2,
+          note: `draft_source=${(updated.review_draft_source as string | null) ?? 'unknown'}`,
+        });
+      }
+    }
     recordEventSafe({
       actorId: userId,
       actorRole: userRole,

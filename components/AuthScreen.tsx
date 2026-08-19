@@ -5,6 +5,7 @@ import { CoachXMark, CoachXLogo } from './ui';
 import { Input, PasswordInput } from './ui/Input';
 import { Modal } from './ui/Modal';
 import { authService } from '../services/authService';
+import { consentService } from '../services/consentService';
 import {
   Mail,
   Lock,
@@ -106,6 +107,12 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
   const [signupSuccess, setSignupSuccess] = useState(false);
   const [isConsentChecked, setIsConsentChecked] = useState(false);
   const [showConsentModal, setShowConsentModal] = useState(false);
+  /**
+   * AI 학습 활용 동의 — 선택(opt-in). 이 동의가 있어야 프롬프트·응답
+   * 원문이 저장되고 학습 데이터셋에 포함된다(docs/DATA_ARCHITECTURE.md §8.2).
+   * 소급 동의가 불가능하므로 가입 시점에 물어본다.
+   */
+  const [isAiConsentChecked, setIsAiConsentChecked] = useState(false);
 
   const [branchAdminLoginId, setBranchAdminLoginId] = useState('');
   const [branchAdminPassword, setBranchAdminPassword] = useState('');
@@ -382,9 +389,13 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
     try {
       if (activeTab === 'COACH') {
         const coach = await authService.signupCoach(name, email, password, phone);
+        // 토큰이 생긴 직후에 기록한다. 실패해도 가입은 진행 — 동의는
+        // 설정에서 다시 켤 수 있지만 가입 실패는 되돌릴 수 없다.
+        consentService.setAtSignup('ai_training', isAiConsentChecked);
         onLoginSuccess('COACH', coach);
       } else {
         const client = await authService.signupClient(name, email, password, phone);
+        consentService.setAtSignup('ai_training', isAiConsentChecked);
         onLoginSuccess('CLIENT', client);
       }
     } catch (err: any) {
@@ -501,6 +512,28 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
                     {t('consent_view_detail')}
                   </button>
                 </div>
+              </div>
+
+              {/* AI 학습 활용 — 선택 동의. 끄고 가입해도 모든 기능이 그대로
+                  동작하며, 나중에 설정에서 켤 수 있다. */}
+              <div className="rounded-lg border border-line-subtle bg-bg-inset">
+                <button
+                  type="button"
+                  onClick={() => setIsAiConsentChecked((v) => !v)}
+                  className="flex w-full items-start gap-2.5 px-3 pt-3 pb-1 text-left transition-colors"
+                >
+                  {isAiConsentChecked ? (
+                    <CheckSquare className="mt-0.5 h-4 w-4 shrink-0 text-primary-400" />
+                  ) : (
+                    <Square className="mt-0.5 h-4 w-4 shrink-0 text-ink-faint" />
+                  )}
+                  <span className="text-sm leading-snug text-ink-medium">
+                    {t('signup_ai_consent_label')}
+                  </span>
+                </button>
+                <p className="px-3 pb-3 pl-[38px] text-xs leading-relaxed text-ink-faint">
+                  {t('signup_ai_consent_hint')}
+                </p>
               </div>
 
               <Modal

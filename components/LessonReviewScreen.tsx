@@ -4,6 +4,7 @@ import type { ClientProfile, CoachStyleExemplar, Lesson, LessonReviewSections, M
 import { EvidenceDetailModal } from './EvidenceDetailModal';
 import { generateLessonReviewDraft } from '../services/geminiService';
 import { coachStyleService, tierForSource } from '../services/coachStyleService';
+import { aiFeedbackService } from '../services/aiFeedbackService';
 
 /**
  * 8b · 기록 승인 (Lesson Review) — the redesign's most emphatic screen:
@@ -46,6 +47,11 @@ export interface LessonReviewScreenProps {
    */
   onApprove: (patch: {
     reviewSections: LessonReviewSections;
+    /**
+     * AI 원안 — 아직 서버에 초안이 없을 때만 실린다(write-once, §6.1).
+     * 이 값이 있어야 "초안 vs 최종본" 학습쌍이 남는다.
+     */
+    reviewSectionsDraft?: LessonReviewSections;
     approvalStatus: 'approved';
     approvedAt: number;
     sharedToStudent: boolean;
@@ -78,6 +84,22 @@ const emptySections = (): LessonReviewSections => ({
   freeMemo: '',
   editedSections: [],
 });
+
+/**
+ * 섹션을 라벨용 평문으로 편다. 서버가 승인 시점에 만드는 문자열과 같은
+ * 형식이라, 두 경로에서 나온 학습쌍이 한 데이터셋에서 섞여도 된다.
+ * 자유 메모는 AI가 쓴 적 없는 코치 개인 메모라 제외한다.
+ */
+const sectionsToText = (s: LessonReviewSections): string | null => {
+  const blocks: string[] = [];
+  if (s.todayCovered?.trim()) blocks.push(`[오늘 다룬 것]\n${s.todayCovered.trim()}`);
+  if (s.feedback?.trim()) blocks.push(`[피드백]\n${s.feedback.trim()}`);
+  const actions = (s.nextActions ?? []).map((a) => a.trim()).filter(Boolean);
+  if (actions.length > 0) {
+    blocks.push(`[다음 액션]\n${actions.map((a) => `- ${a}`).join('\n')}`);
+  }
+  return blocks.length > 0 ? blocks.join('\n\n') : null;
+};
 
 const mergeSections = (l: Lesson): LessonReviewSections => {
   // Fall back to legacy fields when reviewSections isn't populated yet —
@@ -126,6 +148,13 @@ export const LessonReviewScreen: React.FC<LessonReviewScreenProps> = ({
   const autosaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   /** Prevents double-firing the auto-draft when React re-mounts in strict mode. */
   const autoDraftFiredRef = useRef(false);
+  /**
+   * 이번 세션에서 드래프터가 내놓은 AI 원안 (docs/DATA_ARCHITECTURE.md §6.1).
+   * 코치가 화면에서 고치기 시작하면 `sections` 는 최종본 쪽으로 흘러가므로,
+   * 손대기 전 상태를 따로 붙들어 저장 시 함께 올린다. 서버가 write-once로
+   * 지키므로 이미 초안이 있는 레슨에서는 무시된다.
+   */
+  const aiDraftRef = useRef<LessonReviewSections | null>(null);
 
   const attachments: MediaItem[] = useMemo(
     () => (lesson.additionalMedia ?? []).filter((m) => sections.attachmentIds?.includes(m.id)),
@@ -140,6 +169,17 @@ export const LessonReviewScreen: React.FC<LessonReviewScreenProps> = ({
     });
   };
 
+  /**
+   * 아직 서버에 초안이 없고 이번 세션에서 AI가 뽑은 원안이 있으면 그것을
+   * 함께 올린다. 이미 있으면 빈 객체 — 서버가 write-once 로 막지만
+   * 불필요한 페이로드를 보내지 않는 편이 낫다.
+   */
+  const draftPatch = useCallback((): { reviewSectionsDraft?: LessonReviewSections } => {
+    if (lesson.reviewSectionsDraft) return {};
+    if (!aiDraftRef.current) return {};
+    return { reviewSectionsDraft: aiDraftRef.current };
+  }, [lesson.reviewSectionsDraft]);
+
   const flushSave = useCallback(
     async (next: LessonReviewSections) => {
       setSaving(true);
@@ -147,6 +187,7 @@ export const LessonReviewScreen: React.FC<LessonReviewScreenProps> = ({
       try {
         await onSaveDraft({
           reviewSections: { ...next, updatedAt: Date.now() },
+          ...draftPatch(),
           approvalStatus: approvedInSession ? 'approved' : 'draft',
         });
         setSavedAt(Date.now());
@@ -157,7 +198,7 @@ export const LessonReviewScreen: React.FC<LessonReviewScreenProps> = ({
         setSaving(false);
       }
     },
-    [onSaveDraft, approvedInSession]
+    [onSaveDraft, approvedInSession, draftPatch]
   );
 
   // Debounced autosave — the redesign asks for 10s cadence + a save on
@@ -184,6 +225,9 @@ export const LessonReviewScreen: React.FC<LessonReviewScreenProps> = ({
           clientProfile,
           coachId
         );
+        // 첫 원안만 붙든다. 코치가 재생성을 눌러 두 번째 초안이 나와도
+        // 학습쌍의 왼쪽 항은 "코치가 처음 받아 본 것"이어야 한다.
+        if (!aiDraftRef.current) aiDraftRef.current = draft;
         // Merge: preserve any section the coach has already touched so a
         // regenerate doesn't clobber their edits. `editedSections` on the
         // current state is authoritative.
@@ -216,6 +260,26 @@ export const LessonReviewScreen: React.FC<LessonReviewScreenProps> = ({
     },
     [lesson, pastLessons, clientProfile, coachId]
   );
+
+  /**
+   * 코치가 직접 누른 재생성 = "지금 있는 초안이 마음에 들지 않는다"는
+   * 부정 신호다(§6.2). 버려지는 원안을 라벨로 남겨야 하드 네거티브가
+   * 된다 — 자동 첫 초안(silent)은 신호가 아니므로 제외한다.
+   */
+  const handleRegenerate = useCallback(() => {
+    const discarded = sectionsToText(sections);
+    if (discarded) {
+      aiFeedbackService.record({
+        kind: 'regenerated',
+        target: 'lesson_summary',
+        entityType: 'lesson',
+        entityId: lesson.id,
+        originalOutput: discarded,
+        note: '코치가 검토 화면에서 초안 재생성을 요청',
+      });
+    }
+    void runDraft();
+  }, [runDraft, sections, lesson.id]);
 
   // First-visit auto-draft: when a coach opens a lesson that doesn't yet
   // have reviewSections, kick off a background draft so the review card
@@ -254,6 +318,7 @@ export const LessonReviewScreen: React.FC<LessonReviewScreenProps> = ({
         // network is down the local queue in onSaveDraft picks it up.
         void onSaveDraft({
           reviewSections: { ...sections, updatedAt: Date.now() },
+          ...draftPatch(),
           approvalStatus: approvedInSession ? 'approved' : 'draft',
         });
       }
@@ -325,6 +390,10 @@ export const LessonReviewScreen: React.FC<LessonReviewScreenProps> = ({
       };
       await onApprove({
         reviewSections: cleanedSections,
+        // 승인이 학습쌍이 확정되는 순간이다 — 원안을 여기서 놓치면
+        // 서버는 최종본만 보게 된다. 'edited' 라벨 자체는 서버가 승인
+        // 전이를 보고 남기므로(초안≠최종본), 여기서는 원안만 실어 보낸다.
+        ...draftPatch(),
         approvalStatus: 'approved',
         approvedAt: now,
         sharedToStudent: shareWithStudent,
@@ -344,6 +413,16 @@ export const LessonReviewScreen: React.FC<LessonReviewScreenProps> = ({
     if (!onUndoApproval) return;
     try {
       await onUndoApproval();
+      // 승인 5분 내 취소 = 내보내고 나서야 문제를 발견했다는 뜻.
+      // 품질 저하 감지에 쓰이는 가장 날선 부정 신호다(§6.2).
+      aiFeedbackService.record({
+        kind: 'approval_undo',
+        target: 'lesson_summary',
+        entityType: 'lesson',
+        entityId: lesson.id,
+        originalOutput: sectionsToText(sections) ?? undefined,
+        note: '승인 후 되돌리기 창에서 취소',
+      });
       setApprovedInSession(null);
     } catch (err) {
       setSaveError(err instanceof Error ? err.message : '되돌리기에 실패했습니다');
@@ -394,7 +473,7 @@ export const LessonReviewScreen: React.FC<LessonReviewScreenProps> = ({
           <div className="flex items-center gap-3 flex-wrap">
             <button
               type="button"
-              onClick={() => void runDraft()}
+              onClick={handleRegenerate}
               disabled={drafting}
               className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg border border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/10 disabled:opacity-50 text-[13px] font-bold transition-colors"
             >

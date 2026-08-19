@@ -532,8 +532,8 @@ CREATE INDEX idx_ctx_latest ON student_context_snapshots (student_uuid, created_
 
 | 순위 | 데이터 | 왜 골드인가 | 현재 상태 → 조치 |
 |---|---|---|---|
-| 1 | **AI 초안 vs 코치 최종본 diff** (`lesson_reviews.ai_draft` vs `final_sections`) | 코치가 실제 업무 중 만든 자연 발생 선호 라벨(RLHF/DPO 페어). 돈 주고도 못 사는 데이터 | 초안 미보존 → `lesson_reviews`로 양쪽 보존 |
-| 2 | **CoachStyleExemplar** (starred/edited/dissent, tier 1-3) | 코치별 스타일 파인튜닝·few-shot의 직접 재료. 코치 락인의 기술적 근거 | localStorage → `ai_feedback_events` |
+| 1 | **AI 초안 vs 코치 최종본 diff** (`lessons.review_sections_draft` vs `review_sections`) | 코치가 실제 업무 중 만든 자연 발생 선호 라벨(RLHF/DPO 페어). 돈 주고도 못 사는 데이터 | **완료** — 초안은 write-once로 보존되고, 승인 시 초안≠최종본이면 서버가 `ai_feedback_events`에 `edited` 페어를 남긴다 |
+| 2 | **CoachStyleExemplar** (starred/edited/dissent, tier 1-3) | 코치별 스타일 파인튜닝·few-shot의 직접 재료. 코치 락인의 기술적 근거 | **완료** — 예시 풀은 `coach_style_exemplars`, 판정 행위는 `ai_feedback_events`에 동시 기록 |
 | 3 | **스윙 영상 + 포즈 시퀀스 + 결함 라벨 + 코치 코멘트 4중 페어** | 자체 CV 모델(클럽헤드/결함 감지) 학습 셋. `docs/ml-club-head-model.md`가 요구하는 바로 그 데이터 | 분석 결과 유실 → `swing_analyses` + R2 pose 원본 |
 | 4 | **런치모니터 스크린샷 + OCR 결과 페어** (`shots.source_media_id` + `raw`) | OCR 모델 개선용 지도 데이터가 공짜로 쌓임 | 원본 미연결 → `shots`에 연결 저장 |
 | 5 | **채팅 로그 + 만족 신호** | 대화형 코칭 AI 품질 개선, 이탈 신호 | localStorage 200개 캡 → 서버 정규 테이블 |
@@ -700,8 +700,8 @@ storage.ts 폴백 제거 → apiService에 실제 엔드포인트 연결
 
 ### Phase 4 — 동의·거버넌스·추출 (2주 + 지속 운영)
 
-- [ ] `consents` + 가입/설정 플로우에 동의 UI
-- [ ] `ai_interactions` 원문 저장을 동의 게이트로 활성화
+- [x] `consents` + 가입/설정 플로우에 동의 UI — `consents` 테이블(활성 동의 1행을 부분 유니크 인덱스로 강제), `GET/PUT /api/consents`, 가입 화면의 선택 동의 체크박스, 코치·학생 설정의 `DataConsentSettings` 토글. 철회는 행 삭제가 아니라 `revoked_at` 기록
+- [x] `ai_interactions` 원문 저장을 동의 게이트로 활성화 — `prompt_text`/`response_text`가 `ai_training` 동의가 유효한 사용자에 한해 저장된다(`hasConsent`, 60초 캐시). 시스템 지시문+프롬프트를 함께 담고, 저장 직전 PII 스크럽(`scrubPii`)을 거친다
 - [ ] 가명화 추출 스크립트 + `dataset_exports` 매니페스트
 - [ ] 보안 부채 청산(§8.3), 탈퇴 절차 구현
 - [ ] 데이터 품질 대시보드(§10.3)를 admin에 추가

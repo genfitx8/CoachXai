@@ -12,10 +12,16 @@
  *   retrieval; both may be surfaced together depending on the caller.
  */
 
-import { CoachStyleExemplar, CoachStyleExemplarSource, PromptTarget } from '../types';
+import {
+  AiFeedbackKind,
+  CoachStyleExemplar,
+  CoachStyleExemplarSource,
+  PromptTarget,
+} from '../types';
 import { storageService } from './storage';
 import { firebaseService } from './firebase';
 import { apiService } from './apiService';
+import { aiFeedbackService } from './aiFeedbackService';
 import { createLogger } from '../utils/logger';
 
 const log = createLogger('coachStyle');
@@ -69,6 +75,30 @@ const rankExemplars = (exemplars: CoachStyleExemplar[]): CoachStyleExemplar[] =>
     return b.createdAt - a.createdAt;
   });
 
+/**
+ * 예시 저장의 계기(source)를 라벨 어휘(kind)로 옮긴다.
+ *
+ * `auto`(휴리스틱 자동 선정)는 사람이 낸 신호가 아니므로 라벨로 남기지
+ * 않는다 — 학습쌍에 섞이면 "코치가 그렇게 판단했다"는 근거를 오염시킨다.
+ */
+const feedbackKindForSource = (
+  source: CoachStyleExemplarSource
+): AiFeedbackKind | null => {
+  switch (source) {
+    case 'starred':
+      return 'starred';
+    case 'edited':
+      return 'edited';
+    case 'dissent':
+      return 'dissent';
+    case 'feedback':
+      return 'thumbs_up';
+    case 'auto':
+    default:
+      return null;
+  }
+};
+
 export const coachStyleService = {
   /**
    * Persist a new exemplar (or overwrite one with the same id).
@@ -77,6 +107,23 @@ export const coachStyleService = {
     exemplar: CoachStyleExemplar,
     isFirebaseMode: boolean
   ): Promise<void> => {
+    // 예시 저장은 곧 코치가 품질 판정을 내린 순간이다(§6.2). 저장 경로가
+    // 어디든(서버·Firebase·로컬) 그 판정 자체는 서버 라벨로 남긴다 —
+    // 예시 풀은 "좋다고 한 것"만 담지만, 라벨 표는 원안·부정 신호까지
+    // 담아 학습쌍이 된다.
+    const kind = feedbackKindForSource(exemplar.source);
+    if (kind) {
+      aiFeedbackService.record({
+        kind,
+        target: exemplar.target,
+        entityType: 'coach_style_exemplar',
+        entityId: exemplar.id,
+        finalOutput: exemplar.output,
+        tier: exemplar.tier,
+        note: exemplar.reason,
+      });
+    }
+
     if (isApiMode()) {
       await apiService.saveCoachStyleExemplar(exemplar);
       return;

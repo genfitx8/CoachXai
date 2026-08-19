@@ -17,6 +17,7 @@ import { useLanguage } from './LanguageContext';
 import { analyzeStructuralFactors, inferSwingTypeFromBodyType } from '../services/bodyAnalysisService';
 import { analyzeBodyPhotos } from '../services/geminiService';
 import { NotificationSettings } from './NotificationSettings';
+import { DataConsentSettings } from './DataConsentSettings';
 
 interface ClientProfileSettingsProps {
   profile: ClientProfile;
@@ -937,6 +938,12 @@ export const ClientProfileSettings: React.FC<ClientProfileSettingsProps> = ({ pr
         <h2 className="text-lg font-semibold text-ink-high mb-2">알림 설정</h2>
         <div className="rounded-xl border border-line-subtle bg-white/[0.04] overflow-hidden">
           <NotificationSettings />
+        </div>
+      </div>
+
+      <div className="mt-8 pt-6 border-t border-line-subtle">
+        <div className="rounded-xl border border-line-subtle bg-white/[0.04] overflow-hidden">
+          <DataConsentSettings />
         </div>
       </div>
     </div>
