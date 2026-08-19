@@ -951,9 +951,18 @@ export class LessonAudioSession {
     return new LessonAudioSession({ ...opts, studentName: meta.studentName }, meta);
   }
 
-  async start(stream: MediaStream): Promise<void> {
+  /**
+   * 세션 시작. `stream` 이 null 이면 **notes-only 모드** — 오디오 녹음
+   * 없이 타이머·요약·영속화만 돌고, 필기는 실시간 음성 인식이
+   * addSpeechNote 로 넣는다. 모바일에서 MediaRecorder 와 음성 인식기가
+   * 마이크를 동시에 잡으면 인식이 죽는 기기가 많아, 인식이 가용한 동안은
+   * 마이크를 인식기에 전담시키는 것이 이 모드의 존재 이유다. 인식이
+   * 도중에 죽으면 restartRecording(stream) 으로 녹음+AI 전사 폴백을
+   * 이어붙일 수 있다.
+   */
+  async start(stream: MediaStream | null): Promise<void> {
     registry.set(this.id, this);
-    this.beginRun(stream);
+    if (stream) this.beginRun(stream);
     await this.persistMeta();
 
     // 1초 틱: 녹음 시간 적산 + 요약 노트 주기 판정. (청크 분할은 레코더의

@@ -49,6 +49,8 @@
 	<string>레슨 영상 촬영과 자세 분석을 위해 카메라를 사용합니다.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>레슨 영상 녹음과 음성 코칭 메모를 위해 마이크를 사용합니다.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>레슨 중 코칭 내용을 실시간 필기로 받아 적기 위해 음성 인식을 사용합니다.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>기존 레슨 영상과 이미지를 불러오기 위해 사진 라이브러리에 접근합니다.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
