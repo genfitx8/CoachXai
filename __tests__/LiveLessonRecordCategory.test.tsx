@@ -162,6 +162,27 @@ describe('레슨 동반(LIVE_LESSON) 기록 카테고리', () => {
     });
   });
 
+  it('레슨 동반 폼은 일반 레슨 기록 항목(클럽·코치 메모·AI 리포트 토글) 없이 동반 기록 내용만 보여준다', async () => {
+    renderHandoffForm();
+
+    await waitFor(() => {
+      expect(screen.getAllByText(/레슨 동반 기록/).length).toBeGreaterThan(0);
+    });
+
+    // 일반 레슨 기록 폼의 항목들이 없어야 한다.
+    expect(screen.queryByText('사용 클럽')).toBeNull();
+    expect(screen.queryByText(/코치 메모 \/ 피드백/)).toBeNull();
+    expect(screen.queryByText('레슨 요약 리포트')).toBeNull();
+    expect(screen.queryByText(/스윙 영상 업로드/)).toBeNull();
+
+    // 동반에서 기록된 내용만: 캡처 미디어 목록 + 필기/요약 자동 저장 안내.
+    expect(screen.getByText('캡처된 미디어')).toBeInTheDocument();
+    expect(screen.getByText(/필기 노트 · 요약본/)).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: '레슨 동반 기록 저장' })
+    ).toBeInTheDocument();
+  });
+
   it('저장 시 recordType LIVE_LESSON + 필기/요약본이 liveLessonDetail 로 저장된다', async () => {
     const { onSave } = renderHandoffForm();
 

@@ -1364,6 +1364,12 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
     const hasSimpleScore =
       recordType === 'SCORE' && scoreMode === 'SIMPLE' && score !== '';
 
+    // 레슨 동반: 캡처 미디어가 없어도 필기(라이브 세션 또는 기존 기록의
+    // transcript)가 있으면 그 자체로 의미 있는 기록이다.
+    const hasLiveLessonContent =
+      recordType === 'LIVE_LESSON' &&
+      !!(liveSessionRef.current || initialData?.liveLessonDetail);
+
     // Validation for Media
     // In Simple Mode, media or memo is required — except for round records
     // where the user typed a total score directly (score alone is enough).
@@ -1374,6 +1380,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
         mediaItems.length === 0 &&
         !hasMeaningfulMemo &&
         !hasSimpleScore &&
+        !hasLiveLessonContent &&
         !(recordType !== 'SCORE' && hasManualGolfData)
       ) {
         setError(t('new_lesson_media_required'));
@@ -2127,6 +2134,198 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
     );
   }
 
+  // STEP: FORM (레슨 동반 전용)
+  // 레슨 동반 기록은 일반 레슨 기록과 저장 형태가 다르다: 클럽 지정,
+  // 코치 메모, 샷데이터 입력, AI 리포트 토글, 숙제 지정 같은 일반 폼
+  // 항목 없이 — 동반 화면에서 기록된 것(캡처된 음성·사진·영상)만 확인해
+  // 저장한다. 필기(레슨 내용 텍스트)와 요약본은 handleSubmit 의 전용
+  // 경로가 저장 시 자동으로 수거·생성한다.
+  if (step === 'FORM' && recordType === 'LIVE_LESSON') {
+    const liveInfo = liveSessionRef.current;
+    const formatMin = (sec: number) => Math.max(1, Math.round(sec / 60));
+    return (
+      <div className={`fixed inset-0 z-50 bg-[#070b12] text-ink-high flex flex-col overflow-hidden pt-safe${bottomNavPadClass}`}>
+        {/* Header */}
+        <div className="px-5 py-4 flex justify-between items-center flex-shrink-0 bg-rose-900/80 border-b border-rose-800">
+          <h2 className="text-xl font-bold text-white flex items-center gap-2">
+            <Radio className="w-6 h-6" />
+            {initialData ? '레슨 동반 기록 수정' : '레슨 동반 기록'}
+          </h2>
+          <button
+            onClick={onCancel}
+            className="rounded-full p-3 text-white/80 hover:text-white hover:bg-white/[0.04]/10 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="flex-1 flex flex-col overflow-hidden">
+          <div className="flex-1 overflow-y-auto p-5 space-y-5">
+            {/* 안내 — 저장되는 것: 캡처 미디어 + 필기 + 요약본 */}
+            <div className="rounded-xl border border-rose-400/30 bg-rose-500/10 p-3 text-[12.5px] leading-relaxed text-ink-medium">
+              <span className="font-bold text-rose-300">레슨 동반 기록</span> —
+              레슨 중 캡처한 음성·사진·영상과 필기 노트(레슨 내용 텍스트),
+              요약본만 저장됩니다.
+            </div>
+
+            {/* Title */}
+            <div>
+              <label className="block text-sm font-bold text-ink-medium mb-2">
+                제목 <span className="text-red-400">*</span>
+              </label>
+              <input
+                type="text"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="예: 8월 19일 레슨 동반 기록"
+                className="w-full px-4 py-3 border border-line-subtle rounded-xl bg-white/[0.04]/[0.04] text-ink-high placeholder:text-ink-muted focus:ring-2 focus:ring-rose-500 focus:border-rose-500 outline-none transition-all"
+                required
+              />
+            </div>
+
+            {/* 필기·요약 자동 저장 안내 카드 */}
+            <div className="rounded-xl border border-line-subtle bg-white/[0.03] p-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-rose-500/15 border border-rose-400/30 flex items-center justify-center flex-shrink-0">
+                  <Sparkles className="w-5 h-5 text-rose-300" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="text-[14px] font-bold text-ink-high">
+                    필기 노트 · 요약본
+                  </div>
+                  <div className="text-[12px] text-ink-muted">
+                    {liveInfo
+                      ? `녹음 ${formatMin(liveInfo.recordedDurationSec)}분 · 필기 ${liveInfo.noteCount}구간 — 저장하면 필기와 요약본이 자동으로 정리돼 함께 남습니다.`
+                      : initialData?.liveLessonDetail
+                      ? `필기 ${initialData.liveLessonDetail.transcript.length}줄이 저장되어 있습니다.`
+                      : '저장하면 레슨 중 필기와 요약본이 자동으로 정리돼 함께 남습니다.'}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* 캡처된 미디어 — 동반 화면에서 기록된 것만 */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-sm font-bold text-ink-medium">
+                  캡처된 미디어
+                </label>
+                <span className="text-[11px] text-ink-muted">
+                  {mediaItems.length}건
+                </span>
+              </div>
+              {mediaItems.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-line-subtle bg-white/[0.02] py-8 text-center text-[12px] text-ink-muted">
+                  레슨 중 캡처된 미디어가 없어요
+                </div>
+              ) : (
+                <ul className="space-y-2">
+                  {mediaItems.map((item, idx) => (
+                    <li
+                      key={item.id}
+                      className="rounded-xl border border-line-subtle bg-white/[0.03] p-3"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-lg bg-white/[0.04] border border-line-subtle flex items-center justify-center flex-shrink-0">
+                          {item.type === 'audio' ? (
+                            <Mic className="w-5 h-5 text-emerald-300" />
+                          ) : item.type === 'image' ? (
+                            <Camera className="w-5 h-5 text-sky-300" />
+                          ) : (
+                            <Video className="w-5 h-5 text-purple-300" />
+                          )}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="text-[13px] font-bold text-ink-high">
+                            #{idx + 1}{' '}
+                            {item.type === 'audio'
+                              ? '레슨 음성'
+                              : item.type === 'image'
+                              ? '스윙 사진'
+                              : '스윙 영상'}
+                          </div>
+                          {item.duration ? (
+                            <div className="text-[11px] text-ink-muted tabular-nums">
+                              {Math.floor(item.duration / 60)}:
+                              {String(Math.round(item.duration % 60)).padStart(2, '0')}
+                            </div>
+                          ) : null}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={(e) => removeMediaItem(item.id, e)}
+                          className="w-9 h-9 rounded-lg text-ink-muted hover:text-red-400 flex items-center justify-center"
+                          aria-label="삭제"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                      {item.type === 'image' && (
+                        <img
+                          src={item.previewUrl}
+                          alt="스윙 사진"
+                          className="mt-2 rounded-lg w-full max-h-56 object-cover"
+                        />
+                      )}
+                      {item.type === 'video' && (
+                        <video
+                          src={item.previewUrl}
+                          controls
+                          preload="metadata"
+                          className="mt-2 rounded-lg w-full max-h-56 bg-black"
+                        />
+                      )}
+                      {item.type === 'audio' && (
+                        <audio
+                          src={item.previewUrl}
+                          controls
+                          className="mt-2 w-full"
+                        />
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </div>
+
+          {/* Sticky footer */}
+          <div className="flex-shrink-0 px-5 pb-5 pt-4 border-t border-line-subtle bg-[#070b12] space-y-3">
+            {error && (
+              <div className="flex items-center gap-2 text-red-400 bg-red-900/20 border border-red-800/50 p-3 rounded-lg text-sm font-medium">
+                <AlertCircle className="w-5 h-5 flex-shrink-0" />
+                {error}
+              </div>
+            )}
+            {statusMessage && (
+              <div className="flex items-center gap-2 text-emerald-400 bg-emerald-900/20 border border-emerald-800/50 p-3 rounded-lg text-sm font-medium">
+                <div className="w-4 h-4 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin flex-shrink-0" />
+                {statusMessage}
+              </div>
+            )}
+            <div className="flex gap-3">
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={onCancel}
+                className="flex-1 py-3 text-ink-muted"
+              >
+                취소
+              </Button>
+              <Button
+                type="submit"
+                className="flex-[2] py-3 text-lg font-bold"
+                isLoading={isAnalyzing}
+              >
+                {initialData ? '수정 내용 저장' : '레슨 동반 기록 저장'}
+              </Button>
+            </div>
+          </div>
+        </form>
+      </div>
+    );
+  }
+
   // STEP: FORM
   return (
     <div className={`fixed inset-0 z-50 bg-[#070b12] text-ink-high flex flex-col overflow-hidden pt-safe${bottomNavPadClass}`}>
@@ -2150,8 +2349,6 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
             ? 'bg-blue-900/80 border-b border-blue-800'
             : recordType === 'LESSON'
             ? 'bg-white/[0.05] border-b border-line-subtle'
-            : recordType === 'LIVE_LESSON'
-            ? 'bg-rose-900/80 border-b border-rose-800'
             : 'bg-emerald-900/80 border-b border-emerald-800'
         }`}
       >
@@ -2160,15 +2357,11 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
             <Flag className="w-6 h-6" />
           ) : recordType === 'LESSON' ? (
             <BookOpen className="w-6 h-6" />
-          ) : recordType === 'LIVE_LESSON' ? (
-            <Radio className="w-6 h-6" />
           ) : (
             <Video className="w-6 h-6" />
           )}
           {initialData
             ? '기록 수정'
-            : recordType === 'LIVE_LESSON'
-            ? '레슨 동반 기록'
             : userRole === 'CLIENT'
             ? recordType === 'SCORE'
               ? '라운드 기록'
@@ -2189,14 +2382,6 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
 
       <form onSubmit={handleSubmit} className="flex-1 flex flex-col overflow-hidden">
       <div className="flex-1 overflow-y-auto p-5 space-y-5">
-        {/* 레슨 동반 안내 — 이 기록은 별도 카테고리로, 필기·요약본이 함께 저장된다 */}
-        {recordType === 'LIVE_LESSON' && (
-          <div className="rounded-xl border border-rose-400/30 bg-rose-500/10 p-3 text-[12.5px] leading-relaxed text-ink-medium">
-            <span className="font-bold text-rose-300">레슨 동반 기록</span> —
-            레슨 중 캡처한 음성·사진·영상과 함께, 필기 노트(레슨 내용 텍스트)와
-            요약본이 저장 시 자동으로 함께 남습니다.
-          </div>
-        )}
         {/* Title Input */}
         <div>
           <label className="block text-sm font-bold text-ink-medium mb-2">
