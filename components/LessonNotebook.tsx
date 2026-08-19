@@ -2,7 +2,10 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { PenLine, Sparkles } from 'lucide-react';
 import {
   groupTranscriptParagraphs,
+  SPEAKER_LABELS,
+  type SpeakerRole,
   type TranscriptParagraph,
+  type TranscriptTurn,
 } from '../services/lessonAudioPipeline';
 
 /**
@@ -19,6 +22,15 @@ import {
  *    cursive 폴백으로 떨어진다 — 기능에는 영향 없음.
  *  - 아날로그 디테일: 문단마다 미세하게 다른 기울기, 조각마다 다른 잉크
  *    농도를 id 시드로 결정해(렌더마다 흔들리지 않게) 손맛을 낸다.
+ *
+ * 화자 표기
+ * ---------
+ * 전사에 화자 역할(코치/학생/주변)이 붙어 있으면 문단을 화자 단위로 끊고
+ * 문단 앞에 작은 라벨을 그린다. 라벨이 없는 필기(온디바이스 인식 원문 등)
+ * 는 예전 그대로 라벨 없이 흐른다 — 모른다는 사실을 "미상" 이라고 적는
+ * 것보다 조용히 두는 편이 노트를 덜 어지럽힌다. 레슨과 무관한 "주변"
+ * 발화는 지우지 않고 연한 잉크로 남긴다: 코치가 무엇이 걸러졌는지 볼 수
+ * 있어야 요약이 뭘 버렸는지 신뢰할 수 있다.
  *
  * 문단 조립
  * ---------
@@ -39,6 +51,8 @@ export interface NotebookLine {
   /** 레슨 시작 기준 오프셋(초) — 문단을 끊는 기준(표시하지는 않는다). */
   atSec: number;
   text: string;
+  /** 화자 라벨이 붙은 발화들. 없으면 화자 미상 한 덩어리로 그린다. */
+  turns?: TranscriptTurn[];
 }
 
 interface LessonNotebookProps {
@@ -77,6 +91,10 @@ const RULE = '#dfd4b8';
 const MARGIN_LINE = '#e8a9a0';
 
 const HAND_FONT = "'Gaegu', 'Nanum Pen Script', cursive";
+
+/** 화자별 잉크 — "주변"(레슨 무관)은 연필처럼 흐리게 남긴다. */
+const speakerInk = (speaker: SpeakerRole): string =>
+  speaker === 'other' ? PENCIL : INK;
 
 /** 라인 id 시드 기반 유사난수(0~1) — 렌더마다 흔들리지 않는 손맛용. */
 const seeded = (seed: number, salt: number): number => {
@@ -142,7 +160,7 @@ const HandwrittenParagraph: React.FC<{
       fontFamily: HAND_FONT,
       fontSize: '17px',
       lineHeight: `${LINE_HEIGHT}px`,
-      color: INK,
+      color: speakerInk(paragraph.speaker),
       paddingLeft: BODY_INDENT,
       transform: `rotate(${(seeded(paragraph.id, 1) - 0.5) * 0.5}deg)`,
       transformOrigin: 'left center',
@@ -150,9 +168,20 @@ const HandwrittenParagraph: React.FC<{
       overflowWrap: 'anywhere',
     }}
   >
+    {SPEAKER_LABELS[paragraph.speaker] && (
+      <span
+        style={{
+          fontWeight: 700,
+          opacity: paragraph.speaker === 'other' ? 0.6 : 0.75,
+          marginRight: '0.3rem',
+        }}
+      >
+        {SPEAKER_LABELS[paragraph.speaker]}
+      </span>
+    )}
     {paragraph.segments.map((seg, i) => (
       <HandwrittenSegment
-        key={seg.id}
+        key={seg.key}
         id={seg.id}
         text={seg.text}
         spaced={i > 0}
@@ -198,6 +227,7 @@ export const LessonNotebook: React.FC<LessonNotebookProps> = ({
           index: l.id,
           startSec: l.atSec,
           transcript: l.text,
+          turns: l.turns,
         }))
       ),
     [lines]
@@ -262,7 +292,7 @@ export const LessonNotebook: React.FC<LessonNotebookProps> = ({
           <div className="space-y-1">
             {paragraphs.map((paragraph, i) => (
               <HandwrittenParagraph
-                key={paragraph.id}
+                key={paragraph.key}
                 paragraph={paragraph}
                 shouldAnimate={shouldAnimate}
                 // 잠정 텍스트는 진행 중인(마지막) 문단 끝에 이어 붙인다.
@@ -275,7 +305,7 @@ export const LessonNotebook: React.FC<LessonNotebookProps> = ({
             {/* 필기가 아직 없는데 말이 시작된 경우 — 잠정 텍스트만 그린다 */}
             {paragraphs.length === 0 && interim && (
               <HandwrittenParagraph
-                paragraph={{ id: -1, segments: [] }}
+                paragraph={{ id: -1, key: 'interim', speaker: 'unknown', segments: [] }}
                 shouldAnimate={() => false}
                 trailingInterim={interim}
                 onGrow={scrollToBottom}
