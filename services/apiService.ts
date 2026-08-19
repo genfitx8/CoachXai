@@ -2,6 +2,7 @@ import type {
   Lesson, ClientProfile, CoachProfile, LessonPackage, TrainingProgram, Homework,
   LessonReservation, PointTransaction, Branch, Bay, BayPriceRule, BayReservation,
   BranchAdminAccount, StudentContext, CoachStyleExemplar, WeeklyInsight, HandoverSummary,
+  AiFeedbackEventInput, ConsentPurpose, ConsentRecord,
 } from '../types';
 
 /** Chat thread document as stored server-side; messages stay untyped here so
@@ -708,6 +709,31 @@ export const apiService = {
 
   async deleteCoachStyleExemplar(exemplarId: string): Promise<void> {
     await req('DELETE', `/api/ai-assets/exemplars/${encodeURIComponent(exemplarId)}`);
+  },
+
+  // ── AI 학습 라벨 · 동의 (docs/DATA_ARCHITECTURE.md §6.2, §8.2) ────────────
+
+  /** 코치의 행동(별표·수정·반려·재생성·승인취소)을 라벨로 남긴다. */
+  async recordAiFeedback(event: AiFeedbackEventInput): Promise<void> {
+    await req('POST', '/api/ai-feedback', event);
+  },
+
+  async getConsents(): Promise<{ policyVersion: string; consents: ConsentRecord[] }> {
+    const data = await req<{ policyVersion: string; consents: ConsentRecord[] }>(
+      'GET', '/api/consents'
+    );
+    return { policyVersion: data.policyVersion, consents: data.consents ?? [] };
+  },
+
+  async setConsent(
+    purpose: ConsentPurpose,
+    granted: boolean,
+    source: 'signup' | 'settings'
+  ): Promise<{ policyVersion: string; consents: ConsentRecord[] }> {
+    const data = await req<{ policyVersion: string; consents: ConsentRecord[] }>(
+      'PUT', `/api/consents/${encodeURIComponent(purpose)}`, { granted, source }
+    );
+    return { policyVersion: data.policyVersion, consents: data.consents ?? [] };
   },
 
   async getChatThread(clientId: string): Promise<ChatThreadDoc | null> {

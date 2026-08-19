@@ -263,6 +263,15 @@ export interface Lesson {
    */
   reviewSections?: LessonReviewSections;
   /**
+   * AI가 처음 뽑은 검토 초안 — write-once (docs/DATA_ARCHITECTURE.md §6.1).
+   * `reviewSections`는 코치의 수정으로 계속 덮어써지므로, 그 전 상태를
+   * 여기 남겨 "AI 초안 vs 코치 최종본" 학습쌍을 보존한다. 서버가
+   * 권위를 가지며(한 번 적히면 갱신 불가), 학생에게는 내려가지 않는다.
+   */
+  reviewSectionsDraft?: LessonReviewSections;
+  /** 초안이 처음 저장된 시각(ms). */
+  reviewDraftAt?: number;
+  /**
    * Review workflow state:
    * - 'draft':    agent-authored, not visible to student yet
    * - 'approved': coach explicitly approved; visible to student
@@ -1042,6 +1051,51 @@ export interface CoachStyleExemplar {
   /** Optional metadata: what specifically triggered inclusion. */
   reason?: string;
   createdAt: number;
+}
+
+/**
+ * 코치·학생이 AI 출력에 보인 반응 = 라벨 (docs/DATA_ARCHITECTURE.md §6.2).
+ *
+ * CoachStyleExemplarSource 가 "무엇을 예시로 삼을까"의 어휘라면, 이쪽은
+ * "무슨 일이 일어났나"의 어휘다. 부정 신호(regenerated, approval_undo)는
+ * 예시가 되지 않지만 학습에서는 하드 네거티브로 쓰인다.
+ */
+export type AiFeedbackKind =
+  | 'starred'
+  | 'edited'
+  | 'dissent'
+  | 'regenerated'
+  | 'approval_undo'
+  | 'thumbs_up'
+  | 'thumbs_down';
+
+export interface AiFeedbackEventInput {
+  kind: AiFeedbackKind;
+  target?: PromptTarget;
+  /** 'lesson' | 'weekly_insight' | 'shot_analysis' … */
+  entityType?: string;
+  entityId?: string;
+  /** AI 원안. */
+  originalOutput?: string;
+  /** 사용자가 내보낸 최종본 (edited/dissent 일 때). */
+  finalOutput?: string;
+  tier?: 1 | 2 | 3;
+  note?: string;
+}
+
+/** 목적별 동의 (docs/DATA_ARCHITECTURE.md §8.2). */
+export type ConsentPurpose =
+  | 'service'
+  | 'ai_training'
+  | 'media_branch_share'
+  | 'marketing';
+
+export interface ConsentRecord {
+  purpose: ConsentPurpose;
+  granted: boolean;
+  grantedAt: string | null;
+  revokedAt: string | null;
+  policyVersion: string | null;
 }
 
 export interface PromptTemplate {

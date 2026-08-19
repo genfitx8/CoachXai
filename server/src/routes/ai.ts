@@ -108,16 +108,39 @@ const resolveTemperature = (
   return DEFAULT_TEMPERATURE_BY_FEATURE[feature];
 };
 
-// Best-effort response-text length for telemetry: runtimes return either a
-// string or an object carrying a `text` field; anything else stays unmeasured.
-const extractTextLength = (result: unknown): number | null => {
-  if (typeof result === 'string') return result.length;
+// Best-effort response text for telemetry: runtimes return either a string
+// or an object carrying a `text` field; anything else stays unmeasured.
+const extractText = (result: unknown): string | null => {
+  if (typeof result === 'string') return result;
   if (result && typeof result === 'object') {
     const text = (result as Record<string, unknown>).text;
-    if (typeof text === 'string') return text.length;
+    if (typeof text === 'string') return text;
   }
   return null;
 };
+
+const extractTextLength = (result: unknown): number | null =>
+  extractText(result)?.length ?? null;
+
+/**
+ * 학습 데이터로 쓰려면 모델이 실제로 본 입력 전체가 필요하다 — 시스템
+ * 지시문 없이 프롬프트만 남기면 재현이 안 된다. 두 조각을 한 칸
+ * (`prompt_text`)에 담되 경계를 표시해 나중에 다시 가를 수 있게 한다.
+ * 저장 여부는 ai_training 동의 게이트가 결정한다(aiInteractionLog).
+ */
+const composePromptText = (
+  systemInstruction: string | undefined,
+  prompt: string | undefined
+): string | null => {
+  if (!systemInstruction && !prompt) return null;
+  const parts: string[] = [];
+  if (systemInstruction) parts.push(`[SYSTEM]\n${systemInstruction}`);
+  if (prompt) parts.push(`[USER]\n${prompt}`);
+  return parts.join('\n\n');
+};
+
+/** 스트리밍 응답을 텔레메트리용으로 모을 때의 상한. */
+const MAX_STREAM_CAPTURE_CHARS = 100_000;
 
 const router = Router();
 
@@ -193,6 +216,10 @@ router.post('/invoke', async (req: Request, res: Response) => {
         (runtimeRequest.prompt?.length ?? 0) +
         (runtimeRequest.systemInstruction?.length ?? 0),
       promptHash: hashPrompt(runtimeRequest.prompt),
+      promptText: composePromptText(
+        runtimeRequest.systemInstruction,
+        runtimeRequest.prompt
+      ),
       hasSchema: Boolean(runtimeRequest.responseSchema),
       mediaPartCount: validParts.length,
     };
@@ -229,6 +256,7 @@ router.post('/invoke', async (req: Request, res: Response) => {
         ...telemetry,
         model: result.model ?? telemetry.model,
         responseChars: result.text.length,
+        responseText: result.text,
         latencyMs: Date.now() - startedAt,
         status: 'success',
       });
@@ -242,6 +270,7 @@ router.post('/invoke', async (req: Request, res: Response) => {
       logAiInteraction({
         ...telemetry,
         responseChars: extractTextLength(result),
+        responseText: extractText(result),
         latencyMs: Date.now() - startedAt,
         status: 'success',
       });
@@ -253,6 +282,7 @@ router.post('/invoke', async (req: Request, res: Response) => {
     logAiInteraction({
       ...telemetry,
       responseChars: extractTextLength(result),
+      responseText: extractText(result),
       latencyMs: Date.now() - startedAt,
       status: 'success',
     });
@@ -346,6 +376,10 @@ router.post('/invoke-stream', async (req: Request, res: Response) => {
   const startedAt = Date.now();
   let streamedModel: string | null = runtimeRequest.model ?? null;
   let responseChars = 0;
+  // 스트림 조각을 모아 완성본을 텔레메트리에 넘긴다. 저장 여부는 동의
+  // 게이트가 정하므로 여기서는 상한만 두고 무조건 모은다.
+  const responseParts: string[] = [];
+  let responseTextChars = 0;
   const telemetry: Omit<AiInteractionEntry, 'latencyMs' | 'status'> = {
     userId: req.user?.id ?? null,
     userRole: req.user?.role ?? null,
@@ -388,6 +422,10 @@ router.post('/invoke-stream', async (req: Request, res: Response) => {
         writeEvent('meta', { model: item.model });
       } else {
         responseChars += item.text.length;
+        if (responseTextChars < MAX_STREAM_CAPTURE_CHARS) {
+          responseParts.push(item.text);
+          responseTextChars += item.text.length;
+        }
         writeEvent('chunk', { text: item.text });
       }
     }
@@ -396,6 +434,7 @@ router.post('/invoke-stream', async (req: Request, res: Response) => {
       ...telemetry,
       model: streamedModel,
       responseChars,
+      responseText: responseParts.join('') || null,
       latencyMs: Date.now() - startedAt,
       status: 'success',
     });

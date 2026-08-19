@@ -4,6 +4,7 @@ import { CoachProfile } from '../types';
 import { Button } from './Button';
 import { X, User, Mail, Phone, CreditCard, Calendar, Users, LogOut, Edit2, Save, XCircle, CalendarDays, Bell, Megaphone } from 'lucide-react';
 import { NotificationSettings } from './NotificationSettings';
+import { DataConsentSettings } from './DataConsentSettings';
 import { CoachBroadcastComposer } from './CoachBroadcastComposer';
 
 interface CoachProfileModalProps {
@@ -75,7 +76,10 @@ export const CoachProfileModal: React.FC<CoachProfileModalProps> = ({
           </div>
           <div className="overflow-y-auto">
             {subview === 'notifications' ? (
-              <NotificationSettings />
+              <>
+                <NotificationSettings />
+                <DataConsentSettings />
+              </>
             ) : (
               <CoachBroadcastComposer
                 coachId={coachProfile.id}
