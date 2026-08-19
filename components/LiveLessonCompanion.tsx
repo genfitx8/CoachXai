@@ -102,6 +102,9 @@ const formatElapsed = (totalSec: number): string => {
   return `${m}:${s.toString().padStart(2, '0')}`;
 };
 
+/** 검토 화면을 여는 데 요약 응답을 기다려 줄 최대 시간. */
+const REVIEW_SUMMARY_TIMEOUT_MS = 12_000;
+
 const randomId = () =>
   `clip_${Math.random().toString(36).slice(2, 10)}_${performance.now().toFixed(0)}`;
 
@@ -557,8 +560,16 @@ export const LiveLessonCompanion: React.FC<LiveLessonCompanionProps> = ({
     let summaryText = session.snapshot().liveSummary;
     if (!summaryText && notes.length > 0) {
       // 5분이 안 된 짧은 레슨 — 검토용 요약을 즉석에서 한 번 생성한다.
+      // 네트워크가 늘어져도 검토 화면이 '정리 중'에 갇히면 안 된다(저장
+      // 버튼이 계속 비활성). 요약은 12초까지만 기다리고, 못 받으면 빈 채로
+      // 열어 코치가 직접 적고 저장할 수 있게 한다.
       try {
-        summaryText = await generateRollingLessonSummary(notes, studentName);
+        summaryText = await Promise.race([
+          generateRollingLessonSummary(notes, studentName),
+          new Promise<string>((resolve) =>
+            window.setTimeout(() => resolve(''), REVIEW_SUMMARY_TIMEOUT_MS)
+          ),
+        ]);
       } catch {
         summaryText = '';
       }
@@ -956,9 +967,13 @@ export const LiveLessonCompanion: React.FC<LiveLessonCompanionProps> = ({
         </p>
       </footer>
 
-      {/* 종료 전 검토 — 필기 전문·요약을 확인/수정한 뒤에만 저장으로 간다 */}
+      {/* 종료 전 검토 — 필기 전문·요약을 확인/수정한 뒤에만 저장으로 간다.
+          `coach-nav-clearance` 는 여기서도 필수다: 이 오버레이는 루트의
+          *패딩 박스* 기준으로 inset-0 이라 루트가 잡아 둔 하단 여백을 그대로
+          덮어써, 코치 하단 탭바가 '기록 저장하기' 버튼 위에 그려졌다 —
+          검토 화면에 저장 버튼이 없어 보이던 원인. */}
       {reviewDraft && (
-        <div className="absolute inset-0 z-30 bg-base flex flex-col pt-safe">
+        <div className="absolute inset-0 z-30 bg-base flex flex-col pt-safe coach-nav-clearance">
           <header className="px-5 py-4 border-b border-line-subtle flex-shrink-0">
             <div className="text-[11px] font-mono uppercase tracking-wider text-emerald-300">
               레슨 기록 확인
