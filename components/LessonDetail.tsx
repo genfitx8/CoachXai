@@ -1952,8 +1952,10 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
               </div>
           )}
 
-          {/* Lesson Report Summary Card (Lesson/Practice Mode) */}
-          {showAiAnalysis && lesson.recordType !== 'SCORE' && (
+          {/* Lesson Report Summary Card (Lesson/Practice Mode) — 새 리포트
+              생성 기능은 제거됐고, 기존에 저장된 요약(레슨 동반 요약본 포함)만
+              표시한다. */}
+          {showAiAnalysis && lesson.recordType !== 'SCORE' && lesson.aiAnalysis && (
             <div className="bg-white/[0.04]/[0.04] rounded-xl shadow-sm shadow-black/20 border border-emerald-500/20 overflow-hidden">
                 <div className="bg-emerald-500/[0.08] px-4 py-3 border-b border-emerald-500/20 flex justify-between items-center">
                     <h3 className="font-bold text-emerald-800 flex items-center gap-2">
@@ -1983,26 +1985,9 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
                     </div>
                 </div>
                 <div className="p-5">
-                    {lesson.aiAnalysis ? (
-                        <div className="prose prose-sm prose-emerald text-ink-medium leading-relaxed max-w-none">
-                             <ReactMarkdown>{lesson.aiAnalysis}</ReactMarkdown>
-                        </div>
-                    ) : (
-                        <div className="text-center py-8">
-                            <Sparkles className="w-12 h-12 text-ink-high mx-auto mb-3" />
-                            <p className="text-ink-muted text-sm mb-4">아직 레슨 요약 리포트가 없습니다.</p>
-                            {canEdit && (
-                                <Button 
-                                    onClick={handleGenerateAIAnalysis} 
-                                    isLoading={isGeneratingAnalysis}
-                                    className="bg-emerald-800 hover:bg-emerald-900 text-white shadow-lg shadow-slate-200"
-                                    icon={<Wand2 className="w-4 h-4" />}
-                                >
-                                    레슨 요약 리포트 생성하기
-                                </Button>
-                            )}
-                        </div>
-                    )}
+                    <div className="prose prose-sm prose-emerald text-ink-medium leading-relaxed max-w-none">
+                         <ReactMarkdown>{lesson.aiAnalysis}</ReactMarkdown>
+                    </div>
                 </div>
             </div>
           )}
