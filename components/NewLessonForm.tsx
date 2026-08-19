@@ -70,6 +70,8 @@ import {
   collectSessionNotes,
   discardLessonAudioSession,
   generateLessonSummaryFromNotes,
+  generateLessonSummaryFromTranscript,
+  parseReviewedTranscript,
   type LiveLessonHandoff,
 } from '../services/lessonAudioPipeline';
 import {
@@ -1454,35 +1456,63 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
           );
           const dedup = (values: string[]) =>
             Array.from(new Set(values.map((v) => v.trim()).filter(Boolean)));
+          // 코치가 검토 화면에서 확인/수정한 필기 전문이 있으면 그것이
+          // 저장되는 기록의 원본이다 — 코치가 고친 내용이 항상 이긴다.
+          const editedLines = liveSession.editedTranscript
+            ? parseReviewedTranscript(liveSession.editedTranscript)
+            : null;
           liveLessonDetail = {
             recordedDurationSec: liveSession.recordedDurationSec,
-            transcript: doneNotes.map((n) => ({
-              startSec: n.startSec,
-              text: n.transcript,
-            })),
+            transcript:
+              editedLines && editedLines.length > 0
+                ? editedLines
+                : doneNotes.map((n) => ({
+                    startSec: n.startSec,
+                    text: n.transcript,
+                  })),
             keyPoints: dedup(doneNotes.flatMap((n) => n.keyPoints)).slice(0, 12),
             drills: dedup(doneNotes.flatMap((n) => n.drills)).slice(0, 12),
           };
-          if (doneNotes.length > 0) {
+          const hasMaterial =
+            (editedLines?.length ?? 0) > 0 || doneNotes.length > 0;
+          if (hasMaterial) {
             try {
               setStatusMessage('필기 노트로 레슨 동반 요약본을 작성하고 있습니다...');
-              analysisResult = await generateLessonSummaryFromNotes(
-                liveNotes,
-                notes,
-                {
-                  studentName: clientName.split('(')[0].trim(),
-                  totalDurationSec: liveSession.recordedDurationSec,
-                  coachId:
-                    userRole === 'COACH' && currentUser && 'id' in currentUser
-                      ? currentUser.id
-                      : undefined,
-                }
-              );
-              liveLessonDetail.summary = analysisResult;
+              analysisResult = liveSession.editedTranscript
+                ? await generateLessonSummaryFromTranscript(
+                    liveSession.editedTranscript,
+                    notes,
+                    {
+                      studentName: clientName.split('(')[0].trim(),
+                      totalDurationSec: liveSession.recordedDurationSec,
+                      coachSummary: liveSession.editedSummary,
+                      coachId:
+                        userRole === 'COACH' && currentUser && 'id' in currentUser
+                          ? currentUser.id
+                          : undefined,
+                    }
+                  )
+                : await generateLessonSummaryFromNotes(liveNotes, notes, {
+                    studentName: clientName.split('(')[0].trim(),
+                    totalDurationSec: liveSession.recordedDurationSec,
+                    coachId:
+                      userRole === 'COACH' && currentUser && 'id' in currentUser
+                        ? currentUser.id
+                        : undefined,
+                  });
+              // 요약본은 코치 확인본이 있으면 그것을, 없으면 생성 리포트를.
+              liveLessonDetail.summary =
+                liveSession.editedSummary?.trim() || analysisResult;
             } catch (summaryErr) {
               // 요약 실패해도 필기(transcript)는 저장된다 — 기록 자체를 막지 않는다.
               console.error('Live lesson summary failed', summaryErr);
+              if (liveSession.editedSummary?.trim()) {
+                liveLessonDetail.summary = liveSession.editedSummary.trim();
+                if (!analysisResult) analysisResult = liveSession.editedSummary.trim();
+              }
             }
+          } else if (liveSession.editedSummary?.trim()) {
+            liveLessonDetail.summary = liveSession.editedSummary.trim();
           }
         } catch (collectErr) {
           console.error('Live lesson note collection failed', collectErr);
@@ -1576,7 +1606,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
               }
             }
 
-            // (레슨 동반 핸드오프의 구간 노트 병합 요약은 위 LIVE_LESSON
+            // (레슨 동반 핸드오프의 필기·요약 병합은 위 LIVE_LESSON
             // 전용 경로가 담당한다 — 여기는 일반 업로드 분석 경로.)
             setStatusMessage(
               '미디어 자료와 코치님 피드백을 바탕으로 레슨 리포트를 정리하고 있습니다...'

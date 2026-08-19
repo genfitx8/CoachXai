@@ -33,6 +33,18 @@ interface LessonNotebookProps {
   lines: NotebookLine[];
   /** 전사가 진행 중인가 — 마지막 줄 밑에 펜 대기 표시. */
   writing: boolean;
+  /**
+   * 실시간 음성 인식의 잠정 텍스트 — 말하는 도중 그대로 화면에 적힌다.
+   * 확정되면 lines 로 넘어오므로 잠정 줄은 연한 잉크로 구분한다.
+   */
+  interim?: string;
+  /**
+   * 새로 도착한 확정 줄에 글자 단위 타이핑 애니메이션을 걸지 여부.
+   * 실시간 인식 경로에서는 interim 이 이미 "적히는 중" 을 보여줬으므로
+   * false 로 꺼서 같은 문장이 두 번 적히는 느낌을 없앤다. AI 전사
+   * 폴백(잠정 표시 없음)에서는 true.
+   */
+  animateNewLines?: boolean;
   /** 하단 요약 노트(불릿 텍스트). 빈 문자열이면 안내 문구. */
   summary: string;
   summaryUpdating: boolean;
@@ -128,6 +140,8 @@ const HandwrittenLine: React.FC<{
 export const LessonNotebook: React.FC<LessonNotebookProps> = ({
   lines,
   writing,
+  interim,
+  animateNewLines = true,
   summary,
   summaryUpdating,
 }) => {
@@ -144,7 +158,7 @@ export const LessonNotebook: React.FC<LessonNotebookProps> = ({
     const el = scrollRef.current;
     if (el) el.scrollTop = el.scrollHeight;
   };
-  useEffect(scrollToBottom, [lines.length]);
+  useEffect(scrollToBottom, [lines.length, interim]);
 
   const summaryLines = summary
     .split('\n')
@@ -178,7 +192,7 @@ export const LessonNotebook: React.FC<LessonNotebookProps> = ({
           backgroundClip: 'content-box',
         }}
       >
-        {lines.length === 0 ? (
+        {lines.length === 0 && !interim ? (
           <p
             style={{
               fontFamily: "'Gaegu', 'Nanum Pen Script', cursive",
@@ -189,7 +203,7 @@ export const LessonNotebook: React.FC<LessonNotebookProps> = ({
             }}
           >
             {writing
-              ? '듣고 있어요… 곧 여기에 받아 적을게요'
+              ? '듣고 있어요… 말씀하시면 바로 적을게요'
               : '코칭 멘트가 들리면 여기에 받아 적혀요'}
           </p>
         ) : (
@@ -197,12 +211,37 @@ export const LessonNotebook: React.FC<LessonNotebookProps> = ({
             <HandwrittenLine
               key={line.id}
               line={line}
-              animate={!reducedMotion && !preexistingRef.current!.has(line.id)}
+              animate={
+                animateNewLines &&
+                !reducedMotion &&
+                !preexistingRef.current!.has(line.id)
+              }
               onGrow={scrollToBottom}
             />
           ))
         )}
-        {writing && lines.length > 0 && (
+        {/* 실시간 인식 잠정 텍스트 — 말하는 그 순간 연한 잉크로 적힌다 */}
+        {interim && (
+          <p
+            style={{
+              fontFamily: "'Gaegu', 'Nanum Pen Script', cursive",
+              fontSize: '17px',
+              lineHeight: `${LINE_HEIGHT}px`,
+              color: INK,
+              opacity: 0.45,
+              paddingLeft: '3.25rem',
+              wordBreak: 'keep-all',
+              overflowWrap: 'anywhere',
+            }}
+          >
+            {interim}
+            <PenLine
+              className="inline-block w-3.5 h-3.5 ml-0.5 align-baseline animate-pulse"
+              style={{ color: INK }}
+            />
+          </p>
+        )}
+        {writing && !interim && lines.length > 0 && (
           <p
             className="animate-pulse select-none"
             style={{

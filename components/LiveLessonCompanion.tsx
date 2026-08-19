@@ -30,7 +30,9 @@ import {
   type LiveSessionSnapshot,
   type RecoverableLessonSession,
 } from '../services/lessonAudioPipeline';
+import { generateRollingLessonSummary } from '../services/lessonAudioPipeline';
 import { LessonNotebook } from './LessonNotebook';
+import { useLiveTranscription } from '../hooks/useLiveTranscription';
 
 /**
  * 3c · 레슨 중 동반 (Live Lesson Companion)
@@ -127,9 +129,39 @@ export const LiveLessonCompanion: React.FC<LiveLessonCompanionProps> = ({
   >('idle');
   const [sessionSnapshot, setSessionSnapshot] =
     useState<LiveSessionSnapshot | null>(null);
-  /** ~10초 단위 필기(전사) 노트 — 종이 노트(LessonNotebook)가 이 배열을 그린다. */
+  /** 필기 노트 — 종이 노트(LessonNotebook)가 이 배열을 그린다. */
   const [liveNotes, setLiveNotes] = useState<LessonSegmentNote[]>([]);
   const lessonStreamRef = useRef<MediaStream | null>(null);
+
+  /**
+   * 실시간 받아쓰기: 온디바이스 음성 인식이 말하는 즉시 잠정 텍스트를
+   * 노트에 흘리고, 확정된 발화는 세션의 필기 노트로 들어간다. 미지원/
+   * 실패 기기는 10초 청크 AI 전사 폴백이 이어받는다(세션이 소스 전환).
+   */
+  const transcription = useLiveTranscription({
+    lang: 'ko-KR',
+    onFinal: (text) => lessonSessionRef.current?.addSpeechNote(text),
+  });
+  const speechActive = transcription.supported && !transcription.degraded;
+
+  // 인식이 도중에 죽으면(degraded) 세션을 AI 전사 폴백으로 전환한다.
+  useEffect(() => {
+    if (transcription.degraded) {
+      lessonSessionRef.current?.setTranscriptSource('ai');
+    }
+  }, [transcription.degraded]);
+
+  /**
+   * 종료 전 검토 단계 — 코치가 전체 필기와 요약을 확인·수정한 뒤
+   * "기록 저장하기"를 눌러야 저장 흐름(onFinish)으로 넘어간다.
+   * 열려 있는 동안 세션은 일시정지 상태라 "이어서 녹음"으로 복귀 가능.
+   */
+  const [reviewDraft, setReviewDraft] = useState<{
+    transcriptText: string;
+    summaryText: string;
+    preparing: boolean;
+    saving: boolean;
+  } | null>(null);
 
   // 크래시/미저장 세션 복구 배너 — "이어서 쓰기"로 같은 세션을 재개한다.
   const [recoverable, setRecoverable] = useState<RecoverableLessonSession | null>(
@@ -277,6 +309,10 @@ export const LiveLessonCompanion: React.FC<LiveLessonCompanionProps> = ({
       setSessionSnapshot(session.snapshot());
       setLessonRecState('recording');
       void acquireWakeLock();
+      if (transcription.supported) {
+        session.setTranscriptSource('speech');
+        transcription.start();
+      }
     } catch (e) {
       if (isMediaPermissionError(e) && e.kind === 'denied') {
         setPermissionModalOpen(true);
@@ -292,9 +328,11 @@ export const LiveLessonCompanion: React.FC<LiveLessonCompanionProps> = ({
     if (!session) return;
     if (session.isPaused) {
       session.resume();
+      transcription.resume();
       setLessonRecState('recording');
     } else {
       session.pause();
+      transcription.pause();
       setLessonRecState('paused');
     }
   };
@@ -313,6 +351,7 @@ export const LiveLessonCompanion: React.FC<LiveLessonCompanionProps> = ({
     const session = lessonSessionRef.current;
     if (!session) return null;
     lessonSessionRef.current = null;
+    transcription.stop();
     releaseWakeLock();
     try {
       const result = await session.stop();
@@ -368,6 +407,10 @@ export const LiveLessonCompanion: React.FC<LiveLessonCompanionProps> = ({
       setSessionSnapshot(session.snapshot());
       setLessonRecState('recording');
       void acquireWakeLock();
+      if (transcription.supported) {
+        session.setTranscriptSource('speech');
+        transcription.start();
+      }
     } catch (e) {
       if (isMediaPermissionError(e) && e.kind === 'denied') {
         setPermissionModalOpen(true);
@@ -415,11 +458,74 @@ export const LiveLessonCompanion: React.FC<LiveLessonCompanionProps> = ({
     };
 
   // ─── Finish handoff ──────────────────────────────────────────────────────
+  /**
+   * 레슨 종료: 녹음 세션이 있으면 바로 저장으로 가지 않고 검토 단계를
+   * 연다 — 세션은 일시정지만 하고, 코치가 필기 전문과 요약을 확인·수정한
+   * 뒤 "기록 저장하기"를 눌러야 onFinish 로 넘어간다.
+   */
   const handleFinish = async () => {
-    setLessonRecState((s) => (s === 'idle' ? s : 'finishing'));
+    const session = lessonSessionRef.current;
+    if (!session) {
+      // 전체 녹음 없이 캡처만 한 레슨 — 기존처럼 바로 리뷰 화면으로.
+      onFinish(clips, undefined);
+      return;
+    }
+
+    session.pause();
+    transcription.pause();
+    setLessonRecState('paused');
+    setReviewDraft({ transcriptText: '', summaryText: '', preparing: true, saving: false });
+
+    // 진행 중이던 전사(AI 폴백 경로)를 잠깐 기다렸다가 초안을 만든다.
+    await session.settleAnalyses(10_000);
+    const notes = session
+      .getNotes()
+      .filter((n) => n.status === 'done' && n.transcript);
+    const transcriptText = notes
+      .map((n) => `[${formatClock(n.startSec)}] ${n.transcript}`)
+      .join('\n');
+
+    let summaryText = session.snapshot().liveSummary;
+    if (!summaryText && notes.length > 0) {
+      // 5분이 안 된 짧은 레슨 — 검토용 요약을 즉석에서 한 번 생성한다.
+      try {
+        summaryText = await generateRollingLessonSummary(notes, studentName);
+      } catch {
+        summaryText = '';
+      }
+    }
+
+    setReviewDraft({ transcriptText, summaryText, preparing: false, saving: false });
+  };
+
+  /** 검토 확정: 여기서 비로소 녹음을 완전히 닫고 저장 흐름으로 넘긴다. */
+  const handleConfirmSave = async () => {
+    if (!reviewDraft || reviewDraft.preparing || reviewDraft.saving) return;
+    setReviewDraft({ ...reviewDraft, saving: true });
+    setLessonRecState('finishing');
     const stopped = await stopLessonSession();
     const finalClips = stopped ? [...clips, ...stopped.audioClips] : clips;
-    onFinish(finalClips, stopped?.handoff ?? undefined);
+    onFinish(
+      finalClips,
+      stopped
+        ? {
+            ...stopped.handoff,
+            editedTranscript: reviewDraft.transcriptText.trim() || undefined,
+            editedSummary: reviewDraft.summaryText.trim() || undefined,
+          }
+        : undefined
+    );
+  };
+
+  /** 검토에서 복귀 — 세션·인식을 다시 살려 레슨을 계속한다. */
+  const handleResumeFromReview = () => {
+    setReviewDraft(null);
+    const session = lessonSessionRef.current;
+    if (session) {
+      session.resume();
+      transcription.resume();
+      setLessonRecState('recording');
+    }
   };
 
   /**
@@ -561,7 +667,7 @@ export const LiveLessonCompanion: React.FC<LiveLessonCompanionProps> = ({
               </div>
               <div className="text-[11.5px] text-ink-muted">
                 {lessonRecState === 'idle'
-                  ? '녹음하면 음성이 10초 단위로 노트에 받아 적혀요'
+                  ? '녹음하면 말하는 즉시 노트에 받아 적혀요'
                   : lessonRecState === 'paused'
                   ? '일시정지됨 · 재개하면 이어서 녹음됩니다'
                   : lessonRecState === 'finishing'
@@ -623,7 +729,10 @@ export const LiveLessonCompanion: React.FC<LiveLessonCompanionProps> = ({
                 </div>
               )}
 
-              {/* 종이 노트 — ~10초 단위 받아쓰기 + 하단 형광펜 요약 */}
+              {/* 종이 노트 — 실시간 받아쓰기 + 하단 형광펜 요약.
+                  잠정 텍스트(interim)는 말하는 그 순간 연한 잉크로 적히고,
+                  확정되면 정식 줄이 된다. 인식 미지원 기기는 AI 전사
+                  폴백이라 타이핑 애니메이션으로 받아 적는 느낌을 준다. */}
               <LessonNotebook
                 lines={liveNotes
                   .filter((n) => n.status === 'done' && n.transcript)
@@ -636,6 +745,12 @@ export const LiveLessonCompanion: React.FC<LiveLessonCompanionProps> = ({
                   lessonRecState === 'recording' ||
                   liveNotes.some((n) => n.status === 'analyzing')
                 }
+                interim={
+                  speechActive && lessonRecState === 'recording'
+                    ? transcription.interim
+                    : undefined
+                }
+                animateNewLines={!speechActive}
                 summary={sessionSnapshot?.liveSummary ?? ''}
                 summaryUpdating={sessionSnapshot?.liveSummaryUpdating ?? false}
               />
@@ -760,12 +875,95 @@ export const LiveLessonCompanion: React.FC<LiveLessonCompanionProps> = ({
           className="w-full h-12 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-[#04150e] text-[15px] font-bold flex items-center justify-center gap-2 transition-colors"
         >
           <CheckCircle2 className="w-5 h-5" />
-          레슨 종료 · 요약으로
+          레슨 종료 · 기록 확인
         </button>
         <p className="text-[11px] text-ink-muted text-center mt-2">
-          다음 화면에서 캡처를 확인하고 승인 전 검토할 수 있어요.
+          종료하면 필기 전문과 요약을 확인·수정한 뒤 저장할 수 있어요.
         </p>
       </footer>
+
+      {/* 종료 전 검토 — 필기 전문·요약을 확인/수정한 뒤에만 저장으로 간다 */}
+      {reviewDraft && (
+        <div className="absolute inset-0 z-30 bg-base flex flex-col pt-safe">
+          <header className="px-5 py-4 border-b border-line-subtle flex-shrink-0">
+            <div className="text-[11px] font-mono uppercase tracking-wider text-emerald-300">
+              레슨 기록 확인
+            </div>
+            <div className="text-[15px] font-bold text-ink-high">
+              {studentName} · 저장 전에 필기와 요약을 확인해 주세요
+            </div>
+          </header>
+
+          {reviewDraft.preparing ? (
+            <div className="flex-1 flex flex-col items-center justify-center gap-2">
+              <Sparkles className="w-6 h-6 text-emerald-300 animate-pulse" />
+              <p className="text-[13px] text-ink-muted">
+                마지막 필기를 정리하고 있어요…
+              </p>
+            </div>
+          ) : (
+            <div className="flex-1 min-h-0 overflow-y-auto px-5 py-4 flex flex-col gap-4">
+              <div className="flex-1 min-h-[14rem] flex flex-col">
+                <label className="text-[12px] font-bold text-ink-high mb-1.5">
+                  레슨 필기 전문{' '}
+                  <span className="text-ink-muted font-normal">
+                    · 잘못 적힌 부분은 직접 고칠 수 있어요
+                  </span>
+                </label>
+                <textarea
+                  value={reviewDraft.transcriptText}
+                  onChange={(e) =>
+                    setReviewDraft((d) =>
+                      d ? { ...d, transcriptText: e.target.value } : d
+                    )
+                  }
+                  placeholder="받아 적힌 내용이 없어요. 직접 입력할 수도 있습니다."
+                  className="flex-1 min-h-[12rem] w-full rounded-xl border border-line-subtle bg-white/[0.04] p-3 text-[13.5px] leading-relaxed text-ink-high placeholder:text-ink-muted focus:ring-2 focus:ring-emerald-500 outline-none resize-none"
+                />
+              </div>
+              <div>
+                <label className="text-[12px] font-bold text-ink-high mb-1.5 block">
+                  레슨 요약{' '}
+                  <span className="text-ink-muted font-normal">
+                    · 최종 리포트에 반영됩니다
+                  </span>
+                </label>
+                <textarea
+                  value={reviewDraft.summaryText}
+                  onChange={(e) =>
+                    setReviewDraft((d) =>
+                      d ? { ...d, summaryText: e.target.value } : d
+                    )
+                  }
+                  rows={5}
+                  placeholder="요약이 아직 없어요. 핵심 포인트를 직접 적어도 됩니다."
+                  className="w-full rounded-xl border border-emerald-400/30 bg-emerald-500/[0.06] p-3 text-[13.5px] leading-relaxed text-ink-high placeholder:text-ink-muted focus:ring-2 focus:ring-emerald-500 outline-none resize-none"
+                />
+              </div>
+            </div>
+          )}
+
+          <footer className="flex-shrink-0 border-t border-line-subtle px-5 py-3 flex gap-2 backdrop-blur-md bg-base/85">
+            <button
+              type="button"
+              onClick={handleResumeFromReview}
+              disabled={reviewDraft.saving}
+              className="flex-1 h-12 rounded-xl border border-line-subtle bg-white/[0.04] text-ink-high text-[14px] font-bold flex items-center justify-center gap-1.5"
+            >
+              <Mic className="w-4 h-4" /> 이어서 녹음
+            </button>
+            <button
+              type="button"
+              onClick={handleConfirmSave}
+              disabled={reviewDraft.preparing || reviewDraft.saving}
+              className="flex-[1.6] h-12 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-[#04150e] text-[15px] font-bold flex items-center justify-center gap-2 disabled:opacity-60"
+            >
+              <CheckCircle2 className="w-5 h-5" />
+              {reviewDraft.saving ? '저장 준비 중…' : '기록 저장하기'}
+            </button>
+          </footer>
+        </div>
+      )}
     </div>
   );
 };
