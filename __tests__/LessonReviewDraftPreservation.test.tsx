@@ -32,6 +32,7 @@ vi.mock('../services/aiFeedbackService', () => ({
 
 import { LessonReviewScreen } from '../components/LessonReviewScreen';
 import { aiFeedbackService } from '../services/aiFeedbackService';
+import { generateLessonReviewDraft } from '../services/geminiService';
 
 const baseLesson = (overrides: Partial<Lesson> = {}): Lesson =>
   ({
@@ -121,6 +122,49 @@ describe('LessonReviewScreen · AI 초안 보존', () => {
     const patch = onApprove.mock.calls[0][0] as {
       reviewSectionsDraft?: LessonReviewSections;
     };
+    expect(patch.reviewSectionsDraft).toBeUndefined();
+  });
+
+  /**
+   * 레슨 동반 기록은 레슨 종료 직후 검토 화면에서 코치가 필기·요약을
+   * 확인·수정해 저장한다 — 이미 한 번 요약을 마친 기록이다. 검토 화면이
+   * 첫 방문마다 AI 초안을 새로 뽑으면 같은 레슨을 두 번 요약하는 셈이고,
+   * 코치가 고른 문장이 새 초안에 밀린다.
+   */
+  it('레슨 동반 요약본이 있으면 자동 초안을 돌리지 않고 그 요약을 그대로 채운다', async () => {
+    const onApprove = vi.fn(async () => undefined);
+    renderScreen(
+      baseLesson({
+        recordType: 'LIVE_LESSON',
+        liveLessonDetail: {
+          recordedDurationSec: 1800,
+          transcript: [{ startSec: 0, text: '그립 압력을 부드럽게' }],
+          summary: '- 그립 압력 교정\n- 백스윙 템포 일정하게',
+          drills: ['빈 스윙 10회'],
+        },
+      }),
+      { onApprove }
+    );
+
+    // 코치 확인본이 "오늘 다룬 것"에 그대로 들어온다(줄바꿈은 조회 시 공백으로 정규화된다).
+    await waitFor(() =>
+      expect(screen.getByDisplayValue(/그립 압력 교정.*백스윙 템포 일정하게/)).toBeTruthy()
+    );
+    // 레슨 중 잡힌 드릴이 다음 액션의 출발점이 된다.
+    expect(screen.getByDisplayValue('빈 스윙 10회')).toBeTruthy();
+    // AI 초안은 돌지 않는다.
+    expect(generateLessonReviewDraft).not.toHaveBeenCalled();
+
+    await userEvent.click(screen.getByRole('button', { name: /승인/ }));
+    await waitFor(() => expect(onApprove).toHaveBeenCalled());
+    const patch = onApprove.mock.calls[0][0] as {
+      reviewSections: LessonReviewSections;
+      reviewSectionsDraft?: LessonReviewSections;
+    };
+    expect(patch.reviewSections.todayCovered).toBe(
+      '- 그립 압력 교정\n- 백스윙 템포 일정하게'
+    );
+    // AI 가 쓴 원안이 없으므로 학습쌍도 남기지 않는다.
     expect(patch.reviewSectionsDraft).toBeUndefined();
   });
 

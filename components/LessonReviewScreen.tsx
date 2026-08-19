@@ -101,17 +101,42 @@ const sectionsToText = (s: LessonReviewSections): string | null => {
   return blocks.length > 0 ? blocks.join('\n\n') : null;
 };
 
+/**
+ * 레슨 동반 기록이 이미 들고 있는 "코치 확인 요약본". 코치가 레슨 종료
+ * 직후 검토 화면에서 필기와 함께 확인·수정해 저장한 본문이라, 이 레슨은
+ * 이미 한 번 요약을 마친 상태다 — 검토 화면이 AI 초안을 새로 뽑을 이유가
+ * 없다(같은 레슨을 두 번 요약하는 셈이고, 코치가 고른 문장이 밀린다).
+ */
+const confirmedLiveSummary = (l: Lesson): string =>
+  (l.liveLessonDetail?.summary ?? '').trim();
+
 const mergeSections = (l: Lesson): LessonReviewSections => {
   // Fall back to legacy fields when reviewSections isn't populated yet —
   // this lets a coach open an older lesson in the review UI without
   // seeing empty blocks (agent drafts land in reviewSections directly).
   const base = emptySections();
   if (l.reviewSections) return { ...base, ...l.reviewSections };
+  const attachmentIds = (l.additionalMedia ?? []).map((m) => m.id);
+  const liveSummary = confirmedLiveSummary(l);
+  if (liveSummary) {
+    // 레슨 동반 기록 — 확인된 요약본이 곧 "오늘 다룬 것"이고, 레슨 중
+    // 잡힌 드릴이 다음 액션의 출발점이다. 코치는 여기서 그대로 고치면 된다.
+    const drills = (l.liveLessonDetail?.drills ?? [])
+      .map((d) => d.trim())
+      .filter(Boolean);
+    return {
+      ...base,
+      todayCovered: liveSummary,
+      feedback: l.coachNotes ?? '',
+      nextActions: l.assignedHomework?.length ? l.assignedHomework : drills,
+      attachmentIds,
+    };
+  }
   return {
     ...base,
     feedback: l.coachNotes ?? '',
     nextActions: l.assignedHomework ?? [],
-    attachmentIds: (l.additionalMedia ?? []).map((m) => m.id),
+    attachmentIds,
   };
 };
 
@@ -290,6 +315,11 @@ export const LessonReviewScreen: React.FC<LessonReviewScreenProps> = ({
     if (autoDraftFiredRef.current) return;
     if (!coachId) return;
     if (lesson.reviewSections) return;
+    // 레슨 동반 기록은 종료 직후 검토에서 이미 요약을 마치고 저장됐다.
+    // mergeSections 가 그 확인본으로 섹션을 채워 두므로 빈 화면이 아니고,
+    // 여기서 AI 를 또 돌리면 코치가 확인한 문장이 새 초안으로 밀린다.
+    // 다시 뽑고 싶으면 'AI 초안 생성' 버튼이 그대로 있다.
+    if (confirmedLiveSummary(lesson)) return;
     autoDraftFiredRef.current = true;
     void runDraft({ silent: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
