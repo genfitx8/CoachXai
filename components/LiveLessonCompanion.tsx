@@ -32,7 +32,6 @@ import {
   type LiveSessionSnapshot,
   type RecoverableLessonSession,
 } from '../services/lessonAudioPipeline';
-import { useLiveTranscription } from '../hooks/useLiveTranscription';
 
 /**
  * 3c · 레슨 중 동반 (Live Lesson Companion)
@@ -130,21 +129,16 @@ export const LiveLessonCompanion: React.FC<LiveLessonCompanionProps> = ({
   >('idle');
   const [sessionSnapshot, setSessionSnapshot] =
     useState<LiveSessionSnapshot | null>(null);
-  /** 세그먼트 분석 노트 사본 — 실시간 필기 미지원 기기의 전사 폴백에 쓴다. */
+  /** ~10초 단위 필기(전사) 노트 — 화면의 필기 피드가 이 배열을 그린다. */
   const [liveNotes, setLiveNotes] = useState<LessonSegmentNote[]>([]);
   const lessonStreamRef = useRef<MediaStream | null>(null);
 
-  /**
-   * 실시간 필기: Web Speech API 로 말하는 즉시 화면에 흘린다. 화면 표시
-   * 전용 보조 채널이고, 저장·요약의 원본은 항상 세그먼트 AI 분석이다.
-   * 미지원/실패(degraded) 기기는 세그먼트 전사 폴백으로 표시한다.
-   */
-  const transcription = useLiveTranscription('ko-KR');
+  // 새 필기 줄이 붙을 때마다 노트를 맨 아래로 스크롤한다.
   const transcriptScrollRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
     const el = transcriptScrollRef.current;
     if (el) el.scrollTop = el.scrollHeight;
-  }, [transcription.lines, transcription.interim, liveNotes]);
+  }, [liveNotes]);
 
   // 크래시/미저장 세션 복구 배너
   const [recoverable, setRecoverable] = useState<RecoverableLessonSession | null>(
@@ -291,7 +285,6 @@ export const LiveLessonCompanion: React.FC<LiveLessonCompanionProps> = ({
       await session.start(stream);
       setSessionSnapshot(session.snapshot());
       setLessonRecState('recording');
-      transcription.start();
     } catch (e) {
       if (isMediaPermissionError(e) && e.kind === 'denied') {
         setPermissionModalOpen(true);
@@ -307,11 +300,9 @@ export const LiveLessonCompanion: React.FC<LiveLessonCompanionProps> = ({
     if (!session) return;
     if (session.isPaused) {
       session.resume();
-      transcription.resume();
       setLessonRecState('recording');
     } else {
       session.pause();
-      transcription.pause();
       setLessonRecState('paused');
     }
   };
@@ -330,7 +321,6 @@ export const LiveLessonCompanion: React.FC<LiveLessonCompanionProps> = ({
     const session = lessonSessionRef.current;
     if (!session) return null;
     lessonSessionRef.current = null;
-    transcription.stop();
     try {
       const result = await session.stop();
       lessonStreamRef.current?.getTracks().forEach((t) => t.stop());
@@ -557,12 +547,12 @@ export const LiveLessonCompanion: React.FC<LiveLessonCompanionProps> = ({
               </div>
               <div className="text-[11.5px] text-ink-muted">
                 {lessonRecState === 'idle'
-                  ? '녹음하면 레슨 중에 AI가 구간별로 미리 분석해요'
+                  ? '녹음하면 음성이 10초 단위로 노트에 받아 적혀요'
                   : lessonRecState === 'paused'
                   ? '일시정지됨 · 재개하면 이어서 녹음됩니다'
                   : lessonRecState === 'finishing'
                   ? '녹음을 마무리하고 있어요…'
-                  : '녹음·분석 진행 중 · 자동 저장되고 있어요'}
+                  : '녹음·필기 진행 중 · 자동 저장되고 있어요'}
               </div>
             </div>
             {sessionSnapshot && lessonRecState !== 'idle' && (
@@ -605,22 +595,73 @@ export const LiveLessonCompanion: React.FC<LiveLessonCompanionProps> = ({
                   <div className="flex items-center gap-1.5 text-[11px] text-ink-muted">
                     <Sparkles className="w-3.5 h-3.5 text-emerald-300" />
                     <span className="tabular-nums">
-                      구간 {sessionSnapshot.segmentCount}개 · 분석 완료{' '}
-                      {sessionSnapshot.analyzedCount}개
+                      필기{' '}
+                      {
+                        liveNotes.filter(
+                          (n) => n.status === 'done' && n.transcript
+                        ).length
+                      }
+                      줄
                       {sessionSnapshot.failedCount > 0 &&
-                        ` · 실패 ${sessionSnapshot.failedCount}개`}
+                        ` · 전사 실패 ${sessionSnapshot.failedCount}건`}
                     </span>
                   </div>
                 </div>
               )}
 
-              {/* 실시간 요약 — 세그먼트 분석이 쌓일 때마다 갱신되는 롤링 요약 */}
-              <div className="mt-3 rounded-xl border border-emerald-400/20 bg-emerald-500/[0.05] p-3">
+              {/* 필기 노트 — ~10초 단위로 음성이 텍스트로 받아 적힌다 */}
+              <div className="mt-3 rounded-xl border border-line-subtle bg-white/[0.02] p-3">
+                <div className="flex items-center gap-1.5 mb-1.5">
+                  <Mic
+                    className={`w-3.5 h-3.5 ${
+                      lessonRecState === 'recording'
+                        ? 'text-red-300 animate-pulse'
+                        : 'text-ink-muted'
+                    }`}
+                  />
+                  <span className="text-[11px] font-mono uppercase tracking-wider text-ink-muted">
+                    필기 노트
+                  </span>
+                  {liveNotes.some((n) => n.status === 'analyzing') && (
+                    <span className="text-[10px] text-ink-muted animate-pulse">
+                      적는 중…
+                    </span>
+                  )}
+                </div>
+                <div
+                  ref={transcriptScrollRef}
+                  className="max-h-56 min-h-[6rem] overflow-y-auto space-y-1.5 pr-1"
+                >
+                  {liveNotes.filter((n) => n.status === 'done' && n.transcript)
+                    .length === 0 && (
+                    <p className="text-[12px] text-ink-muted">
+                      코칭 멘트가 들리면 약 10초 단위로 여기에 받아 적혀요
+                    </p>
+                  )}
+                  {liveNotes
+                    .filter((n) => n.status === 'done' && n.transcript)
+                    .map((n) => (
+                      <p
+                        key={n.index}
+                        className="text-[13px] leading-snug text-ink-high"
+                      >
+                        <span className="text-[10.5px] font-mono text-ink-muted mr-1.5 tabular-nums">
+                          {formatClock(n.startSec)}
+                        </span>
+                        {n.transcript}
+                      </p>
+                    ))}
+                </div>
+              </div>
+
+              {/* 요약 노트 — 5분마다 지금까지의 필기를 다시 요약 */}
+              <div className="mt-2 rounded-xl border border-emerald-400/20 bg-emerald-500/[0.05] p-3">
                 <div className="flex items-center gap-1.5 mb-1.5">
                   <Sparkles className="w-3.5 h-3.5 text-emerald-300" />
                   <span className="text-[11px] font-mono uppercase tracking-wider text-emerald-300">
-                    실시간 요약
+                    요약 노트
                   </span>
+                  <span className="text-[10px] text-ink-muted">5분마다 갱신</span>
                   {sessionSnapshot?.liveSummaryUpdating && (
                     <span className="text-[10px] text-ink-muted animate-pulse">
                       갱신 중…
@@ -634,86 +675,19 @@ export const LiveLessonCompanion: React.FC<LiveLessonCompanionProps> = ({
                       .map((line) => line.trim())
                       .filter(Boolean)
                       .map((line, i) => (
-                        <p key={`${i}-${line.slice(0, 16)}`} className="text-[12.5px] leading-snug text-ink-high">
+                        <p
+                          key={`${i}-${line.slice(0, 16)}`}
+                          className="text-[12.5px] leading-snug text-ink-high"
+                        >
                           {line}
                         </p>
                       ))}
                   </div>
                 ) : (
                   <p className="text-[12px] text-ink-muted">
-                    첫 구간 분석이 끝나면 여기에 요약이 표시됩니다 (약 1분)
+                    필기가 5분쯤 쌓이면 여기에 요약이 정리됩니다
                   </p>
                 )}
-              </div>
-
-              {/* 실시간 필기 — 온디바이스 음성 인식 즉시 표시, 미지원 시 AI 전사 폴백 */}
-              <div className="mt-2 rounded-xl border border-line-subtle bg-white/[0.02] p-3">
-                <div className="flex items-center gap-1.5 mb-1.5">
-                  <Mic
-                    className={`w-3.5 h-3.5 ${
-                      transcription.active
-                        ? 'text-red-300 animate-pulse'
-                        : 'text-ink-muted'
-                    }`}
-                  />
-                  <span className="text-[11px] font-mono uppercase tracking-wider text-ink-muted">
-                    실시간 필기
-                  </span>
-                  {(!transcription.supported || transcription.degraded) && (
-                    <span className="text-[10px] text-amber-300">
-                      AI 구간 전사로 표시 중 (1–2분 지연)
-                    </span>
-                  )}
-                </div>
-                <div
-                  ref={transcriptScrollRef}
-                  className="max-h-36 overflow-y-auto space-y-1 pr-1"
-                >
-                  {transcription.supported && !transcription.degraded ? (
-                    <>
-                      {transcription.lines.length === 0 && !transcription.interim && (
-                        <p className="text-[12px] text-ink-muted">
-                          코칭 멘트가 들리면 여기에 바로 적혀요
-                        </p>
-                      )}
-                      {transcription.lines.map((line) => (
-                        <p key={line.id} className="text-[12.5px] leading-snug text-ink-medium">
-                          <span className="text-[10.5px] font-mono text-ink-muted mr-1.5 tabular-nums">
-                            {formatClock(line.atSec)}
-                          </span>
-                          {line.text}
-                        </p>
-                      ))}
-                      {transcription.interim && (
-                        <p className="text-[12.5px] leading-snug text-ink-muted italic">
-                          {transcription.interim}…
-                        </p>
-                      )}
-                    </>
-                  ) : (
-                    <>
-                      {liveNotes.filter((n) => n.status === 'done' && n.transcript)
-                        .length === 0 && (
-                        <p className="text-[12px] text-ink-muted">
-                          첫 구간 분석이 끝나면 전사가 표시됩니다
-                        </p>
-                      )}
-                      {liveNotes
-                        .filter((n) => n.status === 'done' && n.transcript)
-                        .map((n) => (
-                          <p
-                            key={n.index}
-                            className="text-[12.5px] leading-snug text-ink-medium"
-                          >
-                            <span className="text-[10.5px] font-mono text-ink-muted mr-1.5 tabular-nums">
-                              {formatClock(n.startSec)}
-                            </span>
-                            {n.transcript}
-                          </p>
-                        ))}
-                    </>
-                  )}
-                </div>
               </div>
             </>
           )}

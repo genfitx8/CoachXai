@@ -18,12 +18,14 @@
  *     못 쓰기 때문에 레코더를 둘로 나눈다. 저비트레이트 opus 인코더 두 개
  *     정도는 모바일에서도 무시할 수준의 비용이다.)
  *
- *  2. **레슨 중 증분 분석** — 세그먼트가 닫히는 즉시 동시성 제한 큐를 통해
- *     `lesson_audio_segment` 피처로 전사+코칭노트를 뽑는다. 3분 세그먼트
- *     하나는 base64 로도 ~1.5MB 라 서버 한도에 안전하고, 레슨이 끝날
- *     시점엔 대부분의 구간이 이미 분석돼 있다.
+ *  2. **실시간 필기(전사)** — ~10초 세그먼트가 닫히는 즉시 동시성 제한
+ *     큐를 통해 `lesson_audio_transcribe` 로 받아쓰기하고, 그 텍스트가
+ *     화면의 필기 노트에 이어 붙는다. 코치가 옆에서 노트를 적는 듯한
+ *     경험이 이 경로의 목적이라 요약하지 않고 들리는 대로 적는다.
+ *     하단 "요약 노트"는 별도 5분 주기(SUMMARY_INTERVAL_SEC)로 지금까지의
+ *     필기를 다시 요약한다.
  *
- *  3. **텍스트 map-reduce 최종 요약** — 종료 시에는 오디오가 아니라 세그먼트
+ *  3. **텍스트 map-reduce 최종 요약** — 종료 시에는 오디오가 아니라 필기
  *     노트(텍스트)만 `lesson_summary_merge` 로 보내 최종 리포트를 만든다.
  *     50분 레슨도 요약 단계는 텍스트 한 번 호출이라 수 초면 끝난다.
  *
@@ -46,13 +48,18 @@ const log = createLogger('lessonAudio');
 // ─── Tunables ────────────────────────────────────────────────────────────────
 
 /**
- * 세그먼트 목표 길이. 2분 = 30–50분 레슨에서 15–25개 세그먼트.
- * 실시간 요약의 갱신 주기이기도 하다 — 더 길면 화면 요약이 굼떠 보이고,
- * 더 짧으면 구간 컨텍스트가 얕아져 전사·노트 품질이 떨어진다.
+ * 세그먼트(필기 단위) 목표 길이. 코치가 옆에서 받아 적는 듯한 경험이
+ * 목표라 ~10초마다 그 구간 음성을 전사해 노트에 이어 붙인다. 전사 호출
+ * 지연(1~3초)을 더하면 말한 내용이 약 12–13초 뒤 화면에 적힌다.
+ * 50분 레슨 기준 ~300회의 전사 호출이 생기지만 개별 호출은 10초짜리
+ * 오디오(base64 ~80KB) + flash-lite 라 저비용이다.
  */
-export const SEGMENT_TARGET_SEC = 120;
-/** 첫 세그먼트만 짧게 끊어 레슨 시작 ~1분 안에 첫 필기·요약이 뜨게 한다. */
-export const FIRST_SEGMENT_TARGET_SEC = 60;
+export const SEGMENT_TARGET_SEC = 10;
+/**
+ * 하단 "요약 노트" 갱신 주기. 필기(전사)와 달리 요약은 맥락이 어느 정도
+ * 쌓여야 의미가 있어 5분에 한 번 전체 필기를 다시 요약한다.
+ */
+export const SUMMARY_INTERVAL_SEC = 300;
 /** archive 레코더의 청크 주기 — 크래시 시 최대 유실 폭. */
 export const ARCHIVE_TIMESLICE_MS = 5000;
 /**
@@ -350,12 +357,24 @@ export const buildSegmentPrompt = (ctx: SegmentPromptContext): string => {
  * 분석 실패 구간은 공백으로 숨기지 않고 명시해 리포트가 과잉 일반화하지
  * 않도록 한다.
  */
+const isEmptyDoneNote = (n: LessonSegmentNote): boolean =>
+  n.status === 'done' &&
+  !n.transcript &&
+  n.keyPoints.length === 0 &&
+  n.drills.length === 0 &&
+  n.metrics.length === 0 &&
+  !n.studentState;
+
 export const buildMergePrompt = (
   notes: LessonSegmentNote[],
   coachNotes: string,
   opts: { studentName?: string; totalDurationSec?: number } = {}
 ): string => {
-  const ordered = [...notes].sort((a, b) => a.index - b.index);
+  // 무음 구간(빈 전사)은 프롬프트만 부풀린다 — 10초 필기 단위에서는
+  // 이런 구간이 수십 개씩 나오므로 조용히 걸러낸다.
+  const ordered = [...notes]
+    .filter((n) => !isEmptyDoneNote(n))
+    .sort((a, b) => a.index - b.index);
   const blocks = ordered.map((n) => {
     const window = `${formatClock(n.startSec)}–${formatClock(
       n.startSec + n.durationSec
@@ -397,6 +416,80 @@ ${blocks.join('\n\n')}
 - 시간 흐름을 따라가되, 같은 교정 포인트가 여러 구간에 반복되면 하나로 묶고 변화(개선/악화)를 언급하세요.
 - 노트에 있는 수치는 그대로 인용하세요. 노트에 없는 사실을 추가하지 마세요.
 - 분석 실패 구간이 있으면 리포트 말미에 한 줄로 알려주세요.`;
+};
+
+// ─── Micro-segment transcription (필기 기본 경로) ────────────────────────────
+
+/**
+ * `lesson_audio_transcribe` 응답을 전사 텍스트로 정규화한다. 스키마를 걸어
+ * 보내지만 스키마 미지원 런타임에서는 평문이 올 수 있어 방어적으로 파싱한다.
+ */
+export const parseTranscriptResponse = (text: string): string => {
+  const match = text.match(/\{[\s\S]*\}/);
+  if (match) {
+    try {
+      const parsed = JSON.parse(match[0]);
+      if (parsed && typeof parsed === 'object' && typeof parsed.text === 'string') {
+        return parsed.text.trim();
+      }
+    } catch {
+      // JSON 이 아니면 아래 평문 경로로.
+    }
+  }
+  const trimmed = text.trim();
+  // 무음 구간을 모델이 굳이 문장으로 알려온 경우는 빈 필기로 취급한다.
+  if (/^\(?\s*(대화|말|음성)\s*없음\)?\.?$/.test(trimmed)) return '';
+  return trimmed;
+};
+
+export const buildTranscribePrompt = (ctx: SegmentPromptContext): string => {
+  const window = `${formatClock(ctx.startSec)}–${formatClock(
+    ctx.startSec + ctx.durationSec
+  )}`;
+  return `골프 레슨 현장 녹음의 짧은 구간(${window}, 학생: ${ctx.studentName})입니다.
+이 구간에서 들리는 말을 받아 적으세요. JSON 하나만 반환합니다: {"text": "..."}
+규칙:
+- 코치와 학생의 발화를 들리는 그대로, 자연스러운 한국어 문장으로 적으세요. 요약하지 마세요.
+- 잡음·타구음뿐이고 발화가 없으면 {"text": ""} 를 반환하세요.
+- 들리지 않는 내용을 지어내지 마세요.`;
+};
+
+const transcribeSchema = {
+  type: 'OBJECT',
+  properties: { text: { type: 'STRING' } },
+  required: ['text'],
+} as const;
+
+/**
+ * 기본 필기 분석기 — ~10초 구간을 전사만 한다(요약·구조화 없음).
+ * 결과는 transcript 만 채워진 LessonSegmentNote 로 흘러들어, 병합 요약·
+ * 복구·핸드오프 등 기존 노트 경로를 그대로 탄다.
+ */
+export const transcribeLessonAudioSegment: SegmentAnalyzer = async (
+  blob,
+  mimeType,
+  ctx
+) => {
+  const data = await blobToBase64(blob);
+  const result = await invokeBackendAI<unknown>('lesson_audio_transcribe', {
+    prompt: buildTranscribePrompt(ctx),
+    mediaParts: [{ inlineData: { data, mimeType } }],
+    responseMimeType: 'application/json',
+    responseSchema: transcribeSchema,
+  });
+  const text = getResponseText(result);
+  if (text == null) throw new Error('전사 응답이 비어 있습니다.');
+  return {
+    index: ctx.index,
+    startSec: ctx.startSec,
+    durationSec: ctx.durationSec,
+    status: 'done',
+    transcript: parseTranscriptResponse(text),
+    keyPoints: [],
+    drills: [],
+    metrics: [],
+    studentState: '',
+  };
 };
 
 // ─── Segment analysis (AI call) ──────────────────────────────────────────────
@@ -555,7 +648,7 @@ export const buildRollingSummaryPrompt = (
   studentName: string
 ): string => {
   const done = [...notes]
-    .filter((n) => n.status === 'done')
+    .filter((n) => n.status === 'done' && !isEmptyDoneNote(n))
     .sort((a, b) => a.index - b.index);
   const blocks = done.map((n) => {
     const window = `${formatClock(n.startSec)}–${formatClock(
@@ -661,6 +754,7 @@ export interface LessonAudioSessionOptions {
   /** 노트 변경(분석 완료/실패)마다 호출 — UI 라이브 티커용. */
   onNotesChanged?: (notes: LessonSegmentNote[]) => void;
   segmentTargetSec?: number;
+  summaryIntervalSec?: number;
 }
 
 export interface StopResult {
@@ -698,6 +792,7 @@ export class LessonAudioSession {
   private segmentStartSec = 0;
   private segmentActiveSec = 0;
   private recordedSec = 0;
+  private lastSummaryAtSec = 0;
   private paused = false;
   private stopped = false;
   private tickTimer: number | null = null;
@@ -708,7 +803,7 @@ export class LessonAudioSession {
       .toString(36)
       .slice(2, 8)}`;
     this.opts = opts;
-    this.analyzer = opts.analyzer ?? analyzeLessonAudioSegment;
+    this.analyzer = opts.analyzer ?? transcribeLessonAudioSegment;
     this.mimeType = pickAudioMimeType();
     this.rollingSummary = new RollingSummaryController(
       opts.rollingSummarizer ?? generateRollingLessonSummary,
@@ -778,15 +873,20 @@ export class LessonAudioSession {
       if (this.paused || this.stopped) return;
       this.recordedSec += 1;
       this.segmentActiveSec += 1;
-      const target =
-        this.segmentIndex <= 1
-          ? Math.min(
-              FIRST_SEGMENT_TARGET_SEC,
-              this.opts.segmentTargetSec ?? SEGMENT_TARGET_SEC
-            )
-          : this.opts.segmentTargetSec ?? SEGMENT_TARGET_SEC;
-      if (this.segmentActiveSec >= target) {
+      if (
+        this.segmentActiveSec >=
+        (this.opts.segmentTargetSec ?? SEGMENT_TARGET_SEC)
+      ) {
         this.rotateSegment();
+      }
+      // 하단 "요약 노트"는 필기와 별개의 5분 주기 — 매 전사마다 요약을
+      // 다시 돌리면 낭비이고, 코치도 5분 단위 정리를 원한다.
+      if (
+        this.recordedSec - this.lastSummaryAtSec >=
+        (this.opts.summaryIntervalSec ?? SUMMARY_INTERVAL_SEC)
+      ) {
+        this.lastSummaryAtSec = this.recordedSec;
+        this.rollingSummary.notify(this.getNotes(), this.opts.studentName);
       }
     }, 1000);
   }
@@ -919,11 +1019,6 @@ export class LessonAudioSession {
       .sort((a, b) => a.index - b.index);
     this.emitNotes();
     void this.persistMeta();
-    // 새 구간 분석이 확정될 때마다 화면의 롤링 요약을 재생성한다.
-    // 컨트롤러가 단일 비행을 보장하므로 여기서는 그냥 알리기만 한다.
-    if (next.status === 'done' && !this.stopped) {
-      this.rollingSummary.notify(this.getNotes(), this.opts.studentName);
-    }
   }
 
   private emitNotes(): void {

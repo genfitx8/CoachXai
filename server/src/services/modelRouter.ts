@@ -57,10 +57,14 @@ const FEATURE_MODEL_OVERRIDES: Record<string, string> = {
   swing_phase_timestamps: 'gemini-2.5-flash-lite',
   hole_voice_summary: 'gemini-2.5-flash-lite',
 
-  // 레슨 진행 중 롤링 요약 — 2분마다 재생성되는 3~5불릿 텍스트 요약.
-  // 지연이 UX에 직결되고 입력이 이미 구조화된 노트라 lite로 충분하다.
+  // 레슨 진행 중 롤링 요약 — 5분마다 재생성되는 3~5불릿 텍스트 요약.
+  // 지연이 UX에 직결되고 입력이 이미 필기 노트 텍스트라 lite로 충분하다.
   // (신규 피처라 기존 eval 베이스라인과 무관하게 lite에서 출발한다.)
   lesson_live_summary: 'gemini-2.5-flash-lite',
+
+  // ~10초 구간 받아쓰기 — 레슨당 수백 회 호출되는 필기 경로. 순수 전사는
+  // hole_voice_summary 와 같은 결의 작업이라 lite가 비용·지연 모두 유리하다.
+  lesson_audio_transcribe: 'gemini-2.5-flash-lite',
 };
 
 interface CachedOverrides {

@@ -58,6 +58,8 @@ const DEFAULT_TEMPERATURE_BY_FEATURE: Record<string, number> = {
   // 레슨 오디오 세그먼트 전사+노트 추출 — 들리는 내용에 충실해야 하므로
   // OCR 수준으로 낮게 유지한다.
   lesson_audio_segment: 0.2,
+  // ~10초 구간 받아쓰기(필기 노트) — 순수 전사라 최저 온도.
+  lesson_audio_transcribe: 0.1,
 
   // Analytical / summarization — mostly deterministic with light phrasing.
   lesson_summary: 0.4,
