@@ -109,6 +109,7 @@ import {
   IS_STUDENT_APP,
   isRoleAllowedInThisApp,
 } from './utils/appVariant';
+import { FEATURES } from './constants/featureFlags';
 import { readBooleanPref } from './utils/safeStorage';
 
 const isClientSessionProfile = (
@@ -146,7 +147,7 @@ const diagnosisProgram: DiagnosisProgram = {
 
 const AppContent: React.FC = () => {
   const { t, language, setLanguage } = useLanguage();
-  const isAutomatedVideoEditingEnabled = false;
+  const isAutomatedVideoEditingEnabled = FEATURES.automatedVideoEditing;
 
   // Session State
   const [userRole, setUserRole] = useState<'COACH' | 'CLIENT' | 'ADMIN' | 'BRANCH_ADMIN' | null>(
@@ -387,6 +388,9 @@ const AppContent: React.FC = () => {
    * Fire-and-forget; errors are caught internally.
    */
   const checkAndShowLessonSuggestion = useCallback((coachId: string) => {
+    // 동반 레슨 중심 개편: 예약 기능이 꺼져 있으면 예약 기반 제안도 띄우지
+    // 않는다 (제안 모달이 예약 관리 화면으로 이어지기 때문).
+    if (!FEATURES.reservations) return;
     pruneStaleDismissal();
     reservationService.getCoachReservations(coachId).then((reservations) => {
       const suggestion = findUpcomingLesson(reservations);
@@ -403,6 +407,7 @@ const AppContent: React.FC = () => {
    * popup if any exist.  Fire-and-forget: errors are caught internally.
    */
   const loadAndShowCoachNotifications = (coachId: string) => {
+    if (!FEATURES.reservations) return;
     getUnreadReservationNotificationsForCoach(coachId).then((notifications) => {
       if (notifications.length > 0) {
         setPendingReservationNotifications(notifications);
@@ -1663,26 +1668,19 @@ const AppContent: React.FC = () => {
   const activeCoachTab: CoachTab | null =
     coachView === 'COACHX' || coachView === 'LESSON_LIST' ? 'LESSON'
     : coachView === 'CLIENTS' ? 'CLIENTS'
-    : coachView === 'NEW' ? 'RECORD'
     : coachView === 'LIVE_LESSON' ? 'LIVE'
-    : coachView === 'RESERVATIONS' ? 'RESERVATIONS'
     : null;
 
   const handleCoachTabChange = (next: CoachTab) => {
     setSelectedLesson(null);
-    // Primary "대화" tab lands on the conversational home. RECORD drops the
-    // coach into the new-lesson flow; LIVE opens the during-lesson companion
-    // ("레슨 중 동반"), picking a student first when none is chosen. The
-    // historical lesson list ("레슨 기록") no longer has its own tab and is
-    // reached from the hamburger menu.
+    // 홈 tab lands on the agent home (브리핑 + 대화). LIVE opens the
+    // during-lesson companion — the service's core action — picking a
+    // student first when none is chosen. Recording no longer has its own
+    // tab: it originates from the agent home's quick action, the
+    // companion's finish flow, or the hamburger menu.
     if (next === 'LESSON') setCoachView('COACHX');
     else if (next === 'CLIENTS') setCoachView('CLIENTS');
-    else if (next === 'RECORD') {
-      setIsEditingLesson(false);
-      setCoachView('NEW');
-    }
-    else if (next === 'LIVE') setCoachView('LIVE_LESSON');
-    else setCoachView('RESERVATIONS');
+    else setCoachView('LIVE_LESSON');
   };
 
   const handleCoachNewRecord = () => {
@@ -1725,6 +1723,12 @@ const AppContent: React.FC = () => {
     switch (action) {
       case 'PROFILE':
         setShowProfileModal(true);
+        break;
+      case 'NEW_RECORD':
+        handleCoachNewRecord();
+        break;
+      case 'RESERVATIONS':
+        setCoachView('RESERVATIONS');
         break;
       case 'DIAGNOSIS_PROGRAM':
         handleDiagnosisProgramClick();
@@ -2410,7 +2414,7 @@ const AppContent: React.FC = () => {
           />
         )}
 
-        {coachView === 'DIAGNOSIS_PROGRAM' && (
+        {FEATURES.diagnosis && coachView === 'DIAGNOSIS_PROGRAM' && (
           <DiagnosisProgramSection
             program={diagnosisProgram}
             onBack={() => setCoachView('LESSON_LIST')}
@@ -2422,7 +2426,7 @@ const AppContent: React.FC = () => {
           />
         )}
 
-        {coachView === 'DIAGNOSIS_RESULT' && selectedDiagnosisSession && (
+        {FEATURES.diagnosis && coachView === 'DIAGNOSIS_RESULT' && selectedDiagnosisSession && (
           <DiagnosisResultSection
             result={selectedDiagnosisSession.result}
             onBack={() => setCoachView('LESSON_LIST')}
@@ -2486,7 +2490,7 @@ const AppContent: React.FC = () => {
           />
         )}
 
-        {coachView === 'RESERVATIONS' && currentUser && 'id' in currentUser && (
+        {FEATURES.reservations && coachView === 'RESERVATIONS' && currentUser && 'id' in currentUser && (
           <ReservationManager
             coachProfile={currentUser as CoachProfile}
             onBack={() => {
@@ -2532,7 +2536,7 @@ const AppContent: React.FC = () => {
               setSelectedClientForPackage(selectedStudentForDetail);
               setCoachView('LESSON_PACKAGE');
             }}
-            onOpenCurriculum={() => setCoachView('CURRICULUM')}
+            onOpenCurriculum={FEATURES.curriculum ? () => setCoachView('CURRICULUM') : undefined}
             onAssignHomework={() => {
               setHomeworkTargetClient({
                 id: `${selectedStudentForDetail.name}_${selectedStudentForDetail.phone}`,
@@ -2552,7 +2556,7 @@ const AppContent: React.FC = () => {
           />
         )}
 
-        {coachView === 'BAY_RESERVATION' && currentUser && 'id' in currentUser && (
+        {FEATURES.bayReservations && coachView === 'BAY_RESERVATION' && currentUser && 'id' in currentUser && (
           <CoachBayReservation
             coachProfile={currentUser as CoachProfile}
             onBack={() => setCoachView('LESSON_LIST')}
@@ -2560,7 +2564,7 @@ const AppContent: React.FC = () => {
           />
         )}
 
-        {coachView === 'MY_BAY_RESERVATIONS' && currentUser && 'id' in currentUser && (
+        {FEATURES.bayReservations && coachView === 'MY_BAY_RESERVATIONS' && currentUser && 'id' in currentUser && (
           <MyBayReservations
             clientProfile={{
               name: (currentUser as CoachProfile).name,
@@ -2605,6 +2609,8 @@ const AppContent: React.FC = () => {
             todayLessons={buildTodayLessonSummaries(allCoachLessons)}
             onOpenMenu={() => setHamburgerOpen(true)}
             onNavigateToDashboard={() => setCoachView('COACHX_DASHBOARD')}
+            onStartLiveLesson={() => setCoachView('LIVE_LESSON')}
+            onNewRecord={handleCoachNewRecord}
             initialQuery={coachAIInitialQuery}
             onInitialQueryConsumed={() => setCoachAIInitialQuery(undefined)}
           />
@@ -2623,7 +2629,7 @@ const AppContent: React.FC = () => {
           />
         )}
 
-        {coachView === 'CURRICULUM' && currentUser && 'id' in currentUser && (
+        {FEATURES.curriculum && coachView === 'CURRICULUM' && currentUser && 'id' in currentUser && (
           <CurriculumManager
             coachProfile={currentUser as CoachProfile}
             clients={clients}
@@ -2737,7 +2743,7 @@ const AppContent: React.FC = () => {
       )}
 
       {/* Coach reservation-request notification popup */}
-      {showReservationNotificationModal && (
+      {FEATURES.reservations && showReservationNotificationModal && (
         <CoachReservationNotificationModal
           notifications={pendingReservationNotifications}
           onClose={() => {

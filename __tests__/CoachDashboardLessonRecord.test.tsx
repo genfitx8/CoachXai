@@ -70,6 +70,20 @@ vi.mock('../services/coachNotificationService', () => ({
   markNotificationsAsRead: vi.fn().mockResolvedValue(undefined),
 }));
 
+// The diagnosis flow is feature-gated off by default in the
+// companion-lesson-first relaunch; these shell tests cover the flow itself,
+// so force the flag on.
+vi.mock('../constants/featureFlags', () => ({
+  FEATURES: {
+    reservations: false,
+    bayReservations: false,
+    diagnosis: true,
+    curriculum: false,
+    automatedVideoEditing: false,
+    swingAnalysisShortcut: false,
+  },
+}));
+
 vi.mock('../services/realtime', () => ({
   realtimeSubscribe: vi.fn().mockReturnValue(() => {}),
   realtimeUnsubscribe: vi.fn(),

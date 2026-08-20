@@ -3,7 +3,8 @@ import { Lesson, ClientProfile, CoachProfile } from '../types';
 import { CoachXChatMessage } from '../services/coachXService';
 import { generateCoachXChatResponseStream } from '../services/geminiService';
 import { useLanguage } from './LanguageContext';
-import { Send, Mic, MicOff, LayoutDashboard, VolumeX, Volume2, MessageSquare, Target, ClipboardCheck, Menu } from 'lucide-react';
+import { Send, Mic, MicOff, LayoutDashboard, VolumeX, Volume2, MessageSquare, Target, ClipboardCheck, Menu, PenSquare, ChevronRight } from 'lucide-react';
+import { FEATURES } from '../constants/featureFlags';
 import { useTypingReveal } from '../hooks/useTypingReveal';
 import { useTextToSpeech } from '../hooks/useTextToSpeech';
 import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
@@ -39,6 +40,13 @@ interface CoachAIHomeProps {
   initialQuery?: string;
   /** Cleared once the initial query has been consumed. */
   onInitialQueryConsumed?: () => void;
+  /**
+   * Opens the during-lesson companion (동반 레슨) — the service's core
+   * action, surfaced as the hero CTA on the pre-conversation home.
+   */
+  onStartLiveLesson?: () => void;
+  /** Opens the manual lesson-record form (동반 없이 기록만 남길 때). */
+  onNewRecord?: () => void;
 }
 
 const INITIAL_QUERY_DELAY_MS = 400;
@@ -58,6 +66,8 @@ export const CoachAIHome: React.FC<CoachAIHomeProps> = ({
   onOpenMenu,
   initialQuery,
   onInitialQueryConsumed,
+  onStartLiveLesson,
+  onNewRecord,
 }) => {
   const { language } = useLanguage();
 
@@ -244,7 +254,10 @@ export const CoachAIHome: React.FC<CoachAIHomeProps> = ({
 
           {/* Swing analysis quick link — opens the standalone /swing.html
               entry so coaches can jump straight into pose + club metrics
-              without going through client selection. */}
+              without going through client selection. Gated off in the
+              companion-lesson-first relaunch; 스윙 분석 is reached inside
+              동반 레슨 instead. */}
+          {FEATURES.swingAnalysisShortcut && (
           <a
             href="/swing.html"
             target="_blank"
@@ -263,6 +276,7 @@ export const CoachAIHome: React.FC<CoachAIHomeProps> = ({
               {language === 'en' ? 'Swing' : language === 'ja' ? 'スイング' : '스윙 분석'}
             </span>
           </a>
+          )}
 
           {/* Dashboard button */}
           <button
@@ -334,6 +348,50 @@ export const CoachAIHome: React.FC<CoachAIHomeProps> = ({
       {/* Messages */}
       <div className="relative z-10 flex-1 overflow-y-auto px-4 py-4">
         <div className="mx-auto max-w-lg space-y-4">
+          {/* 동반 레슨 hero — 서비스의 핵심 동작을 대화가 시작되기 전
+              첫 화면의 가장 큰 표면으로 둔다. 대화가 시작되면 숨겨져
+              채팅에 집중할 수 있게 한다. */}
+          {!userHasSent && onStartLiveLesson && (
+            <div className="animate-fade-in-up rounded-2xl border border-emerald-400/25 bg-gradient-to-br from-emerald-500/15 via-emerald-500/5 to-transparent p-5 shadow-lg shadow-emerald-950/30">
+              <div className="flex items-start gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-300/25">
+                  <Mic className="h-5 w-5" />
+                </div>
+                <div className="min-w-0">
+                  <h2 className="text-lg font-bold tracking-tight text-white">
+                    {language === 'en' ? 'Live lesson companion' : language === 'ja' ? '同伴レッスン' : '동반 레슨'}
+                  </h2>
+                  <p className="mt-0.5 text-xs leading-relaxed text-white/55">
+                    {language === 'en'
+                      ? 'CoachX joins your lesson — it listens, captures key moments, and drafts the lesson record for you.'
+                      : language === 'ja'
+                        ? 'CoachXがレッスンに同伴し、会話を聞き取り、記録の下書きまで作成します。'
+                        : 'CoachX가 레슨에 함께합니다 — 대화를 듣고 순간을 캡처해 레슨 기록 초안까지 정리해 드려요.'}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={onStartLiveLesson}
+                className="mt-4 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 text-sm font-bold text-white shadow-md shadow-emerald-900/40 transition-colors hover:bg-emerald-500 active:scale-[0.99]"
+              >
+                <Mic className="h-4 w-4" />
+                {language === 'en' ? 'Start a live lesson' : language === 'ja' ? '同伴レッスンを開始' : '동반 레슨 시작'}
+              </button>
+              {onNewRecord && (
+                <button
+                  type="button"
+                  onClick={onNewRecord}
+                  className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-xl py-2.5 text-xs font-semibold text-white/50 transition-colors hover:bg-white/5 hover:text-white/80"
+                >
+                  <PenSquare className="h-3.5 w-3.5" />
+                  {language === 'en' ? 'Just write a lesson record' : language === 'ja' ? '記録だけ書く' : '동반 없이 기록만 작성'}
+                  <ChevronRight className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
+          )}
+
           {messages.map((msg, idx) => {
             const isLast = idx === messages.length - 1;
             const displayContent =

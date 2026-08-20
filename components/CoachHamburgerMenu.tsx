@@ -1,17 +1,20 @@
 import React, { useEffect } from 'react';
 import {
-  X, User, Dumbbell, BookOpen, Film,
-  Target, ClipboardList, Globe, LogOut, ChevronRight, FileText,
+  X, User, Dumbbell, BookOpen, Film, PenSquare,
+  Target, ClipboardList, Globe, LogOut, ChevronRight, FileText, CalendarDays,
 } from 'lucide-react';
 import { CoachProfile } from '../types';
 import { useLanguage } from './LanguageContext';
+import { FEATURES } from '../constants/featureFlags';
 
 export type CoachHamburgerAction =
   | 'PROFILE'
+  | 'NEW_RECORD'
   | 'DIAGNOSIS_PROGRAM'
   | 'CURRICULUM'
   | 'LESSON_LIST'
   | 'LESSON_UPLOAD'
+  | 'RESERVATIONS'
   | 'BAY_RESERVATION'
   | 'MY_BAY_RESERVATIONS'
   | 'LANGUAGE'
@@ -28,45 +31,51 @@ interface CoachHamburgerMenuProps {
 
 const labels = {
   ko: {
+    newRecord: '레슨 기록 작성',
     lessonList: '전체 레슨 기록',
     profile: '내 프로필',
     diagnosis: '정밀진단 프로그램',
     curriculum: '교육 커리큘럼',
     lessonUpload: '자동 영상 편집',
+    reservations: '레슨 예약 관리',
     bayReservation: '타석 예약',
     myBay: '내 타석 예약',
     language: '언어',
     logout: '로그아웃',
-    ai: '진단',
-    services: '서비스',
+    lessons: '레슨',
+    more: '더 보기',
     settings: '설정',
   },
   en: {
+    newRecord: 'Write a lesson record',
     lessonList: 'All lesson records',
     profile: 'My profile',
     diagnosis: 'Precision diagnosis',
     curriculum: 'Curriculum',
     lessonUpload: 'Automated video editing',
+    reservations: 'Lesson bookings',
     bayReservation: 'Book a bay',
     myBay: 'My bay reservations',
     language: 'Language',
     logout: 'Log out',
-    ai: 'Diagnosis',
-    services: 'Services',
+    lessons: 'Lessons',
+    more: 'More',
     settings: 'Settings',
   },
   ja: {
+    newRecord: 'レッスン記録を書く',
     lessonList: 'レッスン記録一覧',
     profile: 'マイプロフィール',
     diagnosis: '精密診断プログラム',
     curriculum: 'カリキュラム管理',
     lessonUpload: '動画自動編集',
+    reservations: 'レッスン予約管理',
     bayReservation: '打席予約',
     myBay: '打席予約履歴',
     language: '言語',
     logout: 'ログアウト',
-    ai: '診断',
-    services: 'サービス',
+    lessons: 'レッスン',
+    more: 'その他',
     settings: '設定',
   },
 } as const;
@@ -97,6 +106,15 @@ export const CoachHamburgerMenu: React.FC<CoachHamburgerMenuProps> = ({
     onAction(action);
     onClose();
   };
+
+  // 동반 레슨 중심 개편: 레슨 루프에 필요한 항목(기록 작성/기록 목록)만
+  // 기본 노출하고, 그 밖의 기능은 featureFlags 로 켜졌을 때만 나타난다.
+  const showMoreSection =
+    FEATURES.diagnosis ||
+    FEATURES.curriculum ||
+    FEATURES.reservations ||
+    FEATURES.bayReservations ||
+    (FEATURES.automatedVideoEditing && showAutomatedVideoEditing);
 
   return (
     <div className="fixed inset-0 z-[70]" role="dialog" aria-modal="true" aria-label="Menu">
@@ -136,19 +154,33 @@ export const CoachHamburgerMenu: React.FC<CoachHamburgerMenuProps> = ({
 
         {/* Sections */}
         <nav className="flex-1 overflow-y-auto py-4">
-          <Section title={L.ai}>
-            <Row icon={Dumbbell} label={L.diagnosis} onClick={() => handle('DIAGNOSIS_PROGRAM')} accent="indigo" />
+          <Section title={L.lessons}>
+            <Row icon={PenSquare} label={L.newRecord} onClick={() => handle('NEW_RECORD')} accent="emerald" />
+            <Row icon={FileText} label={L.lessonList} onClick={() => handle('LESSON_LIST')} accent="emerald" />
           </Section>
 
-          <Section title={L.services}>
-            <Row icon={FileText} label={L.lessonList} onClick={() => handle('LESSON_LIST')} accent="emerald" />
-            <Row icon={BookOpen} label={L.curriculum} onClick={() => handle('CURRICULUM')} accent="amber" />
-            {showAutomatedVideoEditing && (
-              <Row icon={Film} label={L.lessonUpload} onClick={() => handle('LESSON_UPLOAD')} accent="violet" />
-            )}
-            <Row icon={Target} label={L.bayReservation} onClick={() => handle('BAY_RESERVATION')} accent="emerald" />
-            <Row icon={ClipboardList} label={L.myBay} onClick={() => handle('MY_BAY_RESERVATIONS')} accent="emerald" />
-          </Section>
+          {showMoreSection && (
+            <Section title={L.more}>
+              {FEATURES.diagnosis && (
+                <Row icon={Dumbbell} label={L.diagnosis} onClick={() => handle('DIAGNOSIS_PROGRAM')} accent="indigo" />
+              )}
+              {FEATURES.curriculum && (
+                <Row icon={BookOpen} label={L.curriculum} onClick={() => handle('CURRICULUM')} accent="amber" />
+              )}
+              {FEATURES.automatedVideoEditing && showAutomatedVideoEditing && (
+                <Row icon={Film} label={L.lessonUpload} onClick={() => handle('LESSON_UPLOAD')} accent="violet" />
+              )}
+              {FEATURES.reservations && (
+                <Row icon={CalendarDays} label={L.reservations} onClick={() => handle('RESERVATIONS')} accent="emerald" />
+              )}
+              {FEATURES.bayReservations && (
+                <>
+                  <Row icon={Target} label={L.bayReservation} onClick={() => handle('BAY_RESERVATION')} accent="emerald" />
+                  <Row icon={ClipboardList} label={L.myBay} onClick={() => handle('MY_BAY_RESERVATIONS')} accent="emerald" />
+                </>
+              )}
+            </Section>
+          )}
 
           <Section title={L.settings}>
             <Row icon={User} label={L.profile} onClick={() => handle('PROFILE')} />

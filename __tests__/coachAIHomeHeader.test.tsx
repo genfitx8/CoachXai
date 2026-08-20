@@ -62,8 +62,10 @@ describe('CoachAIHome header', () => {
 
     // These are the controls the app header used to paint over.
     expect(screen.getByText('CoachX AI')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /스윙|swing/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /대시보드|dashboard/i })).toBeInTheDocument();
+    // The standalone swing-analysis shortcut is feature-gated off in the
+    // companion-lesson-first relaunch (FEATURES.swingAnalysisShortcut).
+    expect(screen.queryByRole('link', { name: /스윙|swing/i })).toBeNull();
   });
 
   it('takes the top inset itself now that it reaches the top of the screen', () => {

@@ -14,11 +14,22 @@ CoachX AI helps coaches record lessons quickly, preserve student history, and ke
 
 Build the most trusted AI assistant for coaches by turning each lesson into clear, actionable, student-centered context for the next session.
 
-## MVP Focus
+## MVP Focus — Companion-Lesson-First Relaunch
 
+The service relaunches around a single loop: the coach agent accompanies the
+lesson itself (동반 레슨) and turns it into structured records automatically.
+
+- **Live lesson companion (동반 레슨)**: CoachX joins the lesson, listens,
+  captures key moments, and drafts the lesson record — the app's core action
+  and the raised center button in the coach navigation
 - Fast lesson recording during or right after a session
 - Student-linked lesson history and context continuity
 - AI-assisted organization of rough notes into usable summaries
+
+Everything outside that loop (reservations, bay booking, precision diagnosis,
+curriculum management, automated video editing) is **feature-gated off** in
+`constants/featureFlags.ts` — code stays in place and any feature can be
+re-enabled per build or per device without a revert.
 
 ## Target User
 
@@ -34,10 +45,16 @@ Build the most trusted AI assistant for coaches by turning each lesson into clea
 
 ## Basic IA / Key Flows
 
-- **Home**: start lesson, resume draft, access recent students/notes
-- **Students**: search student list, open student detail, review note history
+The coach app runs on three tabs — 홈 / 동반 레슨 / 학생:
+
+- **홈 (agent home)**: today's briefing, the 동반 레슨 hero CTA, and the coach
+  agent conversation; lesson-record quick action lives here and in the menu
+- **동반 레슨 (live lesson companion)**: pick a student → CoachX accompanies
+  the lesson → finish hands captured clips + transcript to the record form
+- **학생 (students)**: search student list, open student detail, review
+  note history and growth reports
 - **Lesson Flow**: select student → record structured notes → AI organize/review → save
-- **Profile/Settings**: language, timezone, and personal preferences
+- **Profile/Settings** (drawer): profile, language, logout
 
 ## Global Service Considerations
 
