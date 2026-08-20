@@ -27,7 +27,18 @@
  *     하단 "요약 노트"는 별도 5분 주기(SUMMARY_INTERVAL_SEC)로 지금까지의
  *     필기를 다시 요약한다.
  *
- *  3. **텍스트 map-reduce 최종 요약** — 종료 시에는 오디오가 아니라 필기
+ *  3. **종료 시 텍스트 후처리** — 레슨을 끝내면 검토 화면을 열기 전에
+ *     필기를 두 번 읽는다. 순서가 곧 의존 관계다:
+ *       (a) 코칭 언어 교정(`repairTranscriptTerms`) — 음성 인식이 골프
+ *           용어를 발음이 비슷한 엉뚱한 말로 적어 놓은 줄을 되돌린다.
+ *           뒤 단계가 이 텍스트를 근거로 삼으므로 교정이 맨 앞에 온다.
+ *       (b) 화자 역할 분류(`labelTranscriptSpeakers`) — 앞뒤 맥락으로
+ *           각 줄이 코치의 말인지 학생의 말인지 배정한다. 지시 어휘가
+ *           판단의 주 단서라, 교정이 끝난 필기라야 정확도가 산다.
+ *     둘 다 실패하면 그 단계만 건너뛴다 — 후처리 실패가 필기 유실이나
+ *     저장 불가가 되어서는 안 된다.
+ *
+ *  4. **텍스트 map-reduce 최종 요약** — 저장 시에는 오디오가 아니라 필기
  *     노트(텍스트)만 `lesson_summary_merge` 로 보내 최종 리포트를 만든다.
  *     50분 레슨도 요약 단계는 텍스트 한 번 호출이라 수 초면 끝난다.
  *
@@ -929,6 +940,266 @@ export const transcribeLessonAudioSegment: SegmentAnalyzer = async (
     metrics: [],
     studentState: '',
   };
+};
+
+// ─── 코칭 언어 교정 (텍스트 경로) ───────────────────────────────────────────
+
+/**
+ * 받아쓰기 원문 → **코칭 언어**로 되돌리는 교정 단계.
+ *
+ * 왜 필요한가: 필기의 원천은 음성 인식이고, 레슨 현장은 인식기에 가장
+ * 나쁜 조건이다 — 타구음·송풍기 소음, 매트 건너편에서 던지는 짧은 말,
+ * 그리고 무엇보다 일반 어휘 모델이 모르는 골프 용어가 계속 나온다. 그래서
+ * "페이스가 열렸다"가 "페이서가 열렸다"로, "다운블로"가 "다운 불로"로,
+ * "얼리 익스텐션"이 "얼리 익스텐선"으로 적힌다. 이 필기를 그대로 요약에
+ * 넣으면 요약 모델이 잘못 적힌 단어를 사실로 받아 엉뚱한 교정 포인트를
+ * 만들고, 화자 분류도 근거가 되는 단서(지시 어휘)를 잃는다.
+ *
+ * 그래서 화자 분류·요약보다 **먼저** 필기를 한 번 읽어 골프 코칭 어휘로
+ * 되돌린다. 이 단계의 계약은 하나다: **발음이 비슷한 오인식 단어만 고친다.**
+ * 문장을 다듬거나 요약하거나 빠진 말을 채우지 않는다 — 교정이 창작이 되면
+ * 뒤 단계 전부가 지어낸 문장을 근거로 삼는다. 그래서 응답도 "고친 줄만"
+ * 받아, 손대지 않은 줄은 원문 그대로 통과한다.
+ */
+
+/** 프롬프트에 실어 보내는 코칭 어휘 — 모델이 "무엇으로 되돌릴지"의 기준. */
+const GOLF_TERM_HINTS = `그립(스트롱/위크/인터로킹), 어드레스, 셋업, 스탠스, 얼라인먼트, 볼 포지션,
+테이크어웨이, 백스윙, 탑, 트랜지션(전환), 다운스윙, 임팩트, 팔로스루, 피니시,
+스윙 플레인, 스윙 궤도(인투아웃/아웃투인), 페이스(오픈/스퀘어/클로즈), 로프트, 라이각,
+체중 이동, 지면 반력, 하체 리드, 골반 회전, 상하체 분리, 코킹, 릴리스, 캐스팅, 힌지,
+헤드업, 얼리 익스텐션(배치기), 스웨이, 리버스 피벗, 치킨윙, 오버 더 톱,
+슬라이스, 훅, 드로, 페이드, 푸시, 풀, 뒤땅(팻), 토핑, 섕크, 미스샷,
+캐리, 런, 비거리, 헤드 스피드, 볼 스피드, 스매시 팩터, 스핀량, 발사각, 입사각, 페이스 각,
+드라이버, 우드, 유틸리티, 아이언, 웨지, 퍼터, 어프로치, 피칭, 치핑, 벙커샷, 퍼팅, 루틴, 템포`;
+
+/**
+ * 한 번의 교정 호출에 담는 줄 수. 라벨링(250줄)보다 작게 잡는다 — 교정은
+ * 줄마다 **본문을 다시 써서** 돌려받는 작업이라 응답 토큰이 입력만큼
+ * 나오고, 묶음이 크면 모델이 뒤쪽 줄을 조용히 빠뜨린다.
+ */
+export const TRANSCRIPT_REPAIR_BATCH = 120;
+/** 다음 묶음에 넘겨 줄 직전 문맥 줄 수 — 같은 용어를 같은 표기로 잇는다. */
+const TRANSCRIPT_REPAIR_CONTEXT = 3;
+/**
+ * 교정본 길이가 원문 대비 이 범위를 벗어나면 교정이 아니라 창작으로 보고
+ * 버린다. 오인식 단어 치환은 길이를 거의 바꾸지 않는다 — 두 배로 늘었다면
+ * 모델이 설명을 붙였거나 앞뒤 줄을 합친 것이고, 절반으로 줄었다면 요약한 것이다.
+ */
+const REPAIR_MAX_RATIO = 1.8;
+const REPAIR_MIN_RATIO = 0.5;
+
+/** 교정 대상 한 줄. id 는 이 레슨 안에서만 유효한 일련번호다. */
+export interface TranscriptRepairLine {
+  id: number;
+  text: string;
+}
+
+export const buildTranscriptRepairPrompt = (
+  lines: TranscriptRepairLine[],
+  studentName: string,
+  context: string[] = []
+): string => {
+  const prior = context.length
+    ? `\n이 묶음 직전의 필기(이미 교정 끝. 용어 표기를 맞추는 참고용이며 다시 고치지 마세요):\n${context
+        .map((t) => `- ${t}`)
+        .join('\n')}\n`
+    : '';
+  return `아래는 골프 레슨 현장에서 음성 인식으로 받아 적은 필기입니다. 학생: ${studentName}.
+현장 소음과 일반 어휘 모델의 한계 때문에 **골프 코칭 용어가 발음이 비슷한 엉뚱한 말로 적힌 줄**이 섞여 있습니다.
+그런 줄만 골라 원래의 코칭 용어로 되돌리세요.
+
+자주 쓰이는 코칭 용어:
+${GOLF_TERM_HINTS}
+${prior}
+필기(번호는 줄 번호입니다):
+${lines.map((l) => `${l.id}. ${l.text}`).join('\n')}
+
+JSON 하나만 반환하세요: {"fixes":[{"i":<줄 번호>,"text":"<교정한 줄 전체>"}]}
+규칙:
+- **고친 줄만** fixes 에 담으세요. 손댈 곳이 없으면 {"fixes":[]} 를 반환합니다.
+- 고치는 것은 오인식된 단어뿐입니다. 문장을 다듬거나, 요약하거나, 말투를 바꾸지 마세요.
+- 들리지 않은 말을 채워 넣지 마세요. 줄을 합치거나 나누지도 마세요.
+- 숫자·단위는 적힌 그대로 두세요 (예: "캐리 210미터"를 "210m"로 바꾸지 않습니다).
+- 골프와 무관한 잡담 줄은 그대로 두세요.
+- 애매하면 고치지 마세요 — 잘못 고친 필기는 안 고친 필기보다 나쁩니다.`;
+};
+
+/** 교정 응답을 줄 번호 → 교정본 맵으로 정규화한다. */
+export const parseTranscriptRepairResponse = (text: string): Map<number, string> => {
+  const out = new Map<number, string>();
+  const match = text.match(/\{[\s\S]*\}/);
+  if (!match) return out;
+  try {
+    const parsed = JSON.parse(match[0]) as { fixes?: unknown };
+    if (!Array.isArray(parsed?.fixes)) return out;
+    for (const entry of parsed.fixes) {
+      if (!entry || typeof entry !== 'object') continue;
+      const { i, text: fixed } = entry as { i?: unknown; text?: unknown };
+      const id = typeof i === 'number' ? i : Number(i);
+      if (!Number.isInteger(id) || typeof fixed !== 'string') continue;
+      const trimmed = fixed.trim();
+      if (trimmed) out.set(id, trimmed);
+    }
+  } catch {
+    // 파싱 실패 = 교정 없음. 필기 원문이 그대로 살아남는다.
+  }
+  return out;
+};
+
+/**
+ * 교정본을 받아들일지 판정한다. 용어 치환은 길이를 거의 바꾸지 않으므로,
+ * 크게 늘거나 줄어든 응답은 교정이 아니라 창작·요약으로 보고 버린다.
+ */
+export const isAcceptableRepair = (original: string, repaired: string): boolean => {
+  const from = original.trim();
+  const to = repaired.trim();
+  if (!to || to === from) return false;
+  if (!from) return false;
+  const ratio = to.length / from.length;
+  return ratio <= REPAIR_MAX_RATIO && ratio >= REPAIR_MIN_RATIO;
+};
+
+/** 교정 1회분 호출. 테스트에서 주입할 수 있게 분리한다. */
+export type TranscriptRepairer = (prompt: string) => Promise<string>;
+
+const defaultTranscriptRepairer: TranscriptRepairer = async (prompt) => {
+  const result = await invokeBackendAI<unknown>('lesson_transcript_repair', {
+    prompt,
+    responseMimeType: 'application/json',
+    responseSchema: {
+      type: 'OBJECT',
+      properties: {
+        fixes: {
+          type: 'ARRAY',
+          items: {
+            type: 'OBJECT',
+            properties: { i: { type: 'INTEGER' }, text: { type: 'STRING' } },
+            required: ['i', 'text'],
+          },
+        },
+      },
+      required: ['fixes'],
+    },
+  });
+  return getResponseText(result) ?? '';
+};
+
+/** 교정 대상 한 줄이 노트의 어디에서 왔는지. */
+interface RepairTarget extends TranscriptRepairLine {
+  noteIndex: number;
+  /** turns 가 있는 노트면 그 발화 위치, 없으면 null(= transcript 통째). */
+  turnIndex: number | null;
+}
+
+/**
+ * 노트 배열을 교정 대상 줄로 편다. 화자 라벨이 이미 붙은 노트(오디오 전사
+ * 경로)는 발화 단위로, 라벨이 없는 노트(온디바이스 인식)는 전사 한 줄로
+ * 다룬다 — 어느 쪽이든 교정 결과를 제자리에 되돌릴 수 있어야 한다.
+ */
+const collectRepairTargets = (notes: LessonSegmentNote[]): RepairTarget[] => {
+  const out: RepairTarget[] = [];
+  let id = 1;
+  for (const note of [...notes].sort((a, b) => a.index - b.index)) {
+    if (note.status !== 'done') continue;
+    const turns = note.turns ?? [];
+    if (turns.length) {
+      turns.forEach((turn, turnIndex) => {
+        if (!turn.text.trim()) return;
+        out.push({ id: id++, text: turn.text.trim(), noteIndex: note.index, turnIndex });
+      });
+      continue;
+    }
+    if (note.transcript.trim()) {
+      out.push({
+        id: id++,
+        text: note.transcript.trim(),
+        noteIndex: note.index,
+        turnIndex: null,
+      });
+    }
+  }
+  return out;
+};
+
+/**
+ * 필기의 오인식 용어를 코칭 언어로 되돌린 **새 노트 배열**을 돌려준다.
+ * 원본은 건드리지 않으며, 교정을 못 받은 줄은 원문 그대로 남는다 —
+ * 교정 실패가 필기 유실이 되어서는 안 된다.
+ */
+export const repairTranscriptTerms = async (
+  notes: LessonSegmentNote[],
+  studentName: string,
+  repairer: TranscriptRepairer = defaultTranscriptRepairer,
+  /**
+   * `deadlineAt` 을 넘기면 그 시각 이후로는 새 묶음을 시작하지 않고 **지금까지
+   * 받은 교정만** 반영해 돌려준다. 긴 레슨은 묶음이 여러 번 도는데, 호출부의
+   * 시간 제한에 통째로 걸려 교정을 전부 버리는 것보다 앞부분만이라도 고쳐 둔
+   * 필기가 낫다.
+   */
+  opts: { deadlineAt?: number } = {}
+): Promise<LessonSegmentNote[]> => {
+  const targets = collectRepairTargets(notes);
+  if (!targets.length) return notes;
+
+  const byId = new Map(targets.map((t) => [t.id, t]));
+  const fixes = new Map<number, string>();
+  let context: string[] = [];
+
+  for (let i = 0; i < targets.length; i += TRANSCRIPT_REPAIR_BATCH) {
+    if (opts.deadlineAt != null && Date.now() >= opts.deadlineAt) {
+      log.warn('필기 용어 교정 시간 초과 — 지금까지의 교정만 반영합니다.');
+      break;
+    }
+    const batch = targets.slice(i, i + TRANSCRIPT_REPAIR_BATCH);
+    try {
+      const raw = await repairer(
+        buildTranscriptRepairPrompt(
+          batch.map(({ id, text }) => ({ id, text })),
+          studentName,
+          context
+        )
+      );
+      for (const [id, fixed] of parseTranscriptRepairResponse(raw)) {
+        const target = byId.get(id);
+        // 이 묶음에 없던 줄 번호는 무시한다 — 모델이 앞 묶음을 다시
+        // 고쳐 보내는 경우까지 받아들이면 확정된 줄이 흔들린다.
+        if (!target || !batch.includes(target)) continue;
+        if (isAcceptableRepair(target.text, fixed)) fixes.set(id, fixed);
+      }
+    } catch (err) {
+      // 한 묶음이 실패해도 나머지는 계속 시도한다.
+      log.warn('필기 용어 교정 실패(묶음 유지):', err);
+    }
+    context = batch
+      .slice(-TRANSCRIPT_REPAIR_CONTEXT)
+      .map((t) => fixes.get(t.id) ?? t.text);
+  }
+
+  if (!fixes.size) return notes;
+
+  const fixedByNote = new Map<number, Map<number | null, string>>();
+  for (const [id, text] of fixes) {
+    const target = byId.get(id);
+    if (!target) continue;
+    const perNote = fixedByNote.get(target.noteIndex) ?? new Map<number | null, string>();
+    perNote.set(target.turnIndex, text);
+    fixedByNote.set(target.noteIndex, perNote);
+  }
+
+  return notes.map((note) => {
+    const perNote = fixedByNote.get(note.index);
+    if (!perNote) return note;
+    if (note.turns?.length) {
+      const turns = note.turns.map((turn, turnIndex) => {
+        const fixed = perNote.get(turnIndex);
+        return fixed ? { ...turn, text: fixed } : turn;
+      });
+      // transcript 는 언제나 turns 를 이어 붙인 결과라는 불변식을 지킨다.
+      return { ...note, turns, transcript: joinTranscriptTurns(turns) };
+    }
+    const fixed = perNote.get(null);
+    return fixed ? { ...note, transcript: fixed } : note;
+  });
 };
 
 // ─── 화자 역할 라벨링 (텍스트 경로) ─────────────────────────────────────────
@@ -1835,6 +2106,26 @@ export class LessonAudioSession {
       if (!turns?.length || n.turns?.length) return n;
       changed = true;
       return { ...n, turns };
+    });
+    if (!changed) return;
+    this.emitNotes();
+    void this.persistMeta();
+  }
+
+  /**
+   * 용어 교정(repairTranscriptTerms)의 결과를 세션 노트에 반영한다.
+   * 검토 화면·최종 리포트·복구 세션이 모두 같은 교정본을 보게 하는 것이
+   * 목적이라, 라벨과 달리 **이미 있는 본문을 덮어쓴다** — 교정은 같은 말을
+   * 다시 적는 일이고, 원문이 남으면 어느 쪽이 기록인지 갈린다.
+   */
+  applyRepairedNotes(repaired: LessonSegmentNote[]): void {
+    const byIndex = new Map(repaired.map((n) => [n.index, n]));
+    let changed = false;
+    this.notes = this.notes.map((n) => {
+      const fixed = byIndex.get(n.index);
+      if (!fixed || fixed.transcript === n.transcript) return n;
+      changed = true;
+      return { ...n, transcript: fixed.transcript, ...(fixed.turns ? { turns: fixed.turns } : {}) };
     });
     if (!changed) return;
     this.emitNotes();

@@ -42,6 +42,7 @@ const sessionStub = {
   settleAnalyses: vi.fn(async () => {}),
   setTranscriptSource: vi.fn(),
   applySpeakerTurns: vi.fn(),
+  applyRepairedNotes: vi.fn(),
   getNotes: () => notes,
   snapshot: () => ({
     recordedSec: 63,
@@ -65,7 +66,9 @@ vi.mock('../services/lessonAudioPipeline', async () => ({
   purgeStaleLessonAudioSessions: vi.fn(async () => {}),
   discardLessonAudioSession: vi.fn(async () => {}),
   generateRollingLessonSummary: vi.fn(async () => '요약'),
-  // 화자 라벨링은 네트워크를 타므로 스텁 — 라벨 없이 진행하는 경로를 본다.
+  // 검토 초안 단계(용어 교정 → 화자 분류)는 네트워크를 타므로 스텁 —
+  // 둘 다 필기를 그대로 통과시켜, 후처리 없이도 검토 화면이 열리는 경로를 본다.
+  repairTranscriptTerms: vi.fn(async (given: unknown) => given),
   labelTranscriptSpeakers: vi.fn(async (given: unknown) => given),
   formatClock: (sec: number) =>
     `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`,
@@ -138,7 +141,10 @@ describe('레슨 기록 확인 화면', () => {
   it('저장 버튼을 누르면 편집한 필기·요약이 저장 흐름으로 넘어간다', async () => {
     const onFinish = await openReviewScreen();
 
-    const summary = await screen.findByPlaceholderText(/요약이 아직 없어요/);
+    // 검토 초안은 용어 교정 → 화자 분류를 차례로 거친 뒤 열린다.
+    const summary = await screen.findByPlaceholderText(/요약이 아직 없어요/, undefined, {
+      timeout: 5_000,
+    });
     fireEvent.change(summary, { target: { value: '그립 압력 교정' } });
 
     fireEvent.click(screen.getByRole('button', { name: /기록 저장하기/ }));
