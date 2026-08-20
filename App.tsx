@@ -2317,6 +2317,19 @@ const AppContent: React.FC = () => {
               setSelectedLesson(merged);
               await handleUpdateLesson(merged);
             }}
+            onStoryMeta={async (story) => {
+              // 승인 뒤 뒤에서 도착하는 표지 문구. 대상은 "승인한 그
+              // 기록"이므로 저장은 무조건 하고, 화면 상태는 그 사이
+              // 코치가 다른 기록을 열지 않았을 때만 갱신한다.
+              const merged: Lesson = {
+                ...selectedLesson,
+                story: { ...(selectedLesson.story ?? {}), ...story },
+              };
+              setSelectedLesson((prev) =>
+                prev && prev.id === merged.id ? merged : prev
+              );
+              await handleUpdateLesson(merged);
+            }}
             onUndoApproval={async () => {
               const rolled: Lesson = {
                 ...selectedLesson,

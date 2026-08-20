@@ -37,6 +37,7 @@ import {
   handoverSummarySchema,
   interviewQuestionSchema,
   lessonReviewDraftSchema,
+  lessonStoryMetaSchema,
   motionCaptureSchema,
   trackmanScreenSchema,
   weeklyInsightSchema,
@@ -1956,6 +1957,104 @@ ${historyBlock}
       hasSchema: true,
     });
     return fallback();
+  }
+};
+
+/**
+ * 레슨 스토리의 표지 문구를 짓는다 — 헤드라인과 리드 한 줄.
+ * 기획: docs/LESSON_STORY_UI_PLAN.md §7
+ *
+ * 승인 시점에 **한 번만** 부른다. 열 때마다 부르면 비용과 지연이 붙는
+ * 것도 문제지만, 그보다 볼 때마다 제목이 바뀌는 것은 일기가 아니다.
+ *
+ * 입력은 `reviewSections`(코치가 승인한 최종본)를 우선한다. AI 초안이
+ * 아니라 코치가 실제로 고른 문장에서 뽑아야 코치 말투가 산다. 없으면
+ * liveLessonDetail → aiAnalysis → coachNotes 로 떨어지는데, 이는 뷰의
+ * 조판기가 쓰는 폴백 사슬과 같은 순서다.
+ *
+ * 실패하면 조용히 undefined 를 돌려준다 — 호출부는 story 를 안 붙이고,
+ * 뷰는 `lesson.title` 로 폴백한다. AI 가 안 돌아도 화면은 그대로다.
+ */
+export const generateLessonStoryMeta = async (
+  lesson: Lesson,
+  coachId?: string
+): Promise<{ headline: string; dek?: string } | undefined> => {
+  // 코치가 직접 정한 헤드라인은 덮지 않는다.
+  if (lesson.story?.editedByCoach && lesson.story.headline?.trim()) return undefined;
+
+  const source = [
+    lesson.reviewSections?.todayCovered,
+    lesson.reviewSections?.feedback,
+    lesson.liveLessonDetail?.summary,
+    typeof lesson.aiAnalysis === 'string' ? lesson.aiAnalysis : '',
+    lesson.coachNotes,
+  ]
+    .map((t) => (t ?? '').trim())
+    .filter(Boolean)
+    .join('\n\n')
+    .slice(0, 4000);
+
+  // 뽑아낼 글이 없으면 부르지 않는다 — 제목만으로 지어내라는 요청이 된다.
+  if (source.length < 20) return undefined;
+
+  const keyPoints = (lesson.liveLessonDetail?.keyPoints ?? []).slice(0, 6);
+  const actions = (lesson.reviewSections?.nextActions ?? []).slice(0, 4);
+
+  try {
+    const prompt = `당신은 골프 코치가 학생에게 보내는 레슨 기록의 **제목**을 짓는 편집자입니다.
+이 기록은 학생에게 일기처럼 읽히는 한 편의 글이고, 당신이 쓰는 것은 그 글의 표지 문구입니다.
+
+**코치가 승인한 본문:**
+${source}
+
+**오늘의 키워드:** ${keyPoints.join(', ') || '없음'}
+**다음 레슨까지 할 일:** ${actions.join(', ') || '없음'}
+
+**작성 지침:**
+- headline: 그날을 한 줄로 요약한 제목. 18자 이내. 명사형으로 끝냅니다.
+  좋은 예: "오른팔이 붙기 시작한 날", "슬라이스와의 3주차"
+  나쁜 예: "오늘의 레슨"(무엇이든 될 수 있음), "완벽한 스윙 완성!"(과장), "레슨을 진행했습니다"(서술형)
+- dek: 제목 아래 한 줄. 40자 이내. 본문에 이미 있는 사실만 씁니다.
+  덧붙일 말이 없으면 이 필드를 아예 빼세요. 억지로 채우지 않습니다.
+- **본문에 없는 사실을 만들지 마세요.** 수치·부위·드릴 이름은 본문에 나온 것만 씁니다.
+- 과장하지 마세요. 느낌표를 쓰지 않고, "완벽" "최고" 같은 단정을 피합니다.
+- 학생이 읽는 글이므로 존중하는 톤을 유지하되, 제목 자체는 담백하게 씁니다.
+
+반드시 아래 JSON 형식으로만 응답하세요:
+{
+  "headline": "...",
+  "dek": "..."
+}`;
+
+    const result = await invokeBackendAI<unknown>('lesson_story_meta', {
+      prompt,
+      coachId,
+      responseMimeType: 'application/json',
+      responseSchema: lessonStoryMetaSchema,
+    });
+    const text = getResponseText(result);
+    const parsed = (text ? parseJsonObjectFromText(text) : result) as
+      | Record<string, unknown>
+      | null;
+
+    const headline =
+      typeof parsed?.headline === 'string' ? parsed.headline.trim() : '';
+    if (!headline) throw new Error('Invalid lesson story meta response');
+
+    const dek = typeof parsed?.dek === 'string' ? parsed.dek.trim() : '';
+    return {
+      // 모델이 지침을 넘겨도 표지가 깨지지 않도록 길이를 여기서 자른다.
+      headline: headline.slice(0, 40),
+      dek: dek ? dek.slice(0, 80) : undefined,
+    };
+  } catch (error) {
+    log.error('Generate Lesson Story Meta Error:', error);
+    recordAiFallback('lesson_story_meta', {
+      coachId,
+      errorMessage: error instanceof Error ? error.message : String(error),
+      hasSchema: true,
+    });
+    return undefined;
   }
 };
 
