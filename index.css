@@ -33,6 +33,18 @@
   --brand-600: #059669;
   --brand-700: #047857;
 
+  /* Paper theme — 레슨 동반 필기 노트(LessonNotebook)와 레슨 스토리
+     (LessonStoryView)가 공유하는 종이 팔레트. 다크 앱 위에 놓인 종이
+     한 장이라는 같은 은유를 쓰므로 값은 한곳에서만 정의한다.
+     대비: --paper 위의 --paper-ink 는 약 12:1(AAA). --paper-pencil 은
+     약 3.4:1 이므로 14px 이상 + 부가 정보(캡션·메타)에만 쓸 것. */
+  --paper:        #fbf6e9;
+  --paper-ink:    #2b3547;
+  --paper-pencil: #8a8272;
+  --paper-rule:   #dfd4b8;
+  --paper-margin: #e8a9a0;
+  --paper-postit: #fdf3c4;
+
   /* Channel-split copies of the background layers so utilities can apply an
      alpha (rgb(var(--bg-base-rgb) / 0.95)). Keep in sync with the hex above. */
   --bg-base-rgb:    8 12 10;

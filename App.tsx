@@ -2285,6 +2285,7 @@ const AppContent: React.FC = () => {
             onEdit={handleEditLesson}
             onOpenReview={() => setCoachView('LESSON_REVIEW')}
             onRecordAnotherLesson={() => handleRecordAnotherLessonForClient(selectedLesson)}
+            coachName={currentUser?.name}
           />
         )}
 

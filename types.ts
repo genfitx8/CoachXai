@@ -204,6 +204,78 @@ export interface LiveLessonDetail {
   drills?: string[];
 }
 
+/**
+ * 레슨 스토리(Lesson Story) — 기록을 블로그/일기 형태로 조판하기 위한
+ * 표현 레이어. 기획: docs/LESSON_STORY_UI_PLAN.md
+ *
+ * 스토리는 블록의 순열이다. `services/lessonStoryComposer.ts` 의
+ * `composeStory()` 가 Lesson 을 읽어 이 배열을 만들고, `LessonStoryView`
+ * 는 배열만 보고 그린다 — 렌더러는 데이터 출처를 모른다. 덕분에 조판
+ * 규칙을 순수 함수 테스트로 고정할 수 있고, 나중에 코치가 순서를 직접
+ * 짜게 될 때(M3)는 "배열을 저장한다"가 전부가 된다.
+ *
+ * `cover` 가 날짜/회차/코치명을 함께 들고 있는 것은 의도다 — 이 정보는
+ * 시각적으로 표지 안에 놓이므로 별도 meta 블록으로 쪼개면 렌더러가
+ * 둘의 인접을 다시 가정해야 한다.
+ */
+export type StoryBlock =
+  /** 표지 — 대표컷 위에 한 줄 제목과 날짜·회차·코치명이 얹힌다. */
+  | {
+      kind: 'cover';
+      headline: string;
+      dek?: string;
+      /** 대표컷. `MAIN_MEDIA_ID` 면 lesson.videoUrl/thumbnailUrl 슬롯. */
+      mediaId?: string;
+      date: string;
+      sessionNumber?: number;
+      coachName?: string;
+    }
+  /** 리드 — 본문보다 한 단계 큰 도입 문단. */
+  | { kind: 'lead'; text: string }
+  /** 오늘의 키워드 — keyPoints(key) / drills(drill) 손글씨 태그. */
+  | { kind: 'chips'; items: string[]; tone: 'key' | 'drill' }
+  | { kind: 'paragraph'; text: string }
+  /** 문단 사이에 꽂히는 사진/영상. size 는 조판기가 번갈아 지정한다. */
+  | { kind: 'photo'; mediaId: string; caption?: string; size: 'inset' | 'full' }
+  | { kind: 'video'; mediaId: string; caption?: string; size: 'inset' | 'full' }
+  /** 레슨 전/후 나란히. */
+  | { kind: 'compare'; beforeId: string; afterId: string }
+  /** 본문에 다 못 넣은 미디어 — 하단 그리드. */
+  | { kind: 'gallery'; mediaIds: string[] }
+  | { kind: 'filmstrip'; items: SwingSequenceItem[] }
+  /** 샷 데이터 — 가로 스크롤 숫자 스트립. 차트는 자료 탭이 맡는다. */
+  | { kind: 'data'; golf: GolfData }
+  /** 다음 레슨까지 할 일. checkable 은 학생 뷰에서만 true. */
+  | { kind: 'checklist'; items: string[]; checkable: boolean }
+  | { kind: 'memo'; text: string }
+  /** 그날의 필기 원문 — 기본 접힘. 접힌 동안 DOM 에 넣지 않는다. */
+  | { kind: 'notefold'; transcript: LiveLessonTranscriptEntry[]; durationSec: number }
+  | { kind: 'signature'; coachName?: string; signedAt?: number }
+  /** 학생의 한마디. 비어 있으면 학생 뷰에서만 invite(입력 유도)로 뜬다. */
+  | { kind: 'reply'; feedback?: ClientFeedback; invite: boolean };
+
+/**
+ * 스토리 조판을 위해 기록에 덧붙는 표현 정보. **모든 필드가 optional** 이고
+ * 조판기가 기존 필드 폴백을 가지고 있으므로, 이 값이 통째로 없어도 화면은
+ * 그대로 그려진다 — 과거 기록을 마이그레이션하지 않아도 되는 이유다.
+ */
+export interface LessonStory {
+  /** 그날의 한 줄(18자 내외). 없으면 lesson.title 로 폴백한다. */
+  headline?: string;
+  /** 리드 위에 얹는 한 줄 요약(40자 내외). */
+  dek?: string;
+  /** 코치가 지정한 대표컷 — MediaItem.id 또는 `MAIN_MEDIA_ID`. */
+  coverMediaId?: string;
+  /** mediaId → 손글씨 캡션. */
+  captions?: Record<string, string>;
+  /** 코치가 직접 짠 블록 순서(M3). 있으면 자동 조판을 건너뛴다. */
+  blocks?: StoryBlock[];
+  /** true 면 재생성이 blocks 를 덮어쓰지 않는다. */
+  editedByCoach?: boolean;
+  /** 스토리 메타가 생성된 시각(ms). */
+  generatedAt?: number;
+}
+
 export interface Lesson {
   id: string;
   /** Composite key: `${clientName}_${clientPhone}` — the app-wide student identifier. */
@@ -262,6 +334,11 @@ export interface Lesson {
    * legacy lessons that predate the review flow render as before.
    */
   reviewSections?: LessonReviewSections;
+  /**
+   * 블로그/일기 조판을 위한 표현 정보(헤드라인·캡션·대표컷 등).
+   * 전부 optional — 없으면 `composeStory()` 가 기존 필드만으로 조판한다.
+   */
+  story?: LessonStory;
   /**
    * AI가 처음 뽑은 검토 초안 — write-once (docs/DATA_ARCHITECTURE.md §6.1).
    * `reviewSections`는 코치의 수정으로 계속 덮어써지므로, 그 전 상태를
