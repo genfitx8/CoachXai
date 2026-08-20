@@ -18,17 +18,34 @@ const BASE_URL = resolveApiBaseUrl();
 const TOKEN_KEY = 'swingnote_api_token';
 const LESSON_NOT_FOUND_ERROR = 'Lesson not found or access denied';
 const HTTP_404_ERROR = 'HTTP 404';
+/** Prefix of the server's catch-all response for an unrouted /api path. */
+const ENDPOINT_NOT_FOUND_ERROR = 'Endpoint not found';
 
 export class ApiError extends Error {
   status: number;
   path: string;
   method: string;
-  constructor(message: string, status: number, method: string, path: string) {
+  /**
+   * True when a 404 carried no server-authored error body. Our routes always
+   * answer with `{ error: ... }`, so a bodyless/HTML 404 means the request
+   * never reached a handler: the SPA host answered instead of the API, or the
+   * deployed backend predates the endpoint. Callers use this to tell "that row
+   * does not exist" apart from "that endpoint does not exist".
+   */
+  endpointMissing: boolean;
+  constructor(
+    message: string,
+    status: number,
+    method: string,
+    path: string,
+    endpointMissing = false
+  ) {
     super(message);
     this.name = 'ApiError';
     this.status = status;
     this.method = method;
     this.path = path;
+    this.endpointMissing = endpointMissing;
   }
 }
 
@@ -44,6 +61,20 @@ function parseErrorDetails(error: unknown): { status?: number; message: string }
     };
   }
   return { message: '' };
+}
+
+/**
+ * `true` when the failure means "this endpoint is not served here" rather than
+ * "this row was not found". Keeps working for plain objects/`Error`s thrown by
+ * mocks, where only the generic `HTTP 404` message survives.
+ */
+export function isEndpointMissingError(error: unknown): boolean {
+  const { status, message } = parseErrorDetails(error);
+  if (status !== 404) return false;
+  // The server's own catch-all for unrouted /api paths says so explicitly.
+  if (message.startsWith(ENDPOINT_NOT_FOUND_ERROR)) return true;
+  if (error instanceof ApiError) return error.endpointMissing;
+  return message === '' || message === HTTP_404_ERROR;
 }
 
 async function req<T = unknown>(method: string, path: string, body?: unknown): Promise<T> {
@@ -63,8 +94,15 @@ async function req<T = unknown>(method: string, path: string, body?: unknown): P
   }
   if (!res.ok) {
     const err = await res.json().catch(() => null);
-    const message = err?.error || err?.message || `HTTP ${res.status}`;
-    throw new ApiError(message, res.status, method, path);
+    const serverMessage: string | null = err?.error || err?.message || null;
+    const message = serverMessage || `HTTP ${res.status}`;
+    throw new ApiError(
+      message,
+      res.status,
+      method,
+      path,
+      res.status === 404 && !serverMessage
+    );
   }
   return res.json() as Promise<T>;
 }
@@ -830,6 +868,9 @@ export const apiService = {
       );
       return data.reservation ?? null;
     } catch (error) {
+      // A missing endpoint is not a missing row — it has to reach the caller
+      // so it can fall back instead of reporting "no such reservation".
+      if (isEndpointMissingError(error)) throw error;
       const { status } = parseErrorDetails(error);
       if (status === 404) return null;
       throw error;

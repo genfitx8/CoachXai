@@ -87,6 +87,17 @@ app.use('/api/consents', consentsRouter);
 app.use('/api/payments/payapp', payappPaymentsRouter);
 app.use('/api/payments/payapp-membership', payappMembershipsRouter);
 
+// Unknown /api/* path. Express' default handler answers with an HTML page, and
+// the client turns a body it cannot parse into a bare "HTTP 404" — which is
+// indistinguishable from "that row does not exist" and told a coach nothing
+// when a reservation write landed on a backend without the endpoint. Answer
+// with the same JSON envelope every route uses instead.
+app.use('/api', (req, res) => {
+  res
+    .status(404)
+    .json({ error: `Endpoint not found: ${req.method} ${req.originalUrl.split('?')[0]}` });
+});
+
 initDb()
   .then(() => {
     app.listen(PORT, () => {
