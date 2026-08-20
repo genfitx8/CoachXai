@@ -10,7 +10,8 @@
  * 1. 핸드오프(initialClips + initialLiveSession)로 열리면 기록 유형 선택
  *    없이 바로 '레슨 동반 기록' FORM 으로 진입한다.
  * 2. 저장된 레슨은 recordType === 'LIVE_LESSON' 이고 '레슨동반' 태그가 붙는다.
- * 3. liveLessonDetail 에 필기(transcript)와 요약본(summary)이 저장된다.
+ * 3. liveLessonDetail 에 필기(transcript)와 검토에서 확인된 요약본(summary)이
+ *    저장된다. 저장 시점에 AI 요약을 다시 돌리지는 않는다.
  * 4. 저장 후 라이브 세션의 복구용 IDB 데이터가 폐기된다.
  */
 
@@ -224,15 +225,17 @@ describe('레슨 동반(LIVE_LESSON) 기록 카테고리', () => {
     expect(saved.liveLessonDetail!.keyPoints).toContain('그립 압력');
     expect(saved.liveLessonDetail!.drills).toContain('빈 스윙 10회');
 
-    // 요약본 — AI 토글과 무관하게 항상 생성되고 구조/aiAnalysis 양쪽에 남는다.
-    expect(generateLessonSummaryFromNotes).toHaveBeenCalled();
-    expect(saved.liveLessonDetail!.summary).toBe('## 오늘 레슨 요약본');
-    expect(saved.aiAnalysis).toBe('## 오늘 레슨 요약본');
+    // 요약은 검토 화면에서 끝났다 — 저장은 AI 를 부르지 않는다. 검토에서
+    // 요약을 비워 두고 온 핸드오프라면 필기만 남고 요약본은 비어 있다.
+    expect(generateLessonSummaryFromNotes).not.toHaveBeenCalled();
+    expect(generateLessonSummaryFromTranscript).not.toHaveBeenCalled();
+    expect(saved.liveLessonDetail!.summary).toBeUndefined();
+    expect(saved.aiAnalysis).toBeUndefined();
 
-    // 세션 노트는 핸드오프 sessionId 로 수거된다. 검토를 거치지 않은
-    // 핸드오프는 아직 분석 중인 구간이 있을 수 있어 큐를 기다린다.
+    // 세션 노트는 핸드오프 sessionId 로 수거된다. 검토한 필기가 없으면
+    // 아직 분석 중인 구간을 잠깐(10초까지) 기다렸다가 그대로 쓴다.
     expect(collectSessionNotes).toHaveBeenCalledWith('session_live_1', {
-      waitMs: 30_000,
+      waitMs: 10_000,
     });
 
     // 저장이 끝나면 복구용 IDB 세션은 폐기된다.
@@ -261,7 +264,7 @@ describe('레슨 동반(LIVE_LESSON) 기록 카테고리', () => {
     });
 
     // 코치가 이미 확인·수정한 요약이 그대로 최종 요약본이 된다 —
-    // 저장 시점의 재요약 호출은 없다.
+    // 저장 시점의 요약 호출은 어느 경로로도 없다.
     expect(generateLessonSummaryFromTranscript).not.toHaveBeenCalled();
     expect(generateLessonSummaryFromNotes).not.toHaveBeenCalled();
 
@@ -277,7 +280,7 @@ describe('레슨 동반(LIVE_LESSON) 기록 카테고리', () => {
     ]);
 
     // 본문이 이미 손에 있으므로 분석 큐가 비기를 기다리지 않는다 —
-    // 저장 버튼을 누른 뒤 "정리 중"이 수십 초 도는 일이 없어야 한다.
+    // 저장 버튼을 누른 뒤 대기가 도는 일이 없어야 한다.
     expect(collectSessionNotes).toHaveBeenCalledWith('session_live_1', {
       waitMs: 0,
     });
