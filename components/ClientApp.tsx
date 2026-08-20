@@ -684,6 +684,7 @@ export const ClientApp: React.FC<ClientAppProps> = ({ clientProfile, allLessons,
                 handleBackToTab();
               } : undefined}
               onEdit={handleEditLesson}
+              coachName={designatedCoachProfile?.name}
             />
           </main>
         </div>

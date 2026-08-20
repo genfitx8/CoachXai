@@ -20,6 +20,9 @@ import {
   type MediaKind,
 } from '../utils/mediaPermissions';
 import { PermissionDeniedModal } from './PermissionDeniedModal';
+import { LessonStoryView } from './LessonStoryView';
+import type { StoryMediaMap } from './story/StoryMedia';
+import { MAIN_MEDIA_ID } from '../services/lessonStoryComposer';
 
 interface LessonDetailProps {
   lesson: Lesson;
@@ -37,6 +40,11 @@ interface LessonDetailProps {
    * to 'approved' so it's clear the lesson is already released.
    */
   onOpenReview?: () => void;
+  /**
+   * 서명에 쓸 코치 이름 — 스토리 뷰 하단의 "— 김도현 코치, 8월 19일".
+   * 없으면 서명에서 이름을 생략한다.
+   */
+  coachName?: string;
 }
 
 const SEQUENCE_LABELS = [
@@ -68,7 +76,7 @@ export async function persistAdditionalMediaSourceForOffline(params: {
   }
 }
 
-export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons = [], role = 'COACH', onBack, onUpdate, onDelete, onEdit, onRecordAnotherLesson, onOpenReview }) => {
+export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons = [], role = 'COACH', onBack, onUpdate, onDelete, onEdit, onRecordAnotherLesson, onOpenReview, coachName }) => {
   const { t } = useLanguage();
   // resolvedMainUrl is always null on mount; the IDB effect below resolves it.
   // Using null here avoids a double-blob-URL problem: if resolveSync() were
@@ -125,6 +133,21 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
 
   // Video Editor State
   const [showVideoEditor, setShowVideoEditor] = useState(false);
+
+  /**
+   * 스토리 / 자료 탭.
+   *
+   * 기본은 스토리다 — 코치도 자기가 학생에게 보낸 글을 학생과 같은
+   * 화면으로 보는 것이 맞다. 자료 탭이 기존 상세 화면(첨부·편집·분석·
+   * 스코어카드)을 그대로 맡는다.
+   *
+   * 라운드(SCORE) 기록은 스코어카드가 중심이라 글로 조판할 대상이
+   * 아니므로 탭 자체를 띄우지 않는다.
+   */
+  const showStoryTab = lesson.recordType !== 'SCORE';
+  const [detailTab, setDetailTab] = useState<'STORY' | 'SOURCE'>(
+    showStoryTab ? 'STORY' : 'SOURCE'
+  );
 
   // Compare Video State
   const [isGeneratingCompare, setIsGeneratingCompare] = useState(false);
@@ -231,6 +254,46 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
     }
     return resolveMediaUrl(media.url);
   };
+
+  /**
+   * 스토리 뷰에 넘길 mediaId → 소스 맵.
+   *
+   * 해석(idb:// → blob URL)은 위의 이펙트가 이미 끝내 놓았으므로 여기서
+   * 다시 하지 않는다 — 같은 블롭에 대해 객체 URL 이 두 벌 생기고, 한쪽을
+   * revoke 하면 다른 쪽이 깨진다. 스토리 쪽 성능은 실제로 비싼 지점,
+   * 즉 영상 디코더를 StoryMedia 가 탭 전까지 마운트하지 않는 것으로 막는다.
+   */
+  const storyMedia: StoryMediaMap = useMemo(() => {
+    const map: StoryMediaMap = {};
+    if (mainMediaUrl) {
+      map[MAIN_MEDIA_ID] = {
+        url: mainMediaUrl,
+        type: lesson.mediaType,
+        poster:
+          resolveMediaUrl(lesson.thumbnailUrl) ||
+          (lesson.mediaType === 'image' ? mainMediaUrl : undefined),
+      };
+    }
+    for (const media of lesson.additionalMedia ?? []) {
+      const url = getAdditionalMediaUrl(media);
+      if (!url) continue;
+      map[media.id] = {
+        url,
+        type: media.type,
+        poster: media.type === 'image' ? url : undefined,
+      };
+    }
+    return map;
+    // getAdditionalMediaUrl 은 resolvedAdditionalUrls 를 닫아 잡으므로
+    // 그 두 값이 의존성에 들어가야 해석이 끝난 뒤 맵이 갱신된다.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    mainMediaUrl,
+    lesson.thumbnailUrl,
+    lesson.mediaType,
+    lesson.additionalMedia,
+    resolvedAdditionalUrls,
+  ]);
 
   const activeMediaUrl = (() => {
     // Check main-slot first: mainMediaUrl is already computed from
@@ -1186,7 +1249,51 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
         </div>
       </div>
 
+      {/* 스토리 / 자료 — 같은 기록의 두 얼굴. 스토리는 읽는 화면이고,
+          자료는 첨부·편집·분석을 다루는 화면이다. */}
+      {showStoryTab && (
+        <div className="flex-shrink-0 flex justify-center bg-base border-b border-line-subtle px-4 py-2">
+          <div
+            role="tablist"
+            aria-label="기록 보기 방식"
+            className="inline-flex gap-1 p-1 rounded-full bg-white/[0.06]"
+          >
+            {(
+              [
+                ['STORY', '스토리'],
+                ['SOURCE', '자료'],
+              ] as const
+            ).map(([key, label]) => (
+              <button
+                key={key}
+                type="button"
+                role="tab"
+                aria-selected={detailTab === key}
+                onClick={() => setDetailTab(key)}
+                className={`px-4 rounded-full text-xs font-bold transition-colors min-h-[32px] ${
+                  detailTab === key
+                    ? 'bg-emerald-500 text-[#04150e]'
+                    : 'text-ink-medium hover:text-ink-high'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="flex-1 overflow-y-auto bg-white/[0.03] custom-scrollbar safe-area-bottom">
+        {showStoryTab && detailTab === 'STORY' ? (
+          <LessonStoryView
+            lesson={lesson}
+            viewer={role}
+            coachName={coachName}
+            media={storyMedia}
+            // 학생이 "한마디 남기기"를 누르면 실제 입력이 있는 자료 탭으로 보낸다.
+            onWriteReply={() => setDetailTab('SOURCE')}
+          />
+        ) : (
         <div className="max-w-4xl mx-auto p-4 space-y-6">
           <div className="bg-white/[0.04]/[0.04] rounded-2xl border border-line-subtle p-4 shadow-sm shadow-black/20">
             <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-ink-medium">
@@ -2288,7 +2395,15 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
               )}
           </div>
 
-          {/* Bottom Back & Delete Buttons */}
+          <div className="text-center text-xs text-ink-muted pt-4 pb-2">
+              Lesson ID: {lesson.id} • {new Date(lesson.createdAt).toLocaleString()}
+          </div>
+        </div>
+        )}
+
+        {/* 기록 단위 동작 — 돌아가기 / 수정 / 삭제.
+            어느 탭을 보고 있든 같은 기록에 대한 동작이므로 탭 밖에 둔다. */}
+        <div className="max-w-4xl mx-auto px-4 pb-4">
           <div className="pt-4 flex flex-col gap-2">
               {!isClientView && onRecordAnotherLesson && (
                   <Button
@@ -2327,10 +2442,6 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
                   </button>
               )}
 
-          </div>
-          
-          <div className="text-center text-xs text-ink-muted pt-4 pb-8">
-              Lesson ID: {lesson.id} • {new Date(lesson.createdAt).toLocaleString()}
           </div>
         </div>
       </div>
