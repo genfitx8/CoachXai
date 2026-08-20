@@ -165,7 +165,10 @@ describe('Coach member list stays scoped to students who designated this coach',
       expect(screen.getByText('CoachX AI')).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole('button', { name: '학생' }));
+    // 학생 목록 lives in the drawer now — the single-surface relaunch
+    // removed the bottom tab bar.
+    fireEvent.click(screen.getByRole('button', { name: /open menu/i }));
+    fireEvent.click(screen.getByRole('button', { name: '학생 목록' }));
 
     await waitFor(() => {
       expect(screen.getByText('내회원')).toBeInTheDocument();

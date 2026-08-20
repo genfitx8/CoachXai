@@ -100,7 +100,6 @@ import {
   Home,
   Menu,
 } from 'lucide-react';
-import { CoachBottomNav, CoachTab } from './components/CoachBottomNav';
 import { CoachHamburgerMenu, CoachHamburgerAction } from './components/CoachHamburgerMenu';
 import { LanguageProvider, useLanguage } from './components/LanguageContext';
 import {
@@ -1658,30 +1657,11 @@ const AppContent: React.FC = () => {
     setCoachView('DIAGNOSIS_PROGRAM');
   };
 
-  // ── Coach tab / hamburger wiring ──────────────────────────────────────────
-
-  /**
-   * Derive which bottom-nav tab is currently "active" from the coach view.
-   * Views that don't map to a tab (DETAIL, NEW, COACHX_*, etc.) return null
-   * so the nav renders as an overlay backdrop without highlighting anything.
-   */
-  const activeCoachTab: CoachTab | null =
-    coachView === 'COACHX' || coachView === 'LESSON_LIST' ? 'LESSON'
-    : coachView === 'CLIENTS' ? 'CLIENTS'
-    : coachView === 'LIVE_LESSON' ? 'LIVE'
-    : null;
-
-  const handleCoachTabChange = (next: CoachTab) => {
-    setSelectedLesson(null);
-    // 홈 tab lands on the agent home (브리핑 + 대화). LIVE opens the
-    // during-lesson companion — the service's core action — picking a
-    // student first when none is chosen. Recording no longer has its own
-    // tab: it originates from the agent home's quick action, the
-    // companion's finish flow, or the hamburger menu.
-    if (next === 'LESSON') setCoachView('COACHX');
-    else if (next === 'CLIENTS') setCoachView('CLIENTS');
-    else setCoachView('LIVE_LESSON');
-  };
+  // ── Coach hamburger wiring ────────────────────────────────────────────────
+  // The relaunch removes the bottom tab bar entirely: the agent conversation
+  // (COACHX) is the app's single primary surface, 동반 레슨 starts from the
+  // agent's proposal inside it, and everything else is reached through the
+  // conversation or the drawer.
 
   const handleCoachNewRecord = () => {
     setIsEditingLesson(false);
@@ -1726,6 +1706,9 @@ const AppContent: React.FC = () => {
         break;
       case 'NEW_RECORD':
         handleCoachNewRecord();
+        break;
+      case 'CLIENTS':
+        setCoachView('CLIENTS');
         break;
       case 'RESERVATIONS':
         setCoachView('RESERVATIONS');
@@ -2140,12 +2123,11 @@ const AppContent: React.FC = () => {
       )}
 
 
-      {/* A flat 96px reservation was short of the bar it had to clear: 65px of tab bar
-          plus the home indicator / gesture bar, which is ~34px on iOS and up
-          to ~48px on an Android three-button navigation bar. The clearance
-          now comes from the same token the nav sizes itself with, with the
-          page's bottom gutter kept on top of it. */}
-      <main className="flex-1 max-w-7xl mx-auto w-full px-4 pt-6 md:pt-8 coach-nav-clearance-gutter">
+      {/* No tab bar below any more — the gutter only needs to clear the
+          device's home indicator. (Not `safe-bottom` + a pb-* class: the
+          unlayered safe-area rule would override the Tailwind padding, the
+          same collapse the old pb-safe/pb-4 pairing hit.) */}
+      <main className="flex-1 max-w-7xl mx-auto w-full px-4 pt-6 md:pt-8 pb-12">
         {coachView === 'LESSON_LIST' && (
           <div className="space-y-6 animate-fade-in">
             {/* Title — the list is opened from the hamburger menu, so the
@@ -2341,6 +2323,7 @@ const AppContent: React.FC = () => {
             reservations={liveLessonReservations}
             reservationsLoading={liveLessonReservationsLoading}
             onSelect={setLiveLessonStudent}
+            onBack={() => setCoachView('COACHX')}
           />
         )}
 
@@ -2439,7 +2422,7 @@ const AppContent: React.FC = () => {
             clients={clients}
             onUpdate={handleUpdateClientProfile}
             onDelete={handleDeleteClient}
-            onBack={() => setCoachView('LESSON_LIST')}
+            onBack={() => setCoachView('COACHX')}
             coachId={
               currentUser && 'id' in currentUser ? currentUser.id : undefined
             }
@@ -2609,7 +2592,13 @@ const AppContent: React.FC = () => {
             todayLessons={buildTodayLessonSummaries(allCoachLessons)}
             onOpenMenu={() => setHamburgerOpen(true)}
             onNavigateToDashboard={() => setCoachView('COACHX_DASHBOARD')}
-            onStartLiveLesson={() => setCoachView('LIVE_LESSON')}
+            onStartLiveLesson={(studentName) => {
+              // In-conversation picker hands over a name → jump straight
+              // into the companion; without one, LIVE_LESSON's own picker
+              // takes over (recovery entry, drawer, edge cases).
+              setLiveLessonStudent(studentName ?? '');
+              setCoachView('LIVE_LESSON');
+            }}
             onNewRecord={handleCoachNewRecord}
             initialQuery={coachAIInitialQuery}
             onInitialQueryConsumed={() => setCoachAIInitialQuery(undefined)}
@@ -2813,15 +2802,6 @@ const AppContent: React.FC = () => {
         />
       )}
 
-      {/* Bottom nav — visible on the three primary tabs, hidden on sub-views.
-          The redesign removes the raised + button; new records now originate
-          from the agent conversation instead of a fixed CTA. */}
-      {activeCoachTab && (
-        <CoachBottomNav
-          activeTab={activeCoachTab}
-          onTabChange={handleCoachTabChange}
-        />
-      )}
     </div>
   );
 };

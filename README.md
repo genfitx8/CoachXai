@@ -45,16 +45,18 @@ re-enabled per build or per device without a revert.
 
 ## Basic IA / Key Flows
 
-The coach app runs on three tabs — 홈 / 동반 레슨 / 학생:
+The coach app is a **single conversational surface** — no tab bar. The agent
+IS the app:
 
-- **홈 (agent home)**: today's briefing, the 동반 레슨 hero CTA, and the coach
-  agent conversation; lesson-record quick action lives here and in the menu
-- **동반 레슨 (live lesson companion)**: pick a student → CoachX accompanies
-  the lesson → finish hands captured clips + transcript to the record form
-- **학생 (students)**: search student list, open student detail, review
-  note history and growth reports
-- **Lesson Flow**: select student → record structured notes → AI organize/review → save
-- **Profile/Settings** (drawer): profile, language, logout
+- **Login → agent proposal**: CoachX greets the coach with today's briefing
+  and proposes the core action up front — "레슨 동반을 시작하시겠습니까?"
+- **Student pick, in-thread**: accepting expands reservation-ranked student
+  cards inside the conversation (or say/type a name)
+- **동반 레슨 (live lesson companion)**: CoachX accompanies the lesson —
+  listening, capturing swings — and finish hands clips + transcript to the
+  record form for AI organize/review → save
+- **Everything else via conversation or drawer**: student roster/detail,
+  lesson records, profile, language, logout
 
 ## Global Service Considerations
 

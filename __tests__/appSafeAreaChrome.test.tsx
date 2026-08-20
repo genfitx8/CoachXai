@@ -40,7 +40,6 @@ import path from 'node:path';
 import { ClientApp } from '../components/ClientApp';
 import { StudentBottomNav } from '../components/StudentBottomNav';
 import { StudentHamburgerMenu } from '../components/StudentHamburgerMenu';
-import { CoachBottomNav } from '../components/CoachBottomNav';
 import { LanguageProvider } from '../components/LanguageContext';
 import { ClientProfile } from '../types';
 
@@ -275,38 +274,22 @@ describe('coach safe-area utilities', () => {
   });
 });
 
-describe('CoachBottomNav', () => {
-  it('pins its row to --coach-nav-row-height so the clearance math stays true', () => {
-    render(
-      <LanguageProvider>
-        <CoachBottomNav activeTab="LESSON" onTabChange={vi.fn()} />
-      </LanguageProvider>
-    );
-
-    const nav = screen.getByRole('navigation', { name: /coach navigation/i });
-    expect(nav.className).toContain('pb-safe');
-
-    const row = nav.querySelector('div');
-    expect(row).not.toBeNull();
-    expect(row!.className).toContain('h-[var(--coach-nav-row-height)]');
-  });
-});
-
 describe('coach app shell', () => {
   const appSource = repoFile('App.tsx');
   const homeSource = repoFile('components', 'CoachAIHome.tsx');
 
-  it('reserves the real bar height under the coach content area', () => {
-    // 96px was short of 65px of bar plus an inset of up to ~48px.
-    expect(appSource).not.toContain('pb-24');
-    expect(appSource).toContain('coach-nav-clearance-gutter');
+  // The single-surface relaunch removed the coach bottom tab bar entirely:
+  // the agent home reaches the bottom edge and owns the home-indicator
+  // inset itself, and sub-views only need an ordinary bottom gutter.
+
+  it('no longer reserves tab-bar clearance under the coach content area', () => {
+    expect(appSource).not.toContain('coach-nav-clearance-gutter');
+    expect(appSource).not.toContain('CoachBottomNav');
   });
 
-  it('stops the 대화 home above the bar using the shared token', () => {
-    expect(homeSource).toMatch(
-      /bottom:\s*'calc\(var\(--coach-nav-height\)\s*\+\s*env\(safe-area-inset-bottom/
-    );
-    expect(homeSource).not.toContain("calc(4rem + env(safe-area-inset-bottom)");
+  it('runs the agent home to the bottom edge and pads the dock by the inset', () => {
+    expect(homeSource).toMatch(/fixed inset-x-0 top-0 bottom-0/);
+    expect(homeSource).toMatch(/env\(safe-area-inset-bottom/);
   });
 
   it('does not pair pb-safe with pb-4 on the coach input row', () => {
@@ -318,10 +301,10 @@ describe('coach app shell', () => {
     expect(drawer).toMatch(/<aside className="[^"]*pt-safe[^"]*pb-safe/);
   });
 
-  it('keeps the full-screen 동반 overlay off the status bar', () => {
-    // fixed inset-0 over the app header: nothing else owns its top inset.
+  it('keeps the full-screen 동반 overlay off the status bar and gesture bar', () => {
+    // fixed inset-0 over the app header: nothing else owns its insets.
     expect(repoFile('components', 'LiveLessonCompanion.tsx')).toMatch(
-      /fixed inset-0[^"]*pt-safe[^"]*coach-nav-clearance/
+      /fixed inset-0[^"]*pt-safe[^"]*pb-safe/
     );
   });
 });

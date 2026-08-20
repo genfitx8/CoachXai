@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import {
-  X, User, Dumbbell, BookOpen, Film, PenSquare,
+  X, User, Users, Dumbbell, BookOpen, Film, PenSquare,
   Target, ClipboardList, Globe, LogOut, ChevronRight, FileText, CalendarDays,
 } from 'lucide-react';
 import { CoachProfile } from '../types';
@@ -9,6 +9,7 @@ import { FEATURES } from '../constants/featureFlags';
 
 export type CoachHamburgerAction =
   | 'PROFILE'
+  | 'CLIENTS'
   | 'NEW_RECORD'
   | 'DIAGNOSIS_PROGRAM'
   | 'CURRICULUM'
@@ -31,6 +32,7 @@ interface CoachHamburgerMenuProps {
 
 const labels = {
   ko: {
+    clients: '학생 목록',
     newRecord: '레슨 기록 작성',
     lessonList: '전체 레슨 기록',
     profile: '내 프로필',
@@ -47,6 +49,7 @@ const labels = {
     settings: '설정',
   },
   en: {
+    clients: 'Students',
     newRecord: 'Write a lesson record',
     lessonList: 'All lesson records',
     profile: 'My profile',
@@ -63,6 +66,7 @@ const labels = {
     settings: 'Settings',
   },
   ja: {
+    clients: '生徒一覧',
     newRecord: 'レッスン記録を書く',
     lessonList: 'レッスン記録一覧',
     profile: 'マイプロフィール',
@@ -157,6 +161,7 @@ export const CoachHamburgerMenu: React.FC<CoachHamburgerMenuProps> = ({
           <Section title={L.lessons}>
             <Row icon={PenSquare} label={L.newRecord} onClick={() => handle('NEW_RECORD')} accent="emerald" />
             <Row icon={FileText} label={L.lessonList} onClick={() => handle('LESSON_LIST')} accent="emerald" />
+            <Row icon={Users} label={L.clients} onClick={() => handle('CLIENTS')} accent="emerald" />
           </Section>
 
           {showMoreSection && (

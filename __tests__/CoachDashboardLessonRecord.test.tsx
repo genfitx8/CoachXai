@@ -116,17 +116,18 @@ describe('Coach app shell (post-redesign)', () => {
     vi.clearAllMocks();
   });
 
-  it('lands on the Lesson tab with the bottom nav and hamburger present', async () => {
+  it('lands on the agent home with no tab bar and the hamburger present', async () => {
     await renderCoachApp();
 
-    // Bottom nav — coach navigation aria label from CoachBottomNav.
-    const nav = screen.getByRole('navigation', { name: /coach navigation/i });
-    expect(nav).toBeInTheDocument();
-    // Lesson tab is active.
-    expect(nav.querySelector('[aria-current="page"]')).not.toBeNull();
+    // Single-surface relaunch: the agent conversation is the app — no
+    // bottom navigation exists any more.
+    expect(screen.queryByRole('navigation', { name: /coach navigation/i })).toBeNull();
 
-    // Hamburger button in header.
+    // Hamburger button in the agent home's own header.
     expect(screen.getByRole('button', { name: /open menu/i })).toBeInTheDocument();
+
+    // The agent's opening proposal — the core action offered up front.
+    expect(screen.getByText(/레슨 동반을 시작하시겠습니까/)).toBeInTheDocument();
   });
 
   it('does not render the legacy dashboard quick-action buttons', async () => {

@@ -70,11 +70,14 @@ Also out of scope, as before:
 
 ## Coach App Information Architecture (relaunch)
 
-Three tabs: **홈** (agent home: briefing, 동반 레슨 hero CTA, agent chat),
-**동반 레슨** (raised center button — student picker → live companion →
-finish hands clips/transcript to the record form), **학생** (roster, detail,
-history). The drawer keeps 레슨 기록 작성 / 전체 레슨 기록 / 프로필 / 언어 /
-로그아웃; gated features reappear there only when their flag is on.
+A single conversational surface with no tab bar — the agent is the app.
+On login CoachX greets the coach and proposes the core action
+("레슨 동반을 시작하시겠습니까?"); accepting expands an in-thread,
+reservation-ranked student picker, and the chosen student drops straight
+into the live companion. Finishing hands clips/transcript to the record
+form. The drawer carries 레슨 기록 작성 / 전체 레슨 기록 / 학생 목록 /
+프로필 / 언어 / 로그아웃; gated features reappear there only when their
+flag is on.
 
 ## User Stories
 

@@ -182,8 +182,10 @@ describe('Coach app near-real-time member list refresh', () => {
       );
     });
 
-    // The new member is visible in the 학생 tab without a reload.
-    fireEvent.click(screen.getByRole('button', { name: '학생' }));
+    // The new member is visible in the 학생 목록 (drawer entry — the
+    // single-surface relaunch removed the bottom tab bar) without a reload.
+    fireEvent.click(screen.getByRole('button', { name: /open menu/i }));
+    fireEvent.click(screen.getByRole('button', { name: '학생 목록' }));
     await waitFor(() => {
       expect(screen.getByText('신규회원')).toBeInTheDocument();
     });
@@ -205,12 +207,13 @@ describe('Coach app near-real-time member list refresh', () => {
     });
   });
 
-  it('refetches members when the coach opens the 학생 tab', async () => {
+  it('refetches members when the coach opens the 학생 목록', async () => {
     await renderCoachApp();
     const callsAfterLoad = vi.mocked(apiService.getClients).mock.calls.length;
 
     serverClients = [newMember];
-    fireEvent.click(screen.getByRole('button', { name: '학생' }));
+    fireEvent.click(screen.getByRole('button', { name: /open menu/i }));
+    fireEvent.click(screen.getByRole('button', { name: '학생 목록' }));
 
     await waitFor(() => {
       expect(vi.mocked(apiService.getClients).mock.calls.length).toBeGreaterThan(
