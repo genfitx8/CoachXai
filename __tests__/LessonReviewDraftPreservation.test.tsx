@@ -168,6 +168,25 @@ describe('LessonReviewScreen · AI 초안 보존', () => {
     expect(patch.reviewSectionsDraft).toBeUndefined();
   });
 
+  it('요약이 비어 있는 레슨 동반 기록에서도 자동 초안은 돌지 않는다', async () => {
+    renderScreen(
+      baseLesson({
+        recordType: 'LIVE_LESSON',
+        liveLessonDetail: {
+          recordedDurationSec: 600,
+          transcript: [{ startSec: 0, text: '그립 압력을 부드럽게' }],
+        },
+      })
+    );
+
+    // 자동 초안이 돌았다면 AI_DRAFT 문구가 화면에 얹혔을 시간.
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /초안 생성/ })).toBeTruthy()
+    );
+    expect(generateLessonReviewDraft).not.toHaveBeenCalled();
+    expect(screen.queryByDisplayValue('드라이버 슬라이스 교정')).toBeNull();
+  });
+
   it('코치가 누른 재생성은 버려지는 원안과 함께 부정 라벨로 남는다', async () => {
     renderScreen(baseLesson());
 

@@ -66,8 +66,6 @@ import type { CapturedClip } from './LiveLessonCompanion';
 import {
   collectSessionNotes,
   discardLessonAudioSession,
-  generateLessonSummaryFromNotes,
-  generateLessonSummaryFromTranscript,
   parseReviewedTranscript,
   type LiveLessonHandoff,
 } from '../services/lessonAudioPipeline';
@@ -1304,29 +1302,27 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
 
       // ── 레슨 동반(LIVE_LESSON) 전용 저장 형태 ──────────────────────────
       // 이 카테고리는 음성/사진/영상 원본만 남기는 게 아니라 레슨 내용
-      // 텍스트(필기 노트)와 요약본이 함께 저장되는 것이 핵심이다. 그래서
-      // 라이브 세션의 구간 노트를 수거해 transcript 로 저장하고, 노트가
-      // 있으면 요약본까지 항상 생성한다.
+      // 텍스트(필기 노트)와 요약본이 함께 저장되는 것이 핵심이다.
+      //
+      // 요약은 레슨 종료 직후 "레슨 기록 확인" 검토 화면에서 이미 끝났다.
+      // 코치가 거기서 확인·수정한 문장이 이 기록의 요약본이므로, 저장하는
+      // 이 자리에서는 AI 를 부르지 않는다 — 같은 레슨을 두 번 요약하지
+      // 않고, 코치가 고른 문장이 새 리포트로 밀리지도 않는다. 검토에서
+      // 요약을 비워 두고 왔다면 요약 없이 필기만 저장하고, 나중에 검토
+      // 화면의 'AI 초안 생성' 버튼으로 코치가 직접 뽑을 수 있다.
       let liveLessonDetail: LiveLessonDetail | undefined =
         initialData?.liveLessonDetail;
       const liveSession = liveSessionRef.current;
       if (recordType === 'LIVE_LESSON' && liveSession) {
         try {
-          // 검토 화면("레슨 기록 확인")에서 코치가 필기와 요약을 이미
-          // 확인·수정하고 넘어왔다면 저장에 필요한 본문은 전부 손에 있다.
-          // 이때는 분석 큐가 비기를 기다리지 않는다 — 기다려 봐야 얻는 건
-          // keyPoints/drills 뿐인데, 코치 눈에는 저장 버튼을 누른 뒤 수십
-          // 초간 "정리 중"이 도는 것이 요약을 다시 하는 것으로 보인다.
-          const reviewed =
-            !!liveSession.editedTranscript?.trim() &&
-            !!liveSession.editedSummary?.trim();
-          setStatusMessage(
-            reviewed
-              ? '레슨 기록을 저장하고 있습니다...'
-              : '레슨 동반 필기 노트를 수거하고 있습니다...'
-          );
+          setStatusMessage('레슨 기록을 저장하고 있습니다...');
+          // 검토를 거쳐 온 기록은 본문(필기 전문)이 이미 손에 있다. 남은
+          // 구간 분석을 기다려 봐야 얻는 건 keyPoints/drills 뿐인데, 코치
+          // 눈에는 저장 버튼을 누른 뒤 도는 대기가 요약을 다시 하는 것으로
+          // 보인다. 이미 끝난 노트만 그대로 쓴다.
+          const reviewedTranscript = liveSession.editedTranscript?.trim();
           const liveNotes = await collectSessionNotes(liveSession.sessionId, {
-            waitMs: reviewed ? 0 : 30_000,
+            waitMs: reviewedTranscript ? 0 : 10_000,
           });
           const doneNotes = liveNotes.filter(
             (n) => n.status === 'done' && n.transcript
@@ -1335,8 +1331,8 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
             Array.from(new Set(values.map((v) => v.trim()).filter(Boolean)));
           // 코치가 검토 화면에서 확인/수정한 필기 전문이 있으면 그것이
           // 저장되는 기록의 원본이다 — 코치가 고친 내용이 항상 이긴다.
-          const editedLines = liveSession.editedTranscript
-            ? parseReviewedTranscript(liveSession.editedTranscript)
+          const editedLines = reviewedTranscript
+            ? parseReviewedTranscript(reviewedTranscript)
             : null;
           liveLessonDetail = {
             recordedDurationSec: liveSession.recordedDurationSec,
@@ -1350,47 +1346,11 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
             keyPoints: dedup(doneNotes.flatMap((n) => n.keyPoints)).slice(0, 12),
             drills: dedup(doneNotes.flatMap((n) => n.drills)).slice(0, 12),
           };
-          const hasMaterial =
-            (editedLines?.length ?? 0) > 0 || doneNotes.length > 0;
-          // 검토 화면에서 코치가 이미 확인·수정하고 저장한 요약이 있으면
-          // 그것이 최종 요약본이다 — 저장할 때 AI 요약을 한 번 더 돌리지
-          // 않는다. 같은 레슨을 두 번 요약할 이유가 없고, 코치가 고친
-          // 문장이 새 리포트로 덮여서도 안 된다.
+          // 검토에서 확인된 요약본이 그대로 최종 요약본이자 리포트 본문이다.
           const confirmedSummary = liveSession.editedSummary?.trim();
           if (confirmedSummary) {
             liveLessonDetail.summary = confirmedSummary;
             analysisResult = confirmedSummary;
-          } else if (hasMaterial) {
-            // 검토 요약이 비어 있는 경우(요약 생성 실패·코치가 지움)에만
-            // 필기를 근거로 요약본을 한 번 만든다.
-            try {
-              setStatusMessage('필기 노트로 레슨 동반 요약본을 작성하고 있습니다...');
-              analysisResult = liveSession.editedTranscript
-                ? await generateLessonSummaryFromTranscript(
-                    liveSession.editedTranscript,
-                    notes,
-                    {
-                      studentName: clientName.split('(')[0].trim(),
-                      totalDurationSec: liveSession.recordedDurationSec,
-                      coachId:
-                        userRole === 'COACH' && currentUser && 'id' in currentUser
-                          ? currentUser.id
-                          : undefined,
-                    }
-                  )
-                : await generateLessonSummaryFromNotes(liveNotes, notes, {
-                    studentName: clientName.split('(')[0].trim(),
-                    totalDurationSec: liveSession.recordedDurationSec,
-                    coachId:
-                      userRole === 'COACH' && currentUser && 'id' in currentUser
-                        ? currentUser.id
-                        : undefined,
-                  });
-              liveLessonDetail.summary = analysisResult;
-            } catch (summaryErr) {
-              // 요약 실패해도 필기(transcript)는 저장된다 — 기록 자체를 막지 않는다.
-              console.error('Live lesson summary failed', summaryErr);
-            }
           }
         } catch (collectErr) {
           console.error('Live lesson note collection failed', collectErr);
