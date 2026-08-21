@@ -1,8 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft, Check, Info, Loader2, RotateCcw, Sparkles, Wand2 } from 'lucide-react';
-import type { ClientProfile, CoachStyleExemplar, Lesson, LessonReviewSections, MediaItem } from '../types';
+import type { ClientProfile, CoachStyleExemplar, Lesson, LessonReviewSections, LessonStory, MediaItem } from '../types';
 import { EvidenceDetailModal } from './EvidenceDetailModal';
-import { generateLessonReviewDraft } from '../services/geminiService';
+import { generateLessonReviewDraft, generateLessonStoryMeta } from '../services/geminiService';
 import { coachStyleService, tierForSource } from '../services/coachStyleService';
 import { aiFeedbackService } from '../services/aiFeedbackService';
 
@@ -56,6 +56,12 @@ export interface LessonReviewScreenProps {
     approvedAt: number;
     sharedToStudent: boolean;
   }) => Promise<void>;
+  /**
+   * 승인 직후 뒤에서 지어진 스토리 표지 문구를 기록에 붙인다.
+   * 승인 자체는 이 호출을 기다리지 않는다 — 아래 handleApprove 주석 참조.
+   * 없으면 스토리 메타 생성을 건너뛴다(뷰는 lesson.title 로 폴백).
+   */
+  onStoryMeta?: (story: LessonStory) => Promise<void>;
   /**
    * Roll approvalStatus back to 'draft' within the 5-minute window.
    * The caller should also revoke the student-side visibility on the
@@ -157,6 +163,7 @@ export const LessonReviewScreen: React.FC<LessonReviewScreenProps> = ({
   isFirebaseMode = false,
   onSaveDraft,
   onApprove,
+  onStoryMeta,
   onUndoApproval,
   onBack,
 }) => {
@@ -441,6 +448,38 @@ export const LessonReviewScreen: React.FC<LessonReviewScreenProps> = ({
       setApprovedInSession(now);
       dirtyRef.current = false;
       setSavedAt(now);
+
+      /*
+       * 스토리 표지 문구는 승인이 끝난 **뒤에** 뒤에서 짓는다.
+       *
+       * 승인은 코치가 학생에게 기록을 내보내는 순간이고, 이미 저장 왕복이
+       * 하나 걸려 있다. 여기에 AI 호출을 직렬로 얹으면 버튼이 눈에 띄게
+       * 느려진다. 표지 문구는 없어도 화면이 성립하므로(뷰가 lesson.title
+       * 로 폴백) 승인을 붙잡아 둘 이유가 없다.
+       *
+       * 실패하거나 코치가 화면을 떠나도 조용히 끝난다 — 다음 승인이나
+       * M3 의 코치 저작에서 다시 채울 수 있다.
+       */
+      if (onStoryMeta) {
+        void (async () => {
+          try {
+            const meta = await generateLessonStoryMeta(
+              { ...lesson, reviewSections: cleanedSections },
+              coachId
+            );
+            if (!meta) return;
+            await onStoryMeta({
+              ...(lesson.story ?? {}),
+              headline: meta.headline,
+              dek: meta.dek,
+              generatedAt: Date.now(),
+            });
+          } catch (metaErr) {
+            // 표지 문구는 부가 정보다 — 승인 결과를 되돌리지 않는다.
+            console.warn('[LessonReview] story meta generation failed', metaErr);
+          }
+        })();
+      }
     } catch (err) {
       setSaveError(err instanceof Error ? err.message : '승인에 실패했습니다');
     } finally {

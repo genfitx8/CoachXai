@@ -146,6 +146,30 @@ export const lessonReviewDraftSchema = {
 } as const;
 
 /**
+ * 레슨 스토리 표지 문구 — 헤드라인과 리드 한 줄.
+ *
+ * 기록을 일기처럼 읽히게 만드는 것은 목록에서 되돌아보게 하는 제목
+ * 한 줄이다(docs/LESSON_STORY_UI_PLAN.md §7). 입력은 **코치가 승인한
+ * 문장**뿐이므로 모델이 새 사실을 만들 여지가 없다 — 이미 있는 글을
+ * 압축하는 일이다.
+ *
+ * 캡션과 대표컷은 이 스키마에 없다. 캡션은 사진을 봐야 쓸 수 있는데
+ * 코치 검수 없이 내보내면 "사진에 없는 것을 지어내는" 가장 큰 위험을
+ * 그대로 안게 되고(§14), 대표컷은 조판기의 결정 규칙(§5.2)이 메타데이터
+ * 없이 추측하는 모델보다 낫다. 둘 다 M3(코치 저작)에서 다룬다.
+ */
+export const lessonStoryMetaSchema = {
+  type: 'OBJECT',
+  properties: {
+    /** 그날의 한 줄. 18자 내외, 명사형 종결. */
+    headline: { type: 'STRING' },
+    /** 리드 위 한 줄 요약. 40자 내외. 쓸 말이 없으면 생략. */
+    dek: { type: 'STRING' },
+  },
+  required: ['headline'],
+} as const;
+
+/**
  * 7a · Coach handover briefing.
  *
  * Composed at handover time from the outgoing coach's APPROVED lesson
