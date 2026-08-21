@@ -66,10 +66,15 @@ vi.mock('../services/lessonAudioPipeline', async () => ({
   purgeStaleLessonAudioSessions: vi.fn(async () => {}),
   discardLessonAudioSession: vi.fn(async () => {}),
   generateRollingLessonSummary: vi.fn(async () => '요약'),
-  // 검토 초안 단계(용어 교정 → 화자 분류)는 네트워크를 타므로 스텁 —
-  // 둘 다 필기를 그대로 통과시켜, 후처리 없이도 검토 화면이 열리는 경로를 본다.
+  // 검토 초안 3단계(교정 → 화자 분류 → 이중 요약)는 모두 네트워크를 타므로
+  // 스텁으로 갈아 끼운다. 교정·라벨링은 통과만 시키고, 요약은 코치/학생
+  // 두 칸이 각각 채워지는 경로를 본다.
   repairTranscriptTerms: vi.fn(async (given: unknown) => given),
   labelTranscriptSpeakers: vi.fn(async (given: unknown) => given),
+  generateDualLessonSummary: vi.fn(async () => ({
+    coach: '- 그립 압력 교정',
+    student: '- 손목이 아프다고 함',
+  })),
   formatClock: (sec: number) =>
     `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`,
 }));
@@ -139,20 +144,38 @@ describe('레슨 기록 확인 화면', () => {
     expect(reviewRoot!.className).toContain('bg-base');
   });
 
-  it('저장 버튼을 누르면 편집한 필기·요약이 저장 흐름으로 넘어간다', async () => {
-    const onFinish = await openReviewScreen();
+  it('코치 요약과 학생 요약을 나눠 띄운다', async () => {
+    await openReviewScreen();
 
-    // 검토 초안은 용어 교정 → 화자 분류를 차례로 거친 뒤 열린다.
-    const summary = await screen.findByPlaceholderText(/요약이 아직 없어요/, undefined, {
+    // 검토 초안은 교정 → 화자 분류 → 이중 요약을 차례로 거친다.
+    const coach = await screen.findByPlaceholderText(/요약이 아직 없어요/, undefined, {
       timeout: 5_000,
     });
-    fireEvent.change(summary, { target: { value: '그립 압력 교정' } });
+    const student = await screen.findByPlaceholderText(/학생이 말한 내용이/);
+    expect(coach).toHaveValue('- 그립 압력 교정');
+    expect(student).toHaveValue('- 손목이 아프다고 함');
+  });
+
+  it('저장 버튼을 누르면 편집한 필기·두 요약이 저장 흐름으로 넘어간다', async () => {
+    const onFinish = await openReviewScreen();
+
+    const coach = await screen.findByPlaceholderText(/요약이 아직 없어요/, undefined, {
+      timeout: 5_000,
+    });
+    fireEvent.change(coach, { target: { value: '그립 압력 교정' } });
+    const student = await screen.findByPlaceholderText(/학생이 말한 내용이/);
+    fireEvent.change(student, { target: { value: '손목 통증을 호소' } });
 
     fireEvent.click(screen.getByRole('button', { name: /기록 저장하기/ }));
 
     await waitFor(() => expect(onFinish).toHaveBeenCalled());
     const [, handoff] = onFinish.mock.calls[0];
-    expect(handoff.editedSummary).toBe('그립 압력 교정');
+    // 기록에 저장되는 본문은 소제목으로 갈린 합본이고, 두 칸은 따로도 간다.
+    expect(handoff.editedSummary).toBe(
+      '**코치 요약**\n그립 압력 교정\n\n**학생 요약**\n손목 통증을 호소',
+    );
+    expect(handoff.editedCoachSummary).toBe('그립 압력 교정');
+    expect(handoff.editedStudentSummary).toBe('손목 통증을 호소');
     expect(handoff.editedTranscript).toContain('그립 압력');
   });
 });

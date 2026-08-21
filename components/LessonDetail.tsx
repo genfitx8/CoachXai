@@ -2119,6 +2119,29 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
                     </span>
                 </div>
                 <div className="p-5 space-y-4">
+                    {/* 요약은 둘로 나뉜다 — 코치가 짚은 것과 학생이 말한 것.
+                        구버전 기록(합본만 있는 레슨)에는 이 칸이 없고 아래
+                        AI 분석 카드의 요약본이 그대로 그 역할을 한다. */}
+                    {(lesson.liveLessonDetail.coachSummary || lesson.liveLessonDetail.studentSummary) && (
+                        <div className="space-y-2">
+                            {lesson.liveLessonDetail.coachSummary && (
+                                <div className="rounded-lg border border-emerald-400/20 bg-emerald-500/[0.06] p-3">
+                                    <div className="text-[11px] font-bold text-emerald-300 mb-1">코치 요약</div>
+                                    <p className="text-sm leading-relaxed text-ink-medium whitespace-pre-wrap">
+                                        {lesson.liveLessonDetail.coachSummary}
+                                    </p>
+                                </div>
+                            )}
+                            {lesson.liveLessonDetail.studentSummary && (
+                                <div className="rounded-lg border border-sky-400/20 bg-sky-500/[0.06] p-3">
+                                    <div className="text-[11px] font-bold text-sky-300 mb-1">학생 요약</div>
+                                    <p className="text-sm leading-relaxed text-ink-medium whitespace-pre-wrap">
+                                        {lesson.liveLessonDetail.studentSummary}
+                                    </p>
+                                </div>
+                            )}
+                        </div>
+                    )}
                     <div className="max-h-72 overflow-y-auto space-y-1.5 pr-1 custom-scrollbar">
                         {lesson.liveLessonDetail.transcript.map((entry, i) => {
                             const m = Math.floor(entry.startSec / 60);

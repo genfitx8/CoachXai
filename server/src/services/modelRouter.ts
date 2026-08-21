@@ -80,6 +80,9 @@ const FEATURE_MODEL_OVERRIDES: Record<string, string> = {
   lesson_summary: 'gemini-3.1-pro-preview',
   lesson_summary_merge: 'gemini-3.1-pro-preview',
   lesson_live_summary: 'gemini-3.1-pro-preview',
+  // 코치 요약 + 학생 요약을 한 번에 뽑는 경로. 같은 대화를 두 각도로
+  // 나눠 읽어야 하고 레슨당 1회뿐이라 요약 3경로와 같은 pro 티어.
+  lesson_dual_summary: 'gemini-3.1-pro-preview',
 
   // ~10초 구간 받아쓰기 — 레슨당 수백 회 호출되는 실시간 필기 경로.
   // 품질은 최신 GA flash 로 올리되, 지연·rate limit 때문에 pro 는 쓰지

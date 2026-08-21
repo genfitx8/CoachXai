@@ -27,16 +27,18 @@
  *     하단 "요약 노트"는 별도 5분 주기(SUMMARY_INTERVAL_SEC)로 지금까지의
  *     필기를 다시 요약한다.
  *
- *  3. **종료 시 텍스트 후처리** — 레슨을 끝내면 검토 화면을 열기 전에
- *     필기를 두 번 읽는다. 순서가 곧 의존 관계다:
+ *  3. **종료 시 3단계 텍스트 후처리** — 레슨을 끝내면 검토 화면을 열기
+ *     전에 필기를 세 번 읽는다. 순서가 곧 의존 관계다:
  *       (a) 코칭 언어 교정(`repairTranscriptTerms`) — 음성 인식이 골프
  *           용어를 발음이 비슷한 엉뚱한 말로 적어 놓은 줄을 되돌린다.
- *           뒤 단계가 이 텍스트를 근거로 삼으므로 교정이 맨 앞에 온다.
+ *           뒤 두 단계가 모두 이 텍스트를 근거로 삼으므로 맨 앞에 온다.
  *       (b) 화자 역할 분류(`labelTranscriptSpeakers`) — 앞뒤 맥락으로
- *           각 줄이 코치의 말인지 학생의 말인지 배정한다. 지시 어휘가
- *           판단의 주 단서라, 교정이 끝난 필기라야 정확도가 산다.
- *     둘 다 실패하면 그 단계만 건너뛴다 — 후처리 실패가 필기 유실이나
- *     저장 불가가 되어서는 안 된다.
+ *           각 줄이 코치의 말인지 학생의 말인지 배정한다.
+ *       (c) 이중 요약(`generateDualLessonSummary`) — 화자가 갈린 필기에서
+ *           **코치 요약**(교정 지시·드릴)과 **학생 요약**(느낌·질문·반응)을
+ *           한 번의 호출로 같이 만든다.
+ *     세 단계 모두 실패하면 그 단계만 건너뛴다 — 후처리 실패가 필기
+ *     유실이나 저장 불가가 되어서는 안 된다.
  *
  *  4. **텍스트 map-reduce 최종 요약** — 저장 시에는 오디오가 아니라 필기
  *     노트(텍스트)만 `lesson_summary_merge` 로 보내 최종 리포트를 만든다.
@@ -210,8 +212,15 @@ export interface LiveLessonHandoff {
    * 항상 이긴다.
    */
   editedTranscript?: string;
-  /** 코치가 검토 화면에서 확인/수정한 요약 — 최종 리포트의 참고 자료. */
+  /**
+   * 코치가 검토 화면에서 확인/수정한 요약 합본(코치 요약 + 학생 요약).
+   * 최종 리포트의 참고 자료이자 레슨 기록에 저장되는 본문이다.
+   */
   editedSummary?: string;
+  /** 합본 중 코치 요약만 — 기록에 따로 보관해 코치/학생 화면이 나눠 쓴다. */
+  editedCoachSummary?: string;
+  /** 합본 중 학생 요약만 — 학생이 말한 느낌·질문·반응. */
+  editedStudentSummary?: string;
 }
 
 export interface RecoverableLessonSession {
@@ -1619,6 +1628,164 @@ export class RollingSummaryController {
     }
   }
 }
+
+// ─── 이중 요약 (코치 요약 · 학생 요약) ──────────────────────────────────────
+
+/**
+ * 레슨 한 번에서 나오는 **두 개의 요약**.
+ *
+ * 왜 하나가 아닌가: 레슨 기록을 다시 꺼내 보는 이유가 두 가지이기 때문이다.
+ * 코치는 "지난번에 내가 뭘 시켰지"를 보고 다음 레슨을 잇고, 학생 쪽 기록은
+ * "그때 내가 뭘 어려워했고 뭐라고 답했지"가 남아야 성장 맥락이 된다. 한
+ * 덩어리로 요약하면 학생의 말은 늘 코치 지시의 배경 설명으로 눌려 사라진다
+ * — 실제로 기존 리포트는 (SPEAKER_RULES 대로) 학생 발화를 맥락으로만 쓴다.
+ *
+ * 그래서 화자 분류가 끝난 필기를 근거로 두 요약을 **한 번의 호출**로 같이
+ * 만든다. 나눠 부르지 않는 이유: 두 요약은 같은 대화를 서로 다른 각도에서
+ * 보는 것이라, 한 모델이 전체를 읽고 나눠 적을 때 "코치가 시킨 것"과
+ * "학생이 그에 대해 답한 것"이 서로 어긋나지 않는다.
+ */
+export interface LessonDualSummary {
+  /** 코치가 말한 것 — 교정 지시·설명·드릴·처방. */
+  coach: string;
+  /** 학생이 말한 것 — 느낌·증상·질문·반응. */
+  student: string;
+}
+
+/** 두 요약을 한 본문으로 합칠 때 쓰는 소제목. 저장·표시가 같은 표기를 쓴다. */
+export const DUAL_SUMMARY_HEADINGS: Readonly<Record<keyof LessonDualSummary, string>> = {
+  coach: '코치 요약',
+  student: '학생 요약',
+};
+
+export const buildDualSummaryPrompt = (
+  notes: LessonSegmentNote[],
+  studentName: string
+): string => {
+  const done = [...notes]
+    .filter((n) => n.status === 'done' && !isEmptyDoneNote(n))
+    .sort((a, b) => a.index - b.index);
+  const blocks = done.map((n) => {
+    const window =
+      n.durationSec > 0
+        ? `${formatClock(n.startSec)}–${formatClock(n.startSec + n.durationSec)}`
+        : formatClock(n.startSec);
+    const lines = [renderNoteTranscript(n, window)];
+    if (n.metrics.length) lines.push(`  수치: ${n.metrics.join(' / ')}`);
+    return lines.join('\n');
+  });
+
+  return `아래는 골프 레슨(학생: ${studentName})의 필기입니다. 화자 역할이 판정된 줄에는 "코치:/학생:/주변:" 이 붙어 있습니다.
+
+${blocks.join('\n\n')}
+
+이 레슨을 **두 개의 요약**으로 나눠 정리해 JSON 하나만 반환하세요.
+{"coachSummary":"- ...\\n- ...","studentSummary":"- ...\\n- ..."}
+
+coachSummary — 코치가 한 말만 근거로:
+- 오늘 짚은 교정 포인트, 설명한 원리, 시킨 드릴, 제시한 수치·기준.
+- 같은 포인트가 반복되면 하나로 묶고 진행(개선/유지/악화)을 덧붙이세요.
+
+studentSummary — 학생(${studentName})이 한 말만 근거로:
+- 학생이 말한 느낌·감각("잘 안 맞아요", "손목이 아파요"), 어려움, 질문.
+- 코치 지시에 대한 반응과 이해 정도(무엇을 알아들었고 무엇을 되물었는지).
+- 학생이 스스로 말한 목표·상황(라운드 일정, 연습량 등).
+
+공통 규칙:
+- 각 요약은 "- " 로 시작하는 불릿 2~5개, 한 불릿은 한 문장(한국어).
+- 필기에 있는 수치는 그대로 인용하고, 필기에 없는 내용은 만들지 마세요.
+- 학생 발화가 거의 없으면 studentSummary 는 빈 문자열("")로 두세요. 지어내지 마세요.
+- 머리말·맺음말 없이 불릿만 담으세요.
+${SPEAKER_RULES}`;
+};
+
+/**
+ * 이중 요약 응답을 정규화한다. 스키마를 걸어 보내지만 스키마 미지원
+ * 런타임에서는 평문이 올라올 수 있고, 그때는 요약을 통째로 버리는 대신
+ * 코치 요약으로 받는다 — 기존 단일 요약과 같은 자리라 손해가 없다.
+ */
+export const parseDualSummaryResponse = (text: string): LessonDualSummary => {
+  const match = text.match(/\{[\s\S]*\}/);
+  if (match) {
+    try {
+      const parsed = JSON.parse(match[0]) as Record<string, unknown>;
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        const pick = (v: unknown) => (typeof v === 'string' ? v.trim() : '');
+        const coach = pick(parsed.coachSummary);
+        const student = pick(parsed.studentSummary);
+        if (coach || student) return { coach, student };
+      }
+    } catch {
+      // JSON 이 아니면 아래 평문 경로로.
+    }
+  }
+  return { coach: text.trim(), student: '' };
+};
+
+/**
+ * 두 요약을 기록에 저장할 한 본문으로 합친다. 비어 있는 쪽은 소제목까지
+ * 통째로 빠진다 — "학생 요약: (없음)" 은 정보가 아니라 잡음이다.
+ */
+export const formatDualSummary = (summary: LessonDualSummary): string =>
+  (['coach', 'student'] as const)
+    .map((key) => {
+      const body = summary[key]?.trim();
+      return body ? `**${DUAL_SUMMARY_HEADINGS[key]}**\n${body}` : '';
+    })
+    .filter(Boolean)
+    .join('\n\n');
+
+/**
+ * `formatDualSummary` 의 역방향 — 저장된 합본을 두 칸으로 되돌린다.
+ * 소제목이 없으면(구버전 단일 요약) 전체를 코치 요약으로 본다.
+ */
+export const splitDualSummary = (text: string): LessonDualSummary => {
+  const body = text.trim();
+  if (!body) return { coach: '', student: '' };
+  const pattern = new RegExp(
+    `\\*{0,2}(${DUAL_SUMMARY_HEADINGS.coach}|${DUAL_SUMMARY_HEADINGS.student})\\*{0,2}\\s*\\n`,
+    'g'
+  );
+  const parts = body.split(pattern);
+  if (parts.length < 3) return { coach: body, student: '' };
+  const out: LessonDualSummary = { coach: '', student: '' };
+  // split 결과는 [머리말, 소제목, 본문, 소제목, 본문, ...] 형태다.
+  const head = parts[0].trim();
+  if (head) out.coach = head;
+  for (let i = 1; i + 1 < parts.length; i += 2) {
+    const key = parts[i] === DUAL_SUMMARY_HEADINGS.student ? 'student' : 'coach';
+    const section = parts[i + 1].trim();
+    out[key] = out[key] ? `${out[key]}\n${section}` : section;
+  }
+  return out;
+};
+
+export type DualSummarizer = (
+  notes: LessonSegmentNote[],
+  studentName: string
+) => Promise<LessonDualSummary>;
+
+/**
+ * 기본 이중 요약기 — 화자 라벨이 붙은 필기 텍스트만 보내므로 레슨 길이와
+ * 무관하게 호출 한 번이다.
+ */
+export const generateDualLessonSummary: DualSummarizer = async (notes, studentName) => {
+  const result = await invokeBackendAI<unknown>('lesson_dual_summary', {
+    prompt: buildDualSummaryPrompt(notes, studentName),
+    responseMimeType: 'application/json',
+    responseSchema: {
+      type: 'OBJECT',
+      properties: {
+        coachSummary: { type: 'STRING' },
+        studentSummary: { type: 'STRING' },
+      },
+      required: ['coachSummary', 'studentSummary'],
+    },
+  });
+  const text = getResponseText(result);
+  if (!text) throw new Error('이중 요약 응답이 비어 있습니다.');
+  return parseDualSummaryResponse(text);
+};
 
 // ─── Live recording session ──────────────────────────────────────────────────
 
