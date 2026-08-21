@@ -1350,6 +1350,13 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
           const confirmedSummary = liveSession.editedSummary?.trim();
           if (confirmedSummary) {
             liveLessonDetail.summary = confirmedSummary;
+            // 코치 요약·학생 요약은 합본과 별개로 그대로 보관한다 — 기록을
+            // 다시 열 때 "코치가 시킨 것"과 "학생이 말한 것"을 나눠 보여
+            // 주려면 합본을 다시 쪼개는 것보다 원본이 낫다.
+            const confirmedCoach = liveSession.editedCoachSummary?.trim();
+            const confirmedStudent = liveSession.editedStudentSummary?.trim();
+            if (confirmedCoach) liveLessonDetail.coachSummary = confirmedCoach;
+            if (confirmedStudent) liveLessonDetail.studentSummary = confirmedStudent;
             analysisResult = confirmedSummary;
           }
         } catch (collectErr) {

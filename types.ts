@@ -196,8 +196,22 @@ export interface LiveLessonDetail {
   recordedDurationSec: number;
   /** 레슨 내용 텍스트 — 시간순 필기 노트. */
   transcript: LiveLessonTranscriptEntry[];
-  /** 필기를 정리한 최종 요약본 (aiAnalysis 와 동일 내용을 구조에도 보관). */
+  /**
+   * 필기를 정리한 최종 요약본 (aiAnalysis 와 동일 내용을 구조에도 보관).
+   * 레슨 동반 검토를 거친 기록에서는 코치 요약과 학생 요약을 소제목으로
+   * 합친 본문이다.
+   */
   summary?: string;
+  /**
+   * 코치 발화만 근거로 정리한 요약 — 오늘 짚은 교정 포인트·드릴·처방.
+   * `summary` 합본에서 이 부분만 따로 쓰는 화면(다음 레슨 이어가기)용.
+   */
+  coachSummary?: string;
+  /**
+   * 학생 발화만 근거로 정리한 요약 — 학생이 말한 느낌·어려움·질문·반응.
+   * 코치 지시에 눌리지 않게 따로 보관한다(학생 성장 맥락의 근거).
+   */
+  studentSummary?: string;
   /** 레슨 중 강조된 교정 포인트 모음. */
   keyPoints?: string[];
   /** 레슨 중 언급된 드릴/과제 모음. */

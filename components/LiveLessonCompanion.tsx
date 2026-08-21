@@ -22,13 +22,15 @@ import { PermissionDeniedModal } from './PermissionDeniedModal';
 import {
   LessonAudioSession,
   buildTranscriptText,
-  generateRollingLessonSummary,
+  formatDualSummary,
+  generateDualLessonSummary,
   labelTranscriptSpeakers,
   repairTranscriptTerms,
   findRecoverableSessions,
   formatClock,
   purgeStaleLessonAudioSessions,
   discardLessonAudioSession,
+  type LessonDualSummary,
   type LessonSegmentNote,
   type LiveLessonHandoff,
   type LiveSessionSnapshot,
@@ -121,16 +123,16 @@ const REVIEW_REPAIR_TIMEOUT_MS = 15_000;
 const REVIEW_REPAIR_HARD_TIMEOUT_MS = 20_000;
 
 /**
- * 검토 초안을 만드는 단계. 뒤 단계가 앞 단계의 결과를 근거로 삼기 때문에
+ * 검토 초안을 만드는 3단계. 셋은 앞 단계의 결과를 근거로 삼기 때문에
  * 순서대로 돈다 — 잘못 적힌 용어를 먼저 되돌려야 화자 판단의 단서(지시
- * 어휘)가 산다.
+ * 어휘)가 살고, 화자가 갈려야 코치 요약과 학생 요약을 나눠 쓸 수 있다.
  */
 type ReviewStage = 'repair' | 'speaker' | 'summary';
 
 const REVIEW_STAGE_LABELS: Record<ReviewStage, string> = {
   repair: '필기를 코칭 용어로 다듬고 있어요…',
   speaker: '코치와 학생의 말을 구분하고 있어요…',
-  summary: '마지막 필기를 정리하고 있어요…',
+  summary: '코치 요약과 학생 요약을 만들고 있어요…',
 };
 
 /**
@@ -231,7 +233,10 @@ export const LiveLessonCompanion: React.FC<LiveLessonCompanionProps> = ({
    */
   const [reviewDraft, setReviewDraft] = useState<{
     transcriptText: string;
-    summaryText: string;
+    /** 코치가 말한 것 — 교정 지시·드릴. */
+    coachSummaryText: string;
+    /** 학생이 말한 것 — 느낌·질문·반응. */
+    studentSummaryText: string;
     /** 준비 중일 때 지금 돌고 있는 단계 — 화면의 진행 문구가 이걸 읽는다. */
     stage: ReviewStage;
     preparing: boolean;
@@ -590,7 +595,8 @@ export const LiveLessonCompanion: React.FC<LiveLessonCompanionProps> = ({
       setReviewDraft((d) => (d ? { ...d, stage } : d));
     setReviewDraft({
       transcriptText: '',
-      summaryText: '',
+      coachSummaryText: '',
+      studentSummaryText: '',
       stage: 'repair',
       preparing: true,
       saving: false,
@@ -604,8 +610,8 @@ export const LiveLessonCompanion: React.FC<LiveLessonCompanionProps> = ({
 
     // ── 1단계: 코칭 언어 교정 ────────────────────────────────────────────
     // 필기의 원천은 음성 인식이고, 골프 용어는 일반 어휘 모델이 가장 많이
-    // 틀리는 부분이다. 뒤 단계(화자 분류)가 이 텍스트를 근거로 삼으므로
-    // 교정이 맨 앞에 온다. 늘어지면 원문 그대로 다음 단계로 간다.
+    // 틀리는 부분이다. 뒤 두 단계(화자 분류·요약)가 모두 이 텍스트를 근거로
+    // 삼으므로 교정이 맨 앞에 온다. 늘어지면 원문 그대로 다음 단계로 간다.
     const repaired = await withReviewTimeout(
       repairTranscriptTerms(notes, studentName, undefined, {
         deadlineAt: Date.now() + REVIEW_REPAIR_TIMEOUT_MS,
@@ -633,18 +639,19 @@ export const LiveLessonCompanion: React.FC<LiveLessonCompanionProps> = ({
       session.applySpeakerTurns(labeled);
     }
 
-    // 요약은 레슨 중 5분마다 갱신된 롤링 요약을 그대로 쓴다. 5분이 안 된
-    // 짧은 레슨이라 요약이 아직 없으면 이 자리에서 한 번 만든다 — 못 받으면
-    // 빈 채로 열어 코치가 직접 적고 저장할 수 있게 한다.
+    // ── 3단계: 코치 요약 · 학생 요약 ─────────────────────────────────────
+    // 화자가 갈린 필기라야 "코치가 시킨 것"과 "학생이 답한 것"을 나눠 적을
+    // 수 있다. 실패하면 코치 요약 자리에 진행 중 롤링 요약을 남긴다 —
+    // 요약 한 줄 없는 검토 화면보다는 나은 출발점이다.
     setStage('summary');
-    let summaryText = session.snapshot().liveSummary;
-    if (!summaryText && notes.length > 0) {
-      summaryText = await withReviewTimeout(
-        generateRollingLessonSummary(notes, studentName),
-        REVIEW_SUMMARY_TIMEOUT_MS,
-        ''
-      );
-    }
+    const rolling = session.snapshot().liveSummary;
+    const dual = notes.length
+      ? await withReviewTimeout(
+          generateDualLessonSummary(notes, studentName),
+          REVIEW_SUMMARY_TIMEOUT_MS,
+          { coach: '', student: '' } as LessonDualSummary
+        )
+      : { coach: '', student: '' };
 
     // 타임스탬프 없이 문단 단위로 이어 붙인다 — 코치가 읽는 것은 시각이
     // 아니라 대화 흐름이고, 실시간 인식이 한 문장을 여러 조각으로 끊어
@@ -654,7 +661,8 @@ export const LiveLessonCompanion: React.FC<LiveLessonCompanionProps> = ({
 
     setReviewDraft({
       transcriptText,
-      summaryText,
+      coachSummaryText: dual.coach || rolling,
+      studentSummaryText: dual.student,
       stage: 'summary',
       preparing: false,
       saving: false,
@@ -668,13 +676,21 @@ export const LiveLessonCompanion: React.FC<LiveLessonCompanionProps> = ({
     setLessonRecState('finishing');
     const stopped = await stopLessonSession();
     const finalClips = stopped ? [...clips, ...stopped.audioClips] : clips;
+    const coachSummary = reviewDraft.coachSummaryText.trim();
+    const studentSummary = reviewDraft.studentSummaryText.trim();
     onFinish(
       finalClips,
       stopped
         ? {
             ...stopped.handoff,
             editedTranscript: reviewDraft.transcriptText.trim() || undefined,
-            editedSummary: reviewDraft.summaryText.trim() || undefined,
+            // 기록에 저장되는 본문은 두 요약을 합친 하나다(소제목으로 갈린다).
+            // 두 칸을 따로도 넘겨 코치/학생 화면이 각자 필요한 쪽만 읽는다.
+            editedSummary:
+              formatDualSummary({ coach: coachSummary, student: studentSummary }) ||
+              undefined,
+            editedCoachSummary: coachSummary || undefined,
+            editedStudentSummary: studentSummary || undefined,
           }
         : undefined
     );
@@ -1045,7 +1061,7 @@ export const LiveLessonCompanion: React.FC<LiveLessonCompanionProps> = ({
           레슨 종료 · 기록 확인
         </button>
         <p className="text-[11px] text-ink-muted text-center mt-2">
-          종료하면 필기 전문과 요약을 확인·수정한 뒤 저장할 수 있어요.
+          종료하면 필기 전문과 코치·학생 요약을 확인·수정한 뒤 저장할 수 있어요.
         </p>
       </footer>
 
@@ -1060,7 +1076,7 @@ export const LiveLessonCompanion: React.FC<LiveLessonCompanionProps> = ({
               레슨 기록 확인
             </div>
             <div className="text-[15px] font-bold text-ink-high">
-              {studentName} · 저장 전에 필기와 요약을 확인해 주세요
+              {studentName} · 저장 전에 필기와 두 요약을 확인해 주세요
             </div>
           </header>
 
@@ -1091,23 +1107,45 @@ export const LiveLessonCompanion: React.FC<LiveLessonCompanionProps> = ({
                   className="flex-1 min-h-[12rem] w-full rounded-xl border border-line-subtle bg-white/[0.04] p-3 text-[13.5px] leading-relaxed text-ink-high placeholder:text-ink-muted focus:ring-2 focus:ring-emerald-500 outline-none resize-none"
                 />
               </div>
+              {/* 요약은 둘로 나뉜다 — 코치가 시킨 것과 학생이 답한 것은
+                  다음 레슨에서 쓰이는 쓸모가 다르다. 한 칸에 합치면 학생의
+                  말은 늘 코치 지시의 배경 설명으로 눌려 사라진다. */}
               <div>
                 <label className="text-[12px] font-bold text-ink-high mb-1.5 block">
-                  레슨 요약{' '}
+                  코치 요약{' '}
                   <span className="text-ink-muted font-normal">
-                    · 최종 리포트에 반영됩니다
+                    · 오늘 짚은 교정 포인트·드릴
                   </span>
                 </label>
                 <textarea
-                  value={reviewDraft.summaryText}
+                  value={reviewDraft.coachSummaryText}
                   onChange={(e) =>
                     setReviewDraft((d) =>
-                      d ? { ...d, summaryText: e.target.value } : d
+                      d ? { ...d, coachSummaryText: e.target.value } : d
                     )
                   }
                   rows={5}
                   placeholder="요약이 아직 없어요. 핵심 포인트를 직접 적어도 됩니다."
                   className="w-full rounded-xl border border-emerald-400/30 bg-emerald-500/[0.06] p-3 text-[13.5px] leading-relaxed text-ink-high placeholder:text-ink-muted focus:ring-2 focus:ring-emerald-500 outline-none resize-none"
+                />
+              </div>
+              <div>
+                <label className="text-[12px] font-bold text-ink-high mb-1.5 block">
+                  학생 요약{' '}
+                  <span className="text-ink-muted font-normal">
+                    · 학생이 말한 느낌·질문·반응
+                  </span>
+                </label>
+                <textarea
+                  value={reviewDraft.studentSummaryText}
+                  onChange={(e) =>
+                    setReviewDraft((d) =>
+                      d ? { ...d, studentSummaryText: e.target.value } : d
+                    )
+                  }
+                  rows={4}
+                  placeholder="학생이 말한 내용이 정리되지 않았어요. 기억나는 반응을 적어도 됩니다."
+                  className="w-full rounded-xl border border-sky-400/30 bg-sky-500/[0.06] p-3 text-[13.5px] leading-relaxed text-ink-high placeholder:text-ink-muted focus:ring-2 focus:ring-sky-500 outline-none resize-none"
                 />
               </div>
             </div>

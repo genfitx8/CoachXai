@@ -75,6 +75,9 @@ const DEFAULT_TEMPERATURE_BY_FEATURE: Record<string, number> = {
   // 레슨 진행 중 화면에 띄우는 롤링 요약 — 짧은 불릿 재생성이 잦으므로
   // 흔들림 없이 노트에 충실해야 한다.
   lesson_live_summary: 0.3,
+  // 코치 요약 + 학생 요약 — 근거가 화자별 발화로 갈려 있어 롤링 요약과
+  // 같은 수준으로 필기에 충실해야 한다.
+  lesson_dual_summary: 0.3,
   compare_swings: 0.4,
   weekly_insight: 0.5,
   coachx_insights: 0.6,
