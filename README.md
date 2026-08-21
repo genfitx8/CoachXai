@@ -14,11 +14,22 @@ CoachX AI helps coaches record lessons quickly, preserve student history, and ke
 
 Build the most trusted AI assistant for coaches by turning each lesson into clear, actionable, student-centered context for the next session.
 
-## MVP Focus
+## MVP Focus — Companion-Lesson-First Relaunch
 
+The service relaunches around a single loop: the coach agent accompanies the
+lesson itself (동반 레슨) and turns it into structured records automatically.
+
+- **Live lesson companion (동반 레슨)**: CoachX joins the lesson, listens,
+  captures key moments, and drafts the lesson record — the app's core action
+  and the raised center button in the coach navigation
 - Fast lesson recording during or right after a session
 - Student-linked lesson history and context continuity
 - AI-assisted organization of rough notes into usable summaries
+
+Everything outside that loop (reservations, bay booking, precision diagnosis,
+curriculum management, automated video editing) is **feature-gated off** in
+`constants/featureFlags.ts` — code stays in place and any feature can be
+re-enabled per build or per device without a revert.
 
 ## Target User
 
@@ -34,10 +45,18 @@ Build the most trusted AI assistant for coaches by turning each lesson into clea
 
 ## Basic IA / Key Flows
 
-- **Home**: start lesson, resume draft, access recent students/notes
-- **Students**: search student list, open student detail, review note history
-- **Lesson Flow**: select student → record structured notes → AI organize/review → save
-- **Profile/Settings**: language, timezone, and personal preferences
+The coach app is a **single conversational surface** — no tab bar. The agent
+IS the app:
+
+- **Login → agent proposal**: CoachX greets the coach with today's briefing
+  and proposes the core action up front — "레슨 동반을 시작하시겠습니까?"
+- **Student pick, in-thread**: accepting expands reservation-ranked student
+  cards inside the conversation (or say/type a name)
+- **동반 레슨 (live lesson companion)**: CoachX accompanies the lesson —
+  listening, capturing swings — and finish hands clips + transcript to the
+  record form for AI organize/review → save
+- **Everything else via conversation or drawer**: student roster/detail,
+  lesson records, profile, language, logout
 
 ## Global Service Considerations
 

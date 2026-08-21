@@ -1,14 +1,18 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Lesson, ClientProfile, CoachProfile } from '../types';
 import { CoachXChatMessage } from '../services/coachXService';
 import { generateCoachXChatResponseStream } from '../services/geminiService';
 import { useLanguage } from './LanguageContext';
-import { Send, Mic, MicOff, LayoutDashboard, VolumeX, Volume2, MessageSquare, Target, ClipboardCheck, Menu } from 'lucide-react';
+import {
+  Send, Mic, MicOff, LayoutDashboard, VolumeX, Volume2, Target,
+  ClipboardCheck, Menu, PenSquare, ChevronRight, Search, Video,
+} from 'lucide-react';
 import { useTypingReveal } from '../hooks/useTypingReveal';
 import { useTextToSpeech } from '../hooks/useTextToSpeech';
 import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
 import { renderMarkdown } from '../utils/renderMarkdown';
 import { CoachXMark, CoachXMarkLive } from './ui';
+import { FEATURES } from '../constants/featureFlags';
 
 export interface TodayLessonSummary {
   id: string;
@@ -39,15 +43,31 @@ interface CoachAIHomeProps {
   initialQuery?: string;
   /** Cleared once the initial query has been consumed. */
   onInitialQueryConsumed?: () => void;
+  /**
+   * Starts the during-lesson companion (동반 레슨) — the service's core
+   * action. With a student name the companion opens directly on that
+   * student; without one it falls back to the picker view. The agent
+   * proposes this the moment the coach logs in, and the in-conversation
+   * student cards call it with the chosen name.
+   */
+  onStartLiveLesson?: (studentName?: string) => void;
+  /** Opens the manual lesson-record form (동반 없이 기록만 남길 때). */
+  onNewRecord?: () => void;
 }
 
 const INITIAL_QUERY_DELAY_MS = 400;
 
-type Mode = 'chat' | 'voice';
+/**
+ * The conversation drives everything: the agent opens with a greeting and a
+ * 동반 레슨 proposal card, accepting expands an in-thread student picker,
+ * and anything typed or spoken drops into the normal agent chat. There is
+ * no tab bar — this surface IS the app.
+ */
+type Phase = 'proposal' | 'picking' | 'chat';
 
-const QUICK_CHIPS_KO = ['오늘 일정 알려줘', '주의 학생 있어?', '이번 주 레슨 요약', '코칭 인사이트 보여줘'];
-const QUICK_CHIPS_EN = ["Today's schedule", 'Students needing attention', 'Weekly lesson summary', 'Coaching insights'];
-const QUICK_CHIPS_JA = ['今日のスケジュール', '注意が必要な生徒は?', '今週のレッスン要約', 'コーチングインサイト'];
+const QUICK_CHIPS_KO = ['오늘 일정 알려줘', '주의 학생 있어?', '이번 주 레슨 요약'];
+const QUICK_CHIPS_EN = ["Today's schedule", 'Students needing attention', 'Weekly lesson summary'];
+const QUICK_CHIPS_JA = ['今日のスケジュール', '注意が必要な生徒は?', '今週のレッスン要約'];
 
 export const CoachAIHome: React.FC<CoachAIHomeProps> = ({
   coachProfile,
@@ -58,28 +78,34 @@ export const CoachAIHome: React.FC<CoachAIHomeProps> = ({
   onOpenMenu,
   initialQuery,
   onInitialQueryConsumed,
+  onStartLiveLesson,
+  onNewRecord,
 }) => {
   const { language } = useLanguage();
+  const lang = (language as 'ko' | 'en' | 'ja') ?? 'ko';
+
+  const t3 = (ko: string, en: string, ja: string) =>
+    lang === 'en' ? en : lang === 'ja' ? ja : ko;
 
   const buildGreeting = () => {
     const name = coachProfile.name;
     const count = todayLessons.length;
-    if (language === 'en') {
+    if (lang === 'en') {
       return count > 0
-        ? `Hello, **${name}** coach! You have **${count} lesson${count > 1 ? 's' : ''}** scheduled today. What can I help you with? 🏌️`
-        : `Hello, **${name}** coach! No lessons scheduled for today. How can I assist you? 🏌️`;
+        ? `Hello, **${name}** coach! You have **${count} lesson${count > 1 ? 's' : ''}** scheduled today.`
+        : `Hello, **${name}** coach! No lessons scheduled for today.`;
     }
-    if (language === 'ja') {
+    if (lang === 'ja') {
       return count > 0
-        ? `こんにちは、**${name}**コーチ！今日は**${count}件**のレッスンがあります。何かお手伝いできることはありますか？ 🏌️`
-        : `こんにちは、**${name}**コーチ！今日のレッスンはありません。何かお手伝いできることはありますか？ 🏌️`;
+        ? `こんにちは、**${name}**コーチ！今日は**${count}件**のレッスンがあります。`
+        : `こんにちは、**${name}**コーチ！今日のレッスンはありません。`;
     }
     return count > 0
-      ? `안녕하세요, **${name}** 코치님! 오늘 **${count}개**의 레슨이 예정되어 있습니다. 무엇이든 도와드릴게요 🏌️`
-      : `안녕하세요, **${name}** 코치님! 오늘 예정된 레슨이 없네요. 무엇이든 물어보세요 🏌️`;
+      ? `안녕하세요, **${name}** 코치님! 오늘 **${count}개**의 레슨이 예정되어 있어요.`
+      : `안녕하세요, **${name}** 코치님! 오늘 예정된 레슨은 없어요.`;
   };
 
-  const [mode, setMode] = useState<Mode>('chat');
+  const [phase, setPhase] = useState<Phase>(initialQuery ? 'chat' : 'proposal');
   const [messages, setMessages] = useState<CoachXChatMessage[]>(() => [
     { role: 'assistant', content: buildGreeting(), timestamp: Date.now() },
   ]);
@@ -87,16 +113,17 @@ export const CoachAIHome: React.FC<CoachAIHomeProps> = ({
   const [isTyping, setIsTyping] = useState(false);
   const [ttsEnabled, setTtsEnabled] = useState(true);
   const [userHasSent, setUserHasSent] = useState(false);
+  const [pickerQuery, setPickerQuery] = useState('');
 
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const { revealedChars, startReveal, clearReveal } = useTypingReveal(1800);
-  const { isSpeaking, speak, stopSpeaking } = useTextToSpeech(language, ttsEnabled && mode === 'voice');
+  const { isSpeaking, speak, stopSpeaking } = useTextToSpeech(language, ttsEnabled);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, isTyping, revealedChars]);
+  }, [messages, isTyping, revealedChars, phase]);
 
   const handleSend = async (text?: string) => {
     const msgText = (text ?? input).trim();
@@ -105,6 +132,7 @@ export const CoachAIHome: React.FC<CoachAIHomeProps> = ({
     clearReveal();
     stopSpeaking();
     setUserHasSent(true);
+    setPhase('chat');
 
     const userMsg: CoachXChatMessage = { role: 'user', content: msgText, timestamp: Date.now() };
     // Assistant placeholder with a unique timestamp so onChunk can update
@@ -119,7 +147,6 @@ export const CoachAIHome: React.FC<CoachAIHomeProps> = ({
     setInput('');
     setIsTyping(true);
 
-    const lang = (language as 'ko' | 'en' | 'ja') ?? 'ko';
     const reply = await generateCoachXChatResponseStream(
       msgText,
       allLessons,
@@ -169,7 +196,61 @@ export const CoachAIHome: React.FC<CoachAIHomeProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const quickChips = language === 'en' ? QUICK_CHIPS_EN : language === 'ja' ? QUICK_CHIPS_JA : QUICK_CHIPS_KO;
+  /**
+   * "네, 동반 시작" — stays inside the conversation: the acceptance and the
+   * agent's follow-up question are appended as ordinary messages, then the
+   * in-thread student picker card renders after them.
+   */
+  const handleAcceptProposal = () => {
+    const now = Date.now();
+    const nearest = todayLessons[0];
+    const followUp = nearest
+      ? t3(
+          `좋아요! 누구와 함께하나요? 지금 시간엔 **${nearest.clientName}** 님 예약이 있어요.`,
+          `Great! Who are we coaching? **${nearest.clientName}** is booked around now.`,
+          `いいですね！どなたとご一緒しますか？**${nearest.clientName}**さんの予約があります。`,
+        )
+      : t3(
+          '좋아요! 누구와 함께하나요?',
+          'Great! Who are we coaching?',
+          'いいですね！どなたとご一緒しますか？',
+        );
+    setMessages(prev => [
+      ...prev,
+      { role: 'user', content: t3('네, 동반 시작할게요', "Yes, let's start", 'はい、始めましょう'), timestamp: now },
+      { role: 'assistant', content: followUp, timestamp: now + 1 },
+    ]);
+    setPickerQuery('');
+    setPhase('picking');
+  };
+
+  /**
+   * Students for the in-thread picker: today's booked students first (they
+   * carry their reservation time), then the rest of this coach's roster.
+   */
+  const rankedStudents = useMemo(() => {
+    const roster = clients.filter(
+      (c) => !c.coachId || c.coachId === coachProfile.id
+    );
+    const todayNames = new Set(todayLessons.map((l) => l.clientName));
+    const today = todayLessons.map((l) => ({
+      name: l.clientName,
+      meta: l.time || t3('오늘 예약', 'Booked today', '本日予約'),
+      booked: true,
+    }));
+    const rest = roster
+      .filter((c) => !todayNames.has(c.name))
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .map((c) => ({ name: c.name, meta: '', booked: false }));
+    return [...today, ...rest];
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clients, todayLessons, coachProfile.id]);
+
+  const filteredStudents = pickerQuery.trim()
+    ? rankedStudents.filter((s) => s.name.includes(pickerQuery.trim()))
+    : rankedStudents;
+
+  const quickChips = lang === 'en' ? QUICK_CHIPS_EN : lang === 'ja' ? QUICK_CHIPS_JA : QUICK_CHIPS_KO;
 
   // 8b · Coach's pending-review pile — lessons the coach hasn't approved
   // yet. Legacy pre-8b lessons (approval_status === undefined) don't
@@ -180,31 +261,24 @@ export const CoachAIHome: React.FC<CoachAIHomeProps> = ({
     0
   );
 
+  const showProposal = phase === 'proposal' && !userHasSent && !!onStartLiveLesson;
+  const showPicker = phase === 'picking' && !!onStartLiveLesson;
+
   return (
     <div
-      className="fixed inset-x-0 top-0 z-30 flex flex-col bg-base text-white pt-safe"
-      // This shell reaches the top of the screen — App.tsx drops its own
-      // header on this view — so `pt-safe` is what keeps the row below off
-      // the status bar / notch.
-      //
-      // Stop above the bottom nav so the tab bar remains visible on the coach
-      // home. Nav sits at z-50; the home shell stays under it as a
-      // defense-in-depth (nav still wins even if this stops flush at bottom-0
-      // in some transition). The stop reads the same token the nav sizes
-      // itself with — the literal 4rem it used to hard-code missed the bar's
-      // own top hairline, leaving the input row's last pixel underneath it.
-      style={{
-        bottom: 'calc(var(--coach-nav-height) + env(safe-area-inset-bottom, 0px))',
-      }}
+      // Single conversational surface — no tab bar below it any more, so the
+      // shell reaches the bottom edge; the input dock owns the home-indicator
+      // inset itself. `pt-safe` keeps the header row off the notch.
+      className="fixed inset-x-0 top-0 bottom-0 z-30 flex flex-col bg-base text-white pt-safe"
     >
-      {/* Ambient background */}
+      {/* Ambient background — brand emerald, layered depth */}
       <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(56,189,248,0.05),transparent_50%)]" />
-        <div className="absolute right-0 bottom-0 h-96 w-96 rounded-full bg-emerald-500/8 blur-3xl" />
-        <div className="absolute -top-20 left-0 h-80 w-80 rounded-full bg-cyan-500/6 blur-3xl" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_25%_15%,rgba(16,185,129,0.07),transparent_55%)]" />
+        <div className="absolute -right-20 bottom-0 h-96 w-96 rounded-full bg-emerald-500/10 blur-3xl" />
+        <div className="absolute -top-24 -left-16 h-80 w-80 rounded-full bg-emerald-400/6 blur-3xl" />
       </div>
 
-      {/* Header. This is the only header on the 대화 tab, so it carries the
+      {/* Header. This is the only header on the surface, so it carries the
           hamburger — the same arrangement the student 대화 tab uses. */}
       <div className="relative z-10 flex items-center gap-2 border-b border-white/8 bg-base/80 px-4 py-3 backdrop-blur-md">
         {onOpenMenu && (
@@ -223,14 +297,11 @@ export const CoachAIHome: React.FC<CoachAIHomeProps> = ({
           <div className="min-w-0">
             <p className="truncate text-sm font-semibold text-white">CoachX AI</p>
             <p className="truncate text-[10px] text-white/40">
-              {language === 'en' ? 'Your golf assistant' : language === 'ja' ? 'ゴルフアシスタント' : '골프 전용 AI 비서'}
+              {t3('코치 에이전트', 'Your coaching agent', 'コーチエージェント')}
             </p>
           </div>
         </div>
 
-        {/* Actions. The two chips drop their labels on narrow phones so the
-            row still fits at 360px now that the hamburger shares it — the
-            icon plus the title/aria-label still names each one. */}
         <div className="ml-auto flex flex-shrink-0 items-center gap-2">
           {/* TTS toggle */}
           <button
@@ -242,53 +313,46 @@ export const CoachAIHome: React.FC<CoachAIHomeProps> = ({
             {ttsEnabled ? <Volume2 className="h-3.5 w-3.5" /> : <VolumeX className="h-3.5 w-3.5" />}
           </button>
 
-          {/* Swing analysis quick link — opens the standalone /swing.html
-              entry so coaches can jump straight into pose + club metrics
-              without going through client selection. */}
-          <a
-            href="/swing.html"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-1.5 rounded-full border border-emerald-400/40 bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-200 backdrop-blur-sm transition-colors hover:border-emerald-300/60 hover:bg-emerald-500/20 hover:text-emerald-50"
-            title={
-              language === 'en'
-                ? 'Analyze a swing video (opens in new tab)'
-                : language === 'ja'
-                  ? 'スイング動画を解析(新しいタブで開く)'
-                  : '스윙 비디오 분석 (새 탭에서 열림)'
-            }
-          >
-            <Target className="h-3.5 w-3.5" />
-            <span className="hidden min-[420px]:inline">
-              {language === 'en' ? 'Swing' : language === 'ja' ? 'スイング' : '스윙 분석'}
-            </span>
-          </a>
+          {/* Swing analysis quick link — gated off in the companion-lesson-first
+              relaunch; 스윙 분석 is reached inside 동반 레슨 instead. */}
+          {FEATURES.swingAnalysisShortcut && (
+            <a
+              href="/swing.html"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 rounded-full border border-emerald-400/40 bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-200 backdrop-blur-sm transition-colors hover:border-emerald-300/60 hover:bg-emerald-500/20 hover:text-emerald-50"
+              title={t3('스윙 비디오 분석 (새 탭에서 열림)', 'Analyze a swing video (opens in new tab)', 'スイング動画を解析(新しいタブで開く)')}
+            >
+              <Target className="h-3.5 w-3.5" />
+              <span className="hidden min-[420px]:inline">
+                {t3('스윙 분석', 'Swing', 'スイング')}
+              </span>
+            </a>
+          )}
 
           {/* Dashboard button */}
           <button
             type="button"
             onClick={onNavigateToDashboard}
-            aria-label={language === 'en' ? 'Dashboard' : language === 'ja' ? 'ダッシュボード' : '대시보드'}
-            title={language === 'en' ? 'Dashboard' : language === 'ja' ? 'ダッシュボード' : '대시보드'}
+            aria-label={t3('대시보드', 'Dashboard', 'ダッシュボード')}
+            title={t3('대시보드', 'Dashboard', 'ダッシュボード')}
             className="flex items-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-medium text-white/70 backdrop-blur-sm transition-colors hover:border-white/30 hover:text-white"
           >
             <LayoutDashboard className="h-3.5 w-3.5" />
             <span className="hidden min-[420px]:inline">
-              {language === 'en' ? 'Dashboard' : language === 'ja' ? 'ダッシュボード' : '대시보드'}
+              {t3('대시보드', 'Dashboard', 'ダッシュボード')}
             </span>
           </button>
         </div>
       </div>
 
-      {/* Today's schedule strip + pending-review chip (only when no user
-          messages yet). Both live in the same horizontal band so the
-          "start of the day" glance shows scheduled lessons AND the
-          approval backlog side-by-side without competing rows. */}
+      {/* Today's schedule strip + pending-review chip (only before the
+          conversation gets going). */}
       {!userHasSent && (todayLessons.length > 0 || draftCount > 0) && (
         <div className="relative z-10 flex gap-2 overflow-x-auto border-b border-white/5 bg-white/2 px-4 py-2.5 scrollbar-hide">
           {todayLessons.length > 0 && (
-            <span className="shrink-0 text-[10px] font-medium uppercase tracking-wider text-white/30 self-center mr-1">
-              {language === 'en' ? 'Today' : language === 'ja' ? '今日' : '오늘'}
+            <span className="mr-1 shrink-0 self-center text-[10px] font-medium uppercase tracking-wider text-white/30">
+              {t3('오늘', 'Today', '今日')}
             </span>
           )}
           {todayLessons.slice(0, 5).map((lesson) => (
@@ -296,13 +360,15 @@ export const CoachAIHome: React.FC<CoachAIHomeProps> = ({
               key={lesson.id}
               type="button"
               onClick={() => void handleSend(
-                language === 'en' ? `Tell me about today's lesson with ${lesson.clientName}`
-                : language === 'ja' ? `${lesson.clientName}さんの今日のレッスンについて教えて`
-                : `${lesson.clientName} 학생 오늘 레슨 어때?`
+                t3(
+                  `${lesson.clientName} 학생 오늘 레슨 어때?`,
+                  `Tell me about today's lesson with ${lesson.clientName}`,
+                  `${lesson.clientName}さんの今日のレッスンについて教えて`,
+                )
               )}
-              className="flex shrink-0 items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-white/60 transition-colors hover:border-cyan-300/30 hover:bg-cyan-500/10 hover:text-cyan-200"
+              className="flex shrink-0 items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-white/60 transition-colors hover:border-emerald-300/30 hover:bg-emerald-500/10 hover:text-emerald-200"
             >
-              <span className="font-mono text-[10px] text-cyan-400/70">{lesson.time}</span>
+              <span className="font-mono text-[10px] text-emerald-400/70">{lesson.time}</span>
               <span>{lesson.clientName}</span>
             </button>
           ))}
@@ -310,28 +376,24 @@ export const CoachAIHome: React.FC<CoachAIHomeProps> = ({
             <button
               type="button"
               onClick={() => void handleSend(
-                language === 'en'
-                  ? `Show me my ${draftCount} lesson${draftCount > 1 ? 's' : ''} pending approval.`
-                  : language === 'ja'
-                    ? `未承認のレッスン${draftCount}件を教えて`
-                    : `승인 대기 중인 레슨 ${draftCount}건 알려줘`
+                t3(
+                  `승인 대기 중인 레슨 ${draftCount}건 알려줘`,
+                  `Show me my ${draftCount} lesson${draftCount > 1 ? 's' : ''} pending approval.`,
+                  `未承認のレッスン${draftCount}件を教えて`,
+                )
               )}
               className="flex shrink-0 items-center gap-1.5 rounded-full border border-amber-400/40 bg-amber-500/10 px-3 py-1 text-xs font-semibold text-amber-100 transition-colors hover:border-amber-300/60 hover:bg-amber-500/20"
             >
               <ClipboardCheck className="h-3 w-3 text-amber-300" />
               <span>
-                {language === 'en'
-                  ? `${draftCount} to review`
-                  : language === 'ja'
-                    ? `未承認 ${draftCount}件`
-                    : `미승인 ${draftCount}건`}
+                {t3(`미승인 ${draftCount}건`, `${draftCount} to review`, `未承認 ${draftCount}件`)}
               </span>
             </button>
           )}
         </div>
       )}
 
-      {/* Messages */}
+      {/* Conversation */}
       <div className="relative z-10 flex-1 overflow-y-auto px-4 py-4">
         <div className="mx-auto max-w-lg space-y-4">
           {messages.map((msg, idx) => {
@@ -354,8 +416,8 @@ export const CoachAIHome: React.FC<CoachAIHomeProps> = ({
                 <div
                   className={`max-w-[78%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
                     msg.role === 'user'
-                      ? 'rounded-tr-sm bg-cyan-600/25 text-white border border-cyan-500/20'
-                      : 'rounded-tl-sm bg-white/6 text-white/85 border border-white/8'
+                      ? 'rounded-tr-sm border border-emerald-500/25 bg-emerald-600/20 text-white'
+                      : 'rounded-tl-sm border border-white/8 bg-white/6 text-white/85'
                   }`}
                 >
                   {renderMarkdown(displayContent)}
@@ -367,6 +429,132 @@ export const CoachAIHome: React.FC<CoachAIHomeProps> = ({
             );
           })}
 
+          {/* The agent's opening proposal — the service's core action,
+              delivered as a message-side card rather than app chrome. */}
+          {showProposal && (
+            <div className="flex animate-fade-in-up justify-start">
+              <div className="mr-2 mt-0.5 h-7 w-7 shrink-0" />
+              <div className="w-full max-w-[320px] overflow-hidden rounded-2xl rounded-tl-sm border border-emerald-400/30 bg-gradient-to-br from-emerald-500/15 via-emerald-500/5 to-transparent shadow-lg shadow-emerald-950/40 backdrop-blur-sm">
+                <div className="flex items-start gap-3 px-4 pt-4">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-emerald-300/25 bg-emerald-500/20 text-emerald-300">
+                    <Mic className="h-5 w-5" />
+                  </div>
+                  <div className="min-w-0">
+                    <h2 className="text-base font-bold leading-snug tracking-tight text-white">
+                      {t3('레슨 동반을 시작하시겠습니까?', 'Shall we start a live lesson?', '同伴レッスンを始めますか？')}
+                    </h2>
+                    <p className="mt-1 text-xs leading-relaxed text-white/55">
+                      {t3(
+                        '레슨에 함께하며 대화를 듣고, 스윙을 캡처하고, 기록 초안까지 정리해 드릴게요.',
+                        "I'll join the lesson — listening, capturing swings, and drafting the record for you.",
+                        'レッスンに同伴し、会話を聞き取り、スイングをキャプチャして記録の下書きまで作成します。',
+                      )}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex flex-col gap-2 p-4">
+                  <button
+                    type="button"
+                    onClick={handleAcceptProposal}
+                    className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 text-sm font-bold text-white shadow-md shadow-emerald-900/40 transition-colors hover:bg-emerald-500 active:scale-[0.99]"
+                  >
+                    <Mic className="h-4 w-4" />
+                    {t3('네, 동반 시작', "Yes, let's start", 'はい、始める')}
+                  </button>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => void handleSend(t3('오늘 브리핑 해줘', "Give me today's briefing", '今日のブリーフィングをして'))}
+                      className="flex h-10 flex-1 items-center justify-center rounded-xl border border-white/12 text-xs font-semibold text-white/60 transition-colors hover:border-white/25 hover:bg-white/5 hover:text-white/85"
+                    >
+                      {t3('오늘 브리핑', "Today's briefing", '本日ブリーフィング')}
+                    </button>
+                    {onNewRecord && (
+                      <button
+                        type="button"
+                        onClick={onNewRecord}
+                        className="flex h-10 flex-1 items-center justify-center gap-1 rounded-xl border border-white/12 text-xs font-semibold text-white/60 transition-colors hover:border-white/25 hover:bg-white/5 hover:text-white/85"
+                      >
+                        <PenSquare className="h-3 w-3" />
+                        {t3('기록만 작성', 'Just a record', '記録だけ')}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* In-thread student picker — accepting the proposal asks "누구와
+              함께하나요?" and answers arrive as cards, not a separate screen. */}
+          {showPicker && (
+            <div className="flex animate-fade-in-up justify-start">
+              <div className="mr-2 mt-0.5 h-7 w-7 shrink-0" />
+              <div className="w-full max-w-[320px] space-y-2">
+                {filteredStudents.slice(0, 5).map((s, i) => (
+                  <button
+                    key={s.name}
+                    type="button"
+                    onClick={() => onStartLiveLesson?.(s.name)}
+                    className={`flex w-full items-center gap-3 rounded-2xl border px-4 py-3 text-left transition-all active:scale-[0.99] ${
+                      s.booked && i === 0
+                        ? 'border-emerald-400/40 bg-emerald-500/12 shadow-md shadow-emerald-950/30 hover:bg-emerald-500/20'
+                        : 'border-white/10 bg-white/5 hover:border-white/20 hover:bg-white/8'
+                    }`}
+                  >
+                    <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full border text-sm font-bold ${
+                      s.booked ? 'border-emerald-300/30 bg-emerald-500/15 text-emerald-200' : 'border-white/15 bg-white/8 text-white/60'
+                    }`}>
+                      {s.name.slice(0, 1)}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-semibold text-white">{s.name}</span>
+                      {s.meta && (
+                        <span className="block text-[11px] text-emerald-300/80">
+                          {s.meta} {t3('예약', 'booked', '予約')}
+                        </span>
+                      )}
+                    </span>
+                    {s.booked && i === 0 ? (
+                      <span className="flex h-9 shrink-0 items-center rounded-lg bg-emerald-600 px-3 text-xs font-bold text-white">
+                        {t3('바로 시작', 'Start', '開始')}
+                      </span>
+                    ) : (
+                      <ChevronRight className="h-4 w-4 shrink-0 text-white/25" />
+                    )}
+                  </button>
+                ))}
+
+                {/* Roster search */}
+                <div className="flex items-center gap-2 rounded-2xl border border-white/10 bg-white/4 px-4 py-2.5">
+                  <Search className="h-4 w-4 shrink-0 text-white/30" />
+                  <input
+                    type="text"
+                    value={pickerQuery}
+                    onChange={(e) => setPickerQuery(e.target.value)}
+                    placeholder={t3('다른 학생 검색…', 'Search students…', '他の生徒を検索…')}
+                    className="w-full bg-transparent text-sm text-white placeholder-white/30 outline-none"
+                  />
+                </div>
+                {filteredStudents.length === 0 && (
+                  <p className="px-2 text-xs text-white/35">
+                    {t3('일치하는 학생이 없어요. 이름 그대로 새 학생과 시작할까요?', 'No matching student. Start with a new student under this name?', '該当する生徒がいません。この名前で新しく始めますか？')}
+                  </p>
+                )}
+                {filteredStudents.length === 0 && pickerQuery.trim() && (
+                  <button
+                    type="button"
+                    onClick={() => onStartLiveLesson?.(pickerQuery.trim())}
+                    className="flex h-11 w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-emerald-400/40 text-sm font-semibold text-emerald-200 transition-colors hover:bg-emerald-500/10"
+                  >
+                    <Video className="h-4 w-4" />
+                    {t3(`"${pickerQuery.trim()}" 학생과 시작`, `Start with "${pickerQuery.trim()}"`, `「${pickerQuery.trim()}」さんと開始`)}
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Typing indicator */}
           {isTyping && (
             <div className="flex animate-fade-in justify-start">
@@ -374,7 +562,7 @@ export const CoachAIHome: React.FC<CoachAIHomeProps> = ({
                 <CoachXMarkLive size={18} tone="dark" active />
               </div>
               <div className="rounded-2xl rounded-tl-sm border border-white/8 bg-white/6 px-4 py-3">
-                <div className="flex gap-1 items-center">
+                <div className="flex items-center gap-1">
                   {[0, 1, 2].map(i => (
                     <div
                       key={i}
@@ -387,15 +575,15 @@ export const CoachAIHome: React.FC<CoachAIHomeProps> = ({
             </div>
           )}
 
-          {/* Quick chips (only before first user message) */}
+          {/* Quick chips (only before the first sent message) */}
           {!userHasSent && !isTyping && (
-            <div className="flex flex-wrap gap-2 pt-1 animate-fade-in">
+            <div className="flex flex-wrap gap-2 pt-1 animate-fade-in pl-9">
               {quickChips.map(chip => (
                 <button
                   key={chip}
                   type="button"
                   onClick={() => void handleSend(chip)}
-                  className="rounded-full border border-white/12 bg-white/4 px-3.5 py-1.5 text-xs text-white/55 transition-colors hover:border-cyan-300/30 hover:bg-cyan-500/8 hover:text-cyan-200"
+                  className="rounded-full border border-white/12 bg-white/4 px-3.5 py-1.5 text-xs text-white/55 transition-colors hover:border-emerald-300/30 hover:bg-emerald-500/8 hover:text-emerald-200"
                 >
                   {chip}
                 </button>
@@ -407,132 +595,94 @@ export const CoachAIHome: React.FC<CoachAIHomeProps> = ({
         </div>
       </div>
 
-      {/* Voice error */}
+      {/* Voice / speaking status */}
       {voiceError && (
         <div className="relative z-10 mx-4 mb-2 flex items-center gap-2 rounded-xl border border-red-500/25 bg-red-900/20 px-3 py-2 text-xs text-red-300">
           <MicOff className="h-3.5 w-3.5 shrink-0" />
           {voiceError}
         </div>
       )}
-
-      {/* Input area.
-          Pairing the safe-area class with a `pb-4` read like "gutter, and more
-          on a notched phone" but did the opposite: `.pb-safe` is unlayered CSS
-          and outranks Tailwind's layered padding, so the gutter collapsed to
-          the raw inset — 0px wherever the platform reports none. No inset is
-          wanted here anyway;
-          this shell already stops above the nav, and the nav owns the inset. */}
-      <div className="relative z-10 border-t border-white/8 bg-base/80 px-4 pb-4 pt-3 backdrop-blur-md">
-        {/* Mode toggle */}
-        <div className="mb-3 flex justify-center">
-          <div className="flex rounded-full border border-white/10 bg-white/4 p-0.5">
-            <button
-              type="button"
-              onClick={() => setMode('chat')}
-              className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition-colors ${
-                mode === 'chat' ? 'bg-white/12 text-white' : 'text-white/35 hover:text-white/60'
-              }`}
-            >
-              <MessageSquare className="h-3 w-3" />
-              {language === 'en' ? 'Chat' : language === 'ja' ? 'チャット' : '채팅'}
-            </button>
-            <button
-              type="button"
-              onClick={() => setMode('voice')}
-              className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition-colors ${
-                mode === 'voice' ? 'bg-white/12 text-white' : 'text-white/35 hover:text-white/60'
-              }`}
-            >
-              <Mic className="h-3 w-3" />
-              {language === 'en' ? 'Voice' : language === 'ja' ? '音声' : '음성'}
-            </button>
+      {isSpeaking && (
+        <div className="relative z-10 mx-auto mb-2 flex w-fit items-center gap-2 rounded-full border border-emerald-500/25 bg-emerald-900/25 px-3 py-1.5">
+          <div className="flex items-center gap-0.5">
+            {[0, 1, 2, 3, 4].map(i => (
+              <div
+                key={i}
+                className="w-0.5 rounded-full bg-emerald-400"
+                style={{ height: '12px', animation: `coachxOrbDrift 0.6s ease-in-out ${i * 80}ms infinite alternate` }}
+              />
+            ))}
           </div>
+          <span className="text-xs text-emerald-300">
+            {t3('CoachX 말하는 중…', 'CoachX speaking…', 'CoachX 話しています…')}
+          </span>
+          <button onClick={stopSpeaking} className="text-emerald-400 transition-colors hover:text-emerald-200" aria-label="음성 중지">
+            <VolumeX className="h-3.5 w-3.5" />
+          </button>
         </div>
+      )}
 
-        {mode === 'chat' ? (
-          <div className="mx-auto flex max-w-lg gap-2 items-end">
-            <input
-              ref={inputRef}
-              type="text"
-              value={input}
-              onChange={e => setInput(e.target.value)}
-              onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void handleSend(); } }}
-              placeholder={
-                language === 'en' ? 'Ask CoachX AI anything...'
-                : language === 'ja' ? 'CoachX AIに何でも聞いてください...'
-                : 'CoachX AI에게 무엇이든 물어보세요...'
-              }
-              className="flex-1 rounded-2xl border border-white/10 bg-white/6 px-4 py-3 text-sm text-white placeholder-white/25 outline-none backdrop-blur-sm transition-colors focus:border-cyan-500/40 focus:ring-1 focus:ring-cyan-500/20"
-            />
+      {/* Re-entry to the companion once the conversation has moved on */}
+      {!showProposal && !showPicker && onStartLiveLesson && (
+        <div className="relative z-10 mb-2 flex justify-center">
+          <button
+            type="button"
+            onClick={() => onStartLiveLesson()}
+            className="flex items-center gap-1.5 rounded-full border border-emerald-400/40 bg-emerald-500/10 px-4 py-1.5 text-xs font-semibold text-emerald-200 backdrop-blur-sm transition-colors hover:bg-emerald-500/20 hover:text-emerald-50"
+          >
+            <Mic className="h-3 w-3" />
+            {t3('동반 레슨 시작', 'Start live lesson', '同伴レッスン開始')}
+          </button>
+        </div>
+      )}
+
+      {/* Input dock — voice-first: mic is the primary affordance, send takes
+          over once there is text. The dock owns the home-indicator inset now
+          that no tab bar sits below. */}
+      <div
+        className="relative z-10 border-t border-white/8 bg-base/80 px-4 pt-3 backdrop-blur-md"
+        style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 14px)' }}
+      >
+        <div className="mx-auto flex max-w-lg items-center gap-2">
+          <input
+            ref={inputRef}
+            type="text"
+            value={input}
+            onChange={e => setInput(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void handleSend(); } }}
+            placeholder={
+              isListening
+                ? t3('듣는 중… 말씀하세요', 'Listening…', '聞いています…')
+                : t3('말하거나 입력하세요…', 'Speak or type…', '話すか入力してください…')
+            }
+            className="h-12 flex-1 rounded-full border border-white/10 bg-white/6 px-4 text-sm text-white placeholder-white/25 outline-none backdrop-blur-sm transition-colors focus:border-emerald-500/40 focus:ring-1 focus:ring-emerald-500/20"
+          />
+          {input.trim() ? (
             <button
               type="button"
               onClick={() => void handleSend()}
-              disabled={!input.trim() || isTyping}
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-cyan-600 text-white transition-colors hover:bg-cyan-500 disabled:cursor-not-allowed disabled:opacity-35"
-              aria-label="전송"
+              disabled={isTyping}
+              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white shadow-md shadow-emerald-900/40 transition-colors hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-35"
+              aria-label={t3('전송', 'Send', '送信')}
             >
               <Send className="h-4 w-4" />
             </button>
-          </div>
-        ) : (
-          <div className="mx-auto flex max-w-lg flex-col items-center gap-3 py-1">
-            {isSpeaking && (
-              <div className="flex items-center gap-2 rounded-full border border-cyan-500/25 bg-cyan-900/20 px-3 py-1.5">
-                <div className="flex gap-0.5 items-center">
-                  {[0, 1, 2, 3, 4].map(i => (
-                    <div
-                      key={i}
-                      className="w-0.5 rounded-full bg-cyan-400"
-                      style={{ height: '12px', animation: `coachxOrbDrift 0.6s ease-in-out ${i * 80}ms infinite alternate` }}
-                    />
-                  ))}
-                </div>
-                <span className="text-xs text-cyan-300">
-                  {language === 'en' ? 'CoachX AI speaking...' : language === 'ja' ? 'CoachX AI 話しています...' : 'CoachX AI 말하는 중...'}
-                </span>
-                <button onClick={stopSpeaking} className="text-cyan-400 hover:text-cyan-200 transition-colors" aria-label="음성 중지">
-                  <VolumeX className="h-3.5 w-3.5" />
-                </button>
-              </div>
-            )}
-
+          ) : (
             <button
               type="button"
               onClick={toggleListening}
               disabled={isTyping}
-              className={`h-20 w-20 rounded-full flex items-center justify-center transition-all shadow-lg ${
+              className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full shadow-md transition-all ${
                 isListening
-                  ? 'bg-red-500 shadow-red-500/40 scale-110 hover:bg-red-400'
-                  : isTyping
-                  ? 'bg-white/8 cursor-not-allowed opacity-50'
-                  : 'bg-cyan-600 shadow-cyan-500/30 hover:bg-cyan-500 active:scale-95'
-              }`}
-              aria-label={isListening ? '음성 인식 중지' : '음성 인식 시작'}
+                  ? 'scale-105 bg-red-500 shadow-red-900/40 hover:bg-red-400'
+                  : 'bg-emerald-600 shadow-emerald-900/40 hover:bg-emerald-500'
+              } text-white disabled:cursor-not-allowed disabled:opacity-35`}
+              aria-label={isListening ? t3('음성 인식 중지', 'Stop listening', '音声認識を停止') : t3('음성으로 말하기', 'Speak', '音声で話す')}
             >
-              {isListening ? <MicOff className="h-8 w-8 text-white" /> : <Mic className="h-8 w-8 text-white" />}
+              {isListening ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
             </button>
-
-            <p className="text-xs text-white/30 text-center">
-              {isTyping
-                ? (language === 'en' ? 'CoachX AI is thinking...' : language === 'ja' ? 'CoachX AIが考えています...' : 'CoachX AI 생각 중...')
-                : isListening
-                ? (language === 'en' ? 'Listening... tap to stop' : language === 'ja' ? '聴いています... タップで停止' : '듣는 중... 탭해서 중지')
-                : (language === 'en' ? 'Tap to speak' : language === 'ja' ? 'タップして話す' : '탭해서 말하기')}
-            </p>
-
-            {isListening && (
-              <div className="flex gap-1.5 items-center">
-                {[0, 1, 2, 3, 4, 5, 6].map(i => (
-                  <div
-                    key={i}
-                    className="w-1 rounded-full bg-cyan-400/60"
-                    style={{ height: `${8 + (i % 3) * 7}px`, animation: `coachxOrbDrift 0.5s ease-in-out ${i * 70}ms infinite alternate` }}
-                  />
-                ))}
-              </div>
-            )}
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
   );

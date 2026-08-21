@@ -59,7 +59,7 @@ describe('semantic background utilities', () => {
 });
 
 describe('LiveLessonCompanion', () => {
-  it('keeps its finish CTA clear of the fixed coach bottom nav', () => {
+  it('keeps its finish CTA clear of the device gesture bar', () => {
     render(
       <LiveLessonCompanion
         studentName="한윤슬"
@@ -72,10 +72,12 @@ describe('LiveLessonCompanion', () => {
     const cta = screen.getByRole('button', { name: /레슨 종료/ });
     expect(cta).toBeInTheDocument();
 
+    // The tab bar is gone in the single-surface relaunch; the overlay only
+    // has to reserve the home-indicator inset itself.
     const root = cta.closest('.fixed.inset-0');
     expect(root).not.toBeNull();
-    expect(root!.className).toContain('coach-nav-clearance');
-    // The overlay must also be opaque — it covers the coach's tab screen.
+    expect(root!.className).toContain('pb-safe');
+    // The overlay must also be opaque — it covers the screen behind it.
     expect(root!.className).toContain('bg-base');
   });
 });

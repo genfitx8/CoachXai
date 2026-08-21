@@ -124,17 +124,18 @@ describe('레슨 기록 확인 화면', () => {
     vi.clearAllMocks();
   });
 
-  it('저장 버튼을 코치 하단 탭바에 가리지 않게 띄운다', async () => {
+  it('저장 버튼을 기기 제스처 바에 가리지 않게 띄운다', async () => {
     await openReviewScreen();
 
     const save = await screen.findByRole('button', { name: /기록 저장하기/ });
     expect(save).toBeInTheDocument();
     expect(save).not.toBeDisabled();
 
-    // 검토 화면 자체가 탭바 높이를 예약해야 푸터가 탭바 위로 올라온다.
+    // 탭바가 사라진 단일 화면 개편 이후에도, 검토 오버레이는 기기
+    // 제스처 바 인셋(pb-safe)을 직접 예약해야 푸터가 가려지지 않는다.
     const reviewRoot = save.closest('.absolute.inset-0');
     expect(reviewRoot).not.toBeNull();
-    expect(reviewRoot!.className).toContain('coach-nav-clearance');
+    expect(reviewRoot!.className).toContain('pb-safe');
     expect(reviewRoot!.className).toContain('bg-base');
   });
 

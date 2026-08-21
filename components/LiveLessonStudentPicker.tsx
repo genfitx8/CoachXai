@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Mic, Search, User, CalendarClock, X, Loader2 } from 'lucide-react';
+import { Mic, Search, User, CalendarClock, X, Loader2, ChevronLeft } from 'lucide-react';
 import { ClientProfile, LessonReservation } from '../types';
 import {
   findNearbyLessons,
@@ -32,6 +32,11 @@ export interface LiveLessonStudentPickerProps {
   reservationsLoading?: boolean;
   /** Called with the chosen student's name. */
   onSelect: (studentName: string) => void;
+  /**
+   * Returns to the agent home. With the tab bar gone this screen has no
+   * other way out, so the header carries its own back affordance.
+   */
+  onBack?: () => void;
 }
 
 /** How often the relative time labels refresh (ms). */
@@ -57,6 +62,7 @@ export const LiveLessonStudentPicker: React.FC<LiveLessonStudentPickerProps> = (
   reservations,
   reservationsLoading = false,
   onSelect,
+  onBack,
 }) => {
   const [query, setQuery] = useState('');
   const [nowMs, setNowMs] = useState(() => Date.now());
@@ -90,6 +96,16 @@ export const LiveLessonStudentPicker: React.FC<LiveLessonStudentPickerProps> = (
   return (
     <div className="space-y-6 animate-fade-in" data-testid="live-lesson-picker">
       <div className="flex items-center gap-2 min-w-0">
+        {onBack && (
+          <button
+            type="button"
+            onClick={onBack}
+            aria-label="뒤로"
+            className="-ml-2 flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-lg text-ink-medium transition-colors hover:bg-white/8 hover:text-ink-high"
+          >
+            <ChevronLeft className="w-5 h-5" />
+          </button>
+        )}
         <h2 className="text-lg sm:text-xl font-bold text-ink-high flex items-center gap-2 tracking-tight min-w-0">
           <Mic className="w-5 h-5 text-emerald-300 flex-shrink-0" />
           <span className="truncate">레슨 중 동반</span>

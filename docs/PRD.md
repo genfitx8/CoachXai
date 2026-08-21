@@ -41,6 +41,8 @@ CoachX becomes the default operating layer for coaching continuity: every lesson
 
 ## MVP Scope
 
+- **Live lesson companion (동반 레슨)** — the agent accompanies the lesson,
+  listens, captures moments, and drafts the record; the hero action of the app
 - Structured lesson note capture
 - Student-linked lesson history
 - AI-generated lesson organization/summary draft
@@ -49,11 +51,33 @@ CoachX becomes the default operating layer for coaching continuity: every lesson
 
 ## Out of Scope (MVP)
 
+Gated off via `constants/featureFlags.ts` (code retained, UI hidden):
+
+- Lesson reservation management and reservation notifications
+- Driving-range bay reservations
+- Precision diagnosis program
+- Curriculum management
+- Automated video editing pipeline
+- Standalone swing-analysis shortcut (reachable inside 동반 레슨 instead)
+
+Also out of scope, as before:
+
 - Payments and billing expansion
 - Marketplace/coach discovery
 - Team workspace administration suite
 - Deep BI/advanced analytics layer
 - Scheduling ecosystem integrations beyond current essentials
+
+## Coach App Information Architecture (relaunch)
+
+A single conversational surface with no tab bar — the agent is the app.
+On login CoachX greets the coach and proposes the core action
+("레슨 동반을 시작하시겠습니까?"); accepting expands an in-thread,
+reservation-ranked student picker, and the chosen student drops straight
+into the live companion. Finishing hands clips/transcript to the record
+form. The drawer carries 레슨 기록 작성 / 전체 레슨 기록 / 학생 목록 /
+프로필 / 언어 / 로그아웃; gated features reappear there only when their
+flag is on.
 
 ## User Stories
 

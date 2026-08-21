@@ -464,15 +464,12 @@ export const CoachClientManager: React.FC<CoachClientManagerProps> = ({
           // - height: 100dvh keeps items-end anchored to the *visible*
           //   viewport bottom (Android Capacitor WebView's layout viewport
           //   can extend behind the OS gesture bar).
-          // - paddingBottom reserves clearance for the fixed CoachBottomNav
-          //   (~4rem + safe area) so the sticky save button never sits
-          //   behind it — CoachBottomNav uses `backdrop-blur-xl` which
-          //   spawns its own stacking context and can outcompete a plain
-          //   z-index on some Chromium builds. Belt-and-suspenders with
-          //   the bumped z-[100] above.
+          // - paddingBottom keeps the sticky save button clear of the OS
+          //   gesture bar, with a small extra gutter now that no tab bar
+          //   sits at the bottom edge any more.
           style={{
             height: '100dvh',
-            paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 4.5rem)',
+            paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 1rem)',
           }}
           className="fixed inset-x-0 top-0 z-[100] flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-md p-0 sm:p-4 animate-fade-in overscroll-contain"
         >

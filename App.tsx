@@ -100,7 +100,6 @@ import {
   Home,
   Menu,
 } from 'lucide-react';
-import { CoachBottomNav, CoachTab } from './components/CoachBottomNav';
 import { CoachHamburgerMenu, CoachHamburgerAction } from './components/CoachHamburgerMenu';
 import { LanguageProvider, useLanguage } from './components/LanguageContext';
 import {
@@ -109,6 +108,7 @@ import {
   IS_STUDENT_APP,
   isRoleAllowedInThisApp,
 } from './utils/appVariant';
+import { FEATURES } from './constants/featureFlags';
 import { readBooleanPref } from './utils/safeStorage';
 
 const isClientSessionProfile = (
@@ -146,7 +146,7 @@ const diagnosisProgram: DiagnosisProgram = {
 
 const AppContent: React.FC = () => {
   const { t, language, setLanguage } = useLanguage();
-  const isAutomatedVideoEditingEnabled = false;
+  const isAutomatedVideoEditingEnabled = FEATURES.automatedVideoEditing;
 
   // Session State
   const [userRole, setUserRole] = useState<'COACH' | 'CLIENT' | 'ADMIN' | 'BRANCH_ADMIN' | null>(
@@ -387,6 +387,9 @@ const AppContent: React.FC = () => {
    * Fire-and-forget; errors are caught internally.
    */
   const checkAndShowLessonSuggestion = useCallback((coachId: string) => {
+    // 동반 레슨 중심 개편: 예약 기능이 꺼져 있으면 예약 기반 제안도 띄우지
+    // 않는다 (제안 모달이 예약 관리 화면으로 이어지기 때문).
+    if (!FEATURES.reservations) return;
     pruneStaleDismissal();
     reservationService.getCoachReservations(coachId).then((reservations) => {
       const suggestion = findUpcomingLesson(reservations);
@@ -403,6 +406,7 @@ const AppContent: React.FC = () => {
    * popup if any exist.  Fire-and-forget: errors are caught internally.
    */
   const loadAndShowCoachNotifications = (coachId: string) => {
+    if (!FEATURES.reservations) return;
     getUnreadReservationNotificationsForCoach(coachId).then((notifications) => {
       if (notifications.length > 0) {
         setPendingReservationNotifications(notifications);
@@ -1653,37 +1657,11 @@ const AppContent: React.FC = () => {
     setCoachView('DIAGNOSIS_PROGRAM');
   };
 
-  // ── Coach tab / hamburger wiring ──────────────────────────────────────────
-
-  /**
-   * Derive which bottom-nav tab is currently "active" from the coach view.
-   * Views that don't map to a tab (DETAIL, NEW, COACHX_*, etc.) return null
-   * so the nav renders as an overlay backdrop without highlighting anything.
-   */
-  const activeCoachTab: CoachTab | null =
-    coachView === 'COACHX' || coachView === 'LESSON_LIST' ? 'LESSON'
-    : coachView === 'CLIENTS' ? 'CLIENTS'
-    : coachView === 'NEW' ? 'RECORD'
-    : coachView === 'LIVE_LESSON' ? 'LIVE'
-    : coachView === 'RESERVATIONS' ? 'RESERVATIONS'
-    : null;
-
-  const handleCoachTabChange = (next: CoachTab) => {
-    setSelectedLesson(null);
-    // Primary "대화" tab lands on the conversational home. RECORD drops the
-    // coach into the new-lesson flow; LIVE opens the during-lesson companion
-    // ("레슨 중 동반"), picking a student first when none is chosen. The
-    // historical lesson list ("레슨 기록") no longer has its own tab and is
-    // reached from the hamburger menu.
-    if (next === 'LESSON') setCoachView('COACHX');
-    else if (next === 'CLIENTS') setCoachView('CLIENTS');
-    else if (next === 'RECORD') {
-      setIsEditingLesson(false);
-      setCoachView('NEW');
-    }
-    else if (next === 'LIVE') setCoachView('LIVE_LESSON');
-    else setCoachView('RESERVATIONS');
-  };
+  // ── Coach hamburger wiring ────────────────────────────────────────────────
+  // The relaunch removes the bottom tab bar entirely: the agent conversation
+  // (COACHX) is the app's single primary surface, 동반 레슨 starts from the
+  // agent's proposal inside it, and everything else is reached through the
+  // conversation or the drawer.
 
   const handleCoachNewRecord = () => {
     setIsEditingLesson(false);
@@ -1725,6 +1703,15 @@ const AppContent: React.FC = () => {
     switch (action) {
       case 'PROFILE':
         setShowProfileModal(true);
+        break;
+      case 'NEW_RECORD':
+        handleCoachNewRecord();
+        break;
+      case 'CLIENTS':
+        setCoachView('CLIENTS');
+        break;
+      case 'RESERVATIONS':
+        setCoachView('RESERVATIONS');
         break;
       case 'DIAGNOSIS_PROGRAM':
         handleDiagnosisProgramClick();
@@ -2136,12 +2123,11 @@ const AppContent: React.FC = () => {
       )}
 
 
-      {/* A flat 96px reservation was short of the bar it had to clear: 65px of tab bar
-          plus the home indicator / gesture bar, which is ~34px on iOS and up
-          to ~48px on an Android three-button navigation bar. The clearance
-          now comes from the same token the nav sizes itself with, with the
-          page's bottom gutter kept on top of it. */}
-      <main className="flex-1 max-w-7xl mx-auto w-full px-4 pt-6 md:pt-8 coach-nav-clearance-gutter">
+      {/* No tab bar below any more — the gutter only needs to clear the
+          device's home indicator. (Not `safe-bottom` + a pb-* class: the
+          unlayered safe-area rule would override the Tailwind padding, the
+          same collapse the old pb-safe/pb-4 pairing hit.) */}
+      <main className="flex-1 max-w-7xl mx-auto w-full px-4 pt-6 md:pt-8 pb-12">
         {coachView === 'LESSON_LIST' && (
           <div className="space-y-6 animate-fade-in">
             {/* Title — the list is opened from the hamburger menu, so the
@@ -2338,6 +2324,7 @@ const AppContent: React.FC = () => {
             reservations={liveLessonReservations}
             reservationsLoading={liveLessonReservationsLoading}
             onSelect={setLiveLessonStudent}
+            onBack={() => setCoachView('COACHX')}
           />
         )}
 
@@ -2411,7 +2398,7 @@ const AppContent: React.FC = () => {
           />
         )}
 
-        {coachView === 'DIAGNOSIS_PROGRAM' && (
+        {FEATURES.diagnosis && coachView === 'DIAGNOSIS_PROGRAM' && (
           <DiagnosisProgramSection
             program={diagnosisProgram}
             onBack={() => setCoachView('LESSON_LIST')}
@@ -2423,7 +2410,7 @@ const AppContent: React.FC = () => {
           />
         )}
 
-        {coachView === 'DIAGNOSIS_RESULT' && selectedDiagnosisSession && (
+        {FEATURES.diagnosis && coachView === 'DIAGNOSIS_RESULT' && selectedDiagnosisSession && (
           <DiagnosisResultSection
             result={selectedDiagnosisSession.result}
             onBack={() => setCoachView('LESSON_LIST')}
@@ -2436,7 +2423,7 @@ const AppContent: React.FC = () => {
             clients={clients}
             onUpdate={handleUpdateClientProfile}
             onDelete={handleDeleteClient}
-            onBack={() => setCoachView('LESSON_LIST')}
+            onBack={() => setCoachView('COACHX')}
             coachId={
               currentUser && 'id' in currentUser ? currentUser.id : undefined
             }
@@ -2487,7 +2474,7 @@ const AppContent: React.FC = () => {
           />
         )}
 
-        {coachView === 'RESERVATIONS' && currentUser && 'id' in currentUser && (
+        {FEATURES.reservations && coachView === 'RESERVATIONS' && currentUser && 'id' in currentUser && (
           <ReservationManager
             coachProfile={currentUser as CoachProfile}
             onBack={() => {
@@ -2533,7 +2520,7 @@ const AppContent: React.FC = () => {
               setSelectedClientForPackage(selectedStudentForDetail);
               setCoachView('LESSON_PACKAGE');
             }}
-            onOpenCurriculum={() => setCoachView('CURRICULUM')}
+            onOpenCurriculum={FEATURES.curriculum ? () => setCoachView('CURRICULUM') : undefined}
             onAssignHomework={() => {
               setHomeworkTargetClient({
                 id: `${selectedStudentForDetail.name}_${selectedStudentForDetail.phone}`,
@@ -2553,7 +2540,7 @@ const AppContent: React.FC = () => {
           />
         )}
 
-        {coachView === 'BAY_RESERVATION' && currentUser && 'id' in currentUser && (
+        {FEATURES.bayReservations && coachView === 'BAY_RESERVATION' && currentUser && 'id' in currentUser && (
           <CoachBayReservation
             coachProfile={currentUser as CoachProfile}
             onBack={() => setCoachView('LESSON_LIST')}
@@ -2561,7 +2548,7 @@ const AppContent: React.FC = () => {
           />
         )}
 
-        {coachView === 'MY_BAY_RESERVATIONS' && currentUser && 'id' in currentUser && (
+        {FEATURES.bayReservations && coachView === 'MY_BAY_RESERVATIONS' && currentUser && 'id' in currentUser && (
           <MyBayReservations
             clientProfile={{
               name: (currentUser as CoachProfile).name,
@@ -2606,6 +2593,14 @@ const AppContent: React.FC = () => {
             todayLessons={buildTodayLessonSummaries(allCoachLessons)}
             onOpenMenu={() => setHamburgerOpen(true)}
             onNavigateToDashboard={() => setCoachView('COACHX_DASHBOARD')}
+            onStartLiveLesson={(studentName) => {
+              // In-conversation picker hands over a name → jump straight
+              // into the companion; without one, LIVE_LESSON's own picker
+              // takes over (recovery entry, drawer, edge cases).
+              setLiveLessonStudent(studentName ?? '');
+              setCoachView('LIVE_LESSON');
+            }}
+            onNewRecord={handleCoachNewRecord}
             initialQuery={coachAIInitialQuery}
             onInitialQueryConsumed={() => setCoachAIInitialQuery(undefined)}
           />
@@ -2624,7 +2619,7 @@ const AppContent: React.FC = () => {
           />
         )}
 
-        {coachView === 'CURRICULUM' && currentUser && 'id' in currentUser && (
+        {FEATURES.curriculum && coachView === 'CURRICULUM' && currentUser && 'id' in currentUser && (
           <CurriculumManager
             coachProfile={currentUser as CoachProfile}
             clients={clients}
@@ -2738,7 +2733,7 @@ const AppContent: React.FC = () => {
       )}
 
       {/* Coach reservation-request notification popup */}
-      {showReservationNotificationModal && (
+      {FEATURES.reservations && showReservationNotificationModal && (
         <CoachReservationNotificationModal
           notifications={pendingReservationNotifications}
           onClose={() => {
@@ -2808,15 +2803,6 @@ const AppContent: React.FC = () => {
         />
       )}
 
-      {/* Bottom nav — visible on the three primary tabs, hidden on sub-views.
-          The redesign removes the raised + button; new records now originate
-          from the agent conversation instead of a fixed CTA. */}
-      {activeCoachTab && (
-        <CoachBottomNav
-          activeTab={activeCoachTab}
-          onTabChange={handleCoachTabChange}
-        />
-      )}
     </div>
   );
 };

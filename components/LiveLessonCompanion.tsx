@@ -702,15 +702,13 @@ export const LiveLessonCompanion: React.FC<LiveLessonCompanionProps> = ({
     onCancel();
   };
 
-  // The coach bottom nav stays mounted on the 동반 탭 and is fixed at the same
-  // z-index as this overlay, so it paints over whatever sits at the bottom
-  // edge. `coach-nav-clearance` reserves its height (+ the device gesture bar)
-  // on the root, otherwise the sticky "레슨 종료" CTA lands behind the tab bar.
-  // `pt-safe` does the same at the other end: this is a fixed inset-0 overlay
-  // over the app header, so nothing else keeps its own header off the status
-  // bar / notch.
+  // The bottom tab bar is gone in the single-surface relaunch, so the root
+  // only reserves the device gesture bar (`pb-safe`) under the sticky
+  // "레슨 종료" CTA. `pt-safe` does the same at the other end: this is a
+  // fixed inset-0 overlay over the app header, so nothing else keeps its
+  // own header off the status bar / notch.
   return (
-    <div className="fixed inset-0 z-50 bg-base text-ink-high flex flex-col pt-safe coach-nav-clearance">
+    <div className="fixed inset-0 z-50 bg-base text-ink-high flex flex-col pt-safe pb-safe">
       <PermissionDeniedModal
         open={permissionModalOpen}
         kind="microphone"
@@ -1052,12 +1050,11 @@ export const LiveLessonCompanion: React.FC<LiveLessonCompanionProps> = ({
       </footer>
 
       {/* 종료 전 검토 — 필기 전문·요약을 확인/수정한 뒤에만 저장으로 간다.
-          `coach-nav-clearance` 는 여기서도 필수다: 이 오버레이는 루트의
-          *패딩 박스* 기준으로 inset-0 이라 루트가 잡아 둔 하단 여백을 그대로
-          덮어써, 코치 하단 탭바가 '기록 저장하기' 버튼 위에 그려졌다 —
-          검토 화면에 저장 버튼이 없어 보이던 원인. */}
+          이 오버레이는 루트의 *패딩 박스* 기준으로 inset-0 이라 루트가 잡아
+          둔 하단 여백을 덮어쓴다 — 그래서 기기 제스처 바 인셋(`pb-safe`)을
+          여기서도 직접 잡아야 '기록 저장하기' 버튼이 가려지지 않는다. */}
       {reviewDraft && (
-        <div className="absolute inset-0 z-30 bg-base flex flex-col pt-safe coach-nav-clearance">
+        <div className="absolute inset-0 z-30 bg-base flex flex-col pt-safe pb-safe">
           <header className="px-5 py-4 border-b border-line-subtle flex-shrink-0">
             <div className="text-[11px] font-mono uppercase tracking-wider text-emerald-300">
               레슨 기록 확인
