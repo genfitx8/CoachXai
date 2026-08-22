@@ -1390,10 +1390,17 @@ const AppContent: React.FC = () => {
   };
 
   const handleUpdateClientProfile = async (updatedProfile: ClientProfile) => {
+    // Server-backed profiles carry an id, so match on it: the 내 정보 form
+    // now edits name/phone, and matching on the *updated* name+phone fails
+    // the moment either changes. Name+phone stays only as the fallback for
+    // local/demo profiles that never got an id.
+    const isSameClient = (c: ClientProfile) =>
+      updatedProfile.id && c.id
+        ? c.id === updatedProfile.id
+        : c.name === updatedProfile.name && c.phone === updatedProfile.phone;
+
     // Find the old profile to check if coachId changed
-    const oldProfile = clients.find(
-      (c) => c.name === updatedProfile.name && c.phone === updatedProfile.phone
-    );
+    const oldProfile = clients.find(isSameClient);
 
     // Sync designatedCoach with coachId (ensure consistency)
     // 데이터 일관성 규칙:
@@ -1408,19 +1415,12 @@ const AppContent: React.FC = () => {
     };
 
     // Update in list
-    setClients((prev) =>
-      prev.map((c) =>
-        c.name === profileWithCoach.name && c.phone === profileWithCoach.phone
-          ? profileWithCoach
-          : c
-      )
-    );
+    setClients((prev) => prev.map((c) => (isSameClient(c) ? profileWithCoach : c)));
 
     // Update current user if it's the client themselves
     if (
       userRole === 'CLIENT' &&
-      currentUser.name === profileWithCoach.name &&
-      currentUser.phone === profileWithCoach.phone
+      isSameClient(currentUser as ClientProfile)
     ) {
       setCurrentUser(profileWithCoach);
     }
@@ -1537,8 +1537,7 @@ const AppContent: React.FC = () => {
         userRole === 'CLIENT' &&
         currentUser &&
         'name' in currentUser &&
-        currentUser.name === profileWithCoach.name &&
-        currentUser.phone === profileWithCoach.phone;
+        isSameClient(currentUser as ClientProfile);
 
       if (isSelfClientUpdate) {
         try {
@@ -1556,11 +1555,7 @@ const AppContent: React.FC = () => {
           // Merge server-authoritative fields (id, coachId resolved by server)
           // back into local state so subsequent updates target the right row.
           const merged: ClientProfile = { ...profileWithCoach, ...saved };
-          setClients((prev) =>
-            prev.map((c) =>
-              c.name === merged.name && c.phone === merged.phone ? merged : c
-            )
-          );
+          setClients((prev) => prev.map((c) => (isSameClient(c) ? merged : c)));
           setCurrentUser(merged);
         } catch (e) {
           console.error('[App] Failed to update client via /api/clients/me:', e);
@@ -1570,11 +1565,7 @@ const AppContent: React.FC = () => {
         await apiService.saveClients([profileWithCoach]);
       }
     } else {
-      const updatedList = clients.map((c) =>
-        c.name === profileWithCoach.name && c.phone === profileWithCoach.phone
-          ? profileWithCoach
-          : c
-      );
+      const updatedList = clients.map((c) => (isSameClient(c) ? profileWithCoach : c));
       storageService.saveClients(updatedList);
     }
   };
