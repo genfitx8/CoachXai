@@ -5,6 +5,52 @@ import type {
   AiFeedbackEventInput, ConsentPurpose, ConsentRecord,
 } from '../types';
 
+/**
+ * 관리자 정리 보고서의 한 줄 — clients 테이블의 회원 행 하나.
+ *
+ * `keep`은 이 사람을 대표해 남길 행, `removable`은 지워도 잃는 것이 없는 행
+ * (로그인 계정이 없고, 레슨·예약·포인트 어느 것도 매달려 있지 않다).
+ * 지울 수 없으면 `blockedReason`이 왜인지 말해 준다.
+ */
+export interface ClientDuplicateMember {
+  id: string;
+  name: string;
+  phone: string | null;
+  email: string | null;
+  coachId: string | null;
+  designatedCoach: string | null;
+  signedUp: boolean;
+  referenceCount: number;
+  createdAt: number;
+  updatedAt: number;
+  keep: boolean;
+  removable: boolean;
+  blockedReason: string | null;
+}
+
+/** 같은 사람으로 판정된 회원 행들의 묶음. */
+export interface ClientDuplicateGroup {
+  identityKey: string;
+  name: string;
+  phone: string | null;
+  removableCount: number;
+  members: ClientDuplicateMember[];
+}
+
+export interface ClientDuplicateReport {
+  totalClients: number;
+  /** 가입 흔적(로그인 계정)이 없는 행의 총수. */
+  phantomTotal: number;
+  removableTotal: number;
+  groups: ClientDuplicateGroup[];
+}
+
+export interface ClientCleanupResult {
+  deleted: number;
+  deletedIds: string[];
+  skipped: { id: string; name: string; reason: string }[];
+}
+
 /** Chat thread document as stored server-side; messages stay untyped here so
  * apiService doesn't import chat types (chatHistoryService validates them). */
 export interface ChatThreadDoc {
@@ -481,6 +527,29 @@ export const apiService = {
   async getClients(): Promise<ClientProfile[]> {
     const data = await req<{ clients: ClientProfile[] }>('GET', '/api/clients');
     return data.clients;
+  },
+
+  /**
+   * 관리자 전용 — 중복·유령 회원 정리 보고서.
+   *
+   * 코치 목록은 이제 사람 단위로 접혀 보이지만 행 자체는 테이블에 남아 있다.
+   * 무엇이 몇 줄 남았고 그중 무엇을 지워도 되는지 관리자가 눈으로 확인하는
+   * 용도.
+   */
+  async getClientDuplicates(): Promise<ClientDuplicateReport> {
+    return req<ClientDuplicateReport>('GET', '/api/clients/duplicates');
+  },
+
+  /**
+   * 관리자 전용 — 정리 실행. 고른 행만(`ids`) 또는 지울 수 있다고 표시된
+   * 행 전부(`{ all: true }`). 서버가 지우기 직전에 같은 규칙으로 다시
+   * 판정하므로, 그 사이 학생이 가입했거나 데이터가 붙은 행은 건너뛰고
+   * 이유가 `skipped`로 돌아온다.
+   */
+  async cleanupClientDuplicates(
+    target: { ids: string[] } | { all: true }
+  ): Promise<ClientCleanupResult> {
+    return req<ClientCleanupResult>('POST', '/api/clients/cleanup', target);
   },
 
   async saveClients(clients: ClientProfile[]): Promise<void> {
