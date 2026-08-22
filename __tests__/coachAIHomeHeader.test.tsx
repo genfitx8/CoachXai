@@ -1,17 +1,14 @@
 /**
- * Regression tests for the coach 대화 tab's own header being unreachable.
+ * The coach 대화 tab owns the only header on its surface — and that header is
+ * now deliberately bare.
  *
- * CoachAIHome started life as `fixed inset-0 z-50` — a full-bleed surface
- * whose header was *the* header. ab54168 dropped it to z-30 so the bottom tab
- * bar would show through, which also put it under the app shell's header
- * (z-40, opaque). From then on the CoachX mark (and the typing blink added in
- * 3564a8d), the TTS toggle, the 스윙 분석 link and the 대시보드 button were
- * painted over: hit-testing the wordmark's centre in a real browser returned
- * the app header's row, so those controls were focusable but not clickable.
- *
- * The fix follows what the student 대화 tab already does: one header, owned
- * by the chat surface, carrying the hamburger. App.tsx stops rendering its
- * own bar on this view and the coach profile stays in the drawer.
+ * History: CoachAIHome started as `fixed inset-0 z-50`, then ab54168 dropped
+ * it to z-30, which put its header under the app shell's opaque z-40 bar and
+ * made the wordmark, TTS toggle and 대시보드 button focusable but unclickable.
+ * The shell stopped rendering its own bar on this view, so those controls
+ * became reachable again — and then the cleanup pass removed them entirely:
+ * the header carries the hamburger and nothing else, with 대시보드 and
+ * 음성 읽기 relocated into the drawer, so the conversation is the screen.
  */
 
 import React from 'react';
@@ -20,6 +17,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { CoachAIHome } from '../components/CoachAIHome';
+import { CoachHamburgerMenu } from '../components/CoachHamburgerMenu';
 import { LanguageProvider } from '../components/LanguageContext';
 import { CoachProfile } from '../types';
 
@@ -42,7 +40,6 @@ const renderHome = (onOpenMenu?: () => void) =>
         allLessons={[]}
         clients={[]}
         todayLessons={[]}
-        onNavigateToDashboard={vi.fn()}
         onOpenMenu={onOpenMenu}
       />
     </LanguageProvider>
@@ -57,15 +54,24 @@ describe('CoachAIHome header', () => {
     expect(onOpenMenu).toHaveBeenCalledTimes(1);
   });
 
-  it('still surfaces its own actions next to it', () => {
+  it('carries nothing else — no wordmark, no header actions', () => {
     renderHome(vi.fn());
 
-    // These are the controls the app header used to paint over.
-    expect(screen.getByText('CoachX AI')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /대시보드|dashboard/i })).toBeInTheDocument();
-    // The standalone swing-analysis shortcut is feature-gated off in the
-    // companion-lesson-first relaunch (FEATURES.swingAnalysisShortcut).
+    expect(screen.queryByText('CoachX AI')).toBeNull();
+    expect(screen.queryByText(/코치 에이전트|coaching agent/i)).toBeNull();
+    expect(screen.queryByRole('button', { name: /대시보드|dashboard/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /음성 읽기|voice/i })).toBeNull();
     expect(screen.queryByRole('link', { name: /스윙|swing/i })).toBeNull();
+  });
+
+  it('drops the pre-conversation guidance from the chat body', () => {
+    renderHome(vi.fn());
+
+    // Quick-prompt chips and the 오늘 schedule strip are gone; the input asks
+    // for a message rather than explaining how to send one.
+    expect(screen.queryByText('오늘 일정 알려줘')).toBeNull();
+    expect(screen.queryByPlaceholderText(/말하거나 입력/)).toBeNull();
+    expect(screen.getByPlaceholderText('CoachX에게 물어보기')).toBeInTheDocument();
   });
 
   it('takes the top inset itself now that it reaches the top of the screen', () => {
@@ -86,5 +92,35 @@ describe('coach app shell header', () => {
 
   it('hands the drawer opener to the screen that replaced it', () => {
     expect(appSource).toMatch(/<CoachAIHome[\s\S]{0,400}?onOpenMenu=\{\(\) => setHamburgerOpen\(true\)\}/);
+  });
+
+  it('routes the relocated header actions through the drawer', () => {
+    expect(appSource).toMatch(/case 'DASHBOARD':\s*\n\s*setCoachView\('COACHX_DASHBOARD'\);/);
+    expect(appSource).toMatch(/<CoachHamburgerMenu[\s\S]{0,400}?onToggleTts=/);
+  });
+});
+
+describe('coach drawer', () => {
+  it('hosts 대시보드 and the 음성 읽기 toggle that left the chat header', () => {
+    const onAction = vi.fn();
+    const onToggleTts = vi.fn();
+    render(
+      <LanguageProvider>
+        <CoachHamburgerMenu
+          open
+          onClose={vi.fn()}
+          coachProfile={COACH}
+          onAction={onAction}
+          ttsEnabled
+          onToggleTts={onToggleTts}
+        />
+      </LanguageProvider>
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: '대시보드' }));
+    expect(onAction).toHaveBeenCalledWith('DASHBOARD');
+
+    fireEvent.click(screen.getByRole('switch', { name: /음성 읽기/ }));
+    expect(onToggleTts).toHaveBeenCalledTimes(1);
   });
 });

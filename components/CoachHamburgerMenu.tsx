@@ -2,12 +2,14 @@ import React, { useEffect } from 'react';
 import {
   X, User, Users, Dumbbell, BookOpen, Film, PenSquare,
   Target, ClipboardList, Globe, LogOut, ChevronRight, FileText, CalendarDays,
+  LayoutDashboard, Volume2, VolumeX,
 } from 'lucide-react';
 import { CoachProfile } from '../types';
 import { useLanguage } from './LanguageContext';
 import { FEATURES } from '../constants/featureFlags';
 
 export type CoachHamburgerAction =
+  | 'DASHBOARD'
   | 'PROFILE'
   | 'CLIENTS'
   | 'NEW_RECORD'
@@ -28,10 +30,15 @@ interface CoachHamburgerMenuProps {
   onAction: (action: CoachHamburgerAction) => void;
   /** Show the automated video editing entry (build-flag gated in the caller). */
   showAutomatedVideoEditing?: boolean;
+  /** 음성 읽기 state — the toggle moved here off the chat header. */
+  ttsEnabled?: boolean;
+  onToggleTts?: () => void;
 }
 
 const labels = {
   ko: {
+    dashboard: '대시보드',
+    voice: '음성 읽기',
     clients: '학생 목록',
     newRecord: '레슨 기록 작성',
     lessonList: '전체 레슨 기록',
@@ -49,6 +56,8 @@ const labels = {
     settings: '설정',
   },
   en: {
+    dashboard: 'Dashboard',
+    voice: 'Voice replies',
     clients: 'Students',
     newRecord: 'Write a lesson record',
     lessonList: 'All lesson records',
@@ -66,6 +75,8 @@ const labels = {
     settings: 'Settings',
   },
   ja: {
+    dashboard: 'ダッシュボード',
+    voice: '音声読み上げ',
     clients: '生徒一覧',
     newRecord: 'レッスン記録を書く',
     lessonList: 'レッスン記録一覧',
@@ -90,6 +101,8 @@ export const CoachHamburgerMenu: React.FC<CoachHamburgerMenuProps> = ({
   coachProfile,
   onAction,
   showAutomatedVideoEditing,
+  ttsEnabled = true,
+  onToggleTts,
 }) => {
   const { language } = useLanguage();
   const lang = (language as 'ko' | 'en' | 'ja') ?? 'ko';
@@ -159,6 +172,7 @@ export const CoachHamburgerMenu: React.FC<CoachHamburgerMenuProps> = ({
         {/* Sections */}
         <nav className="flex-1 overflow-y-auto py-4">
           <Section title={L.lessons}>
+            <Row icon={LayoutDashboard} label={L.dashboard} onClick={() => handle('DASHBOARD')} accent="emerald" />
             <Row icon={PenSquare} label={L.newRecord} onClick={() => handle('NEW_RECORD')} accent="emerald" />
             <Row icon={FileText} label={L.lessonList} onClick={() => handle('LESSON_LIST')} accent="emerald" />
             <Row icon={Users} label={L.clients} onClick={() => handle('CLIENTS')} accent="emerald" />
@@ -188,6 +202,14 @@ export const CoachHamburgerMenu: React.FC<CoachHamburgerMenuProps> = ({
           )}
 
           <Section title={L.settings}>
+            {onToggleTts && (
+              <ToggleRow
+                icon={ttsEnabled ? Volume2 : VolumeX}
+                label={L.voice}
+                on={ttsEnabled}
+                onClick={onToggleTts}
+              />
+            )}
             <Row icon={User} label={L.profile} onClick={() => handle('PROFILE')} />
             <Row icon={Globe} label={L.language} onClick={() => handle('LANGUAGE')} />
           </Section>
@@ -237,6 +259,39 @@ const accentToClasses: Record<Accent, { icon: string; bg: string }> = {
   amber: { icon: 'text-amber-300', bg: 'bg-amber-400/10 border-amber-300/20' },
   emerald: { icon: 'text-emerald-300', bg: 'bg-emerald-400/10 border-emerald-300/20' },
 };
+
+/**
+ * A switch row: unlike `Row` it doesn't navigate, so tapping it leaves the
+ * drawer open and the coach sees the state flip.
+ */
+const ToggleRow: React.FC<{
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  on: boolean;
+  onClick: () => void;
+}> = ({ icon: Icon, label, on, onClick }) => (
+  <button
+    type="button"
+    role="switch"
+    aria-checked={on}
+    onClick={onClick}
+    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-white/6 transition-colors"
+  >
+    <div className={`w-8 h-8 rounded-lg border flex items-center justify-center ${
+      on ? 'bg-emerald-400/10 border-emerald-300/20' : 'bg-white/5 border-line-subtle'
+    }`}>
+      <Icon className={`w-4 h-4 ${on ? 'text-emerald-300' : 'text-ink-muted'}`} />
+    </div>
+    <span className="flex-1 text-left text-sm font-semibold text-ink-high">{label}</span>
+    <span className={`h-5 w-9 shrink-0 rounded-full p-0.5 transition-colors ${
+      on ? 'bg-emerald-500' : 'bg-white/15'
+    }`}>
+      <span className={`block h-4 w-4 rounded-full bg-white transition-transform ${
+        on ? 'translate-x-4' : 'translate-x-0'
+      }`} />
+    </span>
+  </button>
+);
 
 const Row: React.FC<{
   icon: React.ComponentType<{ className?: string }>;

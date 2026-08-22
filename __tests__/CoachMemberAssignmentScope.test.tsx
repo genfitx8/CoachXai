@@ -165,8 +165,10 @@ describe('Coach member list stays scoped to students who designated this coach',
 
   it('shows only this coach\'s members from the cache fallback and never syncs the cache to the server', async () => {
     render(<App />);
+    // The coach home's header is just the hamburger now, so that button is
+    // the signal that it has mounted.
     await waitFor(() => {
-      expect(screen.getByText('CoachX AI')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /open menu/i })).toBeInTheDocument();
     });
 
     // 학생 목록 lives in the drawer now — the single-surface relaunch

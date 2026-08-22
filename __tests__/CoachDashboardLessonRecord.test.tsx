@@ -105,11 +105,12 @@ vi.mock('../components/CoachReservationNotificationModal', () => ({
 
 const renderCoachApp = async () => {
   render(<App />);
-  // Coach lands on CoachAIHome (the redesign home) — wait for the
-  // brand line in its header. The legacy 레슨 기록 list is still
-  // reachable via the LESSON tab, just not the default.
+  // Coach lands on CoachAIHome (the redesign home). Its header is bare
+  // since the cleanup pass — no wordmark to wait on — so the hamburger it
+  // carries is the landing signal. The legacy 레슨 기록 list is still
+  // reachable via the drawer, just not the default.
   await waitFor(() => {
-    expect(screen.getByText('CoachX AI')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /open menu/i })).toBeInTheDocument();
   });
 };
 

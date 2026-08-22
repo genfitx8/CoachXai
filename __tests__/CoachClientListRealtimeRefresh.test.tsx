@@ -137,8 +137,10 @@ const newMember: ClientProfile = {
 
 const renderCoachApp = async () => {
   render(<App />);
+  // CoachAIHome's header carries only the hamburger now, so that button is
+  // what says the coach home has mounted.
   await waitFor(() => {
-    expect(screen.getByText('CoachX AI')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /open menu/i })).toBeInTheDocument();
   });
   // Initial loadData has fetched the (empty) member list once.
   await waitFor(() => {
