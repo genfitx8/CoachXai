@@ -15,6 +15,7 @@
 import React, { useMemo, useState } from 'react';
 import { Film, ImageOff, Play } from 'lucide-react';
 import type { SwingSequenceItem } from '../../types';
+import { StoryEditable } from './StoryEditable';
 
 /** 뷰가 mediaId 로 실제 재생 가능한 소스를 찾을 때 쓰는 맵. */
 export interface StoryMediaSource {
@@ -24,6 +25,17 @@ export interface StoryMediaSource {
   poster?: string;
 }
 export type StoryMediaMap = Record<string, StoryMediaSource>;
+
+/** 캡션 타이포 — 읽는 자리와 고치는 자리가 같은 값을 써야 글이 안 흔들린다. */
+const CAPTION_STYLE: React.CSSProperties = {
+  fontFamily: "'Gaegu', 'Nanum Pen Script', cursive",
+  fontSize: '15px',
+  lineHeight: 1.5,
+  color: 'var(--paper-pencil)',
+  textAlign: 'center',
+  wordBreak: 'keep-all',
+  display: 'block',
+};
 
 /** id 시드 기반 유사난수(0~1) — 렌더마다 흔들리지 않는 손맛용. */
 const seeded = (seed: string): number => {
@@ -136,7 +148,18 @@ export const StoryPolaroid: React.FC<{
   size: 'inset' | 'full';
   /** alt 폴백 — 캡션이 없을 때 "레슨 사진 3/7" 같은 위치 설명. */
   altFallback: string;
-}> = ({ mediaId, media, caption, size, altFallback }) => {
+  /** 코치 본인이면 캡션을 사진 밑에서 바로 쓴다. */
+  editable?: boolean;
+  onCaptionChange?: (next: string) => void;
+}> = ({
+  mediaId,
+  media,
+  caption,
+  size,
+  altFallback,
+  editable = false,
+  onCaptionChange,
+}) => {
   const src = media[mediaId];
   const tilt = useTilt(mediaId);
 
@@ -167,16 +190,23 @@ export const StoryPolaroid: React.FC<{
         )}
       </div>
       <figcaption
-        className="text-center leading-snug"
-        style={{
-          fontFamily: "'Gaegu', 'Nanum Pen Script', cursive",
-          fontSize: '15px',
-          color: 'var(--paper-pencil)',
-          padding: '0.3rem 0.2rem 0.55rem',
-          wordBreak: 'keep-all',
-        }}
+        className="leading-snug"
+        style={{ padding: '0.3rem 0.4rem 0.55rem' }}
       >
-        {caption || ' '}
+        {editable ? (
+          <StoryEditable
+            value={caption ?? ''}
+            onSave={(v) => onCaptionChange?.(v)}
+            editable
+            placeholder="＋ 캡션 달기"
+            maxLength={40}
+            ariaLabel={`${altFallback} 캡션 달기`}
+            style={CAPTION_STYLE}
+          />
+        ) : (
+          // 캡션이 없어도 폴라로이드 아래 여백은 남는다(빈 흰 테두리).
+          <span style={CAPTION_STYLE}>{caption || ' '}</span>
+        )}
       </figcaption>
     </figure>
   );

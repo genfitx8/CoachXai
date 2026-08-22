@@ -11,6 +11,7 @@ import React, { useState } from 'react';
 import { Check } from 'lucide-react';
 import type { ClientFeedback, GolfData } from '../../types';
 import { StoryPolaroid, type StoryMediaMap } from './StoryMedia';
+import { StoryEditable } from './StoryEditable';
 
 const HAND = "'Gaegu', 'Nanum Pen Script', cursive";
 
@@ -30,7 +31,20 @@ export const StoryCover: React.FC<{
   date: string;
   sessionNumber?: number;
   coachName?: string;
-}> = ({ headline, dek, date, sessionNumber, coachName }) => {
+  /** 코치 본인이면 제목과 리드를 그 자리에서 고칠 수 있다. */
+  editable?: boolean;
+  onHeadlineChange?: (next: string) => void;
+  onDekChange?: (next: string) => void;
+}> = ({
+  headline,
+  dek,
+  date,
+  sessionNumber,
+  coachName,
+  editable = false,
+  onHeadlineChange,
+  onDekChange,
+}) => {
   const meta = [
     date.replace(/-/g, '.'),
     sessionNumber ? `${sessionNumber}회차` : null,
@@ -38,6 +52,21 @@ export const StoryCover: React.FC<{
   ]
     .filter(Boolean)
     .join(' · ');
+
+  const headlineStyle: React.CSSProperties = {
+    fontSize: '1.35rem',
+    lineHeight: 1.3,
+    fontWeight: 700,
+    letterSpacing: '-0.02em',
+    color: 'var(--paper-ink)',
+    wordBreak: 'keep-all',
+  };
+  const dekStyle: React.CSSProperties = {
+    fontSize: '13px',
+    lineHeight: 1.6,
+    color: '#4b5568',
+    wordBreak: 'keep-all',
+  };
 
   return (
     <header className="px-4 pt-5 pb-1">
@@ -47,24 +76,39 @@ export const StoryCover: React.FC<{
       >
         {meta}
       </p>
-      <h1
-        className="font-bold tracking-tight mt-1"
-        style={{
-          fontSize: '1.35rem',
-          lineHeight: 1.3,
-          color: 'var(--paper-ink)',
-          wordBreak: 'keep-all',
-        }}
-      >
-        {headline}
+      <h1 className="mt-1" style={editable ? undefined : headlineStyle}>
+        {editable ? (
+          <StoryEditable
+            value={headline}
+            onSave={(v) => onHeadlineChange?.(v)}
+            editable
+            placeholder="그날의 한 줄을 적어보세요"
+            maxLength={40}
+            ariaLabel="제목 고치기"
+            style={headlineStyle}
+          />
+        ) : (
+          headline
+        )}
       </h1>
-      {dek && (
-        <p
-          className="text-[13px] mt-1.5"
-          style={{ color: '#4b5568', wordBreak: 'keep-all' }}
-        >
-          {dek}
-        </p>
+      {editable ? (
+        <div className="mt-1.5">
+          <StoryEditable
+            value={dek ?? ''}
+            onSave={(v) => onDekChange?.(v)}
+            editable
+            placeholder="한 줄 덧붙이기 (없어도 됩니다)"
+            maxLength={80}
+            ariaLabel="리드 고치기"
+            style={dekStyle}
+          />
+        </div>
+      ) : (
+        dek && (
+          <p className="mt-1.5" style={dekStyle}>
+            {dek}
+          </p>
+        )
       )}
     </header>
   );
