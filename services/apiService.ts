@@ -282,6 +282,34 @@ export const apiService = {
     return data;
   },
 
+  /**
+   * 가입용 이메일 인증번호를 보낸다. 계정은 아직 만들어지지 않는다 —
+   * 서버는 이 코드를 확인한 흔적이 있는 이메일에 대해서만 가입을 받는다.
+   */
+  async requestSignupEmailVerification(
+    role: 'COACH' | 'CLIENT',
+    email: string
+  ): Promise<{ expiresInMinutes: number }> {
+    const data = await req<{ message: string; expiresInMinutes: number }>(
+      'POST',
+      '/api/auth/email/verify/request',
+      { role: role === 'COACH' ? 'coach' : 'client', email }
+    );
+    return { expiresInMinutes: data?.expiresInMinutes ?? 10 };
+  },
+
+  async confirmSignupEmailVerification(
+    role: 'COACH' | 'CLIENT',
+    email: string,
+    code: string
+  ): Promise<void> {
+    await req('POST', '/api/auth/email/verify/confirm', {
+      role: role === 'COACH' ? 'coach' : 'client',
+      email,
+      code,
+    });
+  },
+
   async requestPasswordReset(role: 'COACH' | 'CLIENT', email: string, phone: string): Promise<void> {
     await req('POST', '/api/auth/password/recover', {
       role: role === 'COACH' ? 'coach' : 'client',

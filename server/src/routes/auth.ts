@@ -4,7 +4,7 @@ import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import { rateLimit } from 'express-rate-limit';
 import pool from '../services/db';
-import { sendPasswordResetMail } from '../services/mail';
+import { sendPasswordResetMail, sendSignupVerificationMail } from '../services/mail';
 import type { AuthRole } from '../middleware/auth';
 
 const router = Router();
@@ -15,6 +15,34 @@ const PASSWORD_RECOVERY_MESSAGE = '등록된 이메일로 비밀번호 안내 �
 const PASSWORD_RESET_TOKEN_EXPIRY_MS = 30 * 60 * 1000;
 const PASSWORD_RECOVERY_WINDOW_MS = 10 * 60 * 1000;
 const PASSWORD_RECOVERY_MAX_REQUESTS = 5;
+
+// ── 회원가입 이메일 인증 ──────────────────────────────────────────────────
+// 가입 폼에 적힌 이메일이 실제로 본인 것인지 확인한 뒤에만 계정을 만든다.
+// 확인하지 않고 만들면 오타난 주소로 가입된 계정이 비밀번호 재설정 메일을
+// 영영 못 받아 복구 불가능해지고, 남의 주소로도 가입이 된다.
+const EMAIL_VERIFICATION_CODE_TTL_MS = 10 * 60 * 1000;
+// 코드 확인 이후 가입 완료까지 허용하는 시간. 남은 폼을 마저 채우기에는
+// 넉넉하되, 확인해 둔 이메일이 무기한 가입권으로 남지는 않을 만큼 짧게.
+const EMAIL_VERIFICATION_GRACE_MS = 30 * 60 * 1000;
+const EMAIL_VERIFICATION_MAX_ATTEMPTS = 5;
+const EMAIL_VERIFICATION_SENT_MESSAGE = '입력하신 이메일로 인증번호를 보냈습니다.';
+const EMAIL_NOT_VERIFIED_MESSAGE = '이메일 인증이 필요합니다. 인증번호를 확인해주세요.';
+const EMAIL_IN_USE_ERROR = 'Email already in use';
+
+// 메일 발송을 동반하므로 비밀번호 찾기와 같은 강도로 조인다. 확인 쪽은
+// 코드 자체를 무차별 대입하는 경로라 행(row)별 시도 횟수 제한과 함께 건다.
+const emailVerificationRequestLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  limit: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+const emailVerificationConfirmLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  limit: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 // Admin login is a single shared credential, so throttle it harder than the
 // per-account login routes to slow brute-force attempts.
 const adminLoginLimiter = rateLimit({
@@ -101,6 +129,202 @@ function mapClient(row: Record<string, unknown>) {
   };
 }
 
+function normalizeEmail(email: string): string {
+  return email.trim().toLowerCase();
+}
+
+function hashVerificationCode(code: string): string {
+  return crypto.createHash('sha256').update(code).digest('hex');
+}
+
+/** 6자리 숫자 코드. 추측 가능한 Math.random() 대신 crypto로 뽑는다. */
+function generateVerificationCode(): string {
+  return String(crypto.randomInt(0, 1_000_000)).padStart(6, '0');
+}
+
+function verificationCodeMatches(code: string, expectedHash: string): boolean {
+  const actual = Buffer.from(hashVerificationCode(code), 'hex');
+  const expected = Buffer.from(expectedHash, 'hex');
+  if (actual.length !== expected.length) return false;
+  return crypto.timingSafeEqual(actual, expected);
+}
+
+/**
+ * 이메일 인증 강제 여부. 기본은 켬. SMTP가 없는 개발 환경에서는 코드가
+ * 서버 콘솔에 찍히므로 그대로도 가입 흐름을 끝까지 돌려볼 수 있다.
+ * 인증 단계를 아예 건너뛰어야 하는 배포만 REQUIRE_EMAIL_VERIFICATION=false
+ * 로 빠져나간다.
+ */
+function isEmailVerificationRequired(): boolean {
+  return (process.env.REQUIRE_EMAIL_VERIFICATION ?? 'true').trim().toLowerCase() !== 'false';
+}
+
+async function isEmailTaken(role: 'coach' | 'client', email: string): Promise<boolean> {
+  const table = role === 'coach' ? 'coaches' : 'clients';
+  const result = await pool.query(
+    `SELECT id FROM ${table} WHERE LOWER(email) = $1 LIMIT 1`,
+    [normalizeEmail(email)]
+  );
+  return result.rows.length > 0;
+}
+
+/**
+ * 아직 가입에 쓰이지 않은, 유효 시간 안의 "확인 완료" 인증 행을 찾는다.
+ * 가입 라우트는 이 행이 있을 때만 계정을 만들고, 만든 뒤 이 행을 소모시켜
+ * 같은 코드로 두 번 가입하는 것을 막는다.
+ */
+async function findVerifiedEmailVerification(
+  role: 'coach' | 'client',
+  email: string
+): Promise<string | null> {
+  const result = await pool.query(
+    `SELECT id FROM email_verifications
+      WHERE email = $1 AND role = $2
+        AND consumed_at IS NULL
+        AND verified_at IS NOT NULL
+        AND verified_at > $3
+      ORDER BY verified_at DESC
+      LIMIT 1`,
+    [normalizeEmail(email), role, Date.now() - EMAIL_VERIFICATION_GRACE_MS]
+  );
+  return (result.rows[0]?.id as string | undefined) ?? null;
+}
+
+// POST /api/auth/email/verify/request — 가입용 인증번호 발송
+router.post(
+  '/email/verify/request',
+  emailVerificationRequestLimiter,
+  async (req: Request, res: Response) => {
+    const { email, role } = req.body as { email?: string; role?: 'coach' | 'client' };
+
+    if (!email || (role !== 'coach' && role !== 'client')) {
+      res.status(400).json({ error: 'email and role are required' });
+      return;
+    }
+    const normalizedEmail = normalizeEmail(email);
+    // 최소 형태 검사. 진짜 검증은 코드가 실제로 도착하는지 여부가 한다.
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+      res.status(400).json({ error: '올바른 이메일 주소를 입력해주세요.' });
+      return;
+    }
+
+    try {
+      // 가입 라우트와 같은 판정을 여기서 미리 한다. 코드까지 받아 넣은
+      // 다음에야 "이미 사용 중인 이메일"을 듣는 것은 헛수고다.
+      if (await isEmailTaken(role, normalizedEmail)) {
+        res.status(400).json({ error: EMAIL_IN_USE_ERROR });
+        return;
+      }
+
+      const now = Date.now();
+      // 새 코드를 보내는 순간 이전 코드는 죽는다. 재발송 후에도 옛 코드가
+      // 살아 있으면 유효한 코드가 여러 개 떠도는 셈이 된다.
+      await pool.query(
+        `UPDATE email_verifications SET consumed_at = $1
+          WHERE email = $2 AND role = $3 AND consumed_at IS NULL`,
+        [now, normalizedEmail, role]
+      );
+
+      const code = generateVerificationCode();
+      await pool.query(
+        `INSERT INTO email_verifications (email, role, code_hash, expires_at, created_at)
+         VALUES ($1, $2, $3, $4, $5)`,
+        [
+          normalizedEmail,
+          role,
+          hashVerificationCode(code),
+          now + EMAIL_VERIFICATION_CODE_TTL_MS,
+          now,
+        ]
+      );
+
+      const expiresInMinutes = Math.floor(EMAIL_VERIFICATION_CODE_TTL_MS / (60 * 1000));
+      // 비밀번호 찾기와 달리 발송 실패를 삼키지 않는다. 코드를 못 받으면
+      // 가입이 아예 막히므로, 다시 시도할 수 있게 실패를 그대로 알린다.
+      await sendSignupVerificationMail(normalizedEmail, code, expiresInMinutes);
+
+      res.json({ message: EMAIL_VERIFICATION_SENT_MESSAGE, expiresInMinutes });
+    } catch (err) {
+      console.error('[auth] email/verify/request error:', err);
+      res.status(500).json({ error: '인증번호 발송에 실패했습니다. 잠시 후 다시 시도해주세요.' });
+    }
+  }
+);
+
+// POST /api/auth/email/verify/confirm — 인증번호 확인
+router.post(
+  '/email/verify/confirm',
+  emailVerificationConfirmLimiter,
+  async (req: Request, res: Response) => {
+    const { email, role, code } = req.body as {
+      email?: string;
+      role?: 'coach' | 'client';
+      code?: string;
+    };
+
+    if (!email || !code || (role !== 'coach' && role !== 'client')) {
+      res.status(400).json({ error: 'email, role, and code are required' });
+      return;
+    }
+    const normalizedEmail = normalizeEmail(email);
+    const normalizedCode = code.trim();
+
+    try {
+      const result = await pool.query(
+        `SELECT id, code_hash, attempts, expires_at, verified_at
+           FROM email_verifications
+          WHERE email = $1 AND role = $2 AND consumed_at IS NULL
+          ORDER BY created_at DESC
+          LIMIT 1`,
+        [normalizedEmail, role]
+      );
+      const row = result.rows[0] as
+        | { id: string; code_hash: string; attempts: number; expires_at: string; verified_at: string | null }
+        | undefined;
+
+      if (!row || Number(row.expires_at) < Date.now()) {
+        res.status(400).json({ error: '인증번호가 만료되었습니다. 다시 요청해주세요.' });
+        return;
+      }
+      if (Number(row.attempts) >= EMAIL_VERIFICATION_MAX_ATTEMPTS) {
+        res.status(429).json({
+          error: '인증 시도 횟수를 초과했습니다. 인증번호를 다시 요청해주세요.',
+        });
+        return;
+      }
+
+      if (!verificationCodeMatches(normalizedCode, row.code_hash)) {
+        // 시도 횟수는 실패했을 때만 늘린다. 코드를 맞힌 사람이 뒤로 갔다
+        // 돌아와 다시 확인하는 것까지 소진 대상은 아니다.
+        await pool.query(
+          'UPDATE email_verifications SET attempts = attempts + 1 WHERE id = $1',
+          [row.id]
+        );
+        const remaining = EMAIL_VERIFICATION_MAX_ATTEMPTS - (Number(row.attempts) + 1);
+        res.status(400).json({
+          error:
+            remaining > 0
+              ? `인증번호가 일치하지 않습니다. (남은 시도 ${remaining}회)`
+              : '인증 시도 횟수를 초과했습니다. 인증번호를 다시 요청해주세요.',
+        });
+        return;
+      }
+
+      if (!row.verified_at) {
+        await pool.query('UPDATE email_verifications SET verified_at = $1 WHERE id = $2', [
+          Date.now(),
+          row.id,
+        ]);
+      }
+
+      res.json({ verified: true });
+    } catch (err) {
+      console.error('[auth] email/verify/confirm error:', err);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  }
+);
+
 // POST /api/auth/signup/coach
 router.post('/signup/coach', async (req: Request, res: Response) => {
   const { name, email, password, phone } = req.body as {
@@ -118,8 +342,20 @@ router.post('/signup/coach', async (req: Request, res: Response) => {
   try {
     const existing = await pool.query('SELECT id FROM coaches WHERE email = $1', [email]);
     if (existing.rows.length > 0) {
-      res.status(400).json({ error: 'Email already in use' });
+      res.status(400).json({ error: EMAIL_IN_USE_ERROR });
       return;
+    }
+
+    // 이메일 인증을 통과한 흔적이 없으면 계정을 만들지 않는다. 폼이 아니라
+    // 여기가 실제 관문 — 클라이언트를 거치지 않고 이 엔드포인트를 직접
+    // 때려도 인증 없는 가입은 성립하지 않는다.
+    let verificationId: string | null = null;
+    if (isEmailVerificationRequired()) {
+      verificationId = await findVerifiedEmailVerification('coach', email);
+      if (!verificationId) {
+        res.status(400).json({ error: EMAIL_NOT_VERIFIED_MESSAGE });
+        return;
+      }
     }
 
     const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
@@ -133,6 +369,14 @@ router.post('/signup/coach', async (req: Request, res: Response) => {
     );
 
     const coach = result.rows[0];
+    // 계정이 실제로 만들어진 뒤에 소모시킨다. 위에서 미리 소모시키면 삽입이
+    // 실패했을 때 인증만 날아가고 가입은 안 된 상태가 된다.
+    if (verificationId) {
+      await pool.query('UPDATE email_verifications SET consumed_at = $1 WHERE id = $2', [
+        now,
+        verificationId,
+      ]);
+    }
     const token = signToken(coach.id, 'coach');
 
     res.status(201).json({ token, coach: mapCoach(coach) });
@@ -191,8 +435,20 @@ router.post('/signup/client', async (req: Request, res: Response) => {
   try {
     const existing = await pool.query('SELECT id FROM clients WHERE email = $1', [email]);
     if (existing.rows.length > 0) {
-      res.status(400).json({ error: 'Email already in use' });
+      res.status(400).json({ error: EMAIL_IN_USE_ERROR });
       return;
+    }
+
+    // 코치 가입과 같은 관문. 아래 사전등록 회원 병합 경로도 이 검사를
+    // 지난 뒤에만 도달한다 — 병합도 결국 그 이메일로 로그인할 계정을
+    // 세우는 일이므로 인증을 건너뛸 이유가 없다.
+    let verificationId: string | null = null;
+    if (isEmailVerificationRequired()) {
+      verificationId = await findVerifiedEmailVerification('client', email);
+      if (!verificationId) {
+        res.status(400).json({ error: EMAIL_NOT_VERIFIED_MESSAGE });
+        return;
+      }
     }
 
     const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
@@ -242,6 +498,13 @@ router.post('/signup/client', async (req: Request, res: Response) => {
         [name, email, phone ?? null, passwordHash, now, now]
       );
       client = result.rows[0];
+    }
+
+    if (verificationId) {
+      await pool.query('UPDATE email_verifications SET consumed_at = $1 WHERE id = $2', [
+        now,
+        verificationId,
+      ]);
     }
 
     const token = signToken(client.id, 'client');

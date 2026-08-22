@@ -640,7 +640,8 @@ R2 스토리지 비용은 영상이 지배한다. 상용화 초기엔 원본 보
 
 1. [x] `BranchAdminAccount` 평문 비밀번호 → `branch_admins.password_hash`(bcrypt) + `POST /api/auth/login/branch-admin`(JWT role `branch_admin`, branchId 스코프). 클라이언트는 서버 로그인 우선, 미이관 계정만 레거시 폴백 — 플랫폼 관리자가 BRANCH_STAFF 탭을 열면 로컬 계정이 자동 이관(서버가 해시만 저장). 지점관리자 포인트 지급도 JWT 기반 원장 경로로 전환됨.
 2. 하드코딩 관리자 폴백 크리덴셜(`admin@coachx.kr/admin1234`) 제거 — env 기반 시드로 대체.
-3. 탈퇴/삭제 요청 처리 절차 정의: 소프트 삭제 → 30일 유예 → 하드 삭제 + 가명 학습 사본 분리. `domain_events`에는 가명 키만 남긴다.
+3. [x] 회원가입 이메일 미검증 → `email_verifications`(SHA-256 코드 해시, 10분 만료, 행별 5회 시도 제한) + `POST /api/auth/email/verify/request|confirm`. 가입 라우트가 "확인 완료 후 30분 이내, 미소모" 행을 요구하므로 폼을 우회해 엔드포인트를 직접 호출해도 미인증 가입은 성립하지 않는다. 계정 생성 성공 시 해당 행을 소모(consumed_at)시켜 같은 코드의 재사용을 막는다. `REQUIRE_EMAIL_VERIFICATION=false`로만 우회 가능(미이관 배포용).
+4. 탈퇴/삭제 요청 처리 절차 정의: 소프트 삭제 → 30일 유예 → 하드 삭제 + 가명 학습 사본 분리. `domain_events`에는 가명 키만 남긴다.
 
 ---
 

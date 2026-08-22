@@ -50,3 +50,38 @@ export async function sendPasswordResetMail(
     text,
   });
 }
+
+export async function sendSignupVerificationMail(
+  to: string,
+  code: string,
+  expiresInMinutes: number
+): Promise<void> {
+  const subject = `[${SERVICE_NAME}] 회원가입 이메일 인증번호`;
+  const text = [
+    `안녕하세요, ${SERVICE_NAME} 입니다.`,
+    '',
+    '회원가입 이메일 인증번호는 아래와 같습니다.',
+    '',
+    `    ${code}`,
+    '',
+    `본 인증번호는 ${expiresInMinutes}분 후 만료됩니다.`,
+    '본인이 요청하지 않았다면 이 메일을 무시해 주세요.',
+  ].join('\n');
+
+  if (!transporter) {
+    console.log('[mail] SMTP 미설정으로 메일 발송을 콘솔로 대체합니다.', {
+      service: SERVICE_NAME,
+      to,
+      subject,
+      text,
+    });
+    return;
+  }
+
+  await transporter.sendMail({
+    from: mailFrom,
+    to,
+    subject,
+    text,
+  });
+}
