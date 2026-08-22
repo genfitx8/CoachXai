@@ -22,7 +22,10 @@ import React from 'react';
 import { LiveLessonCompanion } from '../components/LiveLessonCompanion';
 
 // The permission modal nested in the companion reads the language context.
-vi.mock('../components/LanguageContext', () => ({
+// 실제 컨텍스트는 살려 둔다 — 공용 BackButton 이 LanguageContext 를 직접
+// 읽으므로, 전체를 갈아끼우면 그 export 가 사라져 렌더가 터진다.
+vi.mock('../components/LanguageContext', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../components/LanguageContext')>()),
   useLanguage: () => ({ language: 'ko', t: (key: string) => key }),
 }));
 

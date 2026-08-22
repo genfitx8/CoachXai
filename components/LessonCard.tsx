@@ -74,7 +74,7 @@ export const LessonCard: React.FC<LessonCardProps> = ({ lesson, onClick, onShare
         case 'audio':
             return (
                 <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-emerald-800 to-gray-900">
-                    <div className="w-16 h-16 bg-white/[0.04]/10 rounded-full flex items-center justify-center backdrop-blur-sm">
+                    <div className="w-16 h-16 bg-white/[0.04] rounded-full flex items-center justify-center backdrop-blur-sm">
                         <Mic className="w-8 h-8 text-emerald-300" />
                     </div>
                     <div className="mt-3 flex gap-1">

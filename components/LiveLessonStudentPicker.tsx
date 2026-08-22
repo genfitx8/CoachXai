@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Mic, Search, User, CalendarClock, X, Loader2, ChevronLeft } from 'lucide-react';
+import { Mic, Search, User, CalendarClock, X, Loader2 } from 'lucide-react';
 import { ClientProfile, LessonReservation } from '../types';
 import { clientIdentityKey, dedupeClients } from '../utils/clientRoster';
+import { BackButton } from './ui/BackButton';
 import {
   findNearbyLessons,
   NearbyLesson,
@@ -108,14 +109,12 @@ export const LiveLessonStudentPicker: React.FC<LiveLessonStudentPickerProps> = (
     <div className="space-y-6 animate-fade-in" data-testid="live-lesson-picker">
       <div className="flex items-center gap-2 min-w-0">
         {onBack && (
-          <button
-            type="button"
+          <BackButton
             onClick={onBack}
-            aria-label="뒤로"
-            className="-ml-2 flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-lg text-ink-medium transition-colors hover:bg-white/8 hover:text-ink-high"
-          >
-            <ChevronLeft className="w-5 h-5" />
-          </button>
+            tone="dark"
+            ariaLabel="뒤로"
+            className="-ml-2 flex-shrink-0"
+          />
         )}
         <h2 className="text-lg sm:text-xl font-bold text-ink-high flex items-center gap-2 tracking-tight min-w-0">
           <Mic className="w-5 h-5 text-emerald-300 flex-shrink-0" />

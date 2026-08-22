@@ -26,6 +26,7 @@ const STORAGE_KEYS = {
   COACH_STYLE_EXEMPLARS: 'coachxai_style_exemplars',
   AI_CALL_LOGS: 'coachxai_ai_call_logs',
   STUDENT_CONTEXTS: 'coachxai_student_contexts',
+  CACHE_OWNER: 'coachxai_cache_owner',
 };
 
 // Rolling cap so the localStorage bucket doesn't grow without bound. Firestore
@@ -33,7 +34,102 @@ const STORAGE_KEYS = {
 // covers roughly a week of heavy solo-coach usage.
 const AI_CALL_LOGS_LOCAL_CAP = 1000;
 
+/**
+ * Keys holding data that belongs to ONE signed-in account. Everything here is
+ * wiped when a different account signs in on the same device (see
+ * `applyCacheOwner`). Facility-level data that is not tied to a single login
+ * (branches, bays, price rules, golf courses) deliberately stays out.
+ */
+const USER_SCOPED_KEYS: string[] = [
+  STORAGE_KEYS.LESSONS,
+  STORAGE_KEYS.CLIENTS,
+  STORAGE_KEYS.HOMEWORK,
+  STORAGE_KEYS.HOMEWORK_TEMPLATES,
+  STORAGE_KEYS.NOTIFICATIONS,
+  STORAGE_KEYS.COACH_PROFILE,
+  STORAGE_KEYS.RESERVATIONS,
+  STORAGE_KEYS.BAY_RESERVATIONS,
+  STORAGE_KEYS.LESSON_PACKAGES,
+  STORAGE_KEYS.TRAINING_PROGRAMS,
+  STORAGE_KEYS.QUICK_LOGS,
+  STORAGE_KEYS.WEEKLY_INSIGHTS,
+  STORAGE_KEYS.HANDOVER_SUMMARIES,
+  STORAGE_KEYS.COACH_STYLE_EXEMPLARS,
+  STORAGE_KEYS.AI_CALL_LOGS,
+  STORAGE_KEYS.STUDENT_CONTEXTS,
+];
+
 export const storageService = {
+  /**
+   * Who the localStorage cache currently belongs to, e.g. `COACH:<id>`.
+   * Null when the device has never been claimed (fresh install, or a cache
+   * written before this scoping existed).
+   */
+  getCacheOwner: (): string | null => {
+    try {
+      return localStorage.getItem(STORAGE_KEYS.CACHE_OWNER);
+    } catch (e) {
+      log.error('Failed to read cache owner', e);
+      return null;
+    }
+  },
+
+  /**
+   * Claim the local cache for `ownerKey`, wiping every per-account bucket
+   * when the device was last used by somebody else.
+   *
+   * Why this exists: the cache keys are device-global and the app falls back
+   * to them whenever the API is unreachable. Without an owner stamp, a second
+   * account signing in on the same phone/PC gets served the previous
+   * account's lessons and members — records the signed-in user never saved.
+   *
+   * An *unstamped* device (every install from before this stamp existed) is
+   * ambiguous: the cache may be this account's own offline data or the last
+   * user's. `unstampedBelongsToOwner` lets the caller resolve that from
+   * whatever identity it can still see — e.g. the cached coach profile id.
+   * When it can't, the cache is dropped: re-fetching from the server costs a
+   * round trip, showing someone else's records costs trust.
+   *
+   * @returns true when foreign data was found and cleared.
+   */
+  applyCacheOwner: (ownerKey: string, unstampedBelongsToOwner = false): boolean => {
+    if (!ownerKey) return false;
+    try {
+      const previous = localStorage.getItem(STORAGE_KEYS.CACHE_OWNER);
+      if (previous === ownerKey) return false;
+      const isForeign = previous !== null || !unstampedBelongsToOwner;
+      if (isForeign) {
+        storageService.clearUserScopedData();
+      }
+      localStorage.setItem(STORAGE_KEYS.CACHE_OWNER, ownerKey);
+      return isForeign;
+    } catch (e) {
+      log.error('Failed to apply cache owner', e);
+      return false;
+    }
+  },
+
+  /** Drop every per-account cache bucket, keeping facility/config data. */
+  clearUserScopedData: () => {
+    try {
+      for (const key of USER_SCOPED_KEYS) {
+        localStorage.removeItem(key);
+      }
+      // 코치별 회원 명단 칸(`<CLIENTS>_coach_<id>`)도 계정별 데이터다. 키에
+      // 코치 id가 박혀 있어 남의 계정으로 새어 나가지는 않지만, 기기가 다른
+      // 사람에게 넘어간 마당에 회원 명단만 남겨 둘 이유는 없다.
+      const coachClientsPrefix = `${STORAGE_KEYS.CLIENTS}_coach_`;
+      const staleKeys: string[] = [];
+      for (let i = 0; i < localStorage.length; i += 1) {
+        const key = localStorage.key(i);
+        if (key?.startsWith(coachClientsPrefix)) staleKeys.push(key);
+      }
+      for (const key of staleKeys) localStorage.removeItem(key);
+    } catch (e) {
+      log.error('Failed to clear user-scoped data', e);
+    }
+  },
+
   saveLessons: (lessons: Lesson[]) => {
     try {
       localStorage.setItem(STORAGE_KEYS.LESSONS, JSON.stringify(lessons));

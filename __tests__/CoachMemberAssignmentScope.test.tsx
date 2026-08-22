@@ -94,6 +94,10 @@ const cachedCoachClients = [
 
 vi.mock('../services/storage', () => ({
   storageService: {
+    // App claims the device cache for the signed-in account on load.
+    applyCacheOwner: vi.fn().mockReturnValue(false),
+    getCacheOwner: vi.fn().mockReturnValue(null),
+    clearUserScopedData: vi.fn(),
     getLessons: vi.fn().mockReturnValue([]),
     getClients: vi.fn(),
     getCoachClients: vi.fn(),

@@ -20,6 +20,7 @@ import {
   type MediaKind,
 } from '../utils/mediaPermissions';
 import { PermissionDeniedModal } from './PermissionDeniedModal';
+import { BackButton } from './ui/BackButton';
 import { LessonStoryView } from './LessonStoryView';
 import type { StoryMediaMap } from './story/StoryMedia';
 import { MAIN_MEDIA_ID } from '../services/lessonStoryComposer';
@@ -1215,13 +1216,12 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
           body scrolls in its own pane below, so there is nothing of our own
           for a blurred header to reveal. */}
       <div className="bg-base border-b border-line-subtle px-4 py-3 flex items-center justify-between text-ink-high flex-shrink-0 safe-area-top relative">
-        <button
+        <BackButton
           onClick={onBack}
-          className="p-3 bg-white/[0.04]/10 backdrop-blur-sm rounded-full hover:bg-white/[0.04]/20 text-white transition-all duration-200 hover:scale-110 transform min-w-[44px] min-h-[44px] flex items-center justify-center"
-          aria-label="목록으로 돌아가기"
-        >
-          <ArrowLeft className="w-5 h-5" />
-        </button>
+          tone="dark"
+          ariaLabel="목록으로 돌아가기"
+          testId="lesson-detail-back"
+        />
         <h2 className="text-base sm:text-lg font-bold truncate flex-1 min-w-0 text-center px-2">{lesson.title}</h2>
         <div className="flex justify-end items-center gap-1">
             {canEdit && onOpenReview && (
@@ -1240,7 +1240,7 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
             {canEdit && onEdit && (
                 <button
                     onClick={() => onEdit(lesson)}
-                    className="p-3 bg-white/[0.04]/10 backdrop-blur-sm rounded-full hover:bg-white/[0.04]/20 text-white transition-all duration-200 hover:scale-110 transform min-w-[44px] min-h-[44px] flex items-center justify-center"
+                    className="p-3 bg-white/[0.04] backdrop-blur-sm rounded-full hover:bg-white/[0.08] text-white transition-all duration-200 hover:scale-110 transform min-w-[44px] min-h-[44px] flex items-center justify-center"
                     title="기록 수정"
                 >
                     <Edit2 className="w-5 h-5" />
@@ -1300,7 +1300,7 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
           />
         ) : (
         <div className="max-w-4xl mx-auto p-4 space-y-6">
-          <div className="bg-white/[0.04]/[0.04] rounded-2xl border border-line-subtle p-4 shadow-sm shadow-black/20">
+          <div className="bg-white/[0.04] rounded-2xl border border-line-subtle p-4 shadow-sm shadow-black/20">
             <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-ink-medium">
               <span className="inline-flex items-center gap-1 bg-emerald-500/[0.08] text-emerald-200 px-2.5 py-1 rounded-full">
                 <FileText className="w-3.5 h-3.5" aria-hidden="true" /> {recordTypeLabel}
@@ -1532,7 +1532,7 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
 
                {/* Compare Video Preview */}
                {lesson.compareVideoUrl && (resolvedCompareUrl || !lesson.compareVideoUrl.startsWith(IDB_PREFIX)) && (
-                 <div className="bg-white/[0.04]/[0.04] rounded-xl shadow-sm shadow-black/20 border border-purple-500/30 p-4 mt-2">
+                 <div className="bg-white/[0.04] rounded-xl shadow-sm shadow-black/20 border border-purple-500/30 p-4 mt-2">
                    <div className="flex justify-between items-center mb-3">
                      <h3 className="font-bold text-ink-high flex items-center gap-2 text-sm">
                        <Film className="w-4 h-4 text-purple-600" />
@@ -1578,7 +1578,7 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
 
               {/* Swing Sequence Strip - Only show if relevant (not Score record) */}
               {isSwingRecord && (
-                  <div className="bg-white/[0.04]/[0.04] rounded-xl shadow-sm shadow-black/20 border border-line-subtle p-4 mt-0">
+                  <div className="bg-white/[0.04] rounded-xl shadow-sm shadow-black/20 border border-line-subtle p-4 mt-0">
                        <div className="flex justify-between items-center mb-4">
                            <h3 className="font-bold text-ink-high flex items-center gap-2">
                                <Film className="w-4 h-4 text-ink-muted" /> 스윙 시퀀스
@@ -1626,7 +1626,7 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
              this at query time.
           */}
           {lesson.reviewSections && lesson.approvalStatus === 'approved' && (
-            <div className="rounded-2xl border border-emerald-500/30 bg-white/[0.04]/[0.04] shadow-sm shadow-black/20 overflow-hidden">
+            <div className="rounded-2xl border border-emerald-500/30 bg-white/[0.04] shadow-sm shadow-black/20 overflow-hidden">
               <div className="bg-gradient-to-r from-emerald-600 via-emerald-500 to-emerald-600 px-4 py-3 flex items-center gap-2 text-white">
                 <CheckCircle className="w-4 h-4" />
                 <span className="text-sm font-bold">코치 정리</span>
@@ -1658,7 +1658,7 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
                   </div>
                 )}
                 {(lesson.reviewSections.nextActions?.length ?? 0) > 0 && (
-                  <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/[0.08]/60 px-3 py-3">
+                  <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/[0.08] px-3 py-3">
                     <div className="text-[11px] font-mono uppercase tracking-wider text-emerald-200 mb-2">
                       다음 액션
                     </div>
@@ -1699,7 +1699,7 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
                   </h3>
                   <ul className="space-y-2">
                       {lesson.assignedHomework.map((hw, idx) => (
-                          <li key={idx} className="bg-white/[0.04]/[0.04] p-3 rounded-lg border border-emerald-500/20 text-sm flex items-start gap-2 text-ink-medium shadow-sm">
+                          <li key={idx} className="bg-white/[0.04] p-3 rounded-lg border border-emerald-500/20 text-sm flex items-start gap-2 text-ink-medium shadow-sm">
                               <CheckCircle className="w-4 h-4 text-emerald-400 mt-0.5 flex-shrink-0" />
                               {hw}
                           </li>
@@ -1710,7 +1710,7 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
 
           {/* Detailed Scorecard View */}
           {lesson.scorecardDetail && (
-              <div className="bg-white/[0.04]/[0.04] rounded-xl shadow-lg shadow-black/20 border border-sky-500/30 overflow-hidden">
+              <div className="bg-white/[0.04] rounded-xl shadow-lg shadow-black/20 border border-sky-500/30 overflow-hidden">
                    <div className="bg-gradient-to-r from-blue-600 via-blue-700 to-blue-600 px-4 py-3 flex justify-between items-center text-white shadow-xl">
                         <div className="flex items-center gap-2">
                             <MapPin className="w-5 h-5 text-yellow-300" />
@@ -1720,7 +1720,7 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
                                         type="text"
                                         value={editingCourseName}
                                         onChange={(e) => setEditingCourseName(e.target.value)}
-                                        className="bg-white/[0.04]/20 backdrop-blur-sm text-white font-bold px-2 py-1 rounded-lg border-2 border-white/40 focus:border-white outline-none"
+                                        className="bg-white/[0.04] backdrop-blur-sm text-white font-bold px-2 py-1 rounded-lg border-2 border-white/40 focus:border-white outline-none"
                                         placeholder="골프장 이름"
                                     />
                                 ) : (
@@ -1741,7 +1741,7 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
                                              setIsEditingScorecardDetail(true);
                                          }
                                      }}
-                                     className="mt-2 bg-white/[0.04]/20 hover:bg-white/[0.04]/30 backdrop-blur-sm px-3 py-1 rounded-full text-xs font-bold transition-all duration-200 flex items-center gap-1 hover:scale-105 transform"
+                                     className="mt-2 bg-white/[0.04] hover:bg-white/[0.08] backdrop-blur-sm px-3 py-1 rounded-full text-xs font-bold transition-all duration-200 flex items-center gap-1 hover:scale-105 transform"
                                  >
                                      {isEditingScorecardDetail ? (
                                          <><Save className="w-3 h-3" /> 저장</>
@@ -1977,13 +1977,13 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
                                             </div>
                                         )}
                                         {h.aiSummary && (
-                                            <p className="text-xs text-ink-medium leading-relaxed bg-white/[0.04]/[0.04] p-2 rounded border border-line-subtle mb-2">
+                                            <p className="text-xs text-ink-medium leading-relaxed bg-white/[0.04] p-2 rounded border border-line-subtle mb-2">
                                                 {h.aiSummary}
                                             </p>
                                         )}
                                         {/* Extracted Shot Metrics Display */}
                                         {h.shotMetrics && (
-                                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[10px] bg-white/[0.04]/[0.04] p-2 rounded border border-line-subtle">
+                                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[10px] bg-white/[0.04] p-2 rounded border border-line-subtle">
                                                 {h.shotMetrics.teeDistance && (
                                                     <div className="text-ink-medium">티샷: <span className="font-bold text-blue-600">{h.shotMetrics.teeDistance}m</span></div>
                                                 )}
@@ -2008,13 +2008,13 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
 
           {/* Round Summary Card (Scorecard Mode - Fallback or General) */}
           {lesson.recordType === 'SCORE' && !lesson.scorecardDetail && (
-              <div className="bg-white/[0.04]/[0.04] rounded-xl shadow-sm shadow-black/20 border border-sky-500/30 overflow-hidden">
+              <div className="bg-white/[0.04] rounded-xl shadow-sm shadow-black/20 border border-sky-500/30 overflow-hidden">
                    <div className="bg-blue-600 px-4 py-3 flex justify-between items-center text-white">
                          <h3 className="font-bold flex items-center gap-2">
                             <Trophy className="w-5 h-5 text-yellow-300" /> Round Summary
                          </h3>
                         {lesson.score && (
-                            <span className="bg-white/[0.04]/20 px-3 py-1 rounded-full text-sm font-bold backdrop-blur-sm">
+                            <span className="bg-white/[0.04] px-3 py-1 rounded-full text-sm font-bold backdrop-blur-sm">
                                 Total: {lesson.score}
                             </span>
                         )}
@@ -2035,7 +2035,7 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
           
           {/* Round Report Summary Card (Detailed Scorecard Mode) */}
           {lesson.scorecardDetail && (lesson.aiAnalysis || hasScorecardVoice) && (
-              <div className="bg-white/[0.04]/[0.04] rounded-xl shadow-sm shadow-black/20 border border-sky-500/30 overflow-hidden">
+              <div className="bg-white/[0.04] rounded-xl shadow-sm shadow-black/20 border border-sky-500/30 overflow-hidden">
                    <div className="bg-blue-50 px-4 py-3 border-b border-blue-100 flex justify-between items-center">
                         <h3 className="font-bold text-blue-800 flex items-center gap-2">
                             <Sparkles className="w-5 h-5 text-blue-500" />
@@ -2071,7 +2071,7 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
               생성 기능은 제거됐고, 기존에 저장된 요약(레슨 동반 요약본 포함)만
               표시한다. */}
           {showAiAnalysis && lesson.recordType !== 'SCORE' && lesson.aiAnalysis && (
-            <div className="bg-white/[0.04]/[0.04] rounded-xl shadow-sm shadow-black/20 border border-emerald-500/20 overflow-hidden">
+            <div className="bg-white/[0.04] rounded-xl shadow-sm shadow-black/20 border border-emerald-500/20 overflow-hidden">
                 <div className="bg-emerald-500/[0.08] px-4 py-3 border-b border-emerald-500/20 flex justify-between items-center">
                     <h3 className="font-bold text-emerald-800 flex items-center gap-2">
                         <Sparkles className="w-5 h-5 text-emerald-200" />
@@ -2111,7 +2111,7 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
               ~10초 단위로 받아 적힌 필기가 요약본과 함께 저장되는 것이 저장
               형태의 핵심이라, 전용 카드로 시간순 필기를 그대로 보여준다. */}
           {lesson.liveLessonDetail && lesson.liveLessonDetail.transcript.length > 0 && (
-            <div className="bg-white/[0.04]/[0.04] rounded-xl shadow-sm shadow-black/20 border border-rose-500/20 overflow-hidden">
+            <div className="bg-white/[0.04] rounded-xl shadow-sm shadow-black/20 border border-rose-500/20 overflow-hidden">
                 <div className="bg-rose-500/[0.08] px-4 py-3 border-b border-rose-500/20 flex justify-between items-center">
                     <h3 className="font-bold text-rose-300 flex items-center gap-2">
                         <Mic className="w-5 h-5" />
@@ -2227,7 +2227,7 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
             };
 
             return (
-              <div className="bg-white/[0.04]/[0.04] rounded-xl shadow-sm shadow-black/20 border border-purple-500/30 overflow-hidden">
+              <div className="bg-white/[0.04] rounded-xl shadow-sm shadow-black/20 border border-purple-500/30 overflow-hidden">
                 <div className="bg-purple-50 px-4 py-3 border-b border-purple-100 flex justify-between items-center">
                   <h3 className="font-bold text-purple-900 flex items-center gap-2">
                     <TrendingUp className="w-5 h-5 text-purple-600" />
@@ -2317,7 +2317,7 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
           })()}
 
           {/* Coach Notes */}
-          <div className="bg-white/[0.04]/[0.04] rounded-xl shadow-sm shadow-black/20 border border-line-subtle p-5">
+          <div className="bg-white/[0.04] rounded-xl shadow-sm shadow-black/20 border border-line-subtle p-5">
               <h3 className="font-bold text-ink-high mb-3 flex items-center gap-2">
                   <PenTool className="w-4 h-4 text-ink-muted" /> 
                   {lesson.createdBy === 'COACH' ? '코치 메모' : '나의 메모'}
@@ -2330,7 +2330,7 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
           </div>
 
           {/* Client Feedback Section */}
-          <div className={`bg-white/[0.04]/[0.04] rounded-xl shadow-sm shadow-black/20 border p-5 ${lesson.feedbackStatus === 'COMPLETED' ? 'border-emerald-500/30 bg-emerald-500/[0.08]/30' : 'border-line-subtle'}`}>
+          <div className={`bg-white/[0.04] rounded-xl shadow-sm shadow-black/20 border p-5 ${lesson.feedbackStatus === 'COMPLETED' ? 'border-emerald-500/30 bg-emerald-500/[0.08]' : 'border-line-subtle'}`}>
               <div className="flex justify-between items-start mb-4">
                   <h3 className="font-bold text-ink-high flex items-center gap-2">
                       <MessageCircle className="w-4 h-4 text-orange-500" />
@@ -2486,7 +2486,7 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
       {isAddingMedia && (
         <div className="fixed inset-0 z-[70] bg-black/90 flex flex-col animate-fade-in">
              <div className="flex justify-end p-4">
-                 <button onClick={closeAddModal} className="text-white p-2 rounded-full hover:bg-white/[0.04]/10">
+                 <button onClick={closeAddModal} className="text-white p-2 rounded-full hover:bg-white/[0.08]">
                      <X className="w-8 h-8" />
                  </button>
              </div>

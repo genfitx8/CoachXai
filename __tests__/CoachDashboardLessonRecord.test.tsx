@@ -39,6 +39,10 @@ vi.mock('../services/storage', () => {
 
   return {
     storageService: {
+      // App claims the device cache for the signed-in account on load.
+      applyCacheOwner: vi.fn().mockReturnValue(false),
+      getCacheOwner: vi.fn().mockReturnValue(null),
+      clearUserScopedData: vi.fn(),
       getLessons: vi.fn().mockReturnValue(lessons),
       getClients: vi.fn().mockReturnValue(clients),
       // 오프라인 폴백은 코치별 캐시(= 서버가 마지막으로 준 내 회원 명단)만 읽는다.
@@ -64,6 +68,7 @@ vi.mock('../services/authService', () => ({
       phone: '010-0000-0000',
       branchId: 'branch1',
     }),
+    saveCoachProfile: vi.fn(),
     logout: vi.fn(),
   },
 }));

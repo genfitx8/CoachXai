@@ -91,7 +91,7 @@ export const GolfAIAgent: React.FC<GolfAIAgentProps> = ({
 
       {/* Hero Banner */}
       <div className="bg-gradient-to-br from-slate-700 via-slate-800 to-slate-900 rounded-2xl p-6 text-white text-center shadow-xl">
-        <div className="bg-white/[0.04]/20 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-3">
+        <div className="bg-white/[0.04] w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-3">
           <Bot className="w-9 h-9 text-white" />
         </div>
         <h3 className="text-lg font-black mb-1">AI 골프 코치</h3>

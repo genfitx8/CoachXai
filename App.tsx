@@ -43,8 +43,9 @@ import { LessonStartPromptModal } from './components/LessonStartPromptModal';
 import { DiagnosisProgramSection } from './components/diagnosis/DiagnosisProgramSection';
 import { DiagnosisResultSection } from './components/diagnosis/DiagnosisResultSection';
 import { CurriculumManager } from './components/CurriculumManager';
-import { lessonBelongsToClient, normalizeName } from './utils/clientMatch';
+import { lessonBelongsToClient, normalizeName, normalizePhone } from './utils/clientMatch';
 import { dedupeClients } from './utils/clientRoster';
+import { lessonBelongsToCoach } from './utils/lessonOwnership';
 import { storageService } from './services/storage';
 import { authService } from './services/authService';
 import { firebaseService } from './services/firebase';
@@ -131,6 +132,59 @@ const matchesClient = (
   return normalizeName(lesson.clientName) === normalizeName(filterName);
 };
 
+/**
+ * Stable per-account key for the device-local cache (lessons, members,
+ * packages, …). Those localStorage buckets are device-global and serve as the
+ * offline fallback, so without an owner stamp a second account signing in on
+ * the same phone/PC inherits the previous account's records — a coach opening
+ * 전체 레슨기록 and finding lessons they never saved.
+ *
+ * A client is keyed by name+phone rather than by id: the id is only known when
+ * /api/clients/me answers, and the key has to come out the same on the offline
+ * restore path or every reconnect would look like an account switch.
+ */
+const cacheOwnerKey = (
+  role: 'COACH' | 'CLIENT' | 'ADMIN' | 'BRANCH_ADMIN',
+  identity: { id?: string; name?: string; phone?: string }
+): string | null => {
+  switch (role) {
+    case 'COACH':
+      return identity.id ? `COACH:${identity.id}` : null;
+    case 'CLIENT': {
+      const name = normalizeName(identity.name);
+      const phone = normalizePhone(identity.phone);
+      return name || phone ? `CLIENT:${name}_${phone}` : null;
+    }
+    case 'ADMIN':
+      return 'ADMIN';
+    case 'BRANCH_ADMIN':
+      return identity.id ? `BRANCH_ADMIN:${identity.id}` : null;
+  }
+};
+
+/**
+ * Claim the local cache for the account that just signed in, wiping it when it
+ * was last written by somebody else.
+ */
+const claimLocalCache = (
+  role: 'COACH' | 'CLIENT' | 'ADMIN' | 'BRANCH_ADMIN',
+  identity: { id?: string; name?: string; phone?: string },
+  legacyCacheCoachId: string | null
+): void => {
+  const ownerKey = cacheOwnerKey(role, identity);
+  if (!ownerKey) return;
+  // `legacyCacheCoachId` is the coach profile that was cached *before* this
+  // launch signed anyone in — the only readable clue about who wrote an
+  // unstamped cache. Anything else (a different coach, a student, no clue at
+  // all) is treated as foreign and dropped once.
+  const unstampedBelongsToOwner =
+    role === 'COACH' && !!identity.id && legacyCacheCoachId === identity.id;
+  const cleared = storageService.applyCacheOwner(ownerKey, unstampedBelongsToOwner);
+  if (cleared) {
+    console.info('[App] Local cache belonged to another account — cleared it.');
+  }
+};
+
 // How often the coach app re-polls the member list while it is visible, so a
 // student who picks this coach in the student app shows up without a manual
 // reload. Kept modest — GET /api/clients is a single indexed query per coach.
@@ -163,6 +217,15 @@ const AppContent: React.FC = () => {
     adminId: string;
   } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  /**
+   * The coach profile cached on this device at launch, read once before any
+   * sign-in can overwrite it. On installs that predate the cache-owner stamp
+   * it is the only way to tell whether the local caches were written by the
+   * account that is now signing in.
+   */
+  const [legacyCacheCoachId] = useState<string | null>(
+    () => authService.getCoachProfile()?.id ?? null
+  );
   /**
    * Pending invite context parsed from the URL on mount (?invite=<coachId>
    * &coachName=<name>). Held here so the invited student sees the 7b
@@ -469,6 +532,11 @@ const AppContent: React.FC = () => {
           // Determine identifying info
           const { name, phone } = session.clientData;
 
+          // Claim the device cache before any of it is read: the fallback
+          // below reads storageService.getClients(), and that bucket may
+          // still hold the account that used this device last.
+          claimLocalCache('CLIENT', { name, phone }, legacyCacheCoachId);
+
           // Fetch full profile (including coachId) for the authenticated client
           let foundClient: ClientProfile | undefined;
           if (canUseProtectedApi) {
@@ -519,6 +587,11 @@ const AppContent: React.FC = () => {
           }
 
           if (profile) {
+            claimLocalCache('COACH', { id: profile.id }, legacyCacheCoachId);
+            // claimLocalCache may have dropped the cached profile along with
+            // the previous account's data — put this coach's own copy back so
+            // the offline identity fallback still works on the next launch.
+            authService.saveCoachProfile(profile);
             setCurrentUser(profile);
             setCoachProfile(profile);
             loadAndShowCoachNotifications(profile.id);
@@ -530,7 +603,10 @@ const AppContent: React.FC = () => {
             setUserRole(null);
           }
         } else if (session.role === 'BRANCH_ADMIN' && session.branchAdminData) {
+          claimLocalCache('BRANCH_ADMIN', { id: session.branchAdminData.adminId }, legacyCacheCoachId);
           setBranchAdminData(session.branchAdminData);
+        } else if (session.role === 'ADMIN') {
+          claimLocalCache('ADMIN', {}, legacyCacheCoachId);
         }
       }
 
@@ -749,9 +825,21 @@ const AppContent: React.FC = () => {
     let clientIdentity = undefined;
 
     if (role === 'BRANCH_ADMIN') {
+      claimLocalCache('BRANCH_ADMIN', { id: data?.adminId }, legacyCacheCoachId);
       setBranchAdminData(data);
       authService.saveSession('BRANCH_ADMIN', undefined, data);
       return;
+    }
+
+    // Wipe the device cache when the account that used this device last was
+    // somebody else, before loadData() can fall back to it. Without this a
+    // coach signing in after another account on the same phone/PC could be
+    // shown the previous account's lessons in 전체 레슨기록.
+    claimLocalCache(role, { id: data?.id, name: data?.name, phone: data?.phone }, legacyCacheCoachId);
+    if (role === 'COACH' && data) {
+      // The login already cached this coach's profile; restore it in case the
+      // wipe above took it out with the previous account's data.
+      authService.saveCoachProfile(data);
     }
 
     setCurrentUser(data);
@@ -1912,19 +2000,10 @@ const AppContent: React.FC = () => {
         return [];
       }
 
-      result = lessons.filter((l) => {
-        // Check direct assignment on the lesson record (Primary)
-        if (l.coachId === coachId) return true;
-
-        // Fallback for legacy data or if coachId wasn't stamped:
-        // Check if the client is CURRENTLY assigned to this coach in the client list
-        const client = clients.find(
-          (c) => c.name === l.clientName && c.phone === l.clientPhone
-        );
-        if (client && client.coachId === coachId) return true;
-
-        return false;
-      });
+      // Attribution on the record decides (current owner, or the coach who
+      // created it); the "member is mine now" fallback only rescues legacy
+      // rows that carry no coach at all. See utils/lessonOwnership.
+      result = lessons.filter((l) => lessonBelongsToCoach(l, coachId, clients));
 
       // Filter by selected client if specified.
       // The stored lesson.clientName may differ from the current client.name
@@ -1945,11 +2024,7 @@ const AppContent: React.FC = () => {
     if (userRole !== 'COACH' || !currentUser || !('id' in currentUser)) return [];
     const coachId = (currentUser as CoachProfile).id;
     return lessons
-      .filter((l) => {
-        if (l.coachId === coachId) return true;
-        const client = clients.find(c => c.name === l.clientName && c.phone === l.clientPhone);
-        return client?.coachId === coachId;
-      })
+      .filter((l) => lessonBelongsToCoach(l, coachId, clients))
       .sort((a, b) => b.createdAt - a.createdAt);
   }, [lessons, userRole, currentUser, clients]);
 

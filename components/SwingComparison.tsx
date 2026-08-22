@@ -159,22 +159,22 @@ export const SwingComparison: React.FC<SwingComparisonProps> = ({ lessons, onBac
                         <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/90 via-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex justify-center gap-4 z-20">
                             <button 
                                 onClick={handlePlayPause}
-                                className="p-3 bg-white/[0.04]/20 backdrop-blur-md rounded-full text-white hover:bg-white/[0.04]/30 transition-all duration-200 hover:scale-110 transform shadow-lg"
+                                className="p-3 bg-white/[0.04] backdrop-blur-md rounded-full text-white hover:bg-white/[0.08] transition-all duration-200 hover:scale-110 transform shadow-lg"
                             >
                                 {isPlaying ? <Pause className="w-6 h-6" /> : <Play className="w-6 h-6" />}
                             </button>
                             
-                            <div className="flex bg-white/[0.04]/20 backdrop-blur-md rounded-lg p-1 shadow-lg">
+                            <div className="flex bg-white/[0.04] backdrop-blur-md rounded-lg p-1 shadow-lg">
                                 <button 
                                     onClick={() => setViewMode('SPLIT')}
-                                    className={`p-2 rounded transition-all duration-200 ${viewMode === 'SPLIT' ? 'bg-white/[0.04] text-black shadow-md' : 'text-white hover:bg-white/[0.04]/10'}`}
+                                    className={`p-2 rounded transition-all duration-200 ${viewMode === 'SPLIT' ? 'bg-white/[0.04] text-black shadow-md' : 'text-white hover:bg-white/[0.08]'}`}
                                     title="나란히 보기"
                                 >
                                     <Layout className="w-5 h-5" />
                                 </button>
                                 <button 
                                     onClick={() => setViewMode('GHOST')}
-                                    className={`p-2 rounded transition-all duration-200 ${viewMode === 'GHOST' ? 'bg-white/[0.04] text-black shadow-md' : 'text-white hover:bg-white/[0.04]/10'}`}
+                                    className={`p-2 rounded transition-all duration-200 ${viewMode === 'GHOST' ? 'bg-white/[0.04] text-black shadow-md' : 'text-white hover:bg-white/[0.08]'}`}
                                     title="겹쳐 보기 (고스트 모드)"
                                 >
                                     <Layers className="w-5 h-5" />

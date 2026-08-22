@@ -75,7 +75,7 @@ export const MembershipPurchase: React.FC<MembershipPurchaseProps> = ({
               <p className="text-xs text-emerald-100 font-semibold">추천 플랜</p>
               <h2 className="text-2xl font-black mt-1">🔵 PRO 멤버십</h2>
             </div>
-            <div className="bg-white/[0.04]/20 p-3 rounded-xl">
+            <div className="bg-white/[0.04] p-3 rounded-xl">
               <Crown className="w-6 h-6" />
             </div>
           </div>
