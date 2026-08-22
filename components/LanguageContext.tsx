@@ -298,6 +298,10 @@ const translations: Translations = {
     day_sat: "토",
     // ClientProfileSettings
     my_profile_title: "내 정보 설정",
+    basic_info_section: "기본 정보",
+    login_email_label: "이메일 (로그인 아이디)",
+    login_email_locked_desc: "이메일은 로그인 아이디로 사용되어 여기서 변경할 수 없습니다.",
+    name_required_error: "이름을 입력해주세요.",
     golf_profile_section: "골프 프로필",
     profile_body_analysis_title: "회원 신체 분석",
     profile_body_analysis_desc: "체형과 정렬 데이터를 내 정보에서 관리합니다.",
@@ -1119,6 +1123,10 @@ const translations: Translations = {
     day_sat: "Sat",
     // ClientProfileSettings
     my_profile_title: "My Profile",
+    basic_info_section: "Basic Info",
+    login_email_label: "Email (Login ID)",
+    login_email_locked_desc: "Your email is used as your login ID and cannot be changed here.",
+    name_required_error: "Please enter your name.",
     golf_profile_section: "Golf Profile",
     profile_body_analysis_title: "Member Body Analysis",
     profile_body_analysis_desc: "Manage body type and alignment data in My Info.",
@@ -1940,6 +1948,10 @@ const translations: Translations = {
     day_sat: "土",
     // ClientProfileSettings
     my_profile_title: "プロフィール設定",
+    basic_info_section: "基本情報",
+    login_email_label: "メールアドレス（ログインID）",
+    login_email_locked_desc: "メールアドレスはログインIDとして使用されるため、ここでは変更できません。",
+    name_required_error: "名前を入力してください。",
     golf_profile_section: "ゴルフプロフィール",
     profile_body_analysis_title: "会員身体分析",
     profile_body_analysis_desc: "体型と整列データをマイ情報で管理します。",
@@ -2761,6 +2773,10 @@ const translations: Translations = {
     day_sat: "ส",
     // ClientProfileSettings
     my_profile_title: "การตั้งค่าโปรไฟล์",
+    basic_info_section: "ข้อมูลพื้นฐาน",
+    login_email_label: "อีเมล (ไอดีเข้าสู่ระบบ)",
+    login_email_locked_desc: "อีเมลใช้เป็นไอดีเข้าสู่ระบบ จึงไม่สามารถเปลี่ยนได้ที่นี่",
+    name_required_error: "กรุณากรอกชื่อของคุณ",
     golf_profile_section: "โปรไฟล์กอล์ฟ",
     profile_body_analysis_title: "วิเคราะห์สรีระสมาชิก",
     profile_body_analysis_desc: "จัดการข้อมูลรูปร่างและการจัดแนวใน My Info",

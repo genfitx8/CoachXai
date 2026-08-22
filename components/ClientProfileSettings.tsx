@@ -10,7 +10,7 @@ import {
   LessonStructuralMetricInput,
 } from '../types';
 import { Button } from './Button';
-import { Award, Briefcase, Save, CalendarClock, Activity, Plus, Trash2, Smartphone, AlertCircle, ScanLine, Camera, X, ImagePlus } from 'lucide-react';
+import { Award, Briefcase, Save, CalendarClock, Activity, Plus, Trash2, Smartphone, AlertCircle, ScanLine, Camera, X, ImagePlus, User, Mail } from 'lucide-react';
 import { BackButton } from './ui/BackButton';
 import { CoachSearch, CoachSearchResult } from './CoachSearch';
 import { useLanguage } from './LanguageContext';
@@ -207,8 +207,12 @@ export const ClientProfileSettings: React.FC<ClientProfileSettingsProps> = ({ pr
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!formData.name.trim()) {
+      alert(t('name_required_error'));
+      return;
+    }
     setIsSaving(true);
-    
+
     // Attach detailedBag to formData
     const finalBodyAnalysis = formData.memberBodyAnalysis
       ? {
@@ -218,7 +222,7 @@ export const ClientProfileSettings: React.FC<ClientProfileSettingsProps> = ({ pr
           coachComment: formData.memberBodyAnalysis.coachComment?.trim() || undefined,
         }
       : undefined;
-    const finalData = { ...formData, detailedBag: bagSpecs, memberBodyAnalysis: finalBodyAnalysis };
+    const finalData = { ...formData, name: formData.name.trim(), detailedBag: bagSpecs, memberBodyAnalysis: finalBodyAnalysis };
 
     // Simulate save delay
     setTimeout(() => {
@@ -450,6 +454,62 @@ export const ClientProfileSettings: React.FC<ClientProfileSettingsProps> = ({ pr
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Basic Account Info Section — name / login email / phone.
+            The login identifier is the email (see AuthScreen + server auth
+            routes), so it renders read-only here; name and phone are
+            editable and persist through PUT /api/clients/me. */}
+        <div className="bg-white/[0.04] p-5 rounded-xl border border-line-subtle shadow-sm">
+            <h3 className="text-sm font-bold text-ink-high mb-4 flex items-center gap-2">
+                <User className="w-4 h-4 text-emerald-600" /> {t('basic_info_section')}
+            </h3>
+            <div className="space-y-4">
+                <div>
+                    <label className="block text-xs font-bold text-ink-muted mb-1">{t('name')}</label>
+                    <input
+                        type="text"
+                        name="name"
+                        value={formData.name}
+                        onChange={handleChange}
+                        required
+                        autoComplete="name"
+                        className="w-full px-4 py-2 border border-line-subtle rounded-lg focus:ring-2 focus:ring-emerald-700 focus:border-emerald-700 outline-none"
+                    />
+                </div>
+
+                <div>
+                    <label className="block text-xs font-bold text-ink-muted mb-1 flex items-center gap-1">
+                        <Mail className="w-3 h-3" /> {t('login_email_label')}
+                    </label>
+                    <input
+                        type="email"
+                        value={formData.email || '-'}
+                        readOnly
+                        disabled
+                        className="w-full px-4 py-2 border border-line-subtle rounded-lg bg-white/[0.02] text-ink-muted cursor-not-allowed outline-none"
+                    />
+                    <p className="text-[10px] text-ink-muted mt-1 flex items-start gap-1">
+                        <AlertCircle className="w-3 h-3 text-emerald-600 flex-shrink-0 mt-0.5" />
+                        <span>{t('login_email_locked_desc')}</span>
+                    </p>
+                </div>
+
+                <div>
+                    <label className="block text-xs font-bold text-ink-muted mb-1 flex items-center gap-1">
+                        <Smartphone className="w-3 h-3" /> {t('phone')}
+                    </label>
+                    <input
+                        type="tel"
+                        name="phone"
+                        value={formData.phone}
+                        onChange={handleChange}
+                        autoComplete="tel"
+                        className="w-full px-4 py-2 border border-line-subtle rounded-lg focus:ring-2 focus:ring-emerald-700 focus:border-emerald-700 outline-none"
+                    />
+                    <p className="text-[10px] text-ink-muted mt-1">{t('phone_desc')}</p>
+                </div>
+            </div>
+        </div>
+
         {/* Golf Profile Section */}
         <div ref={golfProfileRef} className="bg-white/[0.04] p-5 rounded-xl border border-line-subtle shadow-sm">
             <h3 className="text-sm font-bold text-ink-high mb-4 flex items-center gap-2">
@@ -903,27 +963,6 @@ export const ClientProfileSettings: React.FC<ClientProfileSettingsProps> = ({ pr
                     rows={2}
                     className="w-full px-4 py-2 border border-line-subtle rounded-lg focus:ring-2 focus:ring-emerald-700 focus:border-emerald-700 outline-none transition-all"
                 />
-            </div>
-        </div>
-
-        {/* Account Settings */}
-        <div className="pt-6 border-t border-line-subtle">
-            <label className="block text-sm font-bold text-ink-high mb-4 flex items-center gap-2">
-                <Smartphone className="w-5 h-5 text-emerald-600" /> {t('phone')}
-            </label>
-            <div className="bg-white/[0.03] p-4 rounded-xl border border-line-subtle">
-                 <label className="block text-xs font-bold text-ink-muted mb-1">{t('phone')}</label>
-                 <input
-                    type="tel"
-                    name="phone"
-                    value={formData.phone}
-                    onChange={handleChange}
-                    className="w-full px-4 py-2 border border-line-subtle rounded-lg focus:ring-2 focus:ring-emerald-700 focus:border-emerald-700 outline-none"
-                 />
-                 <p className="text-[10px] text-ink-muted mt-2 flex items-start gap-1">
-                    <AlertCircle className="w-3 h-3 text-emerald-600 flex-shrink-0 mt-0.5" /> 
-                    <span>전화번호는 로그인 아이디로 사용되므로, 변경 시 로그인 정보가 바뀝니다.</span>
-                 </p>
             </div>
         </div>
 
