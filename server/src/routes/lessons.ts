@@ -130,24 +130,23 @@ router.get('/', async (req: Request, res: Response) => {
       // Admin console shows platform-wide lesson stats.
       result = await pool.query('SELECT * FROM lessons ORDER BY created_at DESC');
     } else if (userRole === 'coach') {
-      // Coach: fetch every lesson the coach has ever owned — current
-      // assignment (coach_id), original creator (original_coach_id), or
-      // a previous owner from the handover chain (previous_coach_ids).
+      // Coach: every lesson this coach owns — the current assignment
+      // (coach_id) plus the creator stamp (original_coach_id), which keeps a
+      // coach's own teaching history visible if the record is ever reassigned.
       //
-      // 3-tier ownership (#309): the coach handover flow reassigns
-      // coach_id to the new coach. Filtering on coach_id alone would
-      // wipe the outgoing coach's teaching history from their own view
-      // the moment a handover completes. Including the ownership chain
-      // preserves that history as read-only — PUT/DELETE still require
-      // the current coach_id via loadOwnedLesson.
-      //
-      // COALESCE guards against NULL previous_coach_ids (legacy rows
-      // pre-#309) since $1 = ANY(NULL) is NULL, which fails a WHERE OR.
+      // The handover trail (#309 `previous_coach_ids`) lives on `clients`,
+      // NOT on `lessons`: a lesson row keeps the coach_id it was written with,
+      // so there is no per-lesson chain to walk. An earlier version of this
+      // query read `lessons.previous_coach_ids` — a column no migration
+      // creates — and every coach's GET /api/lessons failed with a 500. The
+      // app silently fell back to its device-local cache, so 전체 레슨기록
+      // showed whatever the last account on that device had cached instead of
+      // this coach's real records. Any column named here must exist in
+      // server/migrations (see __tests__/lessonQueryColumns.test.ts).
       result = await pool.query(
         `SELECT * FROM lessons
            WHERE coach_id = $1
               OR original_coach_id = $1
-              OR $1 = ANY(COALESCE(previous_coach_ids, ARRAY[]::uuid[]))
            ORDER BY created_at DESC`,
         [userId]
       );
