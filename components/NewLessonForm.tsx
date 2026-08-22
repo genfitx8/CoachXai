@@ -35,7 +35,6 @@ import {
   FlagTriangleRight,
   StopCircle,
   RefreshCcw,
-  ArrowLeft,
   CheckCircle,
   Circle,
   Scissors,
@@ -75,6 +74,7 @@ import {
   type MediaKind,
 } from '../utils/mediaPermissions';
 import { PermissionDeniedModal } from './PermissionDeniedModal';
+import { BackButton } from './ui/BackButton';
 import { VideoEditor } from './VideoEditor';
 
 interface NewLessonFormProps {
@@ -1614,13 +1614,11 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
         {/* Header */}
         <div className={LESSON_FLOW_HEADER_CLASS}>
           <div className="flex items-center gap-2">
-            <button
+            <BackButton
               onClick={() => setStep('CLIENT_SELECT')}
-              className="rounded-full p-3 text-ink-high hover:text-white hover:bg-white/[0.04]/15 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
-              aria-label={t('new_lesson_back_member')}
-            >
-              <ArrowLeft className="w-5 h-5" />
-            </button>
+              tone="dark"
+              ariaLabel={t('new_lesson_back_member')}
+            />
             <h2 className="text-lg font-bold flex items-center gap-2">
               <BookOpen className="w-5 h-5" /> {t('new_lesson_package_title')}
             </h2>

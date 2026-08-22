@@ -20,6 +20,7 @@ import {
   type MediaKind,
 } from '../utils/mediaPermissions';
 import { PermissionDeniedModal } from './PermissionDeniedModal';
+import { BackButton } from './ui/BackButton';
 import { LessonStoryView } from './LessonStoryView';
 import type { StoryMediaMap } from './story/StoryMedia';
 import { MAIN_MEDIA_ID } from '../services/lessonStoryComposer';
@@ -1215,13 +1216,12 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
           body scrolls in its own pane below, so there is nothing of our own
           for a blurred header to reveal. */}
       <div className="bg-base border-b border-line-subtle px-4 py-3 flex items-center justify-between text-ink-high flex-shrink-0 safe-area-top relative">
-        <button
+        <BackButton
           onClick={onBack}
-          className="p-3 bg-white/[0.04]/10 backdrop-blur-sm rounded-full hover:bg-white/[0.04]/20 text-white transition-all duration-200 hover:scale-110 transform min-w-[44px] min-h-[44px] flex items-center justify-center"
-          aria-label="목록으로 돌아가기"
-        >
-          <ArrowLeft className="w-5 h-5" />
-        </button>
+          tone="dark"
+          ariaLabel="목록으로 돌아가기"
+          testId="lesson-detail-back"
+        />
         <h2 className="text-base sm:text-lg font-bold truncate flex-1 min-w-0 text-center px-2">{lesson.title}</h2>
         <div className="flex justify-end items-center gap-1">
             {canEdit && onOpenReview && (

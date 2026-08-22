@@ -26,8 +26,9 @@ const TONE_CLASSES: Record<BackButtonTone, string> = {
 };
 
 /**
- * Shared back button used across all student-app screens so the affordance
- * looks and behaves the same everywhere. Always meets the 44x44 tap target.
+ * Shared back button used across student- and coach-app screens so the
+ * affordance looks and behaves the same everywhere. Always meets the 44x44
+ * tap target.
  */
 export const BackButton: React.FC<BackButtonProps> = ({
   onClick,

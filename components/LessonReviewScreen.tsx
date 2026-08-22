@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeft, Check, Info, Loader2, RotateCcw, Sparkles, Wand2 } from 'lucide-react';
+import { Check, Info, Loader2, RotateCcw, Sparkles, Wand2 } from 'lucide-react';
 import type { ClientProfile, CoachStyleExemplar, Lesson, LessonReviewSections, LessonStory, MediaItem } from '../types';
 import { EvidenceDetailModal } from './EvidenceDetailModal';
+import { BackButton } from './ui/BackButton';
 import { generateLessonReviewDraft, generateLessonStoryMeta } from '../services/geminiService';
 import { coachStyleService, tierForSource } from '../services/coachStyleService';
 import { aiFeedbackService } from '../services/aiFeedbackService';
@@ -524,14 +525,7 @@ export const LessonReviewScreen: React.FC<LessonReviewScreenProps> = ({
     <div className="min-h-screen bg-base text-ink-high pb-32">
       <header className="sticky top-0 z-10 bg-base/95 backdrop-blur border-b border-line-subtle">
         <div className="max-w-2xl mx-auto px-5 h-14 flex items-center gap-3">
-          <button
-            type="button"
-            onClick={onBack}
-            aria-label="뒤로"
-            className="p-2 -ml-2 rounded-lg text-ink-medium hover:text-ink-high hover:bg-white/5 transition-colors"
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </button>
+          <BackButton onClick={onBack} tone="dark" ariaLabel="뒤로" className="-ml-2" />
           <div className="flex-1 min-w-0">
             <div className="text-[15px] font-bold truncate">기록 검토</div>
             {headerSubtitle ? (

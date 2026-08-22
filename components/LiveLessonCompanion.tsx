@@ -37,6 +37,7 @@ import {
   type RecoverableLessonSession,
 } from '../services/lessonAudioPipeline';
 import { LessonNotebook } from './LessonNotebook';
+import { BackButton } from './ui/BackButton';
 import { useLiveTranscription } from '../hooks/useLiveTranscription';
 
 /**
@@ -735,9 +736,19 @@ export const LiveLessonCompanion: React.FC<LiveLessonCompanionProps> = ({
         }}
       />
 
-      {/* Header: student · elapsed timer · pause/resume */}
+      {/* Header: 나가기 · student · elapsed timer · pause/resume.
+          나가기 sits on the left as the shared BackButton — the companion is
+          a full-screen overlay with no other way out, so the affordance has
+          to look and sit like every other 뒤로 in the app (and clear 44x44,
+          which the old 12px text link on the right did not). */}
       <header className="sticky top-0 z-10 backdrop-blur-md bg-base/85 border-b border-line-subtle">
         <div className="px-4 py-3 flex items-center gap-3">
+          <BackButton
+            onClick={handleCancel}
+            tone="dark"
+            label="나가기"
+            className="flex-shrink-0"
+          />
           <div className="min-w-0 flex-1">
             <div className="text-[11px] font-mono uppercase tracking-wider text-emerald-300">
               레슨 진행 중
@@ -749,13 +760,6 @@ export const LiveLessonCompanion: React.FC<LiveLessonCompanionProps> = ({
               )}
             </div>
           </div>
-          <button
-            type="button"
-            onClick={handleCancel}
-            className="text-[12px] text-ink-muted hover:text-ink-medium px-3 py-1.5"
-          >
-            나가기
-          </button>
         </div>
       </header>
 
