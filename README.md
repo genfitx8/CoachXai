@@ -194,6 +194,29 @@ Use one of the standard Google Cloud server auth setups:
 
 If Agent Runtime is not configured/reachable, CoachXai keeps existing fallback behavior for AI-assisted features where possible.
 
+### 학생 추천 영상 (YouTube Data API v3)
+
+The student 대화 홈 shows a **추천 영상** card: practice videos picked for
+whatever that student is actually working on.
+
+- **Topics are chosen deterministically, not by an LLM.** The coach's next
+  actions, this week's homework, the recorded fault history and the measured
+  club miss pattern are matched against a curated topic catalog
+  (`constants/youtubeTopics.ts`), so the card can print *why* each topic
+  showed up — and no model can invent a video id that leads nowhere.
+- **Videos come from a real YouTube search**, run server-side
+  (`POST /api/youtube/recommendations`) so the API key never ships in the
+  browser bundle.
+- **No key, no problem.** Without `YOUTUBE_API_KEY` the card still renders the
+  same topics and links to the YouTube search page for each one.
+
+Setup: enable *YouTube Data API v3* in Google Cloud, create a key restricted
+to that API, and set `YOUTUBE_API_KEY` on the backend. Each search costs 100
+of the 10,000 free daily quota units, so results are cached server-side for
+`YOUTUBE_CACHE_TTL_MINUTES` (default 12h) and capped at
+`YOUTUBE_DAILY_SEARCH_LIMIT` searches per day (default 80). Check
+`GET /api/youtube/status` for the live configuration and remaining budget.
+
 ## Run Locally
 
 **Prerequisites:** Node.js

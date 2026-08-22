@@ -47,6 +47,10 @@ services:
         sync: false
       - key: GEMINI_MODEL
         sync: false
+      # 학생 앱 추천 영상 (YouTube Data API v3). Unset = the card falls back
+      # to YouTube search links instead of live results.
+      - key: YOUTUBE_API_KEY
+        sync: false
 
 databases:
   - name: coachxai-db

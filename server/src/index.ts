@@ -22,6 +22,7 @@ import curriculumTemplatesRouter from './routes/curriculumTemplates';
 import pushRouter from './routes/push';
 import aiFeedbackRouter from './routes/aiFeedback';
 import consentsRouter from './routes/consents';
+import youtubeRouter from './routes/youtube';
 import { startScheduledPushRunner } from './services/scheduledPushRunner';
 
 const app = express();
@@ -82,6 +83,7 @@ app.use('/api/curriculum-templates', curriculumTemplatesRouter);
 app.use('/api/push', pushRouter);
 app.use('/api/ai-feedback', aiFeedbackRouter);
 app.use('/api/consents', consentsRouter);
+app.use('/api/youtube', youtubeRouter);
 
 // PayApp payments routes
 app.use('/api/payments/payapp', payappPaymentsRouter);

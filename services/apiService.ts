@@ -12,6 +12,25 @@ export interface ChatThreadDoc {
   updatedAt: number;
   messages: unknown[];
 }
+
+/** One video as returned by /api/youtube/recommendations. */
+export interface YouTubeVideoResult {
+  videoId: string;
+  title: string;
+  channelTitle: string;
+  description: string;
+  thumbnailUrl: string;
+  publishedAt: string;
+  url: string;
+}
+
+export interface YouTubeRecommendationResponse {
+  /** False when the backend has no YouTube API key configured. */
+  configured: boolean;
+  results: Array<{ query: string; videos: YouTubeVideoResult[]; cached: boolean }>;
+  /** True when at least one query could not be served (quota, upstream error). */
+  degraded: boolean;
+}
 import { resolveApiBaseUrl } from './apiBase';
 
 const BASE_URL = resolveApiBaseUrl();
@@ -917,5 +936,27 @@ export const apiService = {
 
   async deleteReservation(reservationId: string): Promise<void> {
     await req('DELETE', `/api/reservations/${reservationId}`);
+  },
+
+  // ── YouTube practice-video recommendations ────────────────────────────────
+
+  /**
+   * Resolve curated coaching queries into real YouTube videos.
+   *
+   * `queries` come from `constants/youtubeTopics.ts`, never from user input —
+   * the server spends a metered API quota per query. A backend without a
+   * YouTube key answers `configured: false` rather than failing, and the
+   * caller falls back to YouTube search links.
+   */
+  async getYouTubeRecommendations(
+    queries: string[],
+    language: 'ko' | 'en' | 'ja' = 'ko',
+    maxPerQuery = 3
+  ): Promise<YouTubeRecommendationResponse> {
+    return req<YouTubeRecommendationResponse>('POST', '/api/youtube/recommendations', {
+      queries,
+      language,
+      maxPerQuery,
+    });
   },
 };

@@ -23,6 +23,7 @@ import type { MemberGrowthReport } from '../services/coachXService';
 import { storageService } from '../services/storage';
 import { insightService } from '../services/insightService';
 import { useLanguage } from './LanguageContext';
+import { StudentVideoRecommendations } from './StudentVideoRecommendations';
 
 /**
  * 4c · Coach-facing student detail with the redesign's 4-tab layout.
@@ -232,6 +233,7 @@ export const CoachStudentDetail: React.FC<CoachStudentDetailProps> = ({
         )}
         {tab === 'plan' && (
           <PlanTab
+            lessons={sortedLessons}
             homework={homework}
             onAssignHomework={onAssignHomework}
             onOpenCurriculum={onOpenCurriculum}
@@ -395,10 +397,11 @@ const RecordsTab: React.FC<{
 };
 
 const PlanTab: React.FC<{
+  lessons: Lesson[];
   homework: Homework[];
   onAssignHomework?: () => void;
   onOpenCurriculum?: () => void;
-}> = ({ homework, onAssignHomework, onOpenCurriculum }) => {
+}> = ({ lessons, homework, onAssignHomework, onOpenCurriculum }) => {
   const active = homework.filter((h) => !h.isCompleted);
   const done = homework.filter((h) => h.isCompleted);
 
@@ -444,6 +447,10 @@ const PlanTab: React.FC<{
           </ul>
         )}
       </section>
+
+      {/* Same card the student sees on their 대화 홈, so the coach knows what
+          was suggested — and can send a better link themselves. */}
+      <StudentVideoRecommendations lessons={lessons} homework={homework} limit={3} />
 
       {done.length > 0 && (
         <section className="rounded-2xl border border-line-subtle bg-white/[0.02] p-4">

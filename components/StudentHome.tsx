@@ -3,6 +3,7 @@ import { Menu, Bell } from 'lucide-react';
 import { ClientProfile, CoachProfile, Homework, Lesson, QuickLogEntry, StudentContext } from '../types';
 import { StudentAIChat } from './StudentAIChat';
 import { StudentHomeCards } from './StudentHomeCards';
+import { StudentVideoRecommendations } from './StudentVideoRecommendations';
 import { useLanguage } from './LanguageContext';
 import { buildContextAwareGreeting, getStudentContext } from '../services/studentContextService';
 
@@ -140,6 +141,15 @@ export const StudentHome: React.FC<StudentHomeProps> = ({
         onOpenLesson={onOpenLesson}
         onToggleHomework={onToggleHomework}
         onUploadPractice={onUploadPractice}
+      />
+      {/* Below the coach's own cards on purpose: what the coach assigned
+          outranks what YouTube suggests. Renders nothing until the student
+          has records to reason from. */}
+      <StudentVideoRecommendations
+        lessons={sortedLessons}
+        homework={homeworkList}
+        ctx={ctx}
+        className="mx-4 mb-2"
       />
     </>
   );
