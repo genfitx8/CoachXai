@@ -111,9 +111,10 @@ Then configure Firebase Console:
 
 If these values are missing or incomplete, Google auth fails gracefully with an actionable error message in the UI.
 
-### Password recovery mail (SMTP)
+### Outgoing mail (SMTP)
 
-Configure the following environment variables to enable password recovery emails from **CoachXai**:
+Configure the following environment variables to enable password recovery and
+signup verification emails from **CoachXai**:
 
 - `SMTP_HOST`
 - `SMTP_PORT` (default: `587`)
@@ -121,7 +122,19 @@ Configure the following environment variables to enable password recovery emails
 - `SMTP_PASS`
 - `MAIL_FROM` (example: `CoachXai <no-reply@coachxai.local>`)
 
-If SMTP is not configured in development, the server logs the recovery message content to the console instead.
+If SMTP is not configured in development, the server logs the message content to the console instead.
+
+### Signup email verification
+
+Signing up sends a 6-digit code to the applicant's address; the account is only
+created after that code is confirmed (`POST /api/auth/email/verify/request` →
+`/confirm` → `/api/auth/signup/{coach,client}`). The code is stored as a SHA-256
+hash, expires after 10 minutes, allows 5 attempts, and is consumed once an
+account is created with it. The signup endpoints enforce this server-side, so
+calling them directly does not bypass verification.
+
+Set `REQUIRE_EMAIL_VERIFICATION=false` to fall back to the previous unverified
+signup flow.
 
 ### Google Cloud Agent Platform Runtime (backend-mediated)
 

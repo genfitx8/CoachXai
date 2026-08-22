@@ -38,6 +38,8 @@ const SHOW_TAB_SWITCHER = FORCED_TAB === null;
 const SHOW_ADMIN_ENTRY = APP_VARIANT === null || IS_COACH_APP;
 
 const SAVED_LOGIN_ID_KEY = 'swingnote_saved_login_id';
+// 인증번호 재발송 대기 시간(초). 메일 발송을 동반하므로 연타를 막는다.
+const VERIFICATION_RESEND_COOLDOWN_SEC = 60;
 const REMEMBER_PASSWORD_PREF_KEY = 'swingnote_remember_password';
 
 interface SavedLoginId {
@@ -60,6 +62,18 @@ const LANGUAGES = [
   { code: 'ja' as const, label: '日本語',   flag: '🇯🇵' },
   { code: 'th' as const, label: 'ภาษาไทย', flag: '🇹🇭' },
 ];
+
+const normalizeEmail = (email: string): string => email.trim().toLowerCase();
+
+const InfoAlert: React.FC<{ message: string }> = ({ message }) => (
+  <div
+    role="status"
+    className="flex items-center gap-2 rounded-lg border border-primary-500/30 bg-primary-500/10 px-3 py-2.5 text-sm text-primary-200"
+  >
+    <CheckCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
+    <span>{message}</span>
+  </div>
+);
 
 const ErrorAlert: React.FC<{ message: string }> = ({ message }) => (
   <div
@@ -105,6 +119,19 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
   const [phone, setPhone] = useState('');
 
   const [signupSuccess, setSignupSuccess] = useState(false);
+
+  /**
+   * 가입 이메일 인증. 서버가 보낸 6자리 코드를 확인해야 가입 버튼이
+   * 통과한다. `verifiedEmail`에 확인이 끝난 주소를 그대로 담아 두고 현재
+   * 입력값과 비교하므로, 인증 후 이메일을 고치면 인증이 자동으로 풀린다.
+   */
+  const [verificationCode, setVerificationCode] = useState('');
+  const [verificationSentTo, setVerificationSentTo] = useState<string | null>(null);
+  const [verifiedEmail, setVerifiedEmail] = useState<string | null>(null);
+  const [verificationNotice, setVerificationNotice] = useState<string | null>(null);
+  const [isSendingCode, setIsSendingCode] = useState(false);
+  const [isVerifyingCode, setIsVerifyingCode] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
   const [isConsentChecked, setIsConsentChecked] = useState(false);
   const [showConsentModal, setShowConsentModal] = useState(false);
   /**
@@ -135,12 +162,21 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const resetEmailVerification = () => {
+    setVerificationCode('');
+    setVerificationSentTo(null);
+    setVerifiedEmail(null);
+    setVerificationNotice(null);
+    setResendCooldown(0);
+  };
+
   const resetForm = () => {
     setEmail('');
     setPassword('');
     setName('');
     setPhone('');
     setSignupSuccess(false);
+    resetEmailVerification();
     setIsConsentChecked(false);
     setBranchAdminLoginId('');
     setBranchAdminPassword('');
@@ -187,6 +223,15 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
       cancelled = true;
     };
   }, [isRememberPassword]);
+
+  // 재발송 대기 카운트다운. 버튼 라벨에 남은 초를 그대로 보여준다.
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const timer = setInterval(() => {
+      setResendCooldown((sec) => (sec <= 1 ? 0 : sec - 1));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [resendCooldown]);
 
   const handleTabChange = (tab: 'COACH' | 'CLIENT') => {
     setActiveTab(tab);
@@ -368,6 +413,61 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
     }
   };
 
+  // 인증을 끝낸 주소와 지금 입력된 주소가 같을 때만 "인증됨"이다.
+  const isEmailVerified = !!verifiedEmail && verifiedEmail === normalizeEmail(email);
+  const isCodeInputVisible =
+    !!verificationSentTo && verificationSentTo === normalizeEmail(email) && !isEmailVerified;
+
+  const handleSendVerificationCode = async () => {
+    setError(null);
+    setVerificationNotice(null);
+
+    if (!email.trim()) {
+      setError(t('verify_email_first'));
+      return;
+    }
+
+    setIsSendingCode(true);
+    try {
+      const { expiresInMinutes } = await authService.requestSignupEmailVerification(
+        activeTab,
+        email
+      );
+      setVerificationSentTo(normalizeEmail(email));
+      setVerifiedEmail(null);
+      setVerificationCode('');
+      setResendCooldown(VERIFICATION_RESEND_COOLDOWN_SEC);
+      setVerificationNotice(
+        t('verify_code_sent').replace('{minutes}', String(expiresInMinutes))
+      );
+    } catch (err: any) {
+      setError(typeof err === 'string' ? err : t('verify_send_failed'));
+    } finally {
+      setIsSendingCode(false);
+    }
+  };
+
+  const handleConfirmVerificationCode = async () => {
+    setError(null);
+    setVerificationNotice(null);
+
+    if (!verificationCode.trim()) {
+      setError(t('verify_code_required'));
+      return;
+    }
+
+    setIsVerifyingCode(true);
+    try {
+      await authService.confirmSignupEmailVerification(activeTab, email, verificationCode);
+      setVerifiedEmail(normalizeEmail(email));
+      setVerificationNotice(t('verify_done'));
+    } catch (err: any) {
+      setError(typeof err === 'string' ? err : t('verify_code_mismatch'));
+    } finally {
+      setIsVerifyingCode(false);
+    }
+  };
+
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -378,6 +478,10 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
     }
     if (password.length < 8) {
       setError(t('signup_pw_min'));
+      return;
+    }
+    if (!isEmailVerified) {
+      setError(t('verify_required'));
       return;
     }
     if (!isConsentChecked) {
@@ -434,6 +538,9 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
                       onClick={() => {
                         setActiveTab(tab);
                         setError(null);
+                        // 인증은 역할별로 발급된다(서버가 coach/client를
+                        // 따로 본다). 탭을 바꾸면 다시 받아야 한다.
+                        resetEmailVerification();
                       }}
                       className={`h-10 rounded-lg text-sm font-semibold transition-all ${
                         active
@@ -459,15 +566,75 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
                 leading={<User className="h-4 w-4" />}
                 autoComplete="name"
               />
-              <Input
-                label={t('email')}
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="email@example.com"
-                leading={<Mail className="h-4 w-4" />}
-                autoComplete="email"
-              />
+              <div className="space-y-2">
+                <div className="flex items-end gap-2">
+                  <Input
+                    label={t('email')}
+                    type="email"
+                    value={email}
+                    onChange={(e) => {
+                      setEmail(e.target.value);
+                      // 주소를 고치면 인증이 풀린다. 직전 안내("발송했습니다"
+                      // / "인증 완료")를 남겨두면 아직 유효한 것처럼 읽힌다.
+                      setVerificationNotice(null);
+                    }}
+                    placeholder="email@example.com"
+                    leading={<Mail className="h-4 w-4" />}
+                    autoComplete="email"
+                    containerClassName="flex-1"
+                  />
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={handleSendVerificationCode}
+                    isLoading={isSendingCode}
+                    disabled={isEmailVerified || resendCooldown > 0}
+                    className="shrink-0"
+                  >
+                    {isEmailVerified
+                      ? t('verify_completed')
+                      : resendCooldown > 0
+                        ? t('verify_resend_in').replace('{seconds}', String(resendCooldown))
+                        : verificationSentTo
+                          ? t('verify_resend')
+                          : t('verify_send_code')}
+                  </Button>
+                </div>
+
+                {isCodeInputVisible && (
+                  <div className="flex items-end gap-2">
+                    <Input
+                      label={t('verify_code_label')}
+                      value={verificationCode}
+                      onChange={(e) => setVerificationCode(e.target.value)}
+                      onKeyDown={(e) => {
+                        // 폼 안이라 Enter가 가입 제출로 새어 나간다. 이 칸의
+                        // Enter는 인증 확인으로 받는다.
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          void handleConfirmVerificationCode();
+                        }
+                      }}
+                      placeholder="000000"
+                      inputMode="numeric"
+                      maxLength={6}
+                      autoComplete="one-time-code"
+                      leading={<ShieldCheck className="h-4 w-4" />}
+                      containerClassName="flex-1"
+                    />
+                    <Button
+                      type="button"
+                      onClick={handleConfirmVerificationCode}
+                      isLoading={isVerifyingCode}
+                      className="shrink-0"
+                    >
+                      {t('verify_confirm')}
+                    </Button>
+                  </div>
+                )}
+
+                {verificationNotice && <InfoAlert message={verificationNotice} />}
+              </div>
               <Input
                 label={t('phone')}
                 type="tel"

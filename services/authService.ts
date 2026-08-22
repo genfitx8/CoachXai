@@ -29,6 +29,34 @@ const createResetToken = (): string => {
 
 const normalizeEmail = (email: string): string => email.trim().toLowerCase();
 
+/**
+ * 서버가 보낸 안내 문구를 그대로 화면에 쓰기 위해 꺼낸다. apiService는
+ * 문자열, ApiError, 평범한 Error 어느 형태로도 던질 수 있다.
+ */
+const SIGNUP_FALLBACK_MESSAGE = '회원가입을 위해 서버 연결이 필요합니다.';
+
+/**
+ * 가입 실패 문구. 서버가 이유를 밝힌 4xx(중복 이메일, 이메일 미인증 등)는
+ * 그 문구를 그대로 쓴다 — 사용자가 고칠 수 있는 실패인데 "서버 연결이
+ * 필요합니다"로 덮어쓰면 무엇을 고쳐야 할지 알 수 없다. 네트워크/5xx는
+ * 기존대로 일반 안내를 유지한다.
+ */
+const toSignupErrorMessage = (error: unknown): string => {
+  if (typeof error === 'string' && error) return error;
+  const status = (error as { status?: number })?.status;
+  const message = (error as { message?: string })?.message;
+  if (typeof status === 'number' && status >= 400 && status < 500 && message) {
+    return message;
+  }
+  return SIGNUP_FALLBACK_MESSAGE;
+};
+
+const toAuthErrorMessage = (error: unknown, fallback: string): string => {
+  if (typeof error === 'string' && error) return error;
+  const message = (error as { message?: string })?.message;
+  return message || fallback;
+};
+
 // Only used by the offline/demo path, where there is no backend to
 // authenticate against. Server-backed deployments verify against
 // ADMIN_EMAIL / ADMIN_PASSWORD instead.
@@ -81,6 +109,42 @@ function writeJson(storage: Storage, key: string, value: unknown): void {
 }
 
 export const authService = {
+  /**
+   * 가입 전 이메일 인증번호 발송. 서버가 코드를 메일로 보내고, 계정은
+   * 아직 만들지 않는다. 서버 없이 도는 오프라인/데모 빌드에서는 인증할
+   * 상대가 없으므로 그 사실을 그대로 알린다.
+   */
+  requestSignupEmailVerification: async (
+    role: 'COACH' | 'CLIENT',
+    email: string
+  ): Promise<{ expiresInMinutes: number }> => {
+    if (!apiService.isAvailable()) {
+      throw '이메일 인증을 위해 서버 연결이 필요합니다.';
+    }
+    try {
+      return await apiService.requestSignupEmailVerification(role, normalizeEmail(email));
+    } catch (error: any) {
+      log.error('Signup email verification request error:', error);
+      throw toAuthErrorMessage(error, '인증번호 발송에 실패했습니다. 잠시 후 다시 시도해주세요.');
+    }
+  },
+
+  /** 발송된 인증번호 확인. 통과해야만 signupCoach/signupClient가 성공한다. */
+  confirmSignupEmailVerification: async (
+    role: 'COACH' | 'CLIENT',
+    email: string,
+    code: string
+  ): Promise<void> => {
+    if (!apiService.isAvailable()) {
+      throw '이메일 인증을 위해 서버 연결이 필요합니다.';
+    }
+    try {
+      await apiService.confirmSignupEmailVerification(role, normalizeEmail(email), code.trim());
+    } catch (error: any) {
+      throw toAuthErrorMessage(error, '인증번호가 일치하지 않습니다.');
+    }
+  },
+
   // Coach Signup
   signupCoach: async (
     name: string,
@@ -99,8 +163,7 @@ export const authService = {
       writeJson(localStorage, STORAGE_KEYS.COACH_PROFILE, coach);
       return coach;
     } catch (error: any) {
-      if (typeof error === 'string') throw error;
-      throw '회원가입을 위해 서버 연결이 필요합니다.';
+      throw toSignupErrorMessage(error);
     }
   },
 
@@ -121,8 +184,7 @@ export const authService = {
       apiService.setToken(token);
       return client;
     } catch (error: any) {
-      if (typeof error === 'string') throw error;
-      throw '회원가입을 위해 서버 연결이 필요합니다.';
+      throw toSignupErrorMessage(error);
     }
   },
 

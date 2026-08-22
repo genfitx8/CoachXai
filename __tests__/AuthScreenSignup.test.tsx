@@ -15,6 +15,8 @@ const { mockedAuthService } = vi.hoisted(() => ({
     loginBranchAdmin: vi.fn(),
     signupCoach: vi.fn(),
     signupClient: vi.fn(),
+    requestSignupEmailVerification: vi.fn(),
+    confirmSignupEmailVerification: vi.fn(),
     findEmail: vi.fn(),
     findPassword: vi.fn(),
   },
@@ -31,10 +33,39 @@ const renderAuth = (onLoginSuccess = vi.fn()) =>
     </LanguageProvider>
   );
 
+
+/**
+ * 가입 폼을 채운다. 이메일 인증은 별도 단계이므로 여기서는 건드리지 않는다
+ * — 인증 없이 제출했을 때의 동작도 테스트해야 하기 때문이다.
+ */
+const fillSignupForm = (
+  { name, email, phone, password }: { name: string; email: string; phone: string; password: string }
+) => {
+  fireEvent.change(screen.getByPlaceholderText('홍길동'), { target: { value: name } });
+  fireEvent.change(screen.getByPlaceholderText('email@example.com'), { target: { value: email } });
+  fireEvent.change(screen.getByPlaceholderText('010-0000-0000'), { target: { value: phone } });
+  fireEvent.change(screen.getByPlaceholderText('••••••••'), { target: { value: password } });
+};
+
+/** 인증번호 받기 → 코드 입력 → 확인까지 통과시킨다. */
+const passEmailVerification = async (code = '123456') => {
+  fireEvent.click(screen.getByRole('button', { name: '인증번호 받기' }));
+  const codeInput = await screen.findByPlaceholderText('000000');
+  fireEvent.change(codeInput, { target: { value: code } });
+  fireEvent.click(screen.getByRole('button', { name: '확인' }));
+  await screen.findByText('이메일 인증이 완료되었습니다.');
+};
+
+const agreeToRequiredConsent = () => {
+  fireEvent.click(screen.getByText('(필수) 개인정보 수집 및 이용에 동의합니다.'));
+};
+
 describe('AuthScreen signup', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     localStorage.clear();
+    mockedAuthService.requestSignupEmailVerification.mockResolvedValue({ expiresInMinutes: 10 });
+    mockedAuthService.confirmSignupEmailVerification.mockResolvedValue(undefined);
   });
 
   it('shows a signup button on the login screen', () => {
@@ -58,35 +89,16 @@ describe('AuthScreen signup', () => {
     expect(screen.getByRole('button', { name: '로그인' })).toBeInTheDocument();
   });
 
-  it('shows validation error when passwords do not match', async () => {
-    renderAuth();
-    fireEvent.click(screen.getByRole('button', { name: '회원가입' }));
-
-    fireEvent.change(screen.getByPlaceholderText('홍길동'), { target: { value: '홍길동' } });
-    fireEvent.change(screen.getByPlaceholderText('email@example.com'), { target: { value: 'test@test.com' } });
-    fireEvent.change(screen.getByPlaceholderText('010-0000-0000'), { target: { value: '010-1111-2222' } });
-
-    const passwordInputs = screen.getAllByPlaceholderText('••••••••');
-    fireEvent.change(passwordInputs[0], { target: { value: 'password123' } });
-    fireEvent.change(passwordInputs[1], { target: { value: 'different123' } });
-
-    fireEvent.click(screen.getByRole('button', { name: '회원가입' }));
-
-    expect(await screen.findByText('비밀번호가 일치하지 않습니다.')).toBeInTheDocument();
-    expect(mockedAuthService.signupCoach).not.toHaveBeenCalled();
-  });
-
   it('shows validation error when password is too short', async () => {
     renderAuth();
     fireEvent.click(screen.getByRole('button', { name: '회원가입' }));
 
-    fireEvent.change(screen.getByPlaceholderText('홍길동'), { target: { value: '홍길동' } });
-    fireEvent.change(screen.getByPlaceholderText('email@example.com'), { target: { value: 'test@test.com' } });
-    fireEvent.change(screen.getByPlaceholderText('010-0000-0000'), { target: { value: '010-1111-2222' } });
-
-    const passwordInputs = screen.getAllByPlaceholderText('••••••••');
-    fireEvent.change(passwordInputs[0], { target: { value: 'short' } });
-    fireEvent.change(passwordInputs[1], { target: { value: 'short' } });
+    fillSignupForm({
+      name: '홍길동',
+      email: 'test@test.com',
+      phone: '010-1111-2222',
+      password: 'short',
+    });
 
     fireEvent.click(screen.getByRole('button', { name: '회원가입' }));
 
@@ -103,13 +115,14 @@ describe('AuthScreen signup', () => {
 
     fireEvent.click(screen.getByRole('button', { name: '회원가입' }));
 
-    fireEvent.change(screen.getByPlaceholderText('홍길동'), { target: { value: '테스트코치' } });
-    fireEvent.change(screen.getByPlaceholderText('email@example.com'), { target: { value: 'coach@test.com' } });
-    fireEvent.change(screen.getByPlaceholderText('010-0000-0000'), { target: { value: '010-1111-2222' } });
-
-    const passwordInputs = screen.getAllByPlaceholderText('••••••••');
-    fireEvent.change(passwordInputs[0], { target: { value: 'password123' } });
-    fireEvent.change(passwordInputs[1], { target: { value: 'password123' } });
+    fillSignupForm({
+      name: '테스트코치',
+      email: 'coach@test.com',
+      phone: '010-1111-2222',
+      password: 'password123',
+    });
+    await passEmailVerification();
+    agreeToRequiredConsent();
 
     fireEvent.click(screen.getByRole('button', { name: '회원가입' }));
 
@@ -134,13 +147,14 @@ describe('AuthScreen signup', () => {
     // Switch to student tab
     fireEvent.click(screen.getByRole('button', { name: '학생 회원가입' }));
 
-    fireEvent.change(screen.getByPlaceholderText('홍길동'), { target: { value: '테스트학생' } });
-    fireEvent.change(screen.getByPlaceholderText('email@example.com'), { target: { value: 'client@test.com' } });
-    fireEvent.change(screen.getByPlaceholderText('010-0000-0000'), { target: { value: '010-3333-4444' } });
-
-    const passwordInputs = screen.getAllByPlaceholderText('••••••••');
-    fireEvent.change(passwordInputs[0], { target: { value: 'password123' } });
-    fireEvent.change(passwordInputs[1], { target: { value: 'password123' } });
+    fillSignupForm({
+      name: '테스트학생',
+      email: 'client@test.com',
+      phone: '010-3333-4444',
+      password: 'password123',
+    });
+    await passEmailVerification();
+    agreeToRequiredConsent();
 
     fireEvent.click(screen.getByRole('button', { name: '회원가입' }));
 
@@ -257,13 +271,14 @@ describe('AuthScreen signup', () => {
 
     fireEvent.click(screen.getByRole('button', { name: '회원가입' }));
 
-    fireEvent.change(screen.getByPlaceholderText('홍길동'), { target: { value: '홍길동' } });
-    fireEvent.change(screen.getByPlaceholderText('email@example.com'), { target: { value: 'dupe@test.com' } });
-    fireEvent.change(screen.getByPlaceholderText('010-0000-0000'), { target: { value: '010-1111-2222' } });
-
-    const passwordInputs = screen.getAllByPlaceholderText('••••••••');
-    fireEvent.change(passwordInputs[0], { target: { value: 'password123' } });
-    fireEvent.change(passwordInputs[1], { target: { value: 'password123' } });
+    fillSignupForm({
+      name: '홍길동',
+      email: 'dupe@test.com',
+      phone: '010-1111-2222',
+      password: 'password123',
+    });
+    await passEmailVerification();
+    agreeToRequiredConsent();
 
     fireEvent.click(screen.getByRole('button', { name: '회원가입' }));
 
