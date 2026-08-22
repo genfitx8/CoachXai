@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Lesson, ClientProfile, CoachProfile, Homework, LessonReservation, QuickLogEntry } from '../types';
 import {
-  ChevronLeft, Send, Sparkles, Bot, MessageCircle, Target, TrendingUp,
+  ChevronLeft, Send, Sparkles, MessageCircle, Target, TrendingUp,
   ListChecks, Dumbbell, HelpCircle, Mic, MicOff, MessageSquare, Volume2, VolumeX,
   Calendar, Clock, CheckCircle, XCircle, AlertCircle, Loader2, RotateCcw,
   Paperclip, Camera, Image as ImageIcon, Video, ClipboardList, Play, X, RefreshCw,
@@ -17,6 +17,7 @@ import { useTextToSpeech } from '../hooks/useTextToSpeech';
 import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
 import { renderMarkdown } from '../utils/renderMarkdown';
 import { BackButton } from './ui/BackButton';
+import { CoachXMark, CoachXMarkLive } from './ui';
 import { PermissionDeniedModal } from './PermissionDeniedModal';
 
 type Mode = 'voice' | 'chat';
@@ -1168,9 +1169,8 @@ export const StudentAIChat: React.FC<StudentAIChatProps> = ({
           />
         ))}
 
-        <div className="relative w-9 h-9 flex items-center justify-center flex-shrink-0">
-          <div className="absolute inset-0 rounded-full bg-gradient-to-br from-emerald-500 to-emerald-600 student-ai-pulse" />
-          <Sparkles className="relative z-10 w-4 h-4 text-white" />
+        <div className="w-9 h-9 flex items-center justify-center flex-shrink-0">
+          <CoachXMarkLive size={24} tone="dark" active={isTyping} />
         </div>
 
         <div className="min-w-0 flex-1">
@@ -1257,9 +1257,8 @@ export const StudentAIChat: React.FC<StudentAIChatProps> = ({
         <div className="flex-1 flex flex-col items-center justify-center px-6 py-8">
           <div className="w-full max-w-md">
             <div className="text-center mb-8">
-              <div className="relative w-16 h-16 mx-auto mb-4 flex items-center justify-center">
-                <div className="absolute inset-0 rounded-full bg-gradient-to-br from-emerald-500 to-emerald-600 student-ai-pulse" />
-                <Sparkles className="relative z-10 w-7 h-7 text-white" />
+              <div className="w-16 h-16 mx-auto mb-4 flex items-center justify-center">
+                <CoachXMarkLive size={44} tone="dark" />
               </div>
               <h2 className="text-lg font-bold text-white mb-2">{modeSelectorTitle}</h2>
               <p className="text-sm text-ink-muted">{modeSelectorSubtitle}</p>
@@ -1317,8 +1316,8 @@ export const StudentAIChat: React.FC<StudentAIChatProps> = ({
               className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
             >
               {msg.role === 'assistant' && (
-                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <Bot className="w-4 h-4 text-white" />
+                <div className="w-8 h-8 flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <CoachXMark size={20} tone="dark" />
                 </div>
               )}
               <div
@@ -1443,8 +1442,8 @@ export const StudentAIChat: React.FC<StudentAIChatProps> = ({
 
         {isTyping && (
           <div className="flex gap-3 justify-start">
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center flex-shrink-0">
-              <Bot className="w-4 h-4 text-white" />
+            <div className="w-8 h-8 flex items-center justify-center flex-shrink-0">
+              <CoachXMarkLive size={20} tone="dark" active />
             </div>
             <div className="bg-white/[0.10] rounded-2xl rounded-bl-sm px-4 py-3">
               <div className="flex gap-1.5 items-center h-4">
@@ -1686,18 +1685,6 @@ export const StudentAIChat: React.FC<StudentAIChatProps> = ({
         }
         .student-ai-cursor {
           animation: student-ai-cursor-blink 0.7s ease-in-out infinite;
-        }
-        @keyframes student-ai-pulse-ring {
-          0% { transform: scale(1); opacity: 0.8; }
-          100% { transform: scale(1.5); opacity: 0; }
-        }
-        .student-ai-pulse::before {
-          content: '';
-          position: absolute;
-          inset: 0;
-          border-radius: 9999px;
-          background: inherit;
-          animation: student-ai-pulse-ring 2s ease-out infinite;
         }
         @keyframes student-ai-wave {
           from { transform: scaleY(0.4); }
