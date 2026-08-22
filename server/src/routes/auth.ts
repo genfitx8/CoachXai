@@ -4,7 +4,7 @@ import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import { rateLimit } from 'express-rate-limit';
 import pool from '../services/db';
-import { sendPasswordResetMail, sendSignupVerificationMail } from '../services/mail';
+import { sendPasswordResetMail, sendSignupVerificationMail, isMailConfigured } from '../services/mail';
 import type { AuthRole } from '../middleware/auth';
 
 const router = Router();
@@ -33,7 +33,9 @@ const EMAIL_IN_USE_ERROR = 'Email already in use';
 // 코드 자체를 무차별 대입하는 경로라 행(row)별 시도 횟수 제한과 함께 건다.
 const emailVerificationRequestLimiter = rateLimit({
   windowMs: 10 * 60 * 1000,
-  limit: 5,
+  // 한 IP를 여러 사람이 공유하는 경우(아카데미 와이파이에서 회원들이 함께
+  // 가입)가 실제로 있어서 비밀번호 찾기보다 조금 여유를 둔다.
+  limit: 10,
   standardHeaders: true,
   legacyHeaders: false,
 });
@@ -205,6 +207,21 @@ router.post(
     // 최소 형태 검사. 진짜 검증은 코드가 실제로 도착하는지 여부가 한다.
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
       res.status(400).json({ error: '올바른 이메일 주소를 입력해주세요.' });
+      return;
+    }
+
+    // 운영 환경에서 SMTP가 없으면 코드는 서버 콘솔에만 찍힌다. 그런데도
+    // "보냈습니다"라고 답하면 사용자는 오지 않는 메일을 기다리며 가입을
+    // 끝낼 수 없다. 조용한 막다른 길 대신 이유를 밝히고 거절한다.
+    if (isEmailVerificationRequired() && !isMailConfigured() && process.env.NODE_ENV === 'production') {
+      console.error(
+        '[auth] SMTP 미설정 상태에서 가입 인증번호 요청이 들어왔습니다. ' +
+          'SMTP_HOST / SMTP_PORT / SMTP_USER / SMTP_PASS 를 설정하거나, ' +
+          '인증을 끄려면 REQUIRE_EMAIL_VERIFICATION=false 로 두세요.'
+      );
+      res.status(503).json({
+        error: '이메일 발송 설정이 완료되지 않아 인증번호를 보낼 수 없습니다. 관리자에게 문의해주세요.',
+      });
       return;
     }
 

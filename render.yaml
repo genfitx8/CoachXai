@@ -43,6 +43,24 @@ services:
         sync: false
       - key: TOSS_SECRET_KEY
         sync: false
+      # 메일 발송(비밀번호 찾기 + 회원가입 이메일 인증). 이 값들이 없으면
+      # 서버는 메일을 보내지 않고 코드를 콘솔에만 출력하며, 가입 인증번호
+      # 요청은 503으로 거절된다 — 즉 이메일 인증이 켜진 상태에서는 SMTP가
+      # 필수다.
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        sync: false
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
+      - key: MAIL_FROM
+        sync: false
+      # 회원가입 이메일 인증 사용 여부(기본 true). SMTP를 붙이기 전까지
+      # 가입을 열어 두어야 한다면 false 로 둔다.
+      - key: REQUIRE_EMAIL_VERIFICATION
+        sync: false
       - key: GEMINI_API_KEY
         sync: false
       - key: GEMINI_MODEL

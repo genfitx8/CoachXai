@@ -17,6 +17,22 @@ const transporter = smtpHost
     })
   : null;
 
+if (!transporter) {
+  console.warn(
+    '[mail] SMTP_HOST가 설정되지 않았습니다. 메일은 발송되지 않고 콘솔에만 출력됩니다. ' +
+      '운영 환경에서는 SMTP_HOST / SMTP_PORT / SMTP_USER / SMTP_PASS / MAIL_FROM 을 설정하세요.'
+  );
+}
+
+/**
+ * 실제로 메일을 내보낼 수 있는 상태인지. 비밀번호 찾기는 못 보내도 다른
+ * 복구 경로가 있지만, 가입 이메일 인증은 코드가 도착하지 않으면 가입 자체가
+ * 막히는 막다른 길이 된다. 그래서 호출부가 미리 확인할 수 있게 열어 둔다.
+ */
+export function isMailConfigured(): boolean {
+  return transporter !== null;
+}
+
 export async function sendPasswordResetMail(
   to: string,
   resetUrl: string,

@@ -27,6 +27,13 @@ import { startScheduledPushRunner } from './services/scheduledPushRunner';
 const app = express();
 const PORT = parseInt(process.env.PORT ?? '4000', 10);
 
+// Render(및 대부분의 PaaS)는 앱 앞에 프록시를 한 단 둔다. 이 설정이 없으면
+// req.ip가 항상 그 프록시의 내부 IP로 잡혀서, express-rate-limit의 모든
+// 제한이 사용자별이 아니라 **전체 공용 한 바구니**가 된다 — 한 사람이
+// 인증번호를 몇 번 재발송하면 그 시간 동안 다른 모든 사용자가 429를 받는다.
+// 1 = 바로 앞 프록시 한 단만 신뢰(X-Forwarded-For 위조 방지).
+app.set('trust proxy', 1);
+
 const allowedOrigins = (
   process.env.APP_ALLOWED_ORIGINS ??
   process.env.APP_BASE_URL ??
