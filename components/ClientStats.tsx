@@ -1167,7 +1167,7 @@ export const ClientStats: React.FC<ClientStatsProps> = ({ lessons, onBack, clien
                                                         ? 'bg-emerald-400/25 text-emerald-50'
                                                         : pinDistanceStats.improvement > 0
                                                             ? 'bg-rose-400/25 text-rose-50'
-                                                            : 'bg-white/[0.04]/20 text-white/90'
+                                                            : 'bg-white/[0.04] text-white/90'
                                                 }`}>
                                                     {pinDistanceStats.improvement < 0
                                                         ? <><TrendingDown className="w-3 h-3" /> {Math.abs(pinDistanceStats.improvement)}m 향상</>

@@ -40,12 +40,12 @@ export const PointHistoryModal: React.FC<PointHistoryModalProps> = ({ isOpen, on
         
         {/* Header */}
         <div className="bg-gradient-to-r from-yellow-400 to-orange-500 px-6 py-6 text-white relative">
-          <button onClick={onClose} className="absolute top-4 right-4 text-white/80 hover:text-white bg-white/[0.04]/10 rounded-full p-1">
+          <button onClick={onClose} className="absolute top-4 right-4 text-white/80 hover:text-white bg-white/[0.04] rounded-full p-1">
             <X className="w-5 h-5" />
           </button>
           
           <div className="flex items-center gap-3 mb-2">
-            <div className="bg-white/[0.04]/20 p-2 rounded-full backdrop-blur-sm">
+            <div className="bg-white/[0.04] p-2 rounded-full backdrop-blur-sm">
                 <Coins className="w-8 h-8 text-white" />
             </div>
             <div>

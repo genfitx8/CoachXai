@@ -61,7 +61,7 @@ const ConfidenceChip: React.FC<{ level: 'strong' | 'plausible' | 'speculative' }
 };
 
 const EvidenceBlock: React.FC<{ swing?: string[]; history?: string[] }> = ({ swing, history }) => (
-  <div className="rounded-xl border border-line-subtle bg-white/[0.04]/70 p-3 space-y-2">
+  <div className="rounded-xl border border-line-subtle bg-white/[0.04] p-3 space-y-2">
     <div className="text-[10px] font-mono uppercase tracking-wider text-ink-muted">근거</div>
     {swing?.length ? (
       <ul className="space-y-1 text-xs text-ink-medium leading-relaxed">
@@ -296,7 +296,7 @@ export const WeeklyInsightCard: React.FC<WeeklyInsightCardProps> = ({
           )}
 
           {/* Recommended Focus */}
-          <div className="bg-white/[0.04]/70 rounded-xl p-3 border border-emerald-500/20">
+          <div className="bg-white/[0.04] rounded-xl p-3 border border-emerald-500/20">
             <div className="flex items-center gap-1.5 mb-1">
               <Target className="w-4 h-4 text-emerald-300" />
               <span className="text-xs font-bold text-emerald-200">다음 주 추천 포커스</span>

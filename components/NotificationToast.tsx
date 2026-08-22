@@ -49,7 +49,7 @@ export const NotificationToast: React.FC<NotificationToastProps> = ({
         </div>
         <button
           onClick={onClose}
-          className="text-ink-muted hover:text-ink-medium p-1.5 rounded-full hover:bg-white/[0.06]/80 transition-all duration-200 hover:scale-110 transform"
+          className="text-ink-muted hover:text-ink-medium p-1.5 rounded-full hover:bg-white/[0.12] transition-all duration-200 hover:scale-110 transform"
         >
           <X className="w-4 h-4" />
         </button>

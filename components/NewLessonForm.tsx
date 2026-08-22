@@ -153,7 +153,7 @@ const LESSON_FLOW_SHELL_CLASS =
 const LESSON_FLOW_HEADER_CLASS =
   'bg-base/95 border-b border-line-subtle px-5 py-4 flex items-center justify-between text-ink-high flex-shrink-0 backdrop-blur-md';
 const LESSON_FLOW_INPUT_CLASS =
-  'w-full pl-10 pr-4 py-3 border border-line-subtle rounded-xl bg-white/[0.04]/[0.04] text-ink-high placeholder:text-ink-muted focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-all';
+  'w-full pl-10 pr-4 py-3 border border-line-subtle rounded-xl bg-white/[0.04] text-ink-high placeholder:text-ink-muted focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-all';
 // Every action button in the lesson flow shares one height / radius / type
 // scale so the stacked CTAs read as a single group. Colour is the only thing
 // that separates the primary action from the secondary ones.
@@ -1625,14 +1625,14 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
           </div>
           <button
             onClick={onCancel}
-            className="rounded-full p-3 text-ink-high hover:text-white hover:bg-white/[0.04]/15 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
+            className="rounded-full p-3 text-ink-high hover:text-white hover:bg-white/[0.08] transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Selected client info */}
-        <div className="px-5 py-3 bg-white/[0.04]/[0.04] border-b border-line-subtle flex items-center gap-3 flex-shrink-0">
+        <div className="px-5 py-3 bg-white/[0.04] border-b border-line-subtle flex items-center gap-3 flex-shrink-0">
           <div className="bg-emerald-900/60 p-2 rounded-full">
             <UserCheck className="w-4 h-4 text-emerald-400" />
           </div>
@@ -1659,7 +1659,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
                 className="bg-white/[0.05] border border-line-subtle rounded-xl overflow-hidden shadow-sm"
               >
                 {/* Package header */}
-                <div className="px-4 py-3 bg-white/[0.06]/60 border-b border-line-subtle flex items-center justify-between">
+                <div className="px-4 py-3 bg-white/[0.06] border-b border-line-subtle flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <BookOpen className="w-4 h-4 text-ink-medium" />
                     <span className="font-bold text-ink-high text-sm">
@@ -1696,7 +1696,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
                               flex flex-col items-center justify-center gap-0.5 p-2 rounded-lg border-2 transition-all text-xs
                               ${
                                 isRecorded
-                                  ? 'border-line-subtle bg-white/[0.06]/40 text-ink-muted cursor-not-allowed'
+                                  ? 'border-line-subtle bg-white/[0.06] text-ink-muted cursor-not-allowed'
                                   : isSelected
                                   ? 'border-emerald-500 bg-emerald-900/40 text-emerald-300 font-bold shadow-sm'
                                   : 'border-dashed border-line-subtle bg-white/[0.05] text-ink-muted hover:border-emerald-500 hover:bg-emerald-900/30 hover:text-emerald-300'
@@ -1762,7 +1762,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
           </h2>
           <button
             onClick={onCancel}
-            className="rounded-full p-3 text-ink-high hover:text-white hover:bg-white/[0.04]/15 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
+            className="rounded-full p-3 text-ink-high hover:text-white hover:bg-white/[0.08] transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
           >
             <X className="w-5 h-5" />
           </button>
@@ -1893,7 +1893,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
           <h2 className="text-lg font-bold flex items-center gap-2"><Target className="w-5 h-5" /> 기록 유형 선택</h2>
           <button
             onClick={onCancel}
-            className="rounded-full p-3 text-emerald-100 hover:text-white hover:bg-white/[0.04]/15 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
+            className="rounded-full p-3 text-emerald-100 hover:text-white hover:bg-white/[0.08] transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
           >
             <X className="w-5 h-5" />
           </button>
@@ -1977,7 +1977,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
           </h2>
           <button
             onClick={onCancel}
-            className="rounded-full p-3 text-white/80 hover:text-white hover:bg-white/[0.04]/10 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
+            className="rounded-full p-3 text-white/80 hover:text-white hover:bg-white/[0.08] transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
           >
             <X className="w-5 h-5" />
           </button>
@@ -2002,7 +2002,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="예: 8월 19일 레슨 동반 기록"
-                className="w-full px-4 py-3 border border-line-subtle rounded-xl bg-white/[0.04]/[0.04] text-ink-high placeholder:text-ink-muted focus:ring-2 focus:ring-rose-500 focus:border-rose-500 outline-none transition-all"
+                className="w-full px-4 py-3 border border-line-subtle rounded-xl bg-white/[0.04] text-ink-high placeholder:text-ink-muted focus:ring-2 focus:ring-rose-500 focus:border-rose-500 outline-none transition-all"
                 required
               />
             </div>
@@ -2198,7 +2198,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
         </h2>
         <button
           onClick={onCancel}
-          className="rounded-full p-3 text-white/80 hover:text-white hover:bg-white/[0.04]/10 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
+          className="rounded-full p-3 text-white/80 hover:text-white hover:bg-white/[0.08] transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
         >
           <X className="w-5 h-5" />
         </button>
@@ -2220,7 +2220,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
                 ? '예: 00CC 필드 라운딩'
                 : '예: 7번 아이언 스윙 교정'
             }
-            className="w-full px-4 py-3 border border-line-subtle rounded-xl bg-white/[0.04]/[0.04] text-ink-high placeholder:text-ink-muted focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-all"
+            className="w-full px-4 py-3 border border-line-subtle rounded-xl bg-white/[0.04] text-ink-high placeholder:text-ink-muted focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-all"
             required
           />
         </div>
@@ -2280,7 +2280,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
                   value={courseName}
                   onChange={handleCourseNameChange}
                   placeholder="골프장 검색 또는 직접 입력"
-                  className="w-full pl-10 pr-4 py-3 border border-line-subtle rounded-xl bg-white/[0.04]/[0.04] text-ink-high placeholder:text-ink-muted focus:ring-2 focus:ring-blue-500 outline-none"
+                  className="w-full pl-10 pr-4 py-3 border border-line-subtle rounded-xl bg-white/[0.04] text-ink-high placeholder:text-ink-muted focus:ring-2 focus:ring-blue-500 outline-none"
                 />
                 {/* Course Search Dropdown */}
                 {showCourseSearch && courseSearchResults.length > 0 && (
@@ -2319,7 +2319,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
                   return (
                     <div
                       key={hole.holeNumber}
-                      className="bg-white/[0.05]/40 hover:bg-white/[0.05]/80 transition-colors"
+                      className="bg-white/[0.05] hover:bg-white/[0.10] transition-colors"
                     >
                       <div className="grid grid-cols-12 gap-1 px-4 py-3 items-center text-center">
                       <div className="col-span-1 font-bold text-ink-high">
@@ -2473,7 +2473,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
               </label>
 
               {showAddInterface ? (
-                <div className="border-2 border-dashed border-line-subtle rounded-2xl p-8 bg-white/[0.05]/40 hover:bg-white/[0.04]/[0.04] transition-colors">
+                <div className="border-2 border-dashed border-line-subtle rounded-2xl p-8 bg-white/[0.05] hover:bg-white/[0.08] transition-colors">
                   {/* Method Selection Tabs */}
                   <div className="flex justify-center mb-6 bg-white/[0.05] rounded-full p-1 inline-flex mx-auto border border-line-subtle">
                     <button
@@ -2896,7 +2896,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
                                   )
                                 }
                                 placeholder={field.placeholder}
-                                className="w-full px-3 py-2 border border-line-subtle rounded-lg bg-white/[0.04]/[0.04] text-ink-high placeholder:text-ink-muted focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none text-sm"
+                                className="w-full px-3 py-2 border border-line-subtle rounded-lg bg-white/[0.04] text-ink-high placeholder:text-ink-muted focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none text-sm"
                               />
                             </div>
                           );
@@ -3106,7 +3106,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
               <select
                 value={club}
                 onChange={(e) => setClub(e.target.value)}
-                className="w-full px-4 py-3 border border-line-subtle rounded-xl bg-white/[0.04]/[0.04] text-ink-high focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
+                className="w-full px-4 py-3 border border-line-subtle rounded-xl bg-white/[0.04] text-ink-high focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
               >
                 <option value="">선택안함</option>
                 {CLUB_GROUPS.map((group) => (
@@ -3134,7 +3134,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
                   )
                 }
                 placeholder="예: 150"
-                className="w-full px-4 py-3 border border-line-subtle rounded-xl bg-white/[0.04]/[0.04] text-ink-high placeholder:text-ink-muted focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
+                className="w-full px-4 py-3 border border-line-subtle rounded-xl bg-white/[0.04] text-ink-high placeholder:text-ink-muted focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
               />
             </div>
           )}
@@ -3154,7 +3154,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
                   setScore(e.target.value === '' ? '' : Number(e.target.value))
                 }
                 placeholder="예: 85"
-                className="w-full px-4 py-3 border border-line-subtle rounded-xl bg-white/[0.04]/[0.04] text-ink-high placeholder:text-ink-muted focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none font-bold text-lg"
+                className="w-full px-4 py-3 border border-line-subtle rounded-xl bg-white/[0.04] text-ink-high placeholder:text-ink-muted focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none font-bold text-lg"
               />
             </div>
           )}
@@ -3171,7 +3171,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
               className={`p-4 rounded-xl border-2 cursor-pointer transition-all flex items-center gap-4 ${
                 isDataExtractionMode
                   ? 'border-blue-500 bg-blue-900/30'
-                  : 'border-line-subtle hover:border-line-subtle bg-white/[0.05]/40'
+                  : 'border-line-subtle hover:border-line-subtle bg-white/[0.05]'
               }`}
             >
               <div
@@ -3209,7 +3209,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
               className={`p-4 rounded-xl border-2 cursor-pointer transition-all flex items-center gap-4 ${
                 isDataExtractionMode
                   ? 'border-blue-500 bg-blue-900/30'
-                  : 'border-line-subtle hover:border-line-subtle bg-white/[0.05]/40'
+                  : 'border-line-subtle hover:border-line-subtle bg-white/[0.05]'
               }`}
             >
               <div
@@ -3251,7 +3251,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
                 : '연습 내용이나 느낀 점을 기록하세요.'
             }
             rows={4}
-            className="w-full px-4 py-3 border border-line-subtle rounded-xl bg-white/[0.04]/[0.04] text-ink-high placeholder:text-ink-muted focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-all resize-none"
+            className="w-full px-4 py-3 border border-line-subtle rounded-xl bg-white/[0.04] text-ink-high placeholder:text-ink-muted focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-all resize-none"
           />
         </div>
 

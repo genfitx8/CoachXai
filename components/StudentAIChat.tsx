@@ -897,7 +897,7 @@ export const StudentAIChat: React.FC<StudentAIChatProps> = ({
           <div className="flex gap-2">
             <button
               onClick={handleBookingCancel}
-              className="flex-1 py-2.5 rounded-xl border border-white/10 text-ink-muted text-sm font-medium hover:bg-white/[0.04]/5 transition-colors"
+              className="flex-1 py-2.5 rounded-xl border border-white/10 text-ink-muted text-sm font-medium hover:bg-white/[0.08] transition-colors"
             >
               {lang === 'en' ? 'Back' : lang === 'ja' ? '戻る' : '다시 선택'}
             </button>
@@ -1218,7 +1218,7 @@ export const StudentAIChat: React.FC<StudentAIChatProps> = ({
         {!showModeSelector && mode === 'voice' && (
           <button
             onClick={() => { setTtsEnabled(p => !p); if (ttsEnabled) stopSpeaking(); }}
-            className="p-2 rounded-full hover:bg-white/[0.04]/10 transition-colors"
+            className="p-2 rounded-full hover:bg-white/[0.08] transition-colors"
             aria-label={ttsEnabled ? '음성 출력 끄기' : '음성 출력 켜기'}
           >
             {ttsEnabled
