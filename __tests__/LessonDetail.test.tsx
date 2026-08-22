@@ -84,11 +84,10 @@ describe('LessonDetail – media rendering', () => {
   });
 
   /*
-   * 조판기는 대표컷을 본문 미디어 풀에서 뺀다. 기록의 본체가 메인 영상
-   * 하나뿐인 경우(흔하다) 표지에서 재생할 수 없으면 그 영상은 스토리
-   * 어디에서도 볼 수 없게 되므로, 이 경로를 고정해 둔다.
+   * 표지는 자료를 걸지 않는다. 기록의 본체가 메인 영상 하나뿐인 경우가
+   * 흔하므로, 그 영상이 스토리 본문에서 반드시 재생 가능해야 한다.
    */
-  it('plays the main video from the story cover — the only place it appears', async () => {
+  it('plays the main video from the story body', async () => {
     const { container } = await renderDetail(lessonWithVideoKey);
 
     expect(container.querySelector('video')).toBeNull();

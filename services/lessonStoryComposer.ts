@@ -9,7 +9,11 @@
  * 두 가지 규칙이 화면의 성격을 결정한다.
  *
  *  1. **문단과 미디어의 교차**(§5.2) — 사진을 한곳에 모으면 갤러리가 되고,
- *     문단 사이에 흩으면 글이 된다. `interleave()` 하나가 그 차이를 만든다.
+ *     문단 사이에 흩으면 글이 된다. 그리고 어느 문단 옆에 놓을지는
+ *     **찍힌 시각**이 정한다: 레슨 20분쯤에 찍은 사진은 글의 20% 지점으로
+ *     간다. 코치는 그 순간의 이야기를 하면서 그 사진을 찍었기 때문에,
+ *     시각이 "이 사진이 무슨 이야기에 속하는가"의 가장 정확한 근거다.
+ *     `placeMedia()` 하나가 그 배치를 맡는다.
  *  2. **폴백 사슬**(§5.1) — `reviewSections`(코치 최종본)를 항상 우선하되
  *     비어 있으면 `liveLessonDetail` → `aiAnalysis` → `coachNotes` 로 떨어진다.
  *     그래서 `Lesson.story` 가 통째로 없는 과거 기록도 스토리로 보이고,
@@ -49,6 +53,14 @@ interface MediaSlot {
   id: string;
   type: MediaItem['type'];
   role?: MediaItem['role'];
+  /** 찍힌 시각(wall-clock ms). 모르면 undefined — 균등 배치로 떨어진다. */
+  capturedAt?: number;
+}
+
+/** 자료를 레슨 시간축 위에 놓기 위한 기준. 없으면 균등 배치로 떨어진다. */
+interface LessonWindow {
+  startedAt?: number;
+  durationSec?: number;
 }
 
 // ─────────────────────────────────────────────────────────────────────
@@ -105,42 +117,28 @@ const splitLeadAndBody = (
 // 미디어
 // ─────────────────────────────────────────────────────────────────────
 
-/** 이 기록이 가진 모든 미디어 슬롯 — 메인 슬롯이 있으면 맨 앞에 온다. */
+/**
+ * 이 기록이 가진 모든 미디어 슬롯 — 메인 슬롯이 있으면 맨 앞에 온다.
+ *
+ * 레슨 동반 기록에서 메인 슬롯은 **가장 먼저 찍힌 클립**이다(폼이 클립을
+ * 촬영 순서대로 받아 첫 장을 메인으로 올린다). 메인 슬롯에는 시각을 담을
+ * 자리가 따로 없으므로 레슨 시작 시각으로 본다 — 실제로 그때 찍혔다.
+ */
 const collectSlots = (lesson: Lesson): MediaSlot[] => {
   const slots: MediaSlot[] = [];
   if (lesson.videoUrl || lesson.videoKey || lesson.thumbnailUrl) {
-    slots.push({ id: MAIN_MEDIA_ID, type: lesson.mediaType });
+    slots.push({
+      id: MAIN_MEDIA_ID,
+      type: lesson.mediaType,
+      capturedAt: lesson.liveLessonDetail?.startedAt,
+    });
   }
   for (const m of lesson.additionalMedia ?? []) {
     // 음성은 글 사이에 놓을 것이 아니다 — 스토리에서는 다루지 않는다.
     if (m.type === 'audio') continue;
-    slots.push({ id: m.id, type: m.type, role: m.role });
+    slots.push({ id: m.id, type: m.type, role: m.role, capturedAt: m.createdAt });
   }
   return slots;
-};
-
-/**
- * 대표컷 — 목록에서 이 기록을 되돌아보게 만드는 한 장(§5.2).
- * 코치 지정 → 레슨 후 영상 → 메인 슬롯 → 레슨 중 캡처 → 아무 사진 → 아무 영상.
- */
-const pickCover = (lesson: Lesson, slots: MediaSlot[]): string | undefined => {
-  const has = (id?: string) => !!id && slots.some((s) => s.id === id);
-
-  if (has(lesson.story?.coverMediaId)) return lesson.story!.coverMediaId;
-
-  const after = (lesson.additionalMedia ?? []).find(
-    (m) => m.type === 'video' && m.role === 'AFTER'
-  );
-  if (after && has(after.id)) return after.id;
-
-  if (has(MAIN_MEDIA_ID)) return MAIN_MEDIA_ID;
-
-  const liveShot = (lesson.additionalMedia ?? []).find(
-    (m) => m.type === 'image' && m.source === 'live_lesson'
-  );
-  if (liveShot) return liveShot.id;
-
-  return slots.find((s) => s.type === 'image')?.id ?? slots.find((s) => s.type === 'video')?.id;
 };
 
 /** 레슨 전/후 비교로 뺄 영상 쌍. 둘 다 있을 때만 성립한다. */
@@ -160,12 +158,14 @@ const pickComparePair = (
  * 후보는 `reviewSections.attachmentIds` — 검토 화면에서 코치가 이미
  * "이건 붙일 것"이라 골라둔 목록이다. 새 UI 를 만들지 않고 그 의도를
  * 그대로 재사용한다. 목록이 없으면(구 기록) 가진 미디어 전부를 쓴다.
- * 대표컷과 비교 쌍은 이미 제 자리를 얻었으므로 제외한다.
+ * 전/후 비교 쌍만 제외한다 — 그쪽에서 이미 제 자리를 얻었다.
+ *
+ * 표지는 자료를 가져가지 않는다. 사진과 영상은 전부 본문으로 내려가
+ * 자기가 속한 이야기 옆에 놓인다.
  */
 const pickBodyPool = (
   lesson: Lesson,
   slots: MediaSlot[],
-  coverId: string | undefined,
   pair: { beforeId: string; afterId: string } | undefined
 ): MediaSlot[] => {
   const attachmentIds = lesson.reviewSections?.attachmentIds;
@@ -173,7 +173,6 @@ const pickBodyPool = (
     attachmentIds && attachmentIds.length > 0 ? new Set(attachmentIds) : null;
 
   return slots.filter((s) => {
-    if (s.id === coverId) return false;
     if (pair && (s.id === pair.beforeId || s.id === pair.afterId)) return false;
     // 메인 슬롯은 attachmentIds 에 실릴 수 없으므로 허용 목록의 예외로 둔다.
     if (allowed && s.id !== MAIN_MEDIA_ID && !allowed.has(s.id)) return false;
@@ -194,44 +193,100 @@ const mediaBlock = (
 });
 
 /**
- * 문단 사이에 미디어를 꽂는다 — 이 기획의 심장(§5.2).
+ * 자료 하나가 레슨의 어느 지점에서 나왔는지 0~1 로 환산한다.
  *
- *   gap = max(1, ceil(N문단 / (M미디어 + 1)))
- *
- * `gap >= 1` 이므로 연속 두 미디어 사이에는 문단이 최소 하나 보장된다.
- * 사진이 붙어 나오면 그 순간 다시 갤러리처럼 보이기 때문이다. 마지막
- * 문단 뒤에는 넣지 않는다 — 글의 끝은 문단이어야 다음 블록(할 일,
- * 서명)으로 자연스럽게 넘어간다. 자리를 못 얻은 미디어는 하단 갤러리로
- * 몰아주되, 조용히 버리지는 않는다.
+ * 레슨 시작 시각과 길이를 알면 진짜 시간축 위의 위치가 나온다. 모르면
+ * (구 기록, 직접 올린 사진) 순번대로 균등하게 편다 — 이 경우 예전과
+ * 똑같이 동작한다.
  */
-export const interleave = (
+const ratioFor = (
+  slot: MediaSlot,
+  index: number,
+  total: number,
+  window: LessonWindow
+): number => {
+  const { startedAt, durationSec } = window;
+  if (
+    slot.capturedAt != null &&
+    startedAt != null &&
+    durationSec != null &&
+    durationSec > 0
+  ) {
+    const offsetSec = (slot.capturedAt - startedAt) / 1000;
+    return Math.min(1, Math.max(0, offsetSec / durationSec));
+  }
+  // 균등 배치 — 예전 gap = ceil(N/(M+1)) 와 같은 자리에 떨어진다.
+  return (index + 1) / (total + 1);
+};
+
+/**
+ * 문단 사이에 자료를 꽂는다 — 이 기획의 심장(§5.2).
+ *
+ * 코치는 레슨하면서 그 순간의 이야기를 하며 사진을 찍는다. 그래서 **찍힌
+ * 시각이 "이 사진이 어느 이야기에 속하는가"의 가장 정확한 근거**다. 레슨
+ * 20분쯤(전체의 1/3 지점)에 찍은 사진은 글의 1/3 지점으로 간다.
+ *
+ * 시간만 따르면 무너지는 경우가 하나 있다. 코치가 마지막 5분에 몰아서
+ * 세 장을 찍으면 셋이 글 끝에 붙어 다시 갤러리처럼 보인다. 그래서 순서는
+ * 시각이 정하되, **자료 사이에는 문단이 최소 하나** 들어가도록 뒤로 민다.
+ * 마지막 문단 뒤에는 놓지 않는다 — 글의 끝은 문단이어야 다음 블록(할 일,
+ * 서명)으로 자연스럽게 넘어간다. 밀려서 자리를 못 얻은 자료는 조용히
+ * 버리지 않고 하단 갤러리로 모은다.
+ */
+export const placeMedia = (
   paragraphs: string[],
   pool: MediaSlot[],
-  captions?: Record<string, string>
+  options: { window?: LessonWindow; captions?: Record<string, string> } = {}
 ): StoryBlock[] => {
-  const blocks: StoryBlock[] = [];
+  const { window = {}, captions } = options;
   if (pool.length === 0) {
     return paragraphs.map((text) => ({ kind: 'paragraph', text }));
   }
 
-  const gap = Math.max(1, Math.ceil(paragraphs.length / (pool.length + 1)));
-  let next = 0;
-  let sinceMedia = 0;
+  // 찍힌 순서대로 — 글이 시간을 거스르지 않게. 시각을 모르는 자료는
+  // 원래 순서를 유지한다(sort 가 안정적이므로 동률이면 그대로).
+  const ordered = pool
+    .map((slot, index) => ({ slot, ratio: ratioFor(slot, index, pool.length, window) }))
+    .sort((a, b) => a.ratio - b.ratio);
 
-  paragraphs.forEach((text, i) => {
-    blocks.push({ kind: 'paragraph', text });
-    sinceMedia += 1;
-    const isLast = i === paragraphs.length - 1;
-    if (!isLast && next < pool.length && sinceMedia >= gap) {
-      // full / inset 을 번갈아 쓴다 — 같은 크기가 반복되면 리듬이 죽는다.
-      blocks.push(mediaBlock(pool[next], next % 2 === 0 ? 'full' : 'inset', captions));
-      next += 1;
-      sinceMedia = 0;
-    }
+  // 놓을 수 있는 자리는 "문단 1개 뒤" ~ "마지막 문단 앞", 즉 1..lastSlot.
+  const lastSlot = paragraphs.length - 1;
+  const capacity = Math.max(0, lastSlot);
+  const take = Math.min(ordered.length, capacity);
+  const leftovers = ordered.slice(take).map((o) => o.slot);
+
+  // 원하는 자리 = 시간 비율을 문단 수에 그대로 대응시킨 지점.
+  const at = ordered.slice(0, take).map((o) => Math.round(o.ratio * paragraphs.length));
+
+  /*
+   * 두 번 다듬는다. 뒤에서부터 한 번(자기 뒤에 남은 자료가 들어갈 자리를
+   * 비워 둔다), 앞에서부터 한 번(간격 1을 보장한다). 뒤쪽 다듬기가 없으면
+   * 코치가 마지막 5분에 몰아 찍은 자료들이 글 끝을 넘겨 전부 갤러리로
+   * 떨어진다 — 시각은 지켰지만 배치는 포기한 셈이 된다. 앞으로 당겨서
+   * 나란히 흩어 놓는 편이 맞다.
+   */
+  for (let i = take - 1; i >= 0; i--) {
+    at[i] = Math.min(at[i], lastSlot - (take - 1 - i));
+  }
+  for (let i = 0; i < take; i++) {
+    at[i] = Math.max(at[i], i === 0 ? 1 : at[i - 1] + 1);
+  }
+
+  const placements = new Map<number, StoryBlock>();
+  ordered.slice(0, take).forEach(({ slot }, i) => {
+    // full / inset 을 번갈아 쓴다 — 같은 크기가 반복되면 리듬이 죽는다.
+    placements.set(at[i], mediaBlock(slot, i % 2 === 0 ? 'full' : 'inset', captions));
   });
 
-  if (next < pool.length) {
-    blocks.push({ kind: 'gallery', mediaIds: pool.slice(next).map((s) => s.id) });
+  const blocks: StoryBlock[] = [];
+  paragraphs.forEach((text, i) => {
+    blocks.push({ kind: 'paragraph', text });
+    const media = placements.get(i + 1);
+    if (media) blocks.push(media);
+  });
+
+  if (leftovers.length > 0) {
+    blocks.push({ kind: 'gallery', mediaIds: leftovers.map((sl) => sl.id) });
   }
   return blocks;
 };
@@ -278,18 +333,27 @@ export const composeStory = (
   const mediaOnly = isStudent && lesson.shareOption === 'MEDIA_ONLY';
 
   const slots = collectSlots(lesson);
-  const coverId = pickCover(lesson, slots);
   const pair = pickComparePair(lesson);
-  const pool = pickBodyPool(lesson, slots, coverId, pair);
+  const pool = pickBodyPool(lesson, slots, pair);
   const captions = story.captions;
+  /**
+   * 자료를 놓을 시간축. 레슨 동반 기록에만 있고, 없으면 배치가 균등
+   * 방식으로 떨어진다.
+   */
+  const window: LessonWindow = {
+    startedAt: lesson.liveLessonDetail?.startedAt,
+    durationSec: lesson.liveLessonDetail?.recordedDurationSec,
+  };
 
   const blocks: StoryBlock[] = [];
 
+  // 표지는 글자만이다 — 사진과 영상은 전부 본문으로 내려가 자기가 속한
+  // 이야기 옆에 놓인다. 맨 위에 사진 한 장을 크게 거는 것은 "그날의
+  // 얼굴"을 만들지만, 그 사진이 어느 이야기의 것인지는 지워 버린다.
   blocks.push({
     kind: 'cover',
     headline: (story.headline?.trim() || lesson.title || '레슨 기록').trim(),
     dek: story.dek?.trim() || undefined,
-    mediaId: coverId,
     date: lesson.date,
     sessionNumber: lesson.sessionNumber,
     coachName: opts.coachName,
@@ -326,7 +390,7 @@ export const composeStory = (
   }
 
   if (body.length >= SHORT_LAYOUT_MIN_PARAGRAPHS) {
-    blocks.push(...interleave(body, pool, captions));
+    blocks.push(...placeMedia(body, pool, { window, captions }));
   } else {
     // 짧은 레이아웃 — 교차 삽입을 포기하고 문단 뒤에 갤러리를 붙인다.
     body.forEach((text) => blocks.push({ kind: 'paragraph', text }));
