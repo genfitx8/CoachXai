@@ -39,6 +39,10 @@ vi.mock('../services/storage', () => {
 
   return {
     storageService: {
+      // App claims the device cache for the signed-in account on load.
+      applyCacheOwner: vi.fn().mockReturnValue(false),
+      getCacheOwner: vi.fn().mockReturnValue(null),
+      clearUserScopedData: vi.fn(),
       getLessons: vi.fn().mockReturnValue(lessons),
       getClients: vi.fn().mockReturnValue(clients),
       getCoaches: vi.fn().mockReturnValue([]),
@@ -61,6 +65,7 @@ vi.mock('../services/authService', () => ({
       phone: '010-0000-0000',
       branchId: 'branch1',
     }),
+    saveCoachProfile: vi.fn(),
     logout: vi.fn(),
   },
 }));
