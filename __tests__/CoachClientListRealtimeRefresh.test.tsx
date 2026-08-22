@@ -61,6 +61,7 @@ vi.mock('../services/authService', () => ({
       branchId: 'branch1',
     }),
     saveCoachProfile: vi.fn(),
+    renewSessionToken: vi.fn().mockResolvedValue(false),
     logout: vi.fn(),
   },
 }));

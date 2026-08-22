@@ -30,6 +30,10 @@ vi.mock('../services/apiService', () => ({
     loginClient: vi.fn(),
     setToken: vi.fn(),
     clearToken: vi.fn(),
+    getToken: vi.fn().mockReturnValue(null),
+    getTokenExpiryMs: vi.fn().mockReturnValue(null),
+    isTokenExpired: vi.fn().mockReturnValue(false),
+    refreshToken: vi.fn(),
   },
 }));
 
@@ -40,6 +44,9 @@ describe('authService logout and session persistence', () => {
     sessionStorage.clear();
     (firebaseService.isInitialized as any).mockReturnValue(false);
     (storageService.getClients as any).mockReturnValue([]);
+    (apiService.getToken as any).mockReturnValue(null);
+    (apiService.getTokenExpiryMs as any).mockReturnValue(null);
+    (apiService.isTokenExpired as any).mockReturnValue(false);
   });
 
   afterEach(() => {
@@ -47,28 +54,125 @@ describe('authService logout and session persistence', () => {
     sessionStorage.clear();
   });
 
-  it('saveSession always uses sessionStorage', () => {
+  it('keeps a coach session across app restarts (localStorage)', () => {
     authService.saveSession('COACH');
 
-    expect(sessionStorage.getItem('swingnote_session_role')).toBe('COACH');
-    expect(localStorage.getItem('swingnote_session_role')).toBeNull();
+    expect(localStorage.getItem('swingnote_session_role')).toBe('COACH');
+    expect(sessionStorage.getItem('swingnote_session_role')).toBeNull();
+
+    // A relaunch drops sessionStorage but not localStorage.
+    sessionStorage.clear();
+    expect(authService.restoreSession()).toEqual({ role: 'COACH' });
   });
 
-  it('saveSession prefers sessionStorage even when localStorage has stale session values', () => {
+  it('keeps a client session across app restarts (localStorage)', () => {
+    authService.saveSession('CLIENT', { name: 'client', phone: '010-1111-2222' });
+
+    sessionStorage.clear();
+    expect(authService.restoreSession()).toEqual({
+      role: 'CLIENT',
+      clientData: { name: 'client', phone: '010-1111-2222' },
+    });
+  });
+
+  it('keeps admin consoles tab-scoped (sessionStorage)', () => {
+    authService.saveSession('ADMIN');
+
+    expect(sessionStorage.getItem('swingnote_session_role')).toBe('ADMIN');
+    expect(localStorage.getItem('swingnote_session_role')).toBeNull();
+
+    sessionStorage.clear();
+    expect(authService.restoreSession()).toBeNull();
+  });
+
+  it('saveSession clears a session left behind in the other store', () => {
     localStorage.setItem('swingnote_session_role', 'COACH');
     localStorage.setItem(
       'swingnote_session_client_data',
       JSON.stringify({ name: 'n', phone: 'p' })
     );
 
-    authService.saveSession('CLIENT', { name: 'client', phone: '010-1111-2222' });
-
-    expect(localStorage.getItem('swingnote_session_role')).toBe('COACH');
-    expect(sessionStorage.getItem('swingnote_session_role')).toBe('CLIENT');
-    expect(authService.restoreSession()).toEqual({
-      role: 'CLIENT',
-      clientData: { name: 'client', phone: '010-1111-2222' },
+    authService.saveSession('BRANCH_ADMIN', undefined, {
+      branchId: 'b1',
+      branchName: '지점',
+      username: 'staff',
+      adminId: 'b1:staff',
     });
+
+    expect(localStorage.getItem('swingnote_session_role')).toBeNull();
+    expect(sessionStorage.getItem('swingnote_session_role')).toBe('BRANCH_ADMIN');
+    expect(authService.restoreSession()).toEqual({
+      role: 'BRANCH_ADMIN',
+      branchAdminData: {
+        branchId: 'b1',
+        branchName: '지점',
+        username: 'staff',
+        adminId: 'b1:staff',
+      },
+    });
+  });
+
+  it('restoreSession drops a persistent session whose token has expired', () => {
+    authService.saveSession('COACH');
+    (apiService.isTokenExpired as any).mockReturnValue(true);
+
+    expect(authService.restoreSession()).toBeNull();
+    expect(localStorage.getItem('swingnote_session_role')).toBeNull();
+    expect(apiService.clearToken).toHaveBeenCalled();
+  });
+
+  it('restoreSession still reads a legacy sessionStorage-only session', () => {
+    sessionStorage.setItem('swingnote_session_role', 'COACH');
+
+    expect(authService.restoreSession()).toEqual({ role: 'COACH' });
+  });
+
+  it('renewSessionToken refreshes a token that is close to expiry', async () => {
+    (apiService.isAvailable as any).mockReturnValue(true);
+    (apiService.getToken as any).mockReturnValue('jwt');
+    (apiService.getTokenExpiryMs as any).mockReturnValue(Date.now() + 60 * 60 * 1000);
+    (apiService.refreshToken as any).mockResolvedValue(true);
+
+    await expect(authService.renewSessionToken()).resolves.toBe(true);
+    expect(apiService.refreshToken).toHaveBeenCalledTimes(1);
+  });
+
+  it('renewSessionToken leaves a still-fresh token alone', async () => {
+    (apiService.isAvailable as any).mockReturnValue(true);
+    (apiService.getToken as any).mockReturnValue('jwt');
+    (apiService.getTokenExpiryMs as any).mockReturnValue(
+      Date.now() + 29 * 24 * 60 * 60 * 1000
+    );
+
+    await expect(authService.renewSessionToken()).resolves.toBe(false);
+    expect(apiService.refreshToken).not.toHaveBeenCalled();
+  });
+
+  it('renewSessionToken keeps the session when the refresh call just fails', async () => {
+    authService.saveSession('COACH');
+    (apiService.isAvailable as any).mockReturnValue(true);
+    (apiService.getToken as any).mockReturnValue('jwt');
+    (apiService.getTokenExpiryMs as any).mockReturnValue(Date.now() + 1000);
+    (apiService.refreshToken as any).mockRejectedValue(
+      Object.assign(new Error('네트워크 오류'), { status: 0 })
+    );
+
+    await expect(authService.renewSessionToken()).resolves.toBe(false);
+    expect(localStorage.getItem('swingnote_session_role')).toBe('COACH');
+  });
+
+  it('renewSessionToken ends the session when the server rejects the token', async () => {
+    authService.saveSession('COACH');
+    (apiService.isAvailable as any).mockReturnValue(true);
+    (apiService.getToken as any).mockReturnValue('jwt');
+    (apiService.getTokenExpiryMs as any).mockReturnValue(Date.now() + 1000);
+    (apiService.refreshToken as any).mockRejectedValue(
+      Object.assign(new Error('Account no longer exists'), { status: 401 })
+    );
+
+    await expect(authService.renewSessionToken()).resolves.toBe(false);
+    expect(localStorage.getItem('swingnote_session_role')).toBeNull();
+    expect(apiService.clearToken).toHaveBeenCalled();
   });
 
   it('logout clears session so login is not persisted', () => {
