@@ -99,6 +99,64 @@ body,
   background-color: var(--bg-base);
 }
 
+/* ─── Form controls: keep the dark theme through autofill ────────────────────
+   브라우저/웹뷰가 자동완성(저장된 아이디·비밀번호)으로 채운 칸은 UA 스타일시트가
+   자기 배경색(밝은 흰색/하늘색)을 깔아버린다. 우리 Input 은 배경을 감싸는
+   래퍼에 두고 <input> 자체는 bg-transparent 라, 자동완성이 들어오는 순간
+   로그인 칸만 하얗게 뜨는 이유가 이것이다.
+
+   1) color-scheme: dark  — 브라우저가 UA 컨트롤(자동완성 배경, 스크롤바,
+      날짜 피커, select 드롭다운)을 다크 팔레트로 그리게 한다.
+   2) :-webkit-autofill   — 그래도 Chromium 은 배경을 직접 칠하므로,
+      author 스타일로 덮을 수 없는 background-color 대신 inset box-shadow 로
+      --bg-overlay 를 채우고 글자색은 -webkit-text-fill-color 로 되돌린다.
+      배경 트랜지션을 사실상 무한대로 늘려 채워지는 순간의 깜빡임도 막는다.
+   ───────────────────────────────────────────────────────────────────────── */
+:root {
+  color-scheme: dark;
+}
+
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active,
+textarea:-webkit-autofill,
+textarea:-webkit-autofill:hover,
+textarea:-webkit-autofill:focus,
+select:-webkit-autofill,
+select:-webkit-autofill:hover,
+select:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--ink-high);
+  caret-color: var(--brand-500);
+  /* 자동완성 배경을 덮는 유일한 수단. 래퍼와 같은 색이라 이음매가 보이지 않는다. */
+  -webkit-box-shadow: 0 0 0 1000px var(--bg-overlay) inset;
+  box-shadow: 0 0 0 1000px var(--bg-overlay) inset;
+  border-radius: inherit;
+  transition: background-color 100000s ease-in-out 0s;
+}
+
+/* 표준 셀렉터(Firefox 및 최신 Chromium). 위 -webkit- 규칙과 같은 결과를 낸다.
+   미지원 브라우저가 규칙 전체를 버리므로 블록을 분리해 둔다. */
+input:autofill,
+textarea:autofill,
+select:autofill {
+  -webkit-text-fill-color: var(--ink-high);
+  caret-color: var(--brand-500);
+  box-shadow: 0 0 0 1000px var(--bg-overlay) inset;
+  border-radius: inherit;
+  /* Firefox 는 채워진 칸에 filter 로 색을 입힌다. */
+  filter: none;
+}
+
+/* 자동완성 목록에서 항목을 고르는 순간 Chromium 이 잠깐 입히는 강조색까지
+   우리 색으로 고정한다. */
+input:-internal-autofill-selected {
+  -webkit-text-fill-color: var(--ink-high);
+  background-color: transparent !important;
+  background-image: none !important;
+  color: var(--ink-high) !important;
+}
+
 /* ─── iOS / Android Safe Area Support ────────────────────────────────────────
    When running inside a Capacitor native shell the device safe-area-inset
    environment variables are exposed.  These utilities let components opt in
