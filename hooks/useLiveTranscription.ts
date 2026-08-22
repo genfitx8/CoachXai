@@ -25,6 +25,12 @@ import { Capacitor } from '@capacitor/core';
  * 파셜 누적 처리: 네이티브 인식기(특히 iOS)는 세션 동안 파셜이 누적
  * 성장한다. committedLen 으로 이미 확정한 접두를 잘라내 새 내용만
  * 확정한다 — 같은 문장이 두 번 적히는 것을 막는 핵심.
+ *
+ * 재전달 처리: 웹 엔진도 같은 문제를 다른 모양으로 낸다 — 모바일
+ * 브라우저는 이미 확정한 결과를 뒤늦게 다시 흘려보내고, stop 뒤에도
+ * 결과 이벤트를 하나 더 밀어 넣는다. 확정 인덱스(lastFinalIndex)와
+ * 활성 플래그로 둘 다 막는다. 코치가 겪는 "대화하지 않은 내용이
+ * 필기에 들어오는" 증상의 실제 원인이 이 두 경로다.
  */
 
 interface UseLiveTranscriptionOptions {
@@ -107,13 +113,6 @@ export function useLiveTranscription({
   const committedLenRef = useRef(0);
   const stableTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const markDegraded = useCallback(() => {
-    setDegraded(true);
-    setActive(false);
-    activeRef.current = false;
-    setInterim('');
-  }, []);
-
   /** 아직 확정 안 된 파셜 꼬리를 한 줄로 확정한다. */
   const finalizePending = useCallback((resetSession: boolean) => {
     if (stableTimerRef.current) {
@@ -133,9 +132,47 @@ export function useLiveTranscription({
     setInterim('');
   }, []);
 
+  /**
+   * 인식기를 실제로 닫는다(엔진 공용). 마이크를 놓는 것뿐 아니라 이벤트
+   * 구독까지 끊는 것이 핵심 — 리스너를 남겨 두면 멈춘 뒤에 도착한 결과가
+   * 계속 필기로 흘러 들어간다.
+   */
+  const teardownEngine = useCallback(() => {
+    if (engineRef.current === 'native') {
+      const plugin = nativePluginRef.current;
+      try {
+        void plugin?.stop();
+        void plugin?.removeAllListeners();
+      } catch {
+        // best-effort
+      }
+    } else {
+      try {
+        webRecognitionRef.current?.stop();
+      } catch {
+        // best-effort
+      }
+      webRecognitionRef.current = null;
+    }
+  }, []);
+
+  const markDegraded = useCallback(() => {
+    // 포기하기 전에 들린 말은 남기되, 인식기는 반드시 닫는다. 열어 둔 채로
+    // 포기하면 컴패니언이 AI 전사 폴백(녹음)을 켠 뒤에도 인식기가 계속
+    // 필기를 밀어 넣어 두 소스가 같은 노트에 겹쳐 쌓인다.
+    finalizePending(true);
+    setDegraded(true);
+    setActive(false);
+    activeRef.current = false;
+    setInterim('');
+    teardownEngine();
+  }, [finalizePending, teardownEngine]);
+
   /** 파셜 수신 공통 처리 — interim 갱신 + 안정화 타이머 재무장. */
   const onPartialText = useCallback(
     (full: string) => {
+      // 멈춘 뒤 늦게 도착한 결과 — 멈춘 동안의 말은 필기가 아니다.
+      if (!activeRef.current) return;
       failStreakRef.current = 0;
       partialRef.current = full;
       setInterim(full.slice(committedLenRef.current).trim());
@@ -227,16 +264,33 @@ export function useLiveTranscription({
     rec.continuous = true;
     rec.interimResults = true;
 
+    /**
+     * 이 인식 인스턴스에서 이미 확정해 내보낸 마지막 결과 인덱스.
+     *
+     * continuous 인식의 `results` 는 세션 내내 누적되는 목록이고
+     * `resultIndex` 는 "이번에 바뀐 첫 결과"를 가리켜야 하는데, 모바일
+     * 브라우저(특히 안드로이드 크롬)는 이미 확정된 결과까지 되짚는 인덱스로
+     * 이벤트를 다시 흘린다. 그대로 훑으면 아까 확정한 문장이 필기에 또
+     * 적힌다 — 코치 눈에는 "하지도 않은 말이 저절로 입력되는" 증상이다.
+     * 인스턴스마다 목록이 새로 시작하므로 인스턴스 지역 변수가 맞다.
+     */
+    let lastFinalIndex = -1;
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     rec.onresult = (e: any) => {
+      // 멈춘 뒤 늦게 도착한 결과 — 멈춘 동안의 말은 필기가 아니다.
+      if (!activeRef.current) return;
       failStreakRef.current = 0;
       let interimText = '';
       for (let i = e.resultIndex; i < e.results.length; i++) {
         const result = e.results[i];
         const text: string = result[0]?.transcript ?? '';
         if (!text.trim()) continue;
-        if (result.isFinal) onFinalRef.current(text.trim());
-        else interimText += text;
+        if (result.isFinal) {
+          if (i <= lastFinalIndex) continue; // 이미 적은 줄의 재전달
+          lastFinalIndex = i;
+          onFinalRef.current(text.trim());
+        } else interimText += text;
       }
       setInterim(interimText.trim());
     };
@@ -305,23 +359,8 @@ export function useLiveTranscription({
     activeRef.current = false;
     setActive(false);
     setInterim('');
-    if (engineRef.current === 'native') {
-      const plugin = nativePluginRef.current;
-      try {
-        void plugin?.stop();
-        void plugin?.removeAllListeners();
-      } catch {
-        // best-effort
-      }
-    } else {
-      try {
-        webRecognitionRef.current?.stop();
-      } catch {
-        // best-effort
-      }
-      webRecognitionRef.current = null;
-    }
-  }, [finalizePending]);
+    teardownEngine();
+  }, [finalizePending, teardownEngine]);
 
   const resume = useCallback(async (): Promise<boolean> => {
     if (activeRef.current) return true;

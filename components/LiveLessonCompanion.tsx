@@ -304,14 +304,14 @@ export const LiveLessonCompanion: React.FC<LiveLessonCompanionProps> = ({
         return;
       }
       void acquireWakeLock();
+      // 일시정지(검토 단계 포함) 중에는 아무것도 되살리지 않는다. 되살리면
+      // 멈춘 동안 오간 말이 필기로 들어가 코치가 레슨에서 하지 않은 대화가
+      // 기록에 남는다 — 모바일에서는 화면을 껐다 켜기만 해도 이 경로가 돈다.
+      if (session.isPaused) return;
       if (noteModeRef.current === 'speech') {
         // speech 모드: 마이크는 인식기 전담 — 인식만 되살린다.
         void transcription.resume();
-      } else if (
-        !session.isRecorderAlive &&
-        !session.isPaused &&
-        !restartInFlightRef.current
-      ) {
+      } else if (!session.isRecorderAlive && !restartInFlightRef.current) {
         restartInFlightRef.current = true;
         requestMediaStream({ audio: true })
           .then((stream) => {
@@ -443,8 +443,11 @@ export const LiveLessonCompanion: React.FC<LiveLessonCompanionProps> = ({
       void transcription.resume();
       setLessonRecState('recording');
     } else {
-      session.pause();
+      // 인식을 먼저 멈춘다 — 멈추는 순간 남아 있던 파셜(코치가 말하던
+      // 문장)은 필기로 확정되고, 그 뒤로는 세션이 일시정지라 아무것도
+      // 들어가지 않는다. 순서가 반대면 그 마지막 문장을 잃는다.
       transcription.pause();
+      session.pause();
       setLessonRecState('paused');
     }
   };
@@ -589,8 +592,10 @@ export const LiveLessonCompanion: React.FC<LiveLessonCompanionProps> = ({
       return;
     }
 
-    session.pause();
+    // 인식 → 세션 순서로 멈춘다(toggleLessonPause 와 같은 이유): 말하던
+    // 문장은 살리고, 검토하는 동안 오간 말은 필기에 넣지 않는다.
     transcription.pause();
+    session.pause();
     setLessonRecState('paused');
     const setStage = (stage: ReviewStage) =>
       setReviewDraft((d) => (d ? { ...d, stage } : d));
