@@ -1292,6 +1292,11 @@ export const LessonDetail: React.FC<LessonDetailProps> = ({ lesson, allLessons =
             media={storyMedia}
             // 학생이 "한마디 남기기"를 누르면 실제 입력이 있는 자료 탭으로 보낸다.
             onWriteReply={() => setDetailTab('SOURCE')}
+            // 기록을 소유한 쪽만 스토리의 글자를 고칠 수 있다.
+            editable={canEditOrDelete}
+            onStoryChange={(patch) =>
+              onUpdate({ ...lesson, story: { ...(lesson.story ?? {}), ...patch } })
+            }
           />
         ) : (
         <div className="max-w-4xl mx-auto p-4 space-y-6">

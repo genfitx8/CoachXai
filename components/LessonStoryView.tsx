@@ -14,7 +14,7 @@
  * 않는다.
  */
 import React, { useMemo } from 'react';
-import type { Lesson, StoryBlock } from '../types';
+import type { Lesson, LessonStory, StoryBlock } from '../types';
 import { composeStory, type ComposeStoryOptions } from '../services/lessonStoryComposer';
 import {
   StoryCompare,
@@ -49,6 +49,13 @@ export interface LessonStoryViewProps {
   media: StoryMediaMap;
   /** 학생이 "한마디 남기기"를 눌렀을 때 — 보통 자료 탭으로 보낸다. */
   onWriteReply?: () => void;
+  /**
+   * 코치 본인이 이 기록을 고칠 수 있는가. true 면 제목·리드·캡션을
+   * 스토리 위에서 그 자리에서 고친다(§8). 학생 화면에서는 언제나 false.
+   */
+  editable?: boolean;
+  /** 코치가 고친 내용을 기록에 반영한다. editable 일 때만 불린다. */
+  onStoryChange?: (patch: Partial<LessonStory>) => void;
 }
 
 /** 블록 배열에서 React key 를 만든다 — 같은 종류가 여러 번 나온다. */
@@ -72,6 +79,8 @@ export const LessonStoryView: React.FC<LessonStoryViewProps> = ({
   coachName,
   media,
   onWriteReply,
+  editable = false,
+  onStoryChange,
 }) => {
   const blocks = useMemo(
     () => composeStory(lesson, { viewer, coachName }),
@@ -89,6 +98,23 @@ export const LessonStoryView: React.FC<LessonStoryViewProps> = ({
   let inlineSeen = 0;
 
   const isDraft = lesson.approvalStatus === 'draft';
+
+  /*
+   * 코치가 손댄 스토리는 AI 가 덮지 않는다 — `editedByCoach` 를 함께
+   * 올린다(generateLessonStoryMeta 가 이 값과 헤드라인을 함께 본다).
+   */
+  const patchStory = (patch: Partial<LessonStory>) =>
+    onStoryChange?.({ ...patch, editedByCoach: true });
+
+  const captions = lesson.story?.captions;
+  const setCaption = (mediaId: string, next: string) => {
+    const merged = { ...(captions ?? {}) };
+    // 빈 캡션은 키를 지운다 — 빈 문자열을 남기면 "고쳤는데 비웠다"와
+    // "아직 안 썼다"가 구분되지 않는다.
+    if (next) merged[mediaId] = next;
+    else delete merged[mediaId];
+    patchStory({ captions: merged });
+  };
 
   return (
     <div className="w-full flex justify-center px-3 pb-8 pt-3">
@@ -124,6 +150,9 @@ export const LessonStoryView: React.FC<LessonStoryViewProps> = ({
             date={cover.date}
             sessionNumber={cover.sessionNumber}
             coachName={cover.coachName}
+            editable={editable}
+            onHeadlineChange={(headline) => patchStory({ headline })}
+            onDekChange={(dek) => patchStory({ dek: dek || undefined })}
           />
         )}
 
@@ -134,6 +163,8 @@ export const LessonStoryView: React.FC<LessonStoryViewProps> = ({
                 {renderBody(block, {
                   media,
                   onWriteReply,
+                  editable,
+                  setCaption,
                   altIndex: () => {
                     inlineSeen += 1;
                     return `레슨 자료 ${inlineSeen}/${inlineTotal}`;
@@ -151,6 +182,9 @@ export const LessonStoryView: React.FC<LessonStoryViewProps> = ({
 interface BodyContext {
   media: StoryMediaMap;
   onWriteReply?: () => void;
+  /** 코치 본인이면 캡션을 사진 밑에서 바로 쓴다. */
+  editable: boolean;
+  setCaption: (mediaId: string, next: string) => void;
   /** 호출할 때마다 다음 순번의 alt 폴백 문구를 만든다. */
   altIndex: () => string;
 }
@@ -173,6 +207,8 @@ function renderBody(block: StoryBlock, ctx: BodyContext): React.ReactNode {
           caption={block.caption}
           size={block.size}
           altFallback={ctx.altIndex()}
+          editable={ctx.editable}
+          onCaptionChange={(next) => ctx.setCaption(block.mediaId, next)}
         />
       );
     case 'compare':
