@@ -59,6 +59,29 @@ describe('LessonStoryView', () => {
     expect(screen.getByText('2026.08.19 · 3회차 · 김도현 코치')).toBeInTheDocument();
   });
 
+  it('표지에는 사진을 걸지 않는다 — 자료는 전부 본문으로 내려간다', () => {
+    const { container } = render(
+      <LessonStoryView
+        lesson={lesson({
+          reviewSections: wordy,
+          additionalMedia: [
+            { id: 'shot', url: 'https://cdn.test/shot.jpg', type: 'image', createdAt: 1 },
+          ],
+        })}
+        viewer="CLIENT"
+        media={media}
+      />
+    );
+    // 표지(<header>) 안에는 어떤 자료도 없다.
+    const header = container.querySelector('header');
+    expect(header).not.toBeNull();
+    expect(header!.querySelector('img')).toBeNull();
+    expect(header!.querySelector('video')).toBeNull();
+    expect(header!.querySelector('button')).toBeNull();
+    // 사진은 본문에 있다.
+    expect(container.querySelector('figure img')).not.toBeNull();
+  });
+
   it('사진이 문단 사이에 들어간다 — 갤러리처럼 뭉치지 않는다', () => {
     const { container } = render(
       <LessonStoryView
@@ -83,6 +106,7 @@ describe('LessonStoryView', () => {
     const { container } = render(
       <LessonStoryView
         lesson={lesson({
+          videoUrl: '',
           reviewSections: wordy,
           additionalMedia: [
             { id: 'clip', url: 'https://cdn.test/clip.mp4', type: 'video', createdAt: 1 },
@@ -94,7 +118,6 @@ describe('LessonStoryView', () => {
     );
     expect(container.querySelector('video')).toBeNull();
 
-    // 표지 영상에도 재생 버튼이 붙으므로 본문 쪽을 이름으로 집는다.
     fireEvent.click(screen.getByRole('button', { name: '레슨 자료 1/1 재생' }));
     expect(container.querySelector('video')).not.toBeNull();
   });
@@ -103,6 +126,7 @@ describe('LessonStoryView', () => {
     const { rerender } = render(
       <LessonStoryView
         lesson={lesson({
+          videoUrl: '',
           reviewSections: wordy,
           additionalMedia: [
             { id: 'shot', url: 'https://cdn.test/shot.jpg', type: 'image', createdAt: 1 },
@@ -117,6 +141,7 @@ describe('LessonStoryView', () => {
     rerender(
       <LessonStoryView
         lesson={lesson({
+          videoUrl: '',
           reviewSections: wordy,
           additionalMedia: [
             { id: 'shot', url: 'https://cdn.test/shot.jpg', type: 'image', createdAt: 1 },
@@ -273,6 +298,7 @@ describe('LessonStoryView', () => {
     const { container } = render(
       <LessonStoryView
         lesson={lesson({
+          videoUrl: '',
           shareOption: 'MEDIA_ONLY',
           reviewSections: wordy,
           additionalMedia: [

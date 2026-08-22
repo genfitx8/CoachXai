@@ -116,13 +116,11 @@ export const LessonStoryView: React.FC<LessonStoryViewProps> = ({
           </p>
         )}
 
-        {/* 표지는 전폭이라 본문 여백 밖에 그린다. */}
+        {/* 표지는 글자만 — 자료는 전부 본문에서 제 시각의 문단 옆에 놓인다. */}
         {cover && (
           <StoryCover
             headline={cover.headline}
             dek={cover.dek}
-            mediaId={cover.mediaId}
-            media={media}
             date={cover.date}
             sessionNumber={cover.sessionNumber}
             coachName={cover.coachName}

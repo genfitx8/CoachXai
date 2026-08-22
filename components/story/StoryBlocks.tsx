@@ -10,26 +10,27 @@
 import React, { useState } from 'react';
 import { Check } from 'lucide-react';
 import type { ClientFeedback, GolfData } from '../../types';
-import { StoryPolaroid, StoryVideo, type StoryMediaMap } from './StoryMedia';
+import { StoryPolaroid, type StoryMediaMap } from './StoryMedia';
 
 const HAND = "'Gaegu', 'Nanum Pen Script', cursive";
 
 // ─────────────────────────────────────────────────────────────────────
 
 /**
- * 표지 — 대표컷 위에 한 줄 제목과 날짜·회차·코치명이 얹힌다.
- * 대표컷이 없어도(사진 한 장 없는 기록) 종이 위 큰 날짜로 성립한다.
+ * 표지 — 한 줄 제목과 날짜·회차·코치명. **사진을 걸지 않는다.**
+ *
+ * 맨 위의 큰 사진은 그럴듯해 보이지만, 그 사진이 레슨의 어느 대목에서
+ * 나온 것인지를 지운다. 코치는 이야기를 하면서 그 순간을 찍는다 —
+ * 사진은 전부 본문으로 내려가 찍힌 시각의 문단 옆에 놓이고, 표지는
+ * 글의 제목만 맡는다.
  */
 export const StoryCover: React.FC<{
   headline: string;
   dek?: string;
-  mediaId?: string;
-  media: StoryMediaMap;
   date: string;
   sessionNumber?: number;
   coachName?: string;
-}> = ({ headline, dek, mediaId, media, date, sessionNumber, coachName }) => {
-  const src = mediaId ? media[mediaId] : undefined;
+}> = ({ headline, dek, date, sessionNumber, coachName }) => {
   const meta = [
     date.replace(/-/g, '.'),
     sessionNumber ? `${sessionNumber}회차` : null,
@@ -38,80 +39,28 @@ export const StoryCover: React.FC<{
     .filter(Boolean)
     .join(' · ');
 
-  // 대표컷 없음 — 종이만으로 표지를 만든다.
-  if (!src) {
-    return (
-      <header className="px-4 pt-5 pb-1">
-        <p
-          className="text-[11px] tracking-[0.1em] tabular-nums"
-          style={{ color: 'var(--paper-pencil)' }}
-        >
-          {meta}
-        </p>
-        <h1
-          className="font-bold tracking-tight mt-1"
-          style={{ fontSize: '1.35rem', lineHeight: 1.3, color: 'var(--paper-ink)', wordBreak: 'keep-all' }}
-        >
-          {headline}
-        </h1>
-        {dek && (
-          <p className="text-[13px] mt-1.5" style={{ color: '#4b5568', wordBreak: 'keep-all' }}>
-            {dek}
-          </p>
-        )}
-      </header>
-    );
-  }
-
-  // 그라디언트 + 제목 — 사진 위에도, 영상의 정지 화면 위에도 같은 것이 얹힌다.
-  const titling = (
-    <>
-      <div
-        className="absolute inset-0 pointer-events-none"
-        style={{
-          background:
-            'linear-gradient(to top, rgba(12,26,21,0.92) 0%, rgba(12,26,21,0.42) 42%, transparent 72%)',
-        }}
-      />
-      <div className="absolute left-4 right-4 bottom-3 text-left pointer-events-none">
-        <p className="text-[10px] tracking-[0.1em] tabular-nums" style={{ color: '#cfe4da' }}>
-          {meta}
-        </p>
-        <h1
-          className="font-bold tracking-tight text-white mt-0.5"
-          style={{ fontSize: '1.3rem', lineHeight: 1.3, wordBreak: 'keep-all' }}
-        >
-          {headline}
-        </h1>
-      </div>
-    </>
-  );
-
   return (
-    <header className="relative">
-      {src.type === 'video' ? (
-        /*
-         * 표지 영상은 탭하면 재생된다. 조판기가 대표컷을 본문 미디어
-         * 풀에서 빼기 때문에, 여기서 재생할 수 없으면 그 영상은 스토리
-         * 어디에서도 볼 수 없게 된다 — 기록의 본체가 영상 하나뿐인
-         * 경우가 흔하므로 이 경로가 막히면 안 된다.
-         */
-        <StoryVideo src={src} label={headline} overlay={titling} aspectRatio="16 / 9" />
-      ) : (
-        <>
-          <img
-            src={src.url}
-            alt=""
-            decoding="async"
-            className="block w-full h-auto"
-            style={{ aspectRatio: '16 / 9', objectFit: 'cover' }}
-          />
-          {titling}
-        </>
-      )}
+    <header className="px-4 pt-5 pb-1">
+      <p
+        className="text-[11px] tracking-[0.1em] tabular-nums"
+        style={{ color: 'var(--paper-pencil)' }}
+      >
+        {meta}
+      </p>
+      <h1
+        className="font-bold tracking-tight mt-1"
+        style={{
+          fontSize: '1.35rem',
+          lineHeight: 1.3,
+          color: 'var(--paper-ink)',
+          wordBreak: 'keep-all',
+        }}
+      >
+        {headline}
+      </h1>
       {dek && (
         <p
-          className="text-[13px] px-4 pt-3"
+          className="text-[13px] mt-1.5"
           style={{ color: '#4b5568', wordBreak: 'keep-all' }}
         >
           {dek}

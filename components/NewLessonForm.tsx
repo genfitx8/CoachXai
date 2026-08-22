@@ -123,6 +123,13 @@ interface PendingMedia {
   editMetadata?: VideoEditMetadata; // Populated when user edits the swing video before upload
   /** 3c handoff: mark clips that came from LiveLessonCompanion. */
   source?: 'live_lesson';
+  /**
+   * 레슨 중 실제로 찍은 시각(wall-clock ms). 저장될 때
+   * `MediaItem.createdAt` 이 된다 — 저장 시각(Date.now())으로 덮으면 레슨
+   * 중 찍은 자료가 전부 같은 시각이 되어 순서조차 알 수 없게 되고,
+   * 스토리가 자료를 "그때 이야기" 옆에 놓을 수 없다.
+   */
+  capturedAt?: number;
 }
 
 type RecordType = 'PRACTICE' | 'SCORE' | 'LESSON' | 'LIVE_LESSON';
@@ -438,6 +445,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
         duration: clip.durationSec || undefined,
         isRemote: false,
         source: 'live_lesson',
+        capturedAt: clip.capturedAt,
       };
     });
 
@@ -1335,6 +1343,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
             ? parseReviewedTranscript(reviewedTranscript)
             : null;
           liveLessonDetail = {
+            startedAt: liveSession.startedAt,
             recordedDurationSec: liveSession.recordedDurationSec,
             transcript:
               editedLines && editedLines.length > 0
@@ -1438,7 +1447,9 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
           url: item.previewUrl,
           type: item.type,
           role: item.role,
-          createdAt: Date.now(),
+          // 레슨 중 찍은 자료는 찍은 시각을 남긴다. 저장 시각으로 덮으면
+          // 전부 같은 값이 되어 촬영 순서가 사라진다.
+          createdAt: item.capturedAt ?? Date.now(),
           ...(item.source ? { source: item.source } : {}),
         }));
 

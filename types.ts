@@ -192,6 +192,13 @@ export interface LiveLessonTranscriptEntry {
  * videoUrl / additionalMedia(source: 'live_lesson')로 함께 저장된다.
  */
 export interface LiveLessonDetail {
+  /**
+   * 레슨(녹음)이 시작된 wall-clock(ms). 레슨 중 찍은 자료의
+   * `MediaItem.createdAt` 에서 이 값을 빼면 "레슨 시작 몇 초에 찍혔는지"가
+   * 나온다. 스토리 조판기가 자료를 그 시점의 이야기 옆에 놓는 데 쓴다.
+   * 구 기록에는 없다.
+   */
+  startedAt?: number;
   /** 전체 레슨 녹음 길이(초). */
   recordedDurationSec: number;
   /** 레슨 내용 텍스트 — 시간순 필기 노트. */
@@ -233,13 +240,16 @@ export interface LiveLessonDetail {
  * 둘의 인접을 다시 가정해야 한다.
  */
 export type StoryBlock =
-  /** 표지 — 대표컷 위에 한 줄 제목과 날짜·회차·코치명이 얹힌다. */
+  /**
+   * 표지 — 한 줄 제목과 날짜·회차·코치명. **자료는 싣지 않는다.**
+   * 맨 위에 사진을 크게 거는 것은 "그날의 얼굴"을 만들지만 그 사진이
+   * 어느 이야기의 것인지를 지운다. 사진과 영상은 전부 본문으로 내려가
+   * 찍힌 시각에 해당하는 문단 옆에 놓인다.
+   */
   | {
       kind: 'cover';
       headline: string;
       dek?: string;
-      /** 대표컷. `MAIN_MEDIA_ID` 면 lesson.videoUrl/thumbnailUrl 슬롯. */
-      mediaId?: string;
       date: string;
       sessionNumber?: number;
       coachName?: string;
@@ -278,8 +288,6 @@ export interface LessonStory {
   headline?: string;
   /** 리드 위에 얹는 한 줄 요약(40자 내외). */
   dek?: string;
-  /** 코치가 지정한 대표컷 — MediaItem.id 또는 `MAIN_MEDIA_ID`. */
-  coverMediaId?: string;
   /** mediaId → 손글씨 캡션. */
   captions?: Record<string, string>;
   /** 코치가 직접 짠 블록 순서(M3). 있으면 자동 조판을 건너뛴다. */

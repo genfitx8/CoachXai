@@ -13,7 +13,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   composeStory,
-  interleave,
+  placeMedia,
   toPlainParagraphs,
   MAIN_MEDIA_ID,
 } from '../services/lessonStoryComposer';
@@ -79,36 +79,33 @@ describe('toPlainParagraphs — 마크다운 장식 제거', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────
-describe('interleave — 문단과 미디어의 교차', () => {
+describe('placeMedia — 문단과 자료의 교차', () => {
   const slots = (n: number) =>
     Array.from({ length: n }, (_, i) => ({ id: `m${i}`, type: 'image' as const }));
 
-  it('미디어가 없으면 문단만 남는다', () => {
-    expect(kinds(interleave(['a', 'b'], []))).toEqual(['paragraph', 'paragraph']);
+  it('자료가 없으면 문단만 남는다', () => {
+    expect(kinds(placeMedia(['a', 'b'], []))).toEqual(['paragraph', 'paragraph']);
   });
 
-  it('연속 두 미디어 사이에 문단이 최소 하나 들어간다', () => {
-    // 문단 6 · 미디어 5 → gap=1 로 가장 촘촘한 배치가 나오는 조건
-    const blocks = kinds(interleave(['a', 'b', 'c', 'd', 'e', 'f'], slots(5)));
+  it('연속 두 자료 사이에 문단이 최소 하나 들어간다', () => {
+    const blocks = kinds(placeMedia(['a', 'b', 'c', 'd', 'e', 'f'], slots(5)));
     const isInline = (k?: string) => k === 'photo' || k === 'video';
     for (let i = 1; i < blocks.length; i++) {
       expect(isInline(blocks[i]) && isInline(blocks[i - 1])).toBe(false);
     }
   });
 
-  it('마지막 문단 뒤에는 인라인 미디어를 놓지 않는다', () => {
+  it('마지막 문단 뒤에는 인라인 자료를 놓지 않는다', () => {
     // 글의 끝은 문단이어야 다음 블록(할 일·서명)으로 자연스럽게 넘어간다.
-    // 자리를 못 얻은 미디어의 갤러리는 인라인 삽입이 아니라 꼬리 블록이다.
-    const blocks = kinds(interleave(['a', 'b', 'c', 'd'], slots(2)));
+    const blocks = kinds(placeMedia(['a', 'b', 'c', 'd'], slots(2)));
     const lastInline = blocks.lastIndexOf('photo');
     const lastParagraph = blocks.lastIndexOf('paragraph');
     expect(lastInline).toBeGreaterThanOrEqual(0);
     expect(lastParagraph).toBeGreaterThan(lastInline);
   });
 
-  it('자리를 못 얻은 미디어는 버리지 않고 갤러리로 몰아준다', () => {
-    // 문단 2 · 미디어 4 → 본문에는 한 장만 들어가고 나머지 3장은 갤러리
-    const blocks = interleave(['a', 'b'], slots(4));
+  it('자리를 못 얻은 자료는 버리지 않고 갤러리로 몰아준다', () => {
+    const blocks = placeMedia(['a', 'b'], slots(4));
     const gallery = only(blocks, 'gallery');
     expect(gallery).toHaveLength(1);
     const placed = only(blocks, 'photo').map((b) => b.mediaId);
@@ -120,24 +117,103 @@ describe('interleave — 문단과 미디어의 교차', () => {
     ]);
   });
 
-  it('삽입되는 미디어는 full / inset 을 번갈아 쓴다', () => {
-    const blocks = interleave(['a', 'b', 'c', 'd', 'e', 'f'], slots(2));
+  it('놓이는 자료는 full / inset 을 번갈아 쓴다', () => {
+    const blocks = placeMedia(['a', 'b', 'c', 'd', 'e', 'f'], slots(2));
     expect(only(blocks, 'photo').map((b) => b.size)).toEqual(['full', 'inset']);
   });
 
   it('영상 슬롯은 video 블록으로 나온다', () => {
-    const blocks = interleave(
-      ['a', 'b', 'c', 'd'],
-      [{ id: 'v1', type: 'video' }]
-    );
+    const blocks = placeMedia(['a', 'b', 'c', 'd'], [{ id: 'v1', type: 'video' }]);
     expect(only(blocks, 'video').map((b) => b.mediaId)).toEqual(['v1']);
   });
 
   it('캡션을 mediaId 로 찾아 붙인다', () => {
-    const blocks = interleave(['a', 'b', 'c', 'd'], slots(1), {
-      m0: '탑에서 팔꿈치 붙은 순간',
+    const blocks = placeMedia(['a', 'b', 'c', 'd'], slots(1), {
+      captions: { m0: '탑에서 팔꿈치 붙은 순간' },
     });
     expect(only(blocks, 'photo')[0].caption).toBe('탑에서 팔꿈치 붙은 순간');
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────
+describe('placeMedia — 찍힌 시각이 자리를 정한다', () => {
+  const T0 = 1_700_000_000_000;
+  /** 60분 레슨. */
+  const window = { startedAt: T0, durationSec: 3600 };
+  /** 레슨 시작 후 `min` 분에 찍은 자료. */
+  const shotAt = (id: string, min: number) => ({
+    id,
+    type: 'image' as const,
+    capturedAt: T0 + min * 60_000,
+  });
+
+  const TEN = Array.from({ length: 10 }, (_, i) => `문단${i + 1}`);
+
+  it('레슨 앞쪽에서 찍은 사진은 글 앞쪽에 놓인다', () => {
+    const blocks = placeMedia(TEN, [shotAt('early', 6)], { window });
+    const at = blocks.findIndex((b) => b.kind === 'photo');
+    // 10% 지점 → 문단 하나 뒤
+    expect(at).toBe(1);
+  });
+
+  it('레슨 뒤쪽에서 찍은 사진은 글 뒤쪽에 놓인다', () => {
+    const blocks = placeMedia(TEN, [shotAt('late', 48)], { window });
+    const at = blocks.findIndex((b) => b.kind === 'photo');
+    const total = blocks.length;
+    expect(at).toBeGreaterThan(total / 2);
+  });
+
+  it('찍은 순서가 글의 순서가 된다 — 배열 순서가 뒤죽박죽이어도', () => {
+    const blocks = placeMedia(
+      TEN,
+      [shotAt('세번째', 45), shotAt('첫번째', 5), shotAt('두번째', 25)],
+      { window }
+    );
+    expect(only(blocks, 'photo').map((b) => b.mediaId)).toEqual([
+      '첫번째',
+      '두번째',
+      '세번째',
+    ]);
+  });
+
+  it('마지막에 몰아 찍어도 갤러리처럼 붙지 않는다', () => {
+    // 코치가 끝나기 직전 3장을 연달아 찍는 상황 — 시각만 따르면 셋이
+    // 글 끝에 붙어 다시 갤러리가 된다.
+    const blocks = placeMedia(
+      TEN,
+      [shotAt('a', 56), shotAt('b', 57), shotAt('c', 58)],
+      { window }
+    );
+    const positions = blocks
+      .map((b, i) => (b.kind === 'photo' ? i : -1))
+      .filter((i) => i >= 0);
+    expect(positions).toHaveLength(3);
+    for (let i = 1; i < positions.length; i++) {
+      expect(positions[i] - positions[i - 1]).toBeGreaterThan(1);
+    }
+  });
+
+  it('시간축이 없으면 예전처럼 균등하게 편다', () => {
+    const withTime = kinds(placeMedia(TEN, [shotAt('a', 30)], { window }));
+    const noTime = kinds(placeMedia(TEN, [{ id: 'a', type: 'image' }]));
+    // 30분(정중앙) 자료와 균등 배치 자료는 같은 자리에 떨어진다.
+    expect(noTime.indexOf('photo')).toBe(withTime.indexOf('photo'));
+  });
+
+  it('레슨 시작 전·종료 후로 찍힌 시각이 어긋나도 범위 안에 들어온다', () => {
+    const blocks = placeMedia(
+      TEN,
+      [
+        { id: 'before', type: 'image', capturedAt: T0 - 600_000 },
+        { id: 'after', type: 'image', capturedAt: T0 + 7200_000 },
+      ],
+      { window }
+    );
+    const at = blocks
+      .map((b, i) => (b.kind === 'photo' ? i : -1))
+      .filter((i) => i >= 0);
+    expect(at).toHaveLength(2);
+    expect(blocks[blocks.length - 1].kind).toBe('paragraph');
   });
 });
 
@@ -161,39 +237,27 @@ describe('composeStory — 표지', () => {
     expect(only(blocks, 'cover')[0].headline).toBe('레슨 기록');
   });
 
-  it('대표컷은 코치 지정 → 레슨 후 영상 → 메인 슬롯 순으로 고른다', () => {
-    const media = [vid('before', { role: 'BEFORE' }), vid('after', { role: 'AFTER' })];
-
-    // 메인 슬롯이 있어도 레슨 후 영상이 우선
-    const withAfter = composeStory(
-      baseLesson({ videoUrl: 'https://cdn.test/main.mp4', additionalMedia: media }),
-      COACH
-    );
-    expect(only(withAfter, 'cover')[0].mediaId).toBe('after');
-
-    // 코치 지정이 그 위
-    const pinned = composeStory(
+  it('표지는 자료를 가져가지 않는다 — 사진이 있어도 본문으로 내려간다', () => {
+    const blocks = composeStory(
       baseLesson({
         videoUrl: 'https://cdn.test/main.mp4',
-        additionalMedia: media,
-        story: { coverMediaId: 'before' },
+        reviewSections: { todayCovered: '리드', feedback: '하나\n둘\n셋\n넷' },
+        additionalMedia: [img('a'), vid('after', { role: 'AFTER' })],
       }),
       COACH
     );
-    expect(only(pinned, 'cover')[0].mediaId).toBe('before');
+    const cover = only(blocks, 'cover')[0];
+    expect(cover).not.toHaveProperty('mediaId');
 
-    // 존재하지 않는 id 를 가리키면 무시하고 규칙대로
-    const stale = composeStory(
-      baseLesson({ additionalMedia: media, story: { coverMediaId: 'gone' } }),
-      COACH
-    );
-    expect(only(stale, 'cover')[0].mediaId).toBe('after');
+    // 표지가 안 가져갔으므로 메인 슬롯까지 전부 본문에 남는다.
+    const used = [
+      ...only(blocks, 'photo').map((b) => b.mediaId),
+      ...only(blocks, 'video').map((b) => b.mediaId),
+      ...only(blocks, 'gallery').flatMap((b) => b.mediaIds),
+    ];
+    expect(used.sort()).toEqual(['a', 'after', MAIN_MEDIA_ID].sort());
   });
 
-  it('미디어가 하나도 없으면 대표컷 없이 표지만 나온다', () => {
-    const blocks = composeStory(baseLesson(), COACH);
-    expect(only(blocks, 'cover')[0].mediaId).toBeUndefined();
-  });
 });
 
 // ─────────────────────────────────────────────────────────────────────
@@ -277,13 +341,14 @@ describe('composeStory — 짧은 글 분기', () => {
       COACH
     );
     expect(only(blocks, 'photo')).toHaveLength(0);
-    expect(only(blocks, 'gallery')[0].mediaIds).toEqual(['a', 'b', 'c']);
+    // 표지가 자료를 안 가져가므로 메인 슬롯까지 갤러리로 내려온다.
+    expect(only(blocks, 'gallery')[0].mediaIds).toEqual([MAIN_MEDIA_ID, 'a', 'b', 'c']);
   });
 
   it('짧은 글에 사진이 딱 한 장이면 갤러리 대신 그대로 놓는다', () => {
     const blocks = composeStory(
       baseLesson({
-        videoUrl: 'https://cdn.test/main.mp4',
+        // 메인 슬롯 없이 사진 딱 한 장인 기록.
         reviewSections: { todayCovered: '리드', feedback: '한 문장뿐' },
         additionalMedia: [img('a')],
       }),
@@ -352,7 +417,7 @@ describe('composeStory — 미디어 풀 구성', () => {
     expect(used.sort()).toEqual(['a', 'b']);
   });
 
-  it('대표컷과 비교 쌍은 본문 풀에서 빠진다 — 같은 사진이 두 번 나오지 않게', () => {
+  it('비교 쌍은 본문 풀에서 빠진다 — 같은 영상이 두 번 나오지 않게', () => {
     const blocks = composeStory(
       baseLesson({
         reviewSections: wordy,
@@ -364,7 +429,6 @@ describe('composeStory — 미디어 풀 구성', () => {
       }),
       COACH
     );
-    expect(only(blocks, 'cover')[0].mediaId).toBe('after');
     expect(only(blocks, 'compare')[0]).toMatchObject({
       beforeId: 'before',
       afterId: 'after',
@@ -414,15 +478,16 @@ describe('composeStory — 미디어 풀 구성', () => {
         videoUrl: 'https://cdn.test/main.mp4',
         reviewSections: { ...wordy, attachmentIds: ['a'] },
         additionalMedia: [img('a'), img('b')],
-        story: { coverMediaId: 'a' },
       }),
       COACH
     );
     const used = [
+      ...only(blocks, 'photo').map((b) => b.mediaId),
       ...only(blocks, 'video').map((b) => b.mediaId),
       ...only(blocks, 'gallery').flatMap((b) => b.mediaIds),
     ];
     expect(used).toContain(MAIN_MEDIA_ID);
+    expect(used).toContain('a');
     expect(used).not.toContain('b');
   });
 });
@@ -467,7 +532,7 @@ describe('composeStory — 뷰어별 분기', () => {
     expect(kinds(blocks)).not.toContain('notefold');
     // 그래도 빈 화면이 되지는 않는다
     expect(kinds(blocks)).toContain('cover');
-    expect(only(blocks, 'gallery')[0].mediaIds).toEqual(['a']);
+    expect(only(blocks, 'gallery')[0].mediaIds).toEqual([MAIN_MEDIA_ID, 'a']);
   });
 
   it('MEDIA_ONLY 라도 코치 본인에게는 전체가 보인다', () => {
@@ -479,6 +544,76 @@ describe('composeStory — 뷰어별 분기', () => {
     const fold = only(composeStory(full, COACH), 'notefold')[0];
     expect(fold.durationSec).toBe(2520);
     expect(fold.transcript).toHaveLength(1);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────
+describe('composeStory — 레슨 동반: 찍은 시각대로 본문에 놓인다', () => {
+  const T0 = 1_700_000_000_000;
+
+  /** 60분 레슨 · 본문 8문단 · 레슨 중 찍은 사진 3장. */
+  const liveLesson = () =>
+    baseLesson({
+      recordType: 'LIVE_LESSON',
+      reviewSections: {
+        todayCovered: '오늘은 드라이버 슬라이스를 잡았습니다',
+        feedback: ['하나', '둘', '셋', '넷', '다섯', '여섯', '일곱', '여덟'].join('\n'),
+      },
+      liveLessonDetail: {
+        startedAt: T0,
+        recordedDurationSec: 3600,
+        transcript: [{ startSec: 0, text: '시작합니다' }],
+      },
+      additionalMedia: [
+        // 배열 순서를 일부러 뒤섞어 둔다 — 시각이 순서를 정해야 한다.
+        img('중반', { createdAt: T0 + 30 * 60_000, source: 'live_lesson' }),
+        img('초반', { createdAt: T0 + 5 * 60_000, source: 'live_lesson' }),
+        img('후반', { createdAt: T0 + 50 * 60_000, source: 'live_lesson' }),
+      ],
+    });
+
+  it('표지에는 사진이 없다', () => {
+    const cover = only(composeStory(liveLesson(), COACH), 'cover')[0];
+    expect(cover).not.toHaveProperty('mediaId');
+  });
+
+  it('사진이 찍은 시각 순서대로 본문에 놓인다', () => {
+    const blocks = composeStory(liveLesson(), COACH);
+    expect(only(blocks, 'photo').map((b) => b.mediaId)).toEqual([
+      '초반',
+      '중반',
+      '후반',
+    ]);
+  });
+
+  it('각 사진 앞뒤가 문단이다 — 갤러리로 뭉치지 않는다', () => {
+    const blocks = composeStory(liveLesson(), COACH);
+    blocks.forEach((b, i) => {
+      if (b.kind !== 'photo') return;
+      expect(blocks[i - 1].kind).toBe('paragraph');
+      expect(blocks[i + 1].kind).toBe('paragraph');
+    });
+    expect(only(blocks, 'gallery')).toHaveLength(0);
+  });
+
+  it('레슨 앞쪽 사진이 뒤쪽 사진보다 글에서도 앞에 온다', () => {
+    const blocks = composeStory(liveLesson(), COACH);
+    const posOf = (id: string) =>
+      blocks.findIndex((b) => b.kind === 'photo' && b.mediaId === id);
+    expect(posOf('초반')).toBeLessThan(posOf('중반'));
+    expect(posOf('중반')).toBeLessThan(posOf('후반'));
+  });
+
+  it('레슨 시작 시각이 없는 구 기록도 배치가 무너지지 않는다', () => {
+    const legacy = liveLesson();
+    legacy.liveLessonDetail = {
+      ...legacy.liveLessonDetail!,
+      startedAt: undefined,
+    };
+    const blocks = composeStory(legacy, COACH);
+    // 시각을 못 쓰면 균등 배치로 떨어지지만 세 장 모두 본문에 놓인다.
+    expect(only(blocks, 'photo')).toHaveLength(3);
+    expect(only(blocks, 'gallery')).toHaveLength(0);
   });
 });
 

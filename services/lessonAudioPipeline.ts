@@ -202,6 +202,13 @@ export interface LessonAudioSessionMeta {
 /** 컴패니언 → 레슨 폼 핸드오프 페이로드. 노트 원본은 파이프라인이 들고 있다. */
 export interface LiveLessonHandoff {
   sessionId: string;
+  /**
+   * 레슨(녹음)이 시작된 wall-clock(ms). 레슨 중 찍은 사진·영상이 레슨의
+   * 어느 시점에 찍혔는지 계산하는 기준점이다 — 이 값이 있어야 스토리
+   * 조판기가 자료를 "그때 이야기" 밑에 놓을 수 있다.
+   * 구버전 세션 메타에는 없을 수 있어 optional.
+   */
+  startedAt?: number;
   recordedDurationSec: number;
   noteCount: number;
   /** 핸드오프 시점에 아직 분석 중이던 세그먼트 수. */
@@ -2386,6 +2393,7 @@ export class LessonAudioSession {
       durationSec: this.recordedSec,
       handoff: {
         sessionId: this.id,
+        startedAt: this.startedAt,
         recordedDurationSec: this.recordedSec,
         noteCount: this.notes.length,
         pendingCount: this.queue.pendingCount,
