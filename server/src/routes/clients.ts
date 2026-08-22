@@ -222,14 +222,35 @@ router.get('/', async (req: Request, res: Response) => {
     // coach-side member surface (학생 탭, 레슨 동반 학생 선택, 스윙 검색)
     // with members that were never the coach's. A phantom that later signs
     // up gains a password_hash via the signup merge and reappears here.
+    //
+    // 한 사람은 한 행으로. 위의 잔재 행 말고도, 같은 사람이 번호 표기만
+    // 달리해(010-1234-5678 / 01012345678) 여러 번 가입해 남은 행이 있고,
+    // 그것들이 코치 화면(특히 레슨 중 동반의 학생 선택)에서 "같은 이름·같은
+    // 번호"가 수십 줄 반복되는 목록을 만든다. 숫자만 남긴 번호 + 공백 없는
+    // 이름을 사람의 신원으로 보고, 그중 가장 최근에 갱신된 행 하나만 내려준다.
+    // 번호가 없는 행은 서로 다른 사람을 합칠 위험이 있으므로 id를 키로 삼아
+    // 절대 합치지 않는다. (관리자 콘솔은 정리 대상 원본을 봐야 하므로 그대로.)
     const result =
       req.user!.role === 'admin'
         ? await pool.query('SELECT * FROM clients ORDER BY created_at DESC')
         : await pool.query(
-            `SELECT * FROM clients
-              WHERE coach_id = $1
-                AND password_hash IS NOT NULL
-              ORDER BY created_at DESC`,
+            `SELECT * FROM (
+               SELECT DISTINCT ON (identity_key) *
+                 FROM (
+                   SELECT *,
+                          CASE
+                            WHEN REGEXP_REPLACE(COALESCE(phone, ''), '[^0-9]', '', 'g') <> ''
+                              THEN REGEXP_REPLACE(COALESCE(phone, ''), '[^0-9]', '', 'g')
+                                   || '|' || LOWER(REGEXP_REPLACE(name, '[[:space:]]', '', 'g'))
+                            ELSE 'id:' || id::text
+                          END AS identity_key
+                     FROM clients
+                    WHERE coach_id = $1
+                      AND password_hash IS NOT NULL
+                 ) scoped
+                ORDER BY identity_key, updated_at DESC NULLS LAST, created_at DESC
+             ) deduped
+             ORDER BY created_at DESC`,
             [req.user!.id]
           );
     // Coach/admin surface — carries coachMemo, which GET /me never does.

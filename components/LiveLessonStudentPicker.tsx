@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Mic, Search, User, CalendarClock, X, Loader2, ChevronLeft } from 'lucide-react';
 import { ClientProfile, LessonReservation } from '../types';
+import { clientIdentityKey, dedupeClients } from '../utils/clientRoster';
 import {
   findNearbyLessons,
   NearbyLesson,
@@ -24,7 +25,14 @@ import {
  */
 
 export interface LiveLessonStudentPickerProps {
-  /** The signed-in coach's students, already scoped and name-sorted. */
+  /**
+   * The signed-in coach's students, already scoped and name-sorted.
+   *
+   * Deduped again here: a roster that arrives with the same 이름·번호 repeated
+   * (server rows a removed sync minted, a device cache stacked on the server
+   * list) turns this screen into hundreds of identical buttons, which is the
+   * one thing a coach standing on the mat cannot use.
+   */
   clients: ClientProfile[];
   /** Coach's reservations, used to suggest who's on the mat right now. */
   reservations: LessonReservation[];
@@ -86,9 +94,12 @@ export const LiveLessonStudentPicker: React.FC<LiveLessonStudentPickerProps> = (
     [nearby, query],
   );
 
+  /** One row per person, whatever the caller handed us. */
+  const roster = useMemo(() => dedupeClients(clients), [clients]);
+
   const visibleClients = useMemo(
-    () => clients.filter((c) => matchesQuery(query, c.name, c.phone)),
-    [clients, query],
+    () => roster.filter((c) => matchesQuery(query, c.name, c.phone)),
+    [roster, query],
   );
 
   const isSearching = query.trim().length > 0;
@@ -200,7 +211,7 @@ export const LiveLessonStudentPicker: React.FC<LiveLessonStudentPickerProps> = (
           <span className="text-xs text-ink-muted">{visibleClients.length}명</span>
         </div>
 
-        {clients.length === 0 ? (
+        {roster.length === 0 ? (
           <div className="text-center py-16 bg-white/[0.03] rounded-2xl border border-dashed border-line-subtle">
             <div className="w-16 h-16 bg-white/[0.05] rounded-full flex items-center justify-center mx-auto mb-4">
               <User className="w-8 h-8 text-ink-muted" />
@@ -219,7 +230,7 @@ export const LiveLessonStudentPicker: React.FC<LiveLessonStudentPickerProps> = (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {visibleClients.map((client) => (
               <button
-                key={`${client.name}_${client.phone}`}
+                key={clientIdentityKey(client)}
                 type="button"
                 onClick={() => onSelect(client.name)}
                 data-testid="live-lesson-client-item"

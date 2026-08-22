@@ -29,6 +29,8 @@ vi.mock('../services/storage', () => ({
   storageService: {
     getLessons: vi.fn().mockReturnValue([]),
     getClients: vi.fn().mockReturnValue([]),
+    getCoachClients: vi.fn().mockReturnValue([]),
+    saveCoachClients: vi.fn(),
     getCoaches: vi.fn().mockReturnValue([]),
     getLessonPackages: vi.fn().mockReturnValue([]),
     getTrainingPrograms: vi.fn().mockReturnValue([]),

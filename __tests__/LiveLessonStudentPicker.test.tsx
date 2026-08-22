@@ -178,6 +178,23 @@ describe('LiveLessonStudentPicker', () => {
     expect(screen.getAllByTestId('live-lesson-client-item')).toHaveLength(3);
   });
 
+  it('collapses a roster that repeats the same member', () => {
+    // 폴백 캐시가 서버 목록 위에 겹치거나, 사라진 상향 동기화가 앱을 켤 때마다
+    // 같은 회원을 새 행으로 찍어 두면 명단이 이렇게 도착한다 — 전체 학생 433명,
+    // 전부 같은 이름·같은 번호. 고르는 화면에서는 사람 수만큼만 보여야 한다.
+    const flooded = [
+      ...clients,
+      makeClient('강민수', '010-1000-0001'),
+      makeClient('강 민수', '01010000001'), // 표기만 다른 같은 사람
+      makeClient('김지훈', '010-2000-0002'),
+    ];
+    renderPicker({ clients: flooded });
+
+    expect(screen.getAllByTestId('live-lesson-client-item')).toHaveLength(3);
+    expect(screen.getAllByText('강민수')).toHaveLength(1);
+    expect(screen.getByText('3명')).toBeInTheDocument();
+  });
+
   it('filters the roster by name', () => {
     renderPicker();
     fireEvent.change(screen.getByTestId('live-lesson-student-search'), {

@@ -41,6 +41,9 @@ vi.mock('../services/storage', () => {
     storageService: {
       getLessons: vi.fn().mockReturnValue(lessons),
       getClients: vi.fn().mockReturnValue(clients),
+      // 오프라인 폴백은 코치별 캐시(= 서버가 마지막으로 준 내 회원 명단)만 읽는다.
+      getCoachClients: vi.fn().mockReturnValue(clients),
+      saveCoachClients: vi.fn(),
       getCoaches: vi.fn().mockReturnValue([]),
       getLessonPackages: vi.fn().mockReturnValue([]),
       getTrainingPrograms: vi.fn().mockReturnValue([]),

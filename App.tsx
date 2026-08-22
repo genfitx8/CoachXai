@@ -44,6 +44,7 @@ import { DiagnosisProgramSection } from './components/diagnosis/DiagnosisProgram
 import { DiagnosisResultSection } from './components/diagnosis/DiagnosisResultSection';
 import { CurriculumManager } from './components/CurriculumManager';
 import { lessonBelongsToClient, normalizeName } from './utils/clientMatch';
+import { dedupeClients } from './utils/clientRoster';
 import { storageService } from './services/storage';
 import { authService } from './services/authService';
 import { firebaseService } from './services/firebase';
@@ -269,12 +270,27 @@ const AppContent: React.FC = () => {
     () => clients.find((client) => client.name === selectedClientFilter) ?? null,
     [clients, selectedClientFilter]
   );
-  /** Clients belonging to the signed-in coach, name-sorted for pickers. */
+  /**
+   * Clients belonging to the signed-in coach, deduped and name-sorted for
+   * pickers.
+   *
+   * Two guards, both learned the hard way from the 레슨 중 동반 학생 선택
+   * 목록 that listed 433명:
+   *
+   *  - No coach id in hand → no roster. The old `coachId === undefined`
+   *    comparison quietly matched every member row that carried no coach at
+   *    all, so a render before the profile settled showed strangers.
+   *  - One row per person. The member list can arrive with the same member
+   *    repeated (a device cache stacked on top of the server list, rows a
+   *    long-removed upward sync minted once per app launch), and a picker
+   *    that shows the same 이름·번호 a hundred times is unusable.
+   */
   const coachOwnClients = useMemo(() => {
     const coachId = currentUser && 'id' in currentUser ? currentUser.id : undefined;
-    return clients
-      .filter((client) => client.coachId === coachId)
-      .sort((a, b) => a.name.localeCompare(b.name));
+    if (!coachId) return [];
+    return dedupeClients(clients.filter((client) => client.coachId === coachId)).sort(
+      (a, b) => a.name.localeCompare(b.name)
+    );
   }, [clients, currentUser]);
 
   /**
@@ -615,18 +631,27 @@ const AppContent: React.FC = () => {
     const localCoachProfile = authService.getCoachProfile();
     setCoachProfile(localCoachProfile);
 
-    // 내 회원 = 학생이 나를 담당 코치로 지정한 회원, 그게 전부다. When the
-    // member list didn't come from the server (offline mode, or the API
-    // fetch failed and we fell back to this device's cache), the cache may
-    // hold members that belong to other accounts that used this browser —
-    // an admin session's full member table, demo-era rows, a previous
-    // coach's data. Keep only rows already linked to this coach so none of
-    // them ever surface as 내 회원.
-    if (role === 'COACH' && !clientsFromServer) {
+    // 내 회원 = 학생이 나를 담당 코치로 지정한 회원, 그게 전부다.
+    //
+    // 그 명단을 정할 수 있는 곳은 서버뿐이다. 공용 localStorage 캐시는 이
+    // 브라우저를 거쳐 간 계정들의 회원 표가 겹겹이 쌓인 서랍이고, 예전
+    // 상향 동기화가 로그인한 코치 id를 통째로 찍어 둔 잔재 행까지 들어 있다
+    // (레슨 중 동반 전체 학생 433명 — 같은 이름·번호가 수십 번씩 반복되던
+    // 그 목록). coachId로 걸러도 그 행들은 내 id를 달고 있어 그대로 통과하므로,
+    // 폴백은 "서버에서 받아 두었던 내 명단"(코치별 캐시)만 읽는다.
+    if (role === 'COACH') {
       const ownCoachId = localCoachProfile?.id;
-      fetchedClients = ownCoachId
-        ? fetchedClients.filter((client) => client.coachId === ownCoachId)
-        : [];
+      if (clientsFromServer) {
+        // 서버 응답이 곧 내 회원의 정본 — 다음 오프라인 실행을 위해 저장.
+        if (ownCoachId) storageService.saveCoachClients(ownCoachId, fetchedClients);
+      } else {
+        fetchedClients = ownCoachId
+          ? storageService
+              .getCoachClients(ownCoachId)
+              .filter((client) => client.coachId === ownCoachId)
+          : [];
+      }
+      fetchedClients = dedupeClients(fetchedClients);
     }
 
     // Sync designatedCoach for all clients based on coachId
@@ -880,9 +905,12 @@ const AppContent: React.FC = () => {
           delete cleaned.designatedCoach;
           return cleaned;
         });
+        // 같은 사람이 여러 줄로 오는 경우(서버에 남은 잔재 행)는 여기서도
+        // 접는다 — 폴링 결과가 loadData 결과를 덮어쓰므로 규칙이 같아야 한다.
+        const deduped = dedupeClients(next);
         // Skip the state update (and the app-wide re-render it would cause)
         // when nothing actually changed, since this fires on an interval.
-        return JSON.stringify(prev) === JSON.stringify(next) ? prev : next;
+        return JSON.stringify(prev) === JSON.stringify(deduped) ? prev : deduped;
       });
     } catch (e) {
       console.warn('[App] refreshClients failed:', e);

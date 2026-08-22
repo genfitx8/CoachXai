@@ -76,6 +76,40 @@ export const storageService = {
     }
   },
 
+  /**
+   * 코치별 회원 명단 캐시 — 오프라인 폴백 전용.
+   *
+   * `CLIENTS` 키는 이 기기를 거쳐 간 모든 계정(관리자 콘솔의 전체 회원 표,
+   * 데모 데이터, 예전 코치)이 함께 쓰던 공용 서랍이라, 코치 앱이 서버에
+   * 닿지 못할 때 그 서랍을 열면 "내가 지정받지도 않은 회원 수백 명"이
+   * 쏟아진다. 그래서 내 회원 명단은 서버에서 성공적으로 받아온 그 목록만
+   * 코치 id 별 칸에 따로 넣어 두고, 폴백 때도 그 칸만 읽는다.
+   */
+  saveCoachClients: (coachId: string, clients: ClientProfile[]) => {
+    if (!coachId) return;
+    try {
+      localStorage.setItem(
+        `${STORAGE_KEYS.CLIENTS}_coach_${coachId}`,
+        JSON.stringify(clients)
+      );
+    } catch (e) {
+      log.error('Failed to save coach clients', e);
+    }
+  },
+
+  getCoachClients: (coachId: string): ClientProfile[] => {
+    if (!coachId) return [];
+    try {
+      const data = localStorage.getItem(`${STORAGE_KEYS.CLIENTS}_coach_${coachId}`);
+      if (!data) return [];
+      const parsed = JSON.parse(data);
+      return Array.isArray(parsed) ? (parsed as ClientProfile[]) : [];
+    } catch (e) {
+      log.error('Failed to load coach clients', e);
+      return [];
+    }
+  },
+
   // Coach Methods
   getCoaches: (): CoachProfile[] => {
       try {
