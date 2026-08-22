@@ -942,7 +942,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
               <div className="absolute left-1/2 top-0 h-40 w-40 -translate-x-1/2 -translate-y-1/4 rounded-full bg-primary-600/10 blur-2xl" />
             </div>
             <div className="relative mx-auto mb-5 flex flex-col items-center gap-2">
-              <CoachXLogo size={44} orientation="vertical" tone="dark" korean />
+              <CoachXLogo size={44} orientation="vertical" tone="dark" />
             </div>
             <p className="mt-2 text-sm leading-relaxed text-ink-muted">{t('app_desc')}</p>
           </div>
