@@ -361,7 +361,7 @@ export const MemberGrowthDetailScreen: React.FC<MemberGrowthDetailScreenProps> =
 
         {/* Member identity row */}
         <div className="relative z-10 flex items-center gap-4 mb-5">
-          <div className="w-16 h-16 rounded-2xl bg-white/[0.04]/15 flex items-center justify-center text-2xl font-extrabold text-white flex-shrink-0">
+          <div className="w-16 h-16 rounded-2xl bg-white/[0.04] flex items-center justify-center text-2xl font-extrabold text-white flex-shrink-0">
             {report.clientName.charAt(0) || '?'}
           </div>
           <div className="flex-1 min-w-0">
@@ -380,17 +380,17 @@ export const MemberGrowthDetailScreen: React.FC<MemberGrowthDetailScreenProps> =
 
         {/* Quick stats strip */}
         <div className="relative z-10 grid grid-cols-3 gap-2">
-          <div className="bg-white/[0.04]/10 rounded-xl p-3 text-center">
+          <div className="bg-white/[0.04] rounded-xl p-3 text-center">
             <p className="text-lg font-bold text-white">{report.lessonCount}</p>
             <p className="text-[10px] text-white/60">{t('coachx_stat_lessons')}</p>
           </div>
-          <div className="bg-white/[0.04]/10 rounded-xl p-3 text-center">
+          <div className="bg-white/[0.04] rounded-xl p-3 text-center">
             <p className="text-lg font-bold text-white">
               {report.lessonCadence !== null ? `${report.lessonCadence}d` : '—'}
             </p>
             <p className="text-[10px] text-white/60">{t('coachx_cadence_avg_days')}</p>
           </div>
-          <div className="bg-white/[0.04]/10 rounded-xl p-3 text-center">
+          <div className="bg-white/[0.04] rounded-xl p-3 text-center">
             <p className="text-lg font-bold text-white">
               {report.daysSinceLastLesson !== null ? `${report.daysSinceLastLesson}d` : '—'}
             </p>
@@ -405,7 +405,7 @@ export const MemberGrowthDetailScreen: React.FC<MemberGrowthDetailScreenProps> =
           onClick={() => onAskCoachX(report.clientName)}
           className="w-full bg-gradient-to-r from-slate-700 to-slate-800 hover:from-slate-600 hover:to-slate-700 text-white rounded-2xl p-3.5 flex items-center gap-3 shadow-lg shadow-slate-900/15 transition-all"
         >
-          <div className="w-9 h-9 bg-white/[0.04]/20 rounded-xl flex items-center justify-center flex-shrink-0">
+          <div className="w-9 h-9 bg-white/[0.04] rounded-xl flex items-center justify-center flex-shrink-0">
             <MessageSquare className="w-4 h-4 text-white" />
           </div>
           <div className="flex-1 text-left">

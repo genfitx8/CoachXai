@@ -36,7 +36,7 @@ export const CoachReservationNotificationModal: React.FC<
             <X className="w-5 h-5" />
           </button>
           <div className="flex items-center gap-3">
-            <div className="bg-white/[0.04]/20 rounded-xl p-2">
+            <div className="bg-white/[0.04] rounded-xl p-2">
               <Bell className="w-6 h-6 fill-current" />
             </div>
             <div>
