@@ -63,6 +63,19 @@ const MAX_CONSECUTIVE_FAILURES = 4;
 const STABLE_FINALIZE_MS = 2200;
 /** 네이티브 인식기 재시작 간 딜레이 — 연속 start 로 인한 busy 오류 방지. */
 const NATIVE_RESTART_DELAY_MS = 250;
+/**
+ * 웹 인식기 재시작 간격의 기본값(실패 횟수에 비례해 늘어난다). 실패 직후
+ * 곧바로 다시 잡으면 같은 실패를 순식간에 반복해 재시도 예산만 태운다 —
+ * 현장 와이파이가 흔들릴 때 인식이 몇 초 만에 포기해 버리던 원인.
+ */
+const WEB_RESTART_BASE_MS = 400;
+/** 재시작 간격 상한. 이보다 더 벌리면 코치가 말이 안 적힌다고 느낀다. */
+const WEB_RESTART_MAX_MS = 2000;
+/**
+ * 결과 한 번 없이 이 시간 안에 끝난 인스턴스는 "엔진이 실제로 듣지 못한
+ * 것"으로 센다. 침묵으로 끝난 정상 세션은 최소 몇 초는 살아 있다.
+ */
+const WEB_DEAD_INSTANCE_MS = 1200;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type SR = any;
@@ -112,6 +125,7 @@ export function useLiveTranscription({
   const partialRef = useRef('');
   const committedLenRef = useRef(0);
   const stableTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const webRestartTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   /** 아직 확정 안 된 파셜 꼬리를 한 줄로 확정한다. */
   const finalizePending = useCallback((resetSession: boolean) => {
@@ -138,6 +152,10 @@ export function useLiveTranscription({
    * 계속 필기로 흘러 들어간다.
    */
   const teardownEngine = useCallback(() => {
+    if (webRestartTimerRef.current) {
+      clearTimeout(webRestartTimerRef.current);
+      webRestartTimerRef.current = null;
+    }
     if (engineRef.current === 'native') {
       const plugin = nativePluginRef.current;
       try {
@@ -259,27 +277,50 @@ export function useLiveTranscription({
     const Ctor = getWebRecognitionCtor();
     if (!Ctor || !activeRef.current) return;
 
+    /**
+     * 다음 인스턴스를 예약한다. 실패가 쌓일수록 간격을 벌리는 것이 핵심 —
+     * 실패 직후 곧바로 다시 잡으면 같은 실패를 순식간에 반복해 재시도
+     * 예산(MAX_CONSECUTIVE_FAILURES)을 몇 백 밀리초 만에 태워 버린다.
+     */
+    const respawn = () => {
+      if (webRestartTimerRef.current) clearTimeout(webRestartTimerRef.current);
+      const delay = Math.min(
+        WEB_RESTART_BASE_MS * failStreakRef.current,
+        WEB_RESTART_MAX_MS
+      );
+      webRestartTimerRef.current = setTimeout(() => {
+        webRestartTimerRef.current = null;
+        if (activeRef.current) spawnWeb();
+      }, delay);
+    };
+
     const rec = new Ctor();
     rec.lang = lang;
     rec.continuous = true;
     rec.interimResults = true;
 
     /**
-     * 이 인식 인스턴스에서 이미 확정해 내보낸 마지막 결과 인덱스.
+     * 이 인스턴스에서 이미 확정해 내보낸 결과 — 자리(index)별 문장.
      *
      * continuous 인식의 `results` 는 세션 내내 누적되는 목록이고
      * `resultIndex` 는 "이번에 바뀐 첫 결과"를 가리켜야 하는데, 모바일
      * 브라우저(특히 안드로이드 크롬)는 이미 확정된 결과까지 되짚는 인덱스로
-     * 이벤트를 다시 흘린다. 그대로 훑으면 아까 확정한 문장이 필기에 또
-     * 적힌다 — 코치 눈에는 "하지도 않은 말이 저절로 입력되는" 증상이다.
-     * 인스턴스마다 목록이 새로 시작하므로 인스턴스 지역 변수가 맞다.
+     * 이벤트를 다시 흘린다. 그대로 훑으면 아까 확정한 문장이 또 적힌다.
+     *
+     * 자리만 보고 자르면 안 된다 — 확정 자리를 재사용하는 엔진에서는 새
+     * 문장까지 통째로 잃어 필기가 뚝뚝 빠진다. 자리와 문장이 **둘 다**
+     * 같을 때만 재전달로 본다.
      */
-    let lastFinalIndex = -1;
+    const emittedFinals = new Map<number, string>();
+    /** 이 인스턴스가 결과를 하나라도 냈는가 — 헛도는 인스턴스 판정용. */
+    let gotResult = false;
+    let startedAt = 0;
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     rec.onresult = (e: any) => {
       // 멈춘 뒤 늦게 도착한 결과 — 멈춘 동안의 말은 필기가 아니다.
       if (!activeRef.current) return;
+      gotResult = true;
       failStreakRef.current = 0;
       let interimText = '';
       for (let i = e.resultIndex; i < e.results.length; i++) {
@@ -287,9 +328,10 @@ export function useLiveTranscription({
         const text: string = result[0]?.transcript ?? '';
         if (!text.trim()) continue;
         if (result.isFinal) {
-          if (i <= lastFinalIndex) continue; // 이미 적은 줄의 재전달
-          lastFinalIndex = i;
-          onFinalRef.current(text.trim());
+          const line = text.trim();
+          if (emittedFinals.get(i) === line) continue; // 같은 자리·같은 문장
+          emittedFinals.set(i, line);
+          onFinalRef.current(line);
         } else interimText += text;
       }
       setInterim(interimText.trim());
@@ -307,22 +349,29 @@ export function useLiveTranscription({
     rec.onend = () => {
       setInterim('');
       if (!activeRef.current) return;
+      // 결과 한 번 없이 곧바로 끝난 인스턴스는 엔진이 실제로 듣지 못한
+      // 것이다. 이걸 세지 않으면 인식은 안 되면서 재시작만 도는 상태에
+      // 갇혀, 화면에는 '실시간 인식'이 켜진 채 필기만 조용히 멈춘다.
+      if (!gotResult && Date.now() - startedAt < WEB_DEAD_INSTANCE_MS) {
+        failStreakRef.current += 1;
+      }
       if (failStreakRef.current >= MAX_CONSECUTIVE_FAILURES) {
         markDegraded();
         return;
       }
-      try {
-        spawnWeb();
-      } catch {
-        markDegraded();
-      }
+      respawn();
     };
 
     webRecognitionRef.current = rec;
     try {
+      startedAt = Date.now();
       rec.start();
     } catch {
+      // start 가 던지면 onend 도 오지 않는다 — 여기서 다시 잡지 않으면
+      // 받아쓰기가 조용히 멈춘 채 아무도 알아채지 못한다(AI 폴백도 안 붙는다).
       failStreakRef.current += 1;
+      if (failStreakRef.current >= MAX_CONSECUTIVE_FAILURES) markDegraded();
+      else respawn();
     }
   }, [lang, markDegraded]);
 
@@ -330,7 +379,11 @@ export function useLiveTranscription({
 
   const start = useCallback(async (): Promise<boolean> => {
     if (activeRef.current) return true;
-    if (degraded) return false;
+    // 새로 시작하는 요청은 지난 실패를 물려받지 않는다. 앞 레슨에서 인식이
+    // 한 번 포기됐다고 다음 레슨까지 AI 폴백으로 시작할 이유가 없다 —
+    // 포기 상태가 컴포넌트 수명 내내 남아 실시간 필기가 안 돌아왔다.
+    // (레슨 도중의 복귀는 resume 이 맡고, 그쪽은 포기 상태를 존중한다.)
+    setDegraded(false);
     activeRef.current = true;
     failStreakRef.current = 0;
     partialRef.current = '';
@@ -351,7 +404,7 @@ export function useLiveTranscription({
 
     activeRef.current = false;
     return false;
-  }, [degraded, startNative, spawnWeb]);
+  }, [startNative, spawnWeb]);
 
   const halt = useCallback(() => {
     // 멈추기 전에 쓰다 만 문장을 버리지 않고 확정한다.
@@ -372,6 +425,7 @@ export function useLiveTranscription({
     () => () => {
       activeRef.current = false;
       if (stableTimerRef.current) clearTimeout(stableTimerRef.current);
+      if (webRestartTimerRef.current) clearTimeout(webRestartTimerRef.current);
       try {
         void nativePluginRef.current?.stop();
         void nativePluginRef.current?.removeAllListeners();

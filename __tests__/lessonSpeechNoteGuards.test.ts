@@ -71,6 +71,21 @@ describe('addSpeechNote — 하지 않은 대화 차단', () => {
     ]);
   });
 
+  it('시간이 지난 뒤 다시 한 코칭 멘트는 지우지 않는다', () => {
+    const line = '체중은 왼발에 두시고요';
+    session.addSpeechNote(line);
+    session.addSpeechNote('그대로 스윙 한 번 해볼게요');
+    // 코칭 멘트는 레슨 내내 반복되는 게 정상이다 — 재전달과 달리 시간이 뜬다.
+    vi.advanceTimersByTime(10_000);
+    session.addSpeechNote(line);
+
+    expect(transcripts(session)).toEqual([
+      line,
+      '그대로 스윙 한 번 해볼게요',
+      line,
+    ]);
+  });
+
   it('짧은 맞장구는 반복돼도 지우지 않는다', () => {
     session.addSpeechNote('네');
     session.addSpeechNote('이렇게요?');
