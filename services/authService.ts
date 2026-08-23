@@ -13,6 +13,35 @@ const STORAGE_KEYS = {
   SESSION_BRANCH_ADMIN_DATA: 'swingnote_session_branch_admin_data',
 };
 
+/**
+ * 로그인 유지 정책.
+ *
+ * 코치·회원 세션은 localStorage에 남긴다 — 앱을 껐다 켜도, 브라우저를
+ * 닫았다 열어도 로그인 상태가 유지되고, 사용자가 직접 로그아웃하거나
+ * 토큰이 만료될 때까지만 끝난다(대부분의 모바일 앱과 같은 동작).
+ *
+ * 관리자·지점관리자 콘솔은 예외로 sessionStorage에 남긴다. 서버가 이
+ * 두 역할에는 12시간짜리 토큰만 발급하고(routes/auth.ts의
+ * ADMIN_JWT_EXPIRY), 공용 PC에서 쓰이는 권한 높은 화면이라 탭을 닫으면
+ * 세션도 끝나는 편이 안전하다.
+ */
+const PERSISTENT_ROLES: ReadonlySet<string> = new Set(['COACH', 'CLIENT']);
+
+/**
+ * 남은 수명이 이보다 짧아지면 앱을 열 때 토큰을 새로 받는다. 서버 토큰이
+ * 30일이므로, 일주일에 한 번만 앱을 열어도 만료에 닿지 않는다.
+ */
+const TOKEN_RENEWAL_THRESHOLD_MS = 7 * 24 * 60 * 60 * 1000;
+
+const sessionStoreFor = (role: string): Storage =>
+  PERSISTENT_ROLES.has(role) ? localStorage : sessionStorage;
+
+const clearSessionKeys = (storage: Storage): void => {
+  storage.removeItem(STORAGE_KEYS.SESSION_ROLE);
+  storage.removeItem(STORAGE_KEYS.SESSION_CLIENT_DATA);
+  storage.removeItem(STORAGE_KEYS.SESSION_BRANCH_ADMIN_DATA);
+};
+
 const createResetToken = (): string => {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
     return crypto.randomUUID().replace(/-/g, '');
@@ -467,19 +496,19 @@ export const authService = {
       adminId: string;
     }
   ) => {
-    // Auto-login is removed: always persist only in sessionStorage
-    sessionStorage.removeItem(STORAGE_KEYS.SESSION_CLIENT_DATA);
-    sessionStorage.removeItem(STORAGE_KEYS.SESSION_BRANCH_ADMIN_DATA);
+    // Wipe both stores first: whichever one this role does not use must not
+    // keep a stale session that restoreSession could later pick up (an admin
+    // signing in after a coach on the same device, and the reverse).
+    clearSessionKeys(localStorage);
+    clearSessionKeys(sessionStorage);
 
-    sessionStorage.setItem(STORAGE_KEYS.SESSION_ROLE, role);
+    const store = sessionStoreFor(role);
+    store.setItem(STORAGE_KEYS.SESSION_ROLE, role);
     if (role === 'CLIENT' && clientData) {
-      sessionStorage.setItem(
-        STORAGE_KEYS.SESSION_CLIENT_DATA,
-        JSON.stringify(clientData)
-      );
+      store.setItem(STORAGE_KEYS.SESSION_CLIENT_DATA, JSON.stringify(clientData));
     }
     if (role === 'BRANCH_ADMIN' && branchAdminData) {
-      sessionStorage.setItem(
+      store.setItem(
         STORAGE_KEYS.SESSION_BRANCH_ADMIN_DATA,
         JSON.stringify(branchAdminData)
       );
@@ -496,7 +525,25 @@ export const authService = {
       adminId: string;
     };
   } | null => {
-    const role = sessionStorage.getItem(STORAGE_KEYS.SESSION_ROLE);
+    // localStorage holds the persistent coach/client session; sessionStorage
+    // holds the tab-scoped admin ones. Read the persistent store first so a
+    // relaunch finds the session that survived, and keep reading the other as
+    // a fallback for sessions written before this became persistent.
+    const persistentRole = localStorage.getItem(STORAGE_KEYS.SESSION_ROLE);
+    const store = persistentRole ? localStorage : sessionStorage;
+    const role = persistentRole ?? sessionStorage.getItem(STORAGE_KEYS.SESSION_ROLE);
+
+    if (!role) return null;
+
+    // A stored session outlives the JWT it was created with. Once that token
+    // is provably expired the session is worthless — every protected call
+    // would 401 — so end it here rather than restoring a logged-in shell with
+    // no data behind it.
+    if (store === localStorage && apiService.isTokenExpired?.()) {
+      clearSessionKeys(localStorage);
+      apiService.clearToken();
+      return null;
+    }
 
     if (role === 'COACH') {
       return { role: 'COACH' };
@@ -508,7 +555,7 @@ export const authService = {
 
     if (role === 'CLIENT') {
       const clientData = readJson<{ name: string; phone: string }>(
-        sessionStorage,
+        store,
         STORAGE_KEYS.SESSION_CLIENT_DATA
       );
       if (clientData) return { role: 'CLIENT', clientData };
@@ -520,21 +567,50 @@ export const authService = {
         branchName: string;
         username: string;
         adminId: string;
-      }>(sessionStorage, STORAGE_KEYS.SESSION_BRANCH_ADMIN_DATA);
+      }>(store, STORAGE_KEYS.SESSION_BRANCH_ADMIN_DATA);
       if (branchAdminData) return { role: 'BRANCH_ADMIN', branchAdminData };
     }
 
     return null;
   },
 
+  /**
+   * 앱을 열 때 토큰 수명을 앞으로 밀어 준다(sliding session).
+   *
+   * 서버 토큰은 30일짜리다. 그대로 두면 로그인 화면을 다시 보게 되는
+   * 날이 오지만, 앱을 열 때마다 만료가 가까운 토큰을 새것으로 바꾸면
+   * 그 30일 창이 계속 미래로 밀린다 — 사용자가 직접 로그아웃하거나
+   * 30일 넘게 앱을 켜지 않을 때만 세션이 끝난다.
+   *
+   * 실패는 대부분 네트워크 문제이므로 세션을 건드리지 않는다. 서버가
+   * 401로 거절한 경우(탈퇴·삭제된 계정, 폐기된 토큰)만 세션을 끝낸다.
+   */
+  renewSessionToken: async (): Promise<boolean> => {
+    if (!apiService.isAvailable() || !apiService.getToken()) return false;
+
+    const expiresAt = apiService.getTokenExpiryMs?.() ?? null;
+    if (expiresAt !== null && expiresAt - Date.now() > TOKEN_RENEWAL_THRESHOLD_MS) {
+      // Still fresh — no need to spend a request on it.
+      return false;
+    }
+
+    try {
+      return await apiService.refreshToken();
+    } catch (error) {
+      if ((error as { status?: number })?.status === 401) {
+        log.warn('Session token rejected on renewal; ending the session.');
+        authService.logout();
+        return false;
+      }
+      log.warn('Session token renewal failed (kept the existing token):', error);
+      return false;
+    }
+  },
+
   logout: () => {
     apiService.clearToken();
-    localStorage.removeItem(STORAGE_KEYS.SESSION_ROLE);
-    localStorage.removeItem(STORAGE_KEYS.SESSION_CLIENT_DATA);
-    localStorage.removeItem(STORAGE_KEYS.SESSION_BRANCH_ADMIN_DATA);
-    sessionStorage.removeItem(STORAGE_KEYS.SESSION_ROLE);
-    sessionStorage.removeItem(STORAGE_KEYS.SESSION_CLIENT_DATA);
-    sessionStorage.removeItem(STORAGE_KEYS.SESSION_BRANCH_ADMIN_DATA);
+    clearSessionKeys(localStorage);
+    clearSessionKeys(sessionStorage);
   },
 
   getCoachProfile: (): CoachProfile | null => {

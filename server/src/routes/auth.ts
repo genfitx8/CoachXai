@@ -5,7 +5,7 @@ import crypto from 'crypto';
 import { rateLimit } from 'express-rate-limit';
 import pool from '../services/db';
 import { sendPasswordResetMail, sendSignupVerificationMail } from '../services/mail';
-import type { AuthRole } from '../middleware/auth';
+import { authMiddleware, type AuthRole } from '../middleware/auth';
 
 const router = Router();
 
@@ -543,6 +543,53 @@ router.post('/login/client', async (req: Request, res: Response) => {
     res.json({ token, client: mapClient(client) });
   } catch (err) {
     console.error('[auth] login/client error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// POST /api/auth/refresh — 로그인 유지를 위한 토큰 재발급
+//
+// 앱은 로그인 뒤 JWT를 기기에 보관하고, 사용자가 직접 로그아웃하기 전까지
+// 세션을 유지한다. 하지만 토큰 자체는 30일이면 만료되므로, 앱을 열 때마다
+// 만료가 가까워진 토큰을 새 토큰으로 바꿔 준다(sliding session). 30일에
+// 한 번이라도 앱을 열면 다시 로그인할 일이 없고, 그보다 오래 방치된
+// 기기에서는 토큰이 자연히 만료돼 재로그인을 요구하게 된다.
+//
+// 재발급 조건은 "지금 가진 토큰이 유효할 것" 하나다 — authMiddleware가
+// 만료·위조 토큰을 401로 막고, 아래에서 계정이 아직 살아 있는지 한 번 더
+// 확인한다. 삭제된 계정의 토큰이 영원히 갱신되면 안 되기 때문이다.
+router.post('/refresh', authMiddleware, async (req: Request, res: Response) => {
+  const user = req.user;
+  if (!user) {
+    res.status(401).json({ error: 'Invalid or expired token' });
+    return;
+  }
+
+  try {
+    if (user.role === 'coach' || user.role === 'client') {
+      const table = user.role === 'coach' ? 'coaches' : 'clients';
+      const result = await pool.query(`SELECT id FROM ${table} WHERE id = $1`, [user.id]);
+      if (result.rowCount === 0) {
+        res.status(401).json({ error: 'Account no longer exists' });
+        return;
+      }
+      res.json({ token: signToken(user.id, user.role), role: user.role });
+      return;
+    }
+
+    if (user.role === 'branch_admin') {
+      if (!user.branchId) {
+        res.status(401).json({ error: 'Invalid or expired token' });
+        return;
+      }
+      res.json({ token: signBranchAdminToken(user.id, user.branchId), role: user.role });
+      return;
+    }
+
+    // admin — 콘솔 세션은 짧게 유지한다(ADMIN_JWT_EXPIRY).
+    res.json({ token: signToken(user.id, user.role, ADMIN_JWT_EXPIRY), role: user.role });
+  } catch (err) {
+    console.error('[auth] refresh error:', err);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

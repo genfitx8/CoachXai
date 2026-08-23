@@ -48,7 +48,7 @@ import { lessonBelongsToCoach } from './utils/lessonOwnership';
 import { storageService } from './services/storage';
 import { authService } from './services/authService';
 import { firebaseService } from './services/firebase';
-import { apiService } from './services/apiService';
+import { apiService, SESSION_EXPIRED_EVENT } from './services/apiService';
 import { homeworkService } from './services/homeworkService';
 import { videoStore, IDB_PREFIX } from './services/videoStore';
 import { initializePush, unregisterCurrentDevice } from './services/pushService';
@@ -498,6 +498,14 @@ const AppContent: React.FC = () => {
     const initApp = async () => {
       // 1. Check API availability
       const hasApi = apiService.isAvailable();
+      // 로그인 유지: 저장된 토큰의 만료가 가까우면 세션을 복원하기 전에
+      // 새 토큰으로 바꾼다. 앱을 열 때마다 만료일이 뒤로 밀리므로, 직접
+      // 로그아웃하지 않는 한 다시 로그인할 일이 없다. 서버가 토큰을
+      // 거절하면(탈퇴한 계정 등) 이 안에서 세션을 정리하므로, 아래의
+      // restoreSession은 그 결과를 그대로 따른다.
+      if (hasApi && apiService.getToken()) {
+        await authService.renewSessionToken();
+      }
       const token = apiService.getToken();
       const canUseProtectedApi = hasApi && !!token;
       let sessionRole: 'COACH' | 'CLIENT' | 'ADMIN' | 'BRANCH_ADMIN' | null =
@@ -1034,6 +1042,29 @@ const AppContent: React.FC = () => {
     setCoachView('COACHX');
     setSelectedLesson(null);
   };
+
+  // 로그인 상태는 기기에 계속 남아 있으므로, 서버가 그 토큰을 더 이상
+  // 받아주지 않는 순간(만료·계정 삭제·시크릿 교체)을 앱이 알아채야 한다.
+  // 모르면 로그인된 껍데기 화면에 빈 데이터만 남는다.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const onSessionExpired = () => {
+      // 토큰은 이미 버려졌지만 세션 기록은 아직 남아 있다 — 그걸로
+      // "로그인 상태였는지"를 판단해 안내를 띄울지 정한다.
+      const wasSignedIn = !!userRole || authService.restoreSession() !== null;
+      authService.logout();
+      setUserRole(null);
+      setCurrentUser(null);
+      setBranchAdminData(null);
+      setCoachView('COACHX');
+      setSelectedLesson(null);
+      if (wasSignedIn) {
+        window.alert('로그인이 만료되었습니다. 다시 로그인해 주세요.');
+      }
+    };
+    window.addEventListener(SESSION_EXPIRED_EVENT, onSessionExpired);
+    return () => window.removeEventListener(SESSION_EXPIRED_EVENT, onSessionExpired);
+  }, [userRole]);
 
   const toggleLanguage = () => {
     const nextLang = language === 'ko' ? 'en' : language === 'en' ? 'ja' : language === 'ja' ? 'th' : 'ko';

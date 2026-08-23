@@ -21,6 +21,38 @@ const HTTP_404_ERROR = 'HTTP 404';
 /** Prefix of the server's catch-all response for an unrouted /api path. */
 const ENDPOINT_NOT_FOUND_ERROR = 'Endpoint not found';
 
+/**
+ * Fired on `window` when the server rejects our stored token on a protected
+ * call (expired, revoked, or signed with a rotated secret).
+ *
+ * 로그인 상태를 기기에 계속 남겨 두기 때문에(사용자가 직접 로그아웃할
+ * 때까지) 토큰이 서버에서 거절당하는 순간을 앱이 알아야 한다. 모르면
+ * "로그인은 되어 있는데 아무 데이터도 안 보이는" 화면에 갇힌다.
+ */
+export const SESSION_EXPIRED_EVENT = 'coachx:session-expired';
+
+/** Decode a JWT payload without verifying it — the server is the only party
+ * that can trust a token; the client only needs `exp` to know when to stop
+ * using it and when to ask for a fresh one. */
+function decodeJwtPayload(token: string): Record<string, unknown> | null {
+  const parts = token.split('.');
+  if (parts.length !== 3) return null;
+  try {
+    const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+    const padded = base64.padEnd(base64.length + ((4 - (base64.length % 4)) % 4), '=');
+    const json = decodeURIComponent(
+      atob(padded)
+        .split('')
+        .map((c) => `%${c.charCodeAt(0).toString(16).padStart(2, '0')}`)
+        .join('')
+    );
+    const payload = JSON.parse(json);
+    return payload && typeof payload === 'object' ? payload : null;
+  } catch {
+    return null;
+  }
+}
+
 export class ApiError extends Error {
   status: number;
   path: string;
@@ -77,6 +109,20 @@ export function isEndpointMissingError(error: unknown): boolean {
   return message === '' || message === HTTP_404_ERROR;
 }
 
+/** Guards against a burst of parallel 401s announcing the same dead session
+ * (and, with it, a stack of "다시 로그인해 주세요" alerts). Reset whenever a
+ * new token is stored. */
+let sessionExpiredAnnounced = false;
+
+function notifySessionExpired(): void {
+  localStorage.removeItem(TOKEN_KEY);
+  if (sessionExpiredAnnounced) return;
+  sessionExpiredAnnounced = true;
+  if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
+    window.dispatchEvent(new CustomEvent(SESSION_EXPIRED_EVENT));
+  }
+}
+
 async function req<T = unknown>(method: string, path: string, body?: unknown): Promise<T> {
   const token = localStorage.getItem(TOKEN_KEY);
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
@@ -96,6 +142,14 @@ async function req<T = unknown>(method: string, path: string, body?: unknown): P
     const err = await res.json().catch(() => null);
     const serverMessage: string | null = err?.error || err?.message || null;
     const message = serverMessage || `HTTP ${res.status}`;
+    // A 401 outside /api/auth means the token we sent is no longer accepted
+    // (every 401 the auth routes themselves raise is a *credential* failure —
+    // a wrong password on a login form — not a dead session). Drop the token
+    // and tell the app, so the persistent session ends at the login screen
+    // instead of an empty dashboard.
+    if (res.status === 401 && !path.startsWith('/api/auth/')) {
+      notifySessionExpired();
+    }
     throw new ApiError(
       message,
       res.status,
@@ -211,6 +265,7 @@ export const apiService = {
       localStorage.removeItem(TOKEN_KEY);
       return;
     }
+    sessionExpiredAnnounced = false;
     localStorage.setItem(TOKEN_KEY, token);
   },
   clearToken() { localStorage.removeItem(TOKEN_KEY); },
@@ -223,6 +278,35 @@ export const apiService = {
       return null;
     }
     return raw;
+  },
+
+  /** Expiry of the stored token in ms since epoch, or null when there is no
+   * token or it carries no `exp`. */
+  getTokenExpiryMs(): number | null {
+    const token = this.getToken();
+    if (!token) return null;
+    const exp = decodeJwtPayload(token)?.exp;
+    return typeof exp === 'number' ? exp * 1000 : null;
+  },
+
+  /** True only when a token exists and has already expired. A token we cannot
+   * read an `exp` out of is left to the server to judge. */
+  isTokenExpired(): boolean {
+    const expiresAt = this.getTokenExpiryMs();
+    return expiresAt !== null && expiresAt <= Date.now();
+  },
+
+  /**
+   * Swap the stored token for a fresh one so the session keeps sliding
+   * forward. Returns false when there is nothing to renew or the server
+   * refused — the caller decides whether that ends the session.
+   */
+  async refreshToken(): Promise<boolean> {
+    if (!BASE_URL || !this.getToken()) return false;
+    const data = await req<{ token?: string }>('POST', '/api/auth/refresh');
+    if (!data?.token) return false;
+    this.setToken(data.token);
+    return true;
   },
 
   // ── Auth ──────────────────────────────────────────────────────────────────
