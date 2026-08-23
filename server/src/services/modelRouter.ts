@@ -62,6 +62,14 @@ const FALLBACK_DEFAULT_MODEL = 'gemini-2.5-flash';
  *      pro 를 쓰지 않는 이유: 10초 받아쓰기는 추론이 아니라 청취 정확도
  *      문제이고, 레슨당 ~300회 호출되는 실시간 경로라 pro 급의 지연과
  *      preview rate limit 이 "옆에서 받아 적는" UX 자체를 깨뜨린다.
+ *
+ * Activation record — 2026-08-24 (정밀 전사 패스 도입)
+ *   실시간 필기(lesson_audio_transcribe)는 짧은 구간을 따로따로 받아 적어
+ *   빠른 대신 경계에서 문장이 잘리고 맥락이 없다. 검토 단계에서 같은
+ *   녹음을 5분 조각으로 다시 받아 적는 lesson_audio_precise_transcribe 를
+ *   추가하고, 이 경로만 pro 티어로 둔다 — 코치가 기다리는 단계라 지연
+ *   예산이 있고, 레슨 기록의 최종 정확도가 여기서 결정된다.
+ *
  *    - preview 모델은 예고 후 퇴역(404)될 수 있고 rate limit 도 더
  *      빡빡하다 — routes/ai.ts 가 404/429 시 기본 모델로 1회 폴백해
  *      유료 레슨 도중 요약이 통째로 죽는 일을 막는다.
@@ -88,6 +96,13 @@ const FEATURE_MODEL_OVERRIDES: Record<string, string> = {
   // 품질은 최신 GA flash 로 올리되, 지연·rate limit 때문에 pro 는 쓰지
   // 않는다(위 activation record 참고).
   lesson_audio_transcribe: 'gemini-3.6-flash',
+
+  // 검토 단계의 정밀 전사 — 5분짜리 오디오를 통째로 다시 받아 적는다.
+  // 레슨당 10회 안팎이고 코치가 결과를 기다리는 단계라 지연 예산이 넉넉한
+  // 대신, 이 패스의 정확도가 곧 레슨 기록의 정확도다. 긴 오디오에서 대화
+  // 흐름을 놓치지 않는 능력이 필요해 요약 3경로와 같은 pro 티어로 둔다.
+  // (429/404 시 routes/ai.ts 가 기본 모델로 1회 폴백한다.)
+  lesson_audio_precise_transcribe: 'gemini-3.1-pro-preview',
 
   // 필기 전체를 읽고 줄마다 화자 역할을 배정하는 텍스트 분류. 레슨당
   // 1~2회뿐이라 지연 예산은 넉넉하지만, 판단 근거가 대화 흐름 하나뿐이라

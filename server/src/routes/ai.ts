@@ -59,8 +59,10 @@ const DEFAULT_TEMPERATURE_BY_FEATURE: Record<string, number> = {
   // 레슨 오디오 세그먼트 전사+노트 추출 — 들리는 내용에 충실해야 하므로
   // OCR 수준으로 낮게 유지한다.
   lesson_audio_segment: 0.2,
-  // ~10초 구간 받아쓰기(필기 노트) — 순수 전사라 최저 온도.
+  // 구간 받아쓰기(필기 노트) — 순수 전사라 최저 온도.
   lesson_audio_transcribe: 0.1,
+  // 검토 단계의 정밀 전사(5분 조각 통째 받아쓰기) — 같은 이유로 최저 온도.
+  lesson_audio_precise_transcribe: 0.1,
   // 필기 줄마다 화자 역할(코치/학생/주변) 배정 — 분류 작업이라 최저 온도.
   lesson_speaker_label: 0.1,
   // 오인식된 골프 용어를 코칭 언어로 되돌리는 교정 — 정해진 어휘로

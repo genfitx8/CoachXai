@@ -71,7 +71,7 @@ const log = createLogger('lessonAudio');
  * 고른다 — 전사는 최신 GA flash, 요약(lesson_live_summary /
  * lesson_summary_merge)은 pro 티어(유료 코치 기능이라 품질 우선).
  */
-export const SEGMENT_TARGET_SEC = 10;
+export const SEGMENT_TARGET_SEC = 20;
 /**
  * 하단 "요약 노트" 갱신 주기. 필기(전사)와 달리 요약은 맥락이 어느 정도
  * 쌓여야 의미가 있어 5분에 한 번 전체 필기를 다시 요약한다.
@@ -98,6 +98,18 @@ export const SPEECH_REPEAT_WINDOW_MS = 4_000;
  * 레슨 중에 실제로 여러 번 나오므로 길이가 있는 줄에만 적용한다.
  */
 export const SPEECH_REPEAT_MIN_LEN = 12;
+/**
+ * 정밀 전사 한 조각의 목표 길이(초).
+ *
+ * 실시간 필기는 짧은 구간을 따로따로 받아 적어 빠르지만, 구간 경계에서
+ * 문장이 잘리고 앞뒤 맥락이 없어 정확도에 천장이 있다. 검토 단계에서는
+ * 같은 오디오를 훨씬 긴 조각으로 다시 한 번 받아 적는다 — 5분이면 대화
+ * 흐름이 통째로 들어가 어휘·화자 판단이 크게 좋아지고, opus 48kbps 기준
+ * 약 1.8MB(base64 2.4MB)라 서버 10MB 한도에도 여유가 있다.
+ */
+export const PRECISE_SLICE_SEC = 300;
+/** 정밀 전사 동시 실행 한도 — 검토 대기 시간과 rate limit 의 절충. */
+export const PRECISE_CONCURRENCY = 3;
 /**
  * 컨테이너 헤더 탐색 재시도 상한. 헤더는 런 바이트 스트림의 접두라 청크가
  * 하나 더 올 때마다 다시 찾을 수 있지만, 경계를 못 찾는 컨테이너에 무한정
@@ -593,6 +605,26 @@ export const findInitSegmentEnd = (bytes: Uint8Array): number => {
   return -1;
 };
 
+/**
+ * 청크 묶음의 앞부분에서 컨테이너 헤더(init segment)를 떼어낸다.
+ * 헤더는 런 바이트 스트림의 접두이므로 앞쪽 몇 조각만 보면 된다.
+ */
+const extractInitSegment = async (
+  chunks: Blob[],
+  mime: string
+): Promise<Blob | null> => {
+  if (chunks.length === 0) return null;
+  const prefix = new Blob(chunks, { type: mime });
+  try {
+    const buf = await prefix.arrayBuffer();
+    const end = findInitSegmentEnd(new Uint8Array(buf));
+    if (end <= 0) return null;
+    return prefix.slice(0, end, mime);
+  } catch {
+    return null;
+  }
+};
+
 const toStringArray = (value: unknown, max = 8): string[] => {
   if (!Array.isArray(value)) return [];
   return value
@@ -907,8 +939,10 @@ export const buildTranscribePrompt = (ctx: SegmentPromptContext): string => {
         .map((t) => `- ${SPEAKER_LABELS[t.speaker] || '미상'}: ${t.text}`)
         .join('\n')}`
     : '';
-  return `골프 레슨 현장 녹음의 짧은 구간(${window}, 학생: ${ctx.studentName})입니다.
-이 구간에서 들리는 말을 **화자별로 나눠** 받아 적으세요. JSON 하나만 반환합니다:
+  return `골프 레슨 현장 녹음의 한 구간(${window}, 학생: ${ctx.studentName})입니다.
+실내 골프연습장에서 코치와 학생이 나누는 대화이고, 타구음·기계음·옆 타석
+소음이 섞여 있습니다. 이 구간에서 들리는 말을 **화자별로 나눠** 받아 적으세요.
+JSON 하나만 반환합니다:
 {"turns":[{"speaker":"coach","text":"..."},{"speaker":"student","text":"..."}]}
 
 speaker 는 셋 중 하나입니다:
@@ -916,8 +950,15 @@ speaker 는 셋 중 하나입니다:
 - "student": 레슨을 받는 학생(${ctx.studentName}). 질문하거나 짧게 대답하고("네", "이렇게요?"), 자기 느낌·통증·어려움을 말합니다.
 - "other": 옆 타석·동반자·지나가는 사람 등 이 레슨과 무관한 제3자.
 
+이 레슨에서 자주 나오는 코칭 어휘입니다. 발음이 비슷해 헷갈리는 자리에서는
+일반 낱말 대신 아래 용어로 알아들으세요(억지로 끼워 맞추지는 마세요):
+${GOLF_TERM_HINTS}
+
 규칙:
 - 들리는 그대로, 자연스러운 한국어 문장으로 적으세요. 요약하지 마세요.
+- 짧은 대답·맞장구("네", "아 네", "이렇게요?")도 빠뜨리지 말고 적으세요.
+- 말끝이 흐려지거나 겹쳐도 들리는 만큼 적으세요. 문장을 다듬어 바꾸지 마세요.
+- 숫자·단위는 말한 그대로 적으세요("일곱 번 아이언", "캐리 백오십").
 - 화자가 바뀔 때마다 turns 항목을 새로 만들고, 같은 사람이 이어 말하면 한 항목에 담으세요.
 - 목소리 구분이 확실하지 않으면 **말의 내용**으로 판단하세요 — 지시·설명은 코치, 질문·응답은 학생.
 - 이 레슨과 무관한 잡담이나 멀리서 들리는 목소리는 "other" 로 표시하세요. 지우지 말고 표시만 하세요.
@@ -1157,6 +1198,153 @@ const collectRepairTargets = (notes: LessonSegmentNote[]): RepairTarget[] => {
     }
   }
   return out;
+};
+
+// ─── 정밀 전사 (검토 단계의 두 번째 패스) ───────────────────────────────────
+
+/** 정밀 전사에 넘길 오디오 한 조각 — 그 자체로 디코딩되는 파일이다. */
+export interface TranscriptionSlice {
+  blob: Blob;
+  startSec: number;
+  durationSec: number;
+}
+
+export const buildPreciseTranscribePrompt = (ctx: {
+  studentName: string;
+  startSec: number;
+  durationSec: number;
+}): string => {
+  const window = `${formatClock(ctx.startSec)}–${formatClock(
+    ctx.startSec + ctx.durationSec
+  )}`;
+  return `실내 골프연습장에서 코치가 학생(${ctx.studentName})을 가르치는 현장 녹음입니다.
+레슨의 ${window} 구간 전체가 담겨 있습니다. 처음부터 끝까지 **빠짐없이** 받아 적으세요.
+
+JSON 하나만 반환합니다:
+{"turns":[{"speaker":"coach","text":"..."},{"speaker":"student","text":"..."}]}
+
+speaker 는 셋 중 하나입니다:
+- "coach": 레슨을 진행하는 코치. 동작을 지시·교정·설명하고, 드릴을 시키고, 수치나 시범을 말합니다.
+- "student": 레슨을 받는 학생(${ctx.studentName}). 질문하거나 짧게 대답하고("네", "이렇게요?"), 자기 느낌·통증·어려움을 말합니다.
+- "other": 옆 타석·동반자·지나가는 사람 등 이 레슨과 무관한 제3자.
+
+이 레슨에서 자주 나오는 코칭 어휘입니다. 발음이 비슷해 헷갈리는 자리에서는
+일반 낱말 대신 아래 용어로 알아들으세요(억지로 끼워 맞추지는 마세요):
+${GOLF_TERM_HINTS}
+
+규칙:
+- 들리는 그대로, 자연스러운 한국어 문장으로 적으세요. 요약·생략은 하지 마세요.
+- 타구음·기계음·옆 타석 소음이 섞여 있습니다. 소음 사이에 묻힌 말도 끝까지 들으세요.
+- 짧은 대답·맞장구("네", "아 네", "이렇게요?")도 빠뜨리지 말고 적으세요.
+- 숫자·단위는 말한 그대로 적으세요("일곱 번 아이언", "캐리 백오십").
+- 화자가 바뀔 때마다 turns 항목을 새로 만들고, 같은 사람이 이어 말하면 한 항목에 담으세요.
+- 목소리 구분이 확실하지 않으면 **말의 내용**으로 판단하세요 — 지시·설명은 코치, 질문·응답은 학생.
+- 들리지 않는 내용을 지어내지 마세요. 발화가 전혀 없으면 {"turns":[]} 를 반환하세요.`;
+};
+
+/** 조각 하나를 정밀 전사한다. 테스트에서 주입할 수 있게 분리한다. */
+export type SliceTranscriber = (
+  slice: TranscriptionSlice,
+  mimeType: string,
+  studentName: string
+) => Promise<TranscriptTurn[]>;
+
+const defaultSliceTranscriber: SliceTranscriber = async (
+  slice,
+  mimeType,
+  studentName
+) => {
+  const data = await blobToBase64(slice.blob);
+  const result = await invokeBackendAI<unknown>('lesson_audio_precise_transcribe', {
+    prompt: buildPreciseTranscribePrompt({
+      studentName,
+      startSec: slice.startSec,
+      durationSec: slice.durationSec,
+    }),
+    mediaParts: [{ inlineData: { data, mimeType } }],
+    responseMimeType: 'application/json',
+    responseSchema: transcribeSchema,
+  });
+  const text = getResponseText(result);
+  if (text == null) throw new Error('정밀 전사 응답이 비어 있습니다.');
+  return parseTranscriptTurns(text);
+};
+
+/**
+ * 레슨 오디오를 긴 조각으로 다시 받아 적어 **새 필기 배열**을 만든다.
+ *
+ * 왜 두 번 받아 적나: 실시간 필기는 짧은 구간을 따로따로 전사해 빠르지만,
+ * 구간 경계에서 문장이 잘리고 앞뒤 맥락이 없어 정확도에 천장이 있다. 검토
+ * 단계에서는 기다릴 여유가 있으므로 같은 오디오를 5분짜리 조각으로 다시
+ * 들려 준다 — 대화 흐름이 통째로 들어가 어휘도 화자 구분도 좋아진다.
+ *
+ * 실패한 조각의 구간은 실시간 필기를 그대로 남긴다. 정밀 전사가 부분적으로
+ * 실패했다고 그 시간대 필기를 통째로 잃어서는 안 된다.
+ */
+export const preciseTranscribeNotes = async (
+  slices: TranscriptionSlice[],
+  liveNotes: LessonSegmentNote[],
+  studentName: string,
+  mimeType: string,
+  transcriber: SliceTranscriber = defaultSliceTranscriber
+): Promise<LessonSegmentNote[] | null> => {
+  if (slices.length === 0) return null;
+
+  const results = new Array<TranscriptTurn[] | null>(slices.length).fill(null);
+  let cursor = 0;
+  const worker = async (): Promise<void> => {
+    for (;;) {
+      const i = cursor++;
+      if (i >= slices.length) return;
+      try {
+        results[i] = await transcriber(slices[i], mimeType, studentName);
+      } catch (err) {
+        log.warn(`정밀 전사 실패(${i + 1}/${slices.length}) — 실시간 필기 유지:`, err);
+      }
+    }
+  };
+  await Promise.all(
+    Array.from({ length: Math.min(PRECISE_CONCURRENCY, slices.length) }, worker)
+  );
+
+  if (results.every((r) => r === null)) return null;
+
+  const out: LessonSegmentNote[] = [];
+  slices.forEach((slice, i) => {
+    const turns = results[i];
+    if (turns === null) {
+      // 이 구간만 실시간 필기로 메운다.
+      const end = slice.startSec + slice.durationSec;
+      out.push(
+        ...liveNotes.filter(
+          (n) =>
+            n.status === 'done' &&
+            n.transcript &&
+            n.startSec >= slice.startSec &&
+            n.startSec < end
+        )
+      );
+      return;
+    }
+    if (turns.length === 0) return; // 발화 없는 구간
+    out.push({
+      index: 0, // 아래에서 시간 순으로 다시 매긴다
+      startSec: slice.startSec,
+      durationSec: slice.durationSec,
+      status: 'done',
+      transcript: joinTranscriptTurns(turns),
+      turns,
+      keyPoints: [],
+      drills: [],
+      metrics: [],
+      studentState: '',
+    });
+  });
+
+  if (out.length === 0) return null;
+  return out
+    .sort((a, b) => a.startSec - b.startSec)
+    .map((n, i) => ({ ...n, index: i }));
 };
 
 /**
@@ -2151,18 +2339,9 @@ export class LessonAudioSession {
    * 있어 첫 청크만으로는 경계가 안 잡히는데, 그때는 청크가 하나 더 올 때마다
    * 다시 찾으면 잡힌다.
    */
-  private async searchRunHeader(): Promise<Blob | null> {
-    const mime = this.mimeType || 'audio/webm';
+  private searchRunHeader(): Promise<Blob | null> {
     // 호출 시점의 청크로 고정한다 — 이후 도착하는 청크는 다음 탐색 몫이다.
-    const prefix = new Blob(this.archiveChunks, { type: mime });
-    try {
-      const buf = await prefix.arrayBuffer();
-      const end = findInitSegmentEnd(new Uint8Array(buf));
-      if (end <= 0) return null;
-      return prefix.slice(0, end, mime);
-    } catch {
-      return null;
-    }
+    return extractInitSegment([...this.archiveChunks], this.mimeType || 'audio/webm');
   }
 
   /** 헤더를 얻는다. 아직 못 찾았으면 상한까지 한 번 더 찾아본다. */
@@ -2428,6 +2607,104 @@ export class LessonAudioSession {
     return idbPut(SESSION_STORE, this.id, meta).catch((err) => {
       log.warn('세션 메타 저장 실패:', err);
     });
+  }
+
+  /**
+   * 아직 청크로 떨어지지 않은 꼬리 오디오를 지금 받아 둔다.
+   *
+   * 타임슬라이스는 정해진 간격으로만 청크를 내놓으므로, 레슨을 끝낸 시점에
+   * 마지막 간격만큼의 녹음이 레코더 버퍼에 남아 있다. 코치가 레슨을
+   * 마무리하며 정리해 주는 대목이 딱 그 자리라, 검토 전에 비워 두지 않으면
+   * 정밀 전사도 실시간 필기도 그 몇십 초를 통째로 놓친다.
+   */
+  async flushRecordedTail(): Promise<void> {
+    const recorder = this.recorder;
+    if (!recorder || recorder.state === 'inactive') return;
+    try {
+      recorder.requestData();
+    } catch {
+      // 일부 구현은 일시정지 중 requestData 를 거부한다 — 꼬리는 stop() 이
+      // 어차피 회수하므로 여기서는 조용히 넘어간다.
+      return;
+    }
+    // dataavailable 은 다음 태스크에 온다 — 한 틱 양보해 청크를 받아 둔다.
+    await new Promise<void>((resolve) => setTimeout(resolve, 0));
+  }
+
+  /**
+   * 레슨 오디오를 "그 자체로 디코딩되는" 긴 조각들로 나눠 돌려준다 —
+   * 검토 단계의 정밀 전사가 쓴다.
+   *
+   * 각 조각은 그 런의 컨테이너 헤더로 시작한다(런의 첫 조각은 헤더를 이미
+   * 품고 있으므로 덧붙이지 않는다). 헤더를 못 찾은 런은 통째로 건너뛴다 —
+   * 디코딩 못 하는 오디오를 모델에 보내면 없는 대화를 지어낼 뿐이다.
+   */
+  async getTranscriptionSlices(
+    sliceSec: number = PRECISE_SLICE_SEC
+  ): Promise<TranscriptionSlice[]> {
+    const mime = this.mimeType || 'audio/webm';
+    const target = this.opts.segmentTargetSec ?? SEGMENT_TARGET_SEC;
+    const perSlice = Math.max(1, Math.round(sliceSec / target));
+    const out: TranscriptionSlice[] = [];
+
+    for (let i = 0; i < this.runs.length; i++) {
+      const run = this.runs[i];
+      const isLast = i === this.runs.length - 1;
+      const endChunk = isLast ? this.chunkCount : this.runs[i + 1].firstChunk;
+      const endSec = isLast ? this.recordedSec : this.runs[i + 1].baseSec;
+
+      // 마지막(현재) 런만 메모리에 있고, 재개 전 런들은 IDB 아카이브에서 읽는다.
+      let chunks: Blob[];
+      if (isLast) {
+        chunks = [...this.archiveChunks];
+      } else {
+        chunks = [];
+        for (let c = run.firstChunk; c < endChunk; c++) {
+          const blob = await idbGet<Blob>(BLOB_STORE, chunkKey(this.id, c)).catch(
+            () => undefined
+          );
+          if (blob) chunks.push(blob);
+        }
+      }
+      if (chunks.length === 0) continue;
+
+      const header = await extractInitSegment(chunks.slice(0, 3), mime);
+      if (!header) {
+        log.warn('정밀 전사: 런 헤더를 찾지 못해 건너뜁니다.');
+        continue;
+      }
+
+      for (let o = 0; o < chunks.length; o += perSlice) {
+        const part = chunks.slice(o, o + perSlice);
+        const startSec = run.baseSec + o * target;
+        const durationSec = Math.max(
+          1,
+          Math.min(part.length * target, endSec - startSec)
+        );
+        out.push({
+          // 런의 첫 조각은 헤더를 이미 포함한다 — 덧붙이면 헤더가 두 번 온다.
+          blob: new Blob(o === 0 ? part : [header, ...part], { type: mime }),
+          startSec,
+          durationSec,
+        });
+      }
+    }
+    return out;
+  }
+
+  /**
+   * 정밀 전사 결과로 필기를 통째로 갈아 끼운다. 검토 단계에서만 부른다 —
+   * 진행 중인 분석이 정리된 뒤라야 인덱스가 엇갈리지 않는다.
+   */
+  applyPreciseNotes(notes: LessonSegmentNote[]): void {
+    if (notes.length === 0) return;
+    this.notes = [...notes].sort((a, b) => a.index - b.index);
+    this.noteSeq = Math.max(...this.notes.map((n) => n.index)) + 1;
+    // 겹침 판정 기준도 새 필기에 맞춰 비운다.
+    this.lastSpeechRaw = '';
+    this.recentSpeechRaw = [];
+    this.emitNotes();
+    void this.persistMeta();
   }
 
   /** 녹음 종료. 마지막 세그먼트 분석은 백그라운드 큐에서 계속된다. */
