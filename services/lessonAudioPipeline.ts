@@ -92,6 +92,12 @@ export const SPEECH_REPEAT_WINDOW = 6;
  * 레슨 중에 실제로 여러 번 나오므로 길이가 있는 줄에만 적용한다.
  */
 export const SPEECH_REPEAT_MIN_LEN = 12;
+/**
+ * 컨테이너 헤더 탐색 재시도 상한. 헤더는 런 바이트 스트림의 접두라 청크가
+ * 하나 더 올 때마다 다시 찾을 수 있지만, 경계를 못 찾는 컨테이너에 무한정
+ * 매달리지 않도록 상한을 둔다(10초 청크 기준 ~1분).
+ */
+export const INIT_SEARCH_MAX_ATTEMPTS = 6;
 /** 세그먼트 분석 동시 실행 한도. */
 export const ANALYSIS_CONCURRENCY = 2;
 /** 세그먼트 분석 재시도 횟수(최초 시도 포함). */
@@ -1883,8 +1889,10 @@ export class LessonAudioSession {
   private lastSpeechRaw = '';
   /** 녹음 런 경계 — beginRun 마다 하나씩 쌓인다. */
   private runs: RecordingRunMarker[] = [];
-  /** 현재 런 첫 청크에서 떼어낸 컨테이너 헤더 — 이후 청크에 접두. */
+  /** 현재 런에서 떼어낸 컨테이너 헤더 — 이후 청크에 접두. */
   private initSegment: Promise<Blob | null> | null = null;
+  /** 헤더 탐색 시도 횟수 — INIT_SEARCH_MAX_ATTEMPTS 까지만 다시 찾는다. */
+  private initSearchAttempts = 0;
   private recordedSec = 0;
   private lastSummaryAtSec = 0;
   private paused = false;
@@ -2020,6 +2028,7 @@ export class LessonAudioSession {
     this.runs.push({ firstChunk: this.chunkCount, baseSec: this.recordedSec });
     this.archiveChunks = [];
     this.initSegment = null;
+    this.initSearchAttempts = 0;
 
     const recorderOpts: MediaRecorderOptions = {
       audioBitsPerSecond: AUDIO_BITS_PER_SECOND,
@@ -2091,17 +2100,8 @@ export class LessonAudioSession {
       // 헤더 추출은 비동기(arrayBuffer) — 이후 청크들이 then 으로 기다린다.
       // speech 모드에서도 추출은 해 둔다: 인식이 도중에 죽어 ai 폴백으로
       // 전환되면 그 시점 이후 청크에 헤더가 필요하다.
-      this.initSegment = chunk
-        .arrayBuffer()
-        .then((buf) => {
-          const end = findInitSegmentEnd(new Uint8Array(buf));
-          if (end <= 0) {
-            log.warn('init segment 경계를 찾지 못함 — 청크 단독 전사로 폴백');
-            return null;
-          }
-          return chunk.slice(0, end, chunk.type);
-        })
-        .catch(() => null);
+      this.initSearchAttempts = 1;
+      this.initSegment = this.searchRunHeader();
       if (this.transcriptSource === 'ai') {
         // 첫 청크는 헤더를 포함한 완결 파일이므로 그대로 전사한다.
         this.enqueueSegment(this.noteSeq++, startSec, durationSec, chunk);
@@ -2114,13 +2114,59 @@ export class LessonAudioSession {
     // 종료 직전의 초단편(<3s) 꼬리는 분석 가치가 없다.
     if (durationSec < 3 && this.stopped) return;
 
-    const init = this.initSegment ?? Promise.resolve(null);
-    void init.then((header) => {
-      const blob = header
-        ? new Blob([header, chunk], { type: this.mimeType || 'audio/webm' })
-        : chunk;
-      this.enqueueSegment(this.noteSeq++, startSec, durationSec, blob);
+    // 인덱스는 여기서 확정한다 — 헤더 대기(비동기)의 완료 순서와 무관하게
+    // 필기 순서가 녹음 순서를 따라야 한다.
+    const index = this.noteSeq++;
+    void this.resolveRunHeader().then((header) => {
+      if (!header) {
+        // 헤더 없는 조각은 디코딩이 안 되고, 디코딩 못 한 오디오를 받은
+        // 모델은 침묵하는 대신 그럴듯한 대화를 지어낸다. 하지도 않은 말이
+        // 필기에 남느니 이 구간을 비우는 편이 낫다 — 오디오 자체는 아카이브에
+        // 그대로 남아 레슨 기록의 음성 파일에는 빠짐이 없다.
+        log.warn(
+          `컨테이너 헤더를 찾지 못함 — ${formatClock(startSec)} 구간 필기를 건너뜁니다.`
+        );
+        return;
+      }
+      this.enqueueSegment(
+        index,
+        startSec,
+        durationSec,
+        new Blob([header, chunk], { type: this.mimeType || 'audio/webm' })
+      );
     });
+  }
+
+  /**
+   * 이 런의 컨테이너 헤더(init segment)를 지금까지 받은 청크에서 찾는다.
+   *
+   * 헤더는 런 바이트 스트림의 접두이므로 청크를 이어 붙인 앞부분에서 찾으면
+   * 된다. 첫 타임슬라이스가 클러스터(webm)/moof(fMP4) 시작 전에 끊기는 기기가
+   * 있어 첫 청크만으로는 경계가 안 잡히는데, 그때는 청크가 하나 더 올 때마다
+   * 다시 찾으면 잡힌다.
+   */
+  private async searchRunHeader(): Promise<Blob | null> {
+    const mime = this.mimeType || 'audio/webm';
+    // 호출 시점의 청크로 고정한다 — 이후 도착하는 청크는 다음 탐색 몫이다.
+    const prefix = new Blob(this.archiveChunks, { type: mime });
+    try {
+      const buf = await prefix.arrayBuffer();
+      const end = findInitSegmentEnd(new Uint8Array(buf));
+      if (end <= 0) return null;
+      return prefix.slice(0, end, mime);
+    } catch {
+      return null;
+    }
+  }
+
+  /** 헤더를 얻는다. 아직 못 찾았으면 상한까지 한 번 더 찾아본다. */
+  private async resolveRunHeader(): Promise<Blob | null> {
+    const found = await (this.initSegment ?? Promise.resolve(null));
+    if (found) return found;
+    if (this.initSearchAttempts >= INIT_SEARCH_MAX_ATTEMPTS) return null;
+    this.initSearchAttempts += 1;
+    this.initSegment = this.searchRunHeader();
+    return this.initSegment;
   }
 
   /**
