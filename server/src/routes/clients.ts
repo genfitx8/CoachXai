@@ -46,6 +46,22 @@ function mapClientForCoach(row: Record<string, unknown>) {
   return { ...mapClient(row), coachMemo: row.coach_memo };
 }
 
+/**
+ * "같은 사람"을 가리키는 키 — 숫자만 남긴 번호 + 공백 없는 이름.
+ *
+ * 010-1234-5678 과 01012345678, "김 회원"과 "김회원"은 한 사람이다. 번호가
+ * 없는 행은 서로 다른 사람을 합칠 위험이 있으므로 id로 각자 고유한 키를 준다.
+ * 코치 목록의 중복 접기와 관리자 정리 보고서가 이 하나의 규칙을 나눠 쓴다
+ * (프런트의 utils/clientRoster.ts 도 같은 규칙).
+ */
+const identityKeySql = (alias: string) => `
+      CASE
+        WHEN REGEXP_REPLACE(COALESCE(${alias}.phone, ''), '[^0-9]', '', 'g') <> ''
+          THEN REGEXP_REPLACE(COALESCE(${alias}.phone, ''), '[^0-9]', '', 'g')
+               || '|' || LOWER(REGEXP_REPLACE(${alias}.name, '[[:space:]]', '', 'g'))
+        ELSE 'id:' || ${alias}.id::text
+      END`;
+
 // GET /api/clients/me — client fetches their own profile
 router.get('/me', async (req: Request, res: Response) => {
   try {
@@ -222,20 +238,299 @@ router.get('/', async (req: Request, res: Response) => {
     // coach-side member surface (학생 탭, 레슨 동반 학생 선택, 스윙 검색)
     // with members that were never the coach's. A phantom that later signs
     // up gains a password_hash via the signup merge and reappears here.
+    //
+    // 한 사람은 한 행으로. 위의 잔재 행 말고도, 같은 사람이 번호 표기만
+    // 달리해(010-1234-5678 / 01012345678) 여러 번 가입해 남은 행이 있고,
+    // 그것들이 코치 화면(특히 레슨 중 동반의 학생 선택)에서 "같은 이름·같은
+    // 번호"가 수십 줄 반복되는 목록을 만든다. 숫자만 남긴 번호 + 공백 없는
+    // 이름을 사람의 신원으로 보고, 그중 가장 최근에 갱신된 행 하나만 내려준다.
+    // 번호가 없는 행은 서로 다른 사람을 합칠 위험이 있으므로 id를 키로 삼아
+    // 절대 합치지 않는다. (관리자 콘솔은 정리 대상 원본을 봐야 하므로 그대로.)
     const result =
       req.user!.role === 'admin'
         ? await pool.query('SELECT * FROM clients ORDER BY created_at DESC')
         : await pool.query(
-            `SELECT * FROM clients
-              WHERE coach_id = $1
-                AND password_hash IS NOT NULL
-              ORDER BY created_at DESC`,
+            `SELECT * FROM (
+               SELECT DISTINCT ON (identity_key) *
+                 FROM (
+                   SELECT c.*, (${identityKeySql('c')}) AS identity_key
+                     FROM clients c
+                    WHERE c.coach_id = $1
+                      AND c.password_hash IS NOT NULL
+                 ) scoped
+                ORDER BY identity_key, updated_at DESC NULLS LAST, created_at DESC
+             ) deduped
+             ORDER BY created_at DESC`,
             [req.user!.id]
           );
     // Coach/admin surface — carries coachMemo, which GET /me never does.
     res.json({ clients: result.rows.map(mapClientForCoach) });
   } catch (err) {
     console.error('[clients] GET / error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ─── 중복 · 유령 회원 정리 (관리자 전용) ──────────────────────────────────────
+//
+// 코치 화면은 이제 목록을 사람 단위로 접어 보여주므로 잔재 행이 눈에 띄지
+// 않지만, 행 자체는 clients 테이블에 그대로 남아 있다(레슨 중 동반 전체 학생
+// 433명 건 — 사라진 상향 동기화가 앱을 켤 때마다 같은 회원을 새 행으로
+// 찍어 둔 흔적). 관리자 콘솔에서 그 잔재를 눈으로 확인하고 지울 수 있게
+// 하는 두 엔드포인트다. 삭제는 되돌릴 수 없으므로 "지워도 아무것도 잃지
+// 않는 행"인지 서버가 지우기 직전에 다시 판정한다.
+
+/**
+ * 회원 id를 참조하는 테이블 목록 — 스키마에서 직접 읽는다.
+ *
+ * client_id를 가진 테이블이 나중에 늘어도 정리 판정이 그 테이블을 자동으로
+ * 함께 살피도록. (레슨은 client_id 말고 이름+번호로도 매칭되지만, 그쪽은
+ * 살아남는 행이 그대로 이어받으므로 잔재 행을 지워도 끊기지 않는다.)
+ */
+let referencingTablesCache: string[] | null = null;
+async function referencingTables(): Promise<string[]> {
+  if (referencingTablesCache) return referencingTablesCache;
+  const result = await pool.query(
+    `SELECT table_name
+       FROM information_schema.columns
+      WHERE table_schema = 'public'
+        AND column_name = 'client_id'
+      ORDER BY table_name`
+  );
+  referencingTablesCache = result.rows.map((row) => row.table_name as string);
+  return referencingTablesCache;
+}
+
+/** 이 회원 행에 매달린 데이터 건수를 세는 SQL 조각. */
+function referenceCountSql(tables: string[], alias: string): string {
+  if (tables.length === 0) return '0';
+  return tables
+    .map(
+      (table) =>
+        `(SELECT COUNT(*) FROM "${table}" ref WHERE ref.client_id::text = ${alias}.id::text)`
+    )
+    .join(' + ');
+}
+
+interface CleanupRow {
+  id: string;
+  name: string;
+  phone: string | null;
+  email: string | null;
+  coach_id: string | null;
+  designated_coach: string | null;
+  signed_up: boolean;
+  created_at: string | number;
+  updated_at: string | number;
+  identity_key: string;
+  reference_count: string | number;
+}
+
+/** 회원 전체를 신원 키 · 가입 여부 · 참조 건수와 함께 읽는다. */
+async function loadCleanupRows(): Promise<CleanupRow[]> {
+  const tables = await referencingTables();
+  const result = await pool.query(
+    `SELECT c.id,
+            c.name,
+            c.phone,
+            c.email,
+            c.coach_id,
+            c.designated_coach,
+            c.password_hash IS NOT NULL AS signed_up,
+            c.created_at,
+            c.updated_at,
+            (${identityKeySql('c')}) AS identity_key,
+            (${referenceCountSql(tables, 'c')}) AS reference_count
+       FROM clients c
+      ORDER BY c.created_at ASC`
+  );
+  return result.rows as CleanupRow[];
+}
+
+const groupByIdentity = (rows: CleanupRow[]): Map<string, CleanupRow[]> => {
+  const groups = new Map<string, CleanupRow[]>();
+  for (const row of rows) {
+    const bucket = groups.get(row.identity_key);
+    if (bucket) bucket.push(row);
+    else groups.set(row.identity_key, [row]);
+  }
+  return groups;
+};
+
+/**
+ * 한 사람을 대표해 남길 행: 로그인 계정이 있는 행이 먼저, 그다음 데이터가
+ * 많이 매달린 행, 그다음 최근에 갱신된 행. 보고서와 삭제가 같은 규칙을 쓴다.
+ */
+const keepRowOf = (rows: CleanupRow[]): CleanupRow =>
+  [...rows].sort((a, b) => {
+    if (a.signed_up !== b.signed_up) return a.signed_up ? -1 : 1;
+    const refDiff = Number(b.reference_count) - Number(a.reference_count);
+    if (refDiff !== 0) return refDiff;
+    return Number(b.updated_at) - Number(a.updated_at);
+  })[0];
+
+/**
+ * 이 행을 지워도 잃는 것이 없는가.
+ *
+ * 세 가지는 절대 지우지 않는다 — 로그인할 수 있는 계정, 레슨·예약·포인트 등
+ * 데이터가 매달린 행, 그리고 그 사람을 대표해 남길 한 줄.
+ */
+const removalVerdict = (
+  row: CleanupRow,
+  keep: CleanupRow
+): { removable: boolean; reason: string | null } => {
+  if (row.id === keep.id) return { removable: false, reason: '이 사람을 대표할 행' };
+  if (row.signed_up) return { removable: false, reason: '로그인 계정이 있는 회원' };
+  const refCount = Number(row.reference_count);
+  if (refCount > 0) return { removable: false, reason: `연결된 데이터 ${refCount}건` };
+  return { removable: true, reason: null };
+};
+
+/**
+ * GET /api/clients/duplicates — 정리 후보 보고서 (관리자 전용).
+ *
+ * 같은 사람이 여러 행으로 남은 묶음과 가입 흔적이 없는 유령 행을 돌려준다.
+ * 각 행에 남길 행인지(keep), 지워도 되는지(removable), 안 되면 왜인지가 붙는다.
+ */
+router.get('/duplicates', async (req: Request, res: Response) => {
+  try {
+    if (req.user!.role !== 'admin') {
+      res.status(403).json({ error: 'Forbidden' });
+      return;
+    }
+
+    const rows = await loadCleanupRows();
+    const groups = groupByIdentity(rows);
+
+    const report = [];
+    let removableTotal = 0;
+    let phantomTotal = 0;
+
+    for (const [identityKey, members] of groups) {
+      const phantoms = members.filter((m) => !m.signed_up);
+      phantomTotal += phantoms.length;
+      // 볼 이유가 있는 묶음만 — 같은 사람이 여러 줄이거나, 가입 흔적이 없거나.
+      if (members.length === 1 && phantoms.length === 0) continue;
+
+      const keep = keepRowOf(members);
+      const mapped = members.map((row) => {
+        const verdict = removalVerdict(row, keep);
+        if (verdict.removable) removableTotal += 1;
+        return {
+          id: row.id,
+          name: row.name,
+          phone: row.phone,
+          email: row.email,
+          coachId: row.coach_id,
+          designatedCoach: row.designated_coach,
+          signedUp: row.signed_up,
+          referenceCount: Number(row.reference_count),
+          createdAt: Number(row.created_at),
+          updatedAt: Number(row.updated_at),
+          keep: row.id === keep.id,
+          removable: verdict.removable,
+          blockedReason: verdict.reason,
+        };
+      });
+
+      report.push({
+        identityKey,
+        name: keep.name,
+        phone: keep.phone,
+        removableCount: mapped.filter((m) => m.removable).length,
+        members: mapped,
+      });
+    }
+
+    // 지울 게 많은 묶음부터 — 433줄짜리 잔재가 맨 위로 온다.
+    report.sort(
+      (a, b) => b.removableCount - a.removableCount || b.members.length - a.members.length
+    );
+
+    res.json({
+      totalClients: rows.length,
+      phantomTotal,
+      removableTotal,
+      groups: report,
+    });
+  } catch (err) {
+    console.error('[clients] GET /duplicates error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+/**
+ * POST /api/clients/cleanup — 정리 실행 (관리자 전용).
+ *
+ * body: { ids: string[] } — 화면에서 고른 행만, 또는 { all: true } — 보고서가
+ * 지울 수 있다고 표시한 행 전부.
+ *
+ * 화면이 보낸 목록을 그대로 믿지 않는다. 지우기 직전에 서버가 같은 규칙으로
+ * 다시 판정해서, 그 사이 학생이 가입했거나 레슨이 붙은 행은 건너뛰고 이유를
+ * 함께 돌려준다.
+ */
+router.post('/cleanup', async (req: Request, res: Response) => {
+  try {
+    if (req.user!.role !== 'admin') {
+      res.status(403).json({ error: 'Forbidden' });
+      return;
+    }
+
+    const { ids, all } = req.body as { ids?: unknown; all?: unknown };
+    const requestedIds = new Set(
+      Array.isArray(ids)
+        ? ids.filter((id): id is string => typeof id === 'string' && id.length > 0)
+        : []
+    );
+
+    if (all !== true && requestedIds.size === 0) {
+      res.status(400).json({ error: 'ids (배열) 또는 all: true 가 필요합니다.' });
+      return;
+    }
+
+    const rows = await loadCleanupRows();
+    const groups = groupByIdentity(rows);
+
+    const deletable: string[] = [];
+    const skipped: { id: string; name: string; reason: string }[] = [];
+
+    for (const members of groups.values()) {
+      const keep = keepRowOf(members);
+      for (const row of members) {
+        if (all !== true && !requestedIds.has(row.id)) continue;
+        const verdict = removalVerdict(row, keep);
+        if (verdict.removable) deletable.push(row.id);
+        else if (all !== true) {
+          // 하나씩 고른 요청에만 이유를 돌려준다 — 일괄 정리는 애초에
+          // 지울 수 있는 행만 대상으로 하므로 나머지는 잡음이다.
+          skipped.push({ id: row.id, name: row.name, reason: verdict.reason as string });
+        }
+      }
+    }
+
+    const known = new Set(rows.map((row) => row.id));
+    for (const id of requestedIds) {
+      if (!known.has(id)) skipped.push({ id, name: '', reason: '이미 없는 회원' });
+    }
+
+    let deleted = 0;
+    if (deletable.length > 0) {
+      // password_hash 조건을 한 번 더 — 판정과 삭제 사이에 학생이 가입했다면
+      // 그 행은 이 DELETE를 통과하지 못한다.
+      const result = await pool.query(
+        `DELETE FROM clients
+          WHERE id::text = ANY($1::text[])
+            AND password_hash IS NULL
+          RETURNING id`,
+        [deletable]
+      );
+      deleted = result.rows.length;
+      console.log(`[clients] admin cleanup removed ${deleted} phantom member row(s)`);
+    }
+
+    res.json({ deleted, deletedIds: deletable, skipped });
+  } catch (err) {
+    console.error('[clients] POST /cleanup error:', err);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

@@ -11,6 +11,7 @@ import { AdminBranchStaffManager } from './AdminBranchStaffManager';
 import { AdminPromptManager } from './AdminPromptManager';
 import { AdminCurriculumTemplateManager } from './AdminCurriculumTemplateManager';
 import { AdminCoachActivity } from './AdminCoachActivity';
+import { AdminMemberCleanup } from './AdminMemberCleanup';
 import { AdminAiObservability } from './AdminAiObservability';
 import { AdminOverview, type AdminJumpTarget } from './AdminOverview';
 import { useLanguage } from './LanguageContext';
@@ -49,7 +50,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   onChangeSubscriptionPlan
 }) => {
   const { t } = useLanguage();
-  const [activeTab, setActiveTab] = useState<'OVERVIEW' | 'CLIENTS' | 'LESSONS' | 'SYSTEM' | 'TEMPLATES' | 'MESSAGES' | 'COURSES' | 'BRANCHES' | 'BRANCH_STAFF' | 'AI_PROMPTS' | 'AI_OBSERVABILITY' | 'COACH_ACTIVITY' | 'CURRICULUM_TEMPLATES'>('OVERVIEW');
+  const [activeTab, setActiveTab] = useState<'OVERVIEW' | 'CLIENTS' | 'MEMBER_CLEANUP' | 'LESSONS' | 'SYSTEM' | 'TEMPLATES' | 'MESSAGES' | 'COURSES' | 'BRANCHES' | 'BRANCH_STAFF' | 'AI_PROMPTS' | 'AI_OBSERVABILITY' | 'COACH_ACTIVITY' | 'CURRICULUM_TEMPLATES'>('OVERVIEW');
   const [memberType, setMemberType] = useState<'GENERAL' | 'COACH'>('GENERAL'); 
   
   // Media visibility toggle.
@@ -366,7 +367,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             >
                 {t('admin_tab_clients')}
             </button>
-            <button 
+            <button
+                onClick={() => setActiveTab('MEMBER_CLEANUP')}
+                className={`pb-3 text-sm font-bold transition-colors border-b-2 whitespace-nowrap flex items-center gap-1.5 ${activeTab === 'MEMBER_CLEANUP' ? 'border-red-600 text-red-600' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
+            >
+                <UserX className="w-3.5 h-3.5" /> 회원 정리
+            </button>
+            <button
                 onClick={() => setActiveTab('COACH_ACTIVITY')}
                 className={`pb-3 text-sm font-bold transition-colors border-b-2 whitespace-nowrap flex items-center gap-1.5 ${activeTab === 'COACH_ACTIVITY' ? 'border-emerald-600 text-emerald-600' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
             >
@@ -575,6 +582,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     </div>
                 </div>
             )}
+
+            {activeTab === 'MEMBER_CLEANUP' && <AdminMemberCleanup />}
 
             {activeTab === 'COACH_ACTIVITY' && (
                 <AdminCoachActivity coaches={coaches} lessons={lessons} clients={clients} />

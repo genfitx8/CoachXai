@@ -15,8 +15,12 @@ import { storageService } from '../services/storage';
  * fixed" them back up to the server, where id-less rows were POSTed as new
  * members owned by the signed-in coach.
  *
- * The fallback list must be scoped to rows already linked to this coach, and
- * cache-sourced data must never be written back to the server.
+ * Filtering that shared cache by coachId was not enough: the rows the old
+ * upward sync minted carry the signing-in coach's own id, so they sailed
+ * through the filter and stacked up (레슨 중 동반 전체 학생 433명, 같은
+ * 이름·번호가 수십 번). The offline fallback now reads only the coach-scoped
+ * cache — the last member list the server actually returned for this coach —
+ * and cache-sourced data is still never written back to the server.
  */
 
 vi.mock('../services/firebase', () => ({
@@ -31,21 +35,12 @@ vi.mock('../services/firebase', () => ({
   },
 }));
 
-// The device cache: one member genuinely linked to this coach, plus two
-// rows left behind by other accounts that used this browser — one linked to
-// a different coach, and one legacy id-less row with only a designatedCoach
-// name (the kind that used to be POSTed to the server as a brand-new member
-// of whoever was signed in).
+// The shared device cache — the drawer every account that used this browser
+// wrote into: a member linked to another coach, a legacy id-less row with only
+// a designatedCoach name (the kind that used to be POSTed to the server as a
+// brand-new member of whoever was signed in), and a phantom row stamped with
+// *this* coach's id by the removed upward sync. None of it may reach 내 회원.
 const cachedClients = [
-  {
-    id: 'client-own',
-    name: '내회원',
-    phone: '010-1111-2222',
-    coachId: 'coach1',
-    designatedCoach: '테스트코치',
-    currentPoints: 0,
-    subscriptionPlan: 'FREE',
-  },
   {
     id: 'client-other',
     name: '남의회원',
@@ -62,6 +57,39 @@ const cachedClients = [
     currentPoints: 0,
     subscriptionPlan: 'FREE',
   },
+  {
+    id: 'client-stamped',
+    name: '도장찍힌회원',
+    phone: '010-7777-8888',
+    coachId: 'coach1',
+    designatedCoach: '테스트코치',
+    currentPoints: 0,
+    subscriptionPlan: 'FREE',
+  },
+];
+
+// The coach-scoped cache: the member list the server last returned for this
+// coach. Duplicated on purpose — the same person twice, once with the phone
+// punctuated — because that is how the roster arrives from a polluted table.
+const cachedCoachClients = [
+  {
+    id: 'client-own',
+    name: '내회원',
+    phone: '010-1111-2222',
+    coachId: 'coach1',
+    designatedCoach: '테스트코치',
+    currentPoints: 0,
+    subscriptionPlan: 'FREE',
+  },
+  {
+    id: 'client-own-dup',
+    name: '내회원',
+    phone: '01011112222',
+    coachId: 'coach1',
+    designatedCoach: '테스트코치',
+    currentPoints: 0,
+    subscriptionPlan: 'FREE',
+  },
 ];
 
 vi.mock('../services/storage', () => ({
@@ -72,6 +100,8 @@ vi.mock('../services/storage', () => ({
     clearUserScopedData: vi.fn(),
     getLessons: vi.fn().mockReturnValue([]),
     getClients: vi.fn(),
+    getCoachClients: vi.fn(),
+    saveCoachClients: vi.fn(),
     getCoaches: vi.fn().mockReturnValue([]),
     getLessonPackages: vi.fn().mockReturnValue([]),
     getTrainingPrograms: vi.fn().mockReturnValue([]),
@@ -158,6 +188,7 @@ describe('Coach member list stays scoped to students who designated this coach',
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(storageService.getClients).mockReturnValue(cachedClients as any);
+    vi.mocked(storageService.getCoachClients).mockReturnValue(cachedCoachClients as any);
     Object.defineProperty(document, 'visibilityState', {
       configurable: true,
       get: () => 'visible',
@@ -180,6 +211,10 @@ describe('Coach member list stays scoped to students who designated this coach',
     });
     expect(screen.queryByText('남의회원')).not.toBeInTheDocument();
     expect(screen.queryByText('유령회원')).not.toBeInTheDocument();
+    // Carries this coach's id, so a coachId filter would have let it through.
+    expect(screen.queryByText('도장찍힌회원')).not.toBeInTheDocument();
+    // The same person twice (하이픈 있는 번호 / 없는 번호) is one member.
+    expect(screen.getAllByText('내회원')).toHaveLength(1);
 
     // Cache-sourced data must never be written back to the server — that
     // write is what used to create the phantom members server-side.

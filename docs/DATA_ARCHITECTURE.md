@@ -102,6 +102,34 @@ Firestore가 죽어 있으므로 아래는 모두 **기기별 localStorage에만
 6. **죽은 코드/경로**: `tossPayments.ts` 라우트 미마운트, `training_programs` 테이블 도달 불가, 루트에 `dist.zip` 커밋됨.
 7. **localStorage 용량 압박을 이미 코드로 방어 중**: AI 로그 1,000건 캡, 채팅 200메시지 캡 + 쿼터 에러 시 반절 재시도, 오염된 JSON 방어 유틸(`safeStorage.ts`)과 회귀 테스트까지 존재 — 로컬 저장의 한계를 코드가 증언하고 있다.
 
+### 2.4.1 회원 행 중복 — 증상과 정리 경로 (운영 노트)
+
+같은 사람이 `clients`에 여러 줄로 남는다. 두 갈래다.
+
+- **유령 행**: 제거된 `POST /api/clients`와 옛 로컬 캐시 상향 동기화가 만든,
+  `password_hash IS NULL`이면서 `coach_id`만 로그인한 코치로 찍힌 행. 앱을 켤
+  때마다 새로 찍혀 한 코치의 "전체 학생"이 433명까지 부풀었다.
+- **표기 변형**: `010-1234-5678` / `01012345678`, `김 회원` / `김회원`처럼
+  번호·이름 표기만 다른 가입 계정.
+
+**신원 규칙**(세 곳이 공유): 숫자만 남긴 번호 + 공백 없는 소문자 이름. 번호가
+없으면 서로 다른 사람을 합칠 수 없으므로 `id`를 키로 쓴다.
+`server/src/routes/clients.ts`의 `identityKeySql()`, 프런트의
+`utils/clientRoster.ts`, 그리고 관리자 정리 보고서가 같은 규칙을 쓴다.
+
+**읽기 경로**는 이미 방어되어 있다 — `GET /api/clients`가 코치 응답을 사람
+단위로 접고(가장 최근 갱신 행), `password_hash IS NULL` 행은 아예 제외한다.
+오프라인 폴백은 공용 캐시 대신 코치별 캐시(`swingnote_clients_coach_<id>`)만
+읽는다.
+
+**행 자체를 지우는 유일한 통로**는 관리자 콘솔 › 회원 정리 탭
+(`GET /api/clients/duplicates` → `POST /api/clients/cleanup`, 둘 다 admin 전용).
+지우는 대상은 "지워도 잃을 것이 없는 행"뿐이며, 판정은 삭제 직전에 서버가 다시
+한다 — 로그인 계정이 있는 행, `client_id`로 참조되는 데이터가 하나라도 있는 행
+(참조 테이블 목록은 `information_schema`에서 읽으므로 새 테이블도 자동 포함),
+그리고 그 사람을 대표해 남길 한 줄은 절대 지우지 않는다. 레슨은 `client_id`
+외에 이름+번호로도 매칭되므로, 살아남는 행이 그 기록을 그대로 이어받는다.
+
 ### 2.5 이미 잘 되어 있는 것 (보존·확장할 자산)
 
 - **데이터 소유권 3단계 개념**이 이미 스키마에 존재: `ownership('student'|'shared'|'coach')`, `visibility('self'|'coach'|'branch')`, `original_coach_id`, `previous_coach_ids[]` — 코치 변경/인수인계 설계의 좋은 기반
