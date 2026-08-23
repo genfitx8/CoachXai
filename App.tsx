@@ -279,6 +279,9 @@ const AppContent: React.FC = () => {
     };
   }, [selectedStudentForDetail]);
   const [hamburgerOpen, setHamburgerOpen] = useState(false);
+  // 음성 읽기 preference for the coach AI surface. The toggle lives in the
+  // hamburger drawer now, so the shell owns the state.
+  const [coachTtsEnabled, setCoachTtsEnabled] = useState(true);
   const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(null);
   const [selectedClientFilter, setSelectedClientFilter] = useState<string>(''); // '' or clientName
   /**
@@ -1839,6 +1842,9 @@ const AppContent: React.FC = () => {
 
   const handleCoachHamburgerAction = (action: CoachHamburgerAction) => {
     switch (action) {
+      case 'DASHBOARD':
+        setCoachView('COACHX_DASHBOARD');
+        break;
       case 'PROFILE':
         setShowProfileModal(true);
         break;
@@ -2730,7 +2736,6 @@ const AppContent: React.FC = () => {
             clients={clients}
             todayLessons={buildTodayLessonSummaries(allCoachLessons)}
             onOpenMenu={() => setHamburgerOpen(true)}
-            onNavigateToDashboard={() => setCoachView('COACHX_DASHBOARD')}
             onStartLiveLesson={(studentName) => {
               // In-conversation picker hands over a name → jump straight
               // into the companion; without one, LIVE_LESSON's own picker
@@ -2739,6 +2744,7 @@ const AppContent: React.FC = () => {
               setCoachView('LIVE_LESSON');
             }}
             onNewRecord={handleCoachNewRecord}
+            ttsEnabled={coachTtsEnabled}
             initialQuery={coachAIInitialQuery}
             onInitialQueryConsumed={() => setCoachAIInitialQuery(undefined)}
           />
@@ -2938,6 +2944,8 @@ const AppContent: React.FC = () => {
           coachProfile={currentUser as CoachProfile}
           onAction={handleCoachHamburgerAction}
           showAutomatedVideoEditing={isAutomatedVideoEditingEnabled}
+          ttsEnabled={coachTtsEnabled}
+          onToggleTts={() => setCoachTtsEnabled(prev => !prev)}
         />
       )}
 

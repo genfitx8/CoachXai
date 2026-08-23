@@ -4,15 +4,13 @@ import { CoachXChatMessage } from '../services/coachXService';
 import { generateCoachXChatResponseStream } from '../services/geminiService';
 import { useLanguage } from './LanguageContext';
 import {
-  Send, Mic, MicOff, LayoutDashboard, VolumeX, Volume2, Target,
-  ClipboardCheck, Menu, PenSquare, ChevronRight, Search, Video,
+  Send, Mic, MicOff, VolumeX, Menu, PenSquare, ChevronRight, Search, Video,
 } from 'lucide-react';
 import { useTypingReveal } from '../hooks/useTypingReveal';
 import { useTextToSpeech } from '../hooks/useTextToSpeech';
 import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
 import { renderMarkdown } from '../utils/renderMarkdown';
 import { CoachXMark, CoachXMarkLive } from './ui';
-import { FEATURES } from '../constants/featureFlags';
 
 export interface TodayLessonSummary {
   id: string;
@@ -27,7 +25,6 @@ interface CoachAIHomeProps {
   allLessons: Lesson[];
   clients: ClientProfile[];
   todayLessons: TodayLessonSummary[];
-  onNavigateToDashboard: () => void;
   /**
    * Opens the coach hamburger drawer. This screen covers the app shell's
    * header, so — exactly like the student 대화 tab — it has to carry the
@@ -53,6 +50,11 @@ interface CoachAIHomeProps {
   onStartLiveLesson?: (studentName?: string) => void;
   /** Opens the manual lesson-record form (동반 없이 기록만 남길 때). */
   onNewRecord?: () => void;
+  /**
+   * 음성 읽기 on/off. The toggle itself lives in the coach drawer now, so
+   * the preference is owned by the shell and handed down here.
+   */
+  ttsEnabled?: boolean;
 }
 
 const INITIAL_QUERY_DELAY_MS = 400;
@@ -65,21 +67,17 @@ const INITIAL_QUERY_DELAY_MS = 400;
  */
 type Phase = 'proposal' | 'picking' | 'chat';
 
-const QUICK_CHIPS_KO = ['오늘 일정 알려줘', '주의 학생 있어?', '이번 주 레슨 요약'];
-const QUICK_CHIPS_EN = ["Today's schedule", 'Students needing attention', 'Weekly lesson summary'];
-const QUICK_CHIPS_JA = ['今日のスケジュール', '注意が必要な生徒は?', '今週のレッスン要約'];
-
 export const CoachAIHome: React.FC<CoachAIHomeProps> = ({
   coachProfile,
   allLessons,
   clients,
   todayLessons,
-  onNavigateToDashboard,
   onOpenMenu,
   initialQuery,
   onInitialQueryConsumed,
   onStartLiveLesson,
   onNewRecord,
+  ttsEnabled = true,
 }) => {
   const { language } = useLanguage();
   const lang = (language as 'ko' | 'en' | 'ja') ?? 'ko';
@@ -111,7 +109,6 @@ export const CoachAIHome: React.FC<CoachAIHomeProps> = ({
   ]);
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
-  const [ttsEnabled, setTtsEnabled] = useState(true);
   const [userHasSent, setUserHasSent] = useState(false);
   const [pickerQuery, setPickerQuery] = useState('');
 
@@ -124,6 +121,12 @@ export const CoachAIHome: React.FC<CoachAIHomeProps> = ({
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isTyping, revealedChars, phase]);
+
+  // Turning 음성 읽기 off in the drawer must silence whatever is mid-sentence.
+  useEffect(() => {
+    if (!ttsEnabled) stopSpeaking();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ttsEnabled]);
 
   const handleSend = async (text?: string) => {
     const msgText = (text ?? input).trim();
@@ -250,17 +253,6 @@ export const CoachAIHome: React.FC<CoachAIHomeProps> = ({
     ? rankedStudents.filter((s) => s.name.includes(pickerQuery.trim()))
     : rankedStudents;
 
-  const quickChips = lang === 'en' ? QUICK_CHIPS_EN : lang === 'ja' ? QUICK_CHIPS_JA : QUICK_CHIPS_KO;
-
-  // 8b · Coach's pending-review pile — lessons the coach hasn't approved
-  // yet. Legacy pre-8b lessons (approval_status === undefined) don't
-  // count as "pending" since they were never routed through the review
-  // gate; only explicit 'draft' rows show up.
-  const draftCount = allLessons.reduce(
-    (n, l) => (l.approvalStatus === 'draft' ? n + 1 : n),
-    0
-  );
-
   const showProposal = phase === 'proposal' && !userHasSent && !!onStartLiveLesson;
   const showPicker = phase === 'picking' && !!onStartLiveLesson;
 
@@ -278,120 +270,21 @@ export const CoachAIHome: React.FC<CoachAIHomeProps> = ({
         <div className="absolute -top-24 -left-16 h-80 w-80 rounded-full bg-emerald-400/6 blur-3xl" />
       </div>
 
-      {/* Header. This is the only header on the surface, so it carries the
-          hamburger — the same arrangement the student 대화 tab uses. */}
-      <div className="relative z-10 flex items-center gap-2 border-b border-white/8 bg-base/80 px-4 py-3 backdrop-blur-md">
+      {/* Header. Deliberately bare — a single hamburger, no wordmark and no
+          action buttons. 대시보드 / 음성 읽기 live inside the drawer now, so
+          the conversation itself is the only thing on screen. */}
+      <div className="relative z-10 flex items-center px-2 py-2">
         {onOpenMenu && (
           <button
             type="button"
             onClick={onOpenMenu}
             aria-label="Open menu"
-            className="-ml-2 flex-shrink-0 rounded-lg p-2 text-white transition-colors hover:bg-white/10"
+            className="flex-shrink-0 rounded-lg p-2 text-white/70 transition-colors hover:bg-white/10 hover:text-white"
           >
             <Menu className="h-5 w-5" />
           </button>
         )}
-
-        <div className="flex min-w-0 items-center gap-2.5">
-          <CoachXMarkLive size={22} tone="dark" active={isTyping} />
-          <div className="min-w-0">
-            <p className="truncate text-sm font-semibold text-white">CoachX AI</p>
-            <p className="truncate text-[10px] text-white/40">
-              {t3('코치 에이전트', 'Your coaching agent', 'コーチエージェント')}
-            </p>
-          </div>
-        </div>
-
-        <div className="ml-auto flex flex-shrink-0 items-center gap-2">
-          {/* TTS toggle */}
-          <button
-            type="button"
-            onClick={() => { if (ttsEnabled) stopSpeaking(); setTtsEnabled(p => !p); }}
-            className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 text-white/40 transition-colors hover:border-white/20 hover:text-white/70"
-            title={ttsEnabled ? '음성 읽기 끄기' : '음성 읽기 켜기'}
-          >
-            {ttsEnabled ? <Volume2 className="h-3.5 w-3.5" /> : <VolumeX className="h-3.5 w-3.5" />}
-          </button>
-
-          {/* Swing analysis quick link — gated off in the companion-lesson-first
-              relaunch; 스윙 분석 is reached inside 동반 레슨 instead. */}
-          {FEATURES.swingAnalysisShortcut && (
-            <a
-              href="/swing.html"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-1.5 rounded-full border border-emerald-400/40 bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-200 backdrop-blur-sm transition-colors hover:border-emerald-300/60 hover:bg-emerald-500/20 hover:text-emerald-50"
-              title={t3('스윙 비디오 분석 (새 탭에서 열림)', 'Analyze a swing video (opens in new tab)', 'スイング動画を解析(新しいタブで開く)')}
-            >
-              <Target className="h-3.5 w-3.5" />
-              <span className="hidden min-[420px]:inline">
-                {t3('스윙 분석', 'Swing', 'スイング')}
-              </span>
-            </a>
-          )}
-
-          {/* Dashboard button */}
-          <button
-            type="button"
-            onClick={onNavigateToDashboard}
-            aria-label={t3('대시보드', 'Dashboard', 'ダッシュボード')}
-            title={t3('대시보드', 'Dashboard', 'ダッシュボード')}
-            className="flex items-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-medium text-white/70 backdrop-blur-sm transition-colors hover:border-white/30 hover:text-white"
-          >
-            <LayoutDashboard className="h-3.5 w-3.5" />
-            <span className="hidden min-[420px]:inline">
-              {t3('대시보드', 'Dashboard', 'ダッシュボード')}
-            </span>
-          </button>
-        </div>
       </div>
-
-      {/* Today's schedule strip + pending-review chip (only before the
-          conversation gets going). */}
-      {!userHasSent && (todayLessons.length > 0 || draftCount > 0) && (
-        <div className="relative z-10 flex gap-2 overflow-x-auto border-b border-white/5 bg-white/2 px-4 py-2.5 scrollbar-hide">
-          {todayLessons.length > 0 && (
-            <span className="mr-1 shrink-0 self-center text-[10px] font-medium uppercase tracking-wider text-white/30">
-              {t3('오늘', 'Today', '今日')}
-            </span>
-          )}
-          {todayLessons.slice(0, 5).map((lesson) => (
-            <button
-              key={lesson.id}
-              type="button"
-              onClick={() => void handleSend(
-                t3(
-                  `${lesson.clientName} 학생 오늘 레슨 어때?`,
-                  `Tell me about today's lesson with ${lesson.clientName}`,
-                  `${lesson.clientName}さんの今日のレッスンについて教えて`,
-                )
-              )}
-              className="flex shrink-0 items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-white/60 transition-colors hover:border-emerald-300/30 hover:bg-emerald-500/10 hover:text-emerald-200"
-            >
-              <span className="font-mono text-[10px] text-emerald-400/70">{lesson.time}</span>
-              <span>{lesson.clientName}</span>
-            </button>
-          ))}
-          {draftCount > 0 && (
-            <button
-              type="button"
-              onClick={() => void handleSend(
-                t3(
-                  `승인 대기 중인 레슨 ${draftCount}건 알려줘`,
-                  `Show me my ${draftCount} lesson${draftCount > 1 ? 's' : ''} pending approval.`,
-                  `未承認のレッスン${draftCount}件を教えて`,
-                )
-              )}
-              className="flex shrink-0 items-center gap-1.5 rounded-full border border-amber-400/40 bg-amber-500/10 px-3 py-1 text-xs font-semibold text-amber-100 transition-colors hover:border-amber-300/60 hover:bg-amber-500/20"
-            >
-              <ClipboardCheck className="h-3 w-3 text-amber-300" />
-              <span>
-                {t3(`미승인 ${draftCount}건`, `${draftCount} to review`, `未承認 ${draftCount}件`)}
-              </span>
-            </button>
-          )}
-        </div>
-      )}
 
       {/* Conversation */}
       <div className="relative z-10 flex-1 overflow-y-auto px-4 py-4">
@@ -443,13 +336,6 @@ export const CoachAIHome: React.FC<CoachAIHomeProps> = ({
                     <h2 className="text-base font-bold leading-snug tracking-tight text-white">
                       {t3('레슨 동반을 시작하시겠습니까?', 'Shall we start a live lesson?', '同伴レッスンを始めますか？')}
                     </h2>
-                    <p className="mt-1 text-xs leading-relaxed text-white/55">
-                      {t3(
-                        '레슨에 함께하며 대화를 듣고, 스윙을 캡처하고, 기록 초안까지 정리해 드릴게요.',
-                        "I'll join the lesson — listening, capturing swings, and drafting the record for you.",
-                        'レッスンに同伴し、会話を聞き取り、スイングをキャプチャして記録の下書きまで作成します。',
-                      )}
-                    </p>
                   </div>
                 </div>
                 <div className="flex flex-col gap-2 p-4">
@@ -575,22 +461,6 @@ export const CoachAIHome: React.FC<CoachAIHomeProps> = ({
             </div>
           )}
 
-          {/* Quick chips (only before the first sent message) */}
-          {!userHasSent && !isTyping && (
-            <div className="flex flex-wrap gap-2 pt-1 animate-fade-in pl-9">
-              {quickChips.map(chip => (
-                <button
-                  key={chip}
-                  type="button"
-                  onClick={() => void handleSend(chip)}
-                  className="rounded-full border border-white/12 bg-white/4 px-3.5 py-1.5 text-xs text-white/55 transition-colors hover:border-emerald-300/30 hover:bg-emerald-500/8 hover:text-emerald-200"
-                >
-                  {chip}
-                </button>
-              ))}
-            </div>
-          )}
-
           <div ref={bottomRef} />
         </div>
       </div>
@@ -652,8 +522,8 @@ export const CoachAIHome: React.FC<CoachAIHomeProps> = ({
             onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void handleSend(); } }}
             placeholder={
               isListening
-                ? t3('듣는 중… 말씀하세요', 'Listening…', '聞いています…')
-                : t3('말하거나 입력하세요…', 'Speak or type…', '話すか入力してください…')
+                ? t3('듣는 중…', 'Listening…', '聞いています…')
+                : t3('CoachX에게 물어보기', 'Ask CoachX', 'CoachXに聞く')
             }
             className="h-12 flex-1 rounded-full border border-white/10 bg-white/6 px-4 text-sm text-white placeholder-white/25 outline-none backdrop-blur-sm transition-colors focus:border-emerald-500/40 focus:ring-1 focus:ring-emerald-500/20"
           />
