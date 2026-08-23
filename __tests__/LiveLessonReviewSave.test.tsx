@@ -31,6 +31,11 @@ const notes = [
 const sessionStub = {
   isRecorderAlive: true,
   isPaused: false,
+  mimeType: 'audio/webm',
+  /** 정밀 전사용 오디오 조각. 기본은 없음 — 실시간 필기 경로를 본다. */
+  flushRecordedTail: vi.fn(async () => {}),
+  getTranscriptionSlices: vi.fn(async () => [] as unknown[]),
+  applyPreciseNotes: vi.fn(),
   start: vi.fn(async () => {}),
   pause: vi.fn(),
   resume: vi.fn(),
@@ -71,6 +76,8 @@ vi.mock('../services/lessonAudioPipeline', async () => ({
   // 두 칸이 각각 채워지는 경로를 본다.
   repairTranscriptTerms: vi.fn(async (given: unknown) => given),
   labelTranscriptSpeakers: vi.fn(async (given: unknown) => given),
+  // 정밀 전사(녹음 전체 다시 받아 적기)도 네트워크를 탄다 — 기본은 통과.
+  preciseTranscribeNotes: vi.fn(async () => null),
   generateDualLessonSummary: vi.fn(async () => ({
     coach: '- 그립 압력 교정',
     student: '- 손목이 아프다고 함',
@@ -104,6 +111,10 @@ vi.mock('../components/LanguageContext', async (importOriginal) => ({
   useLanguage: () => ({ language: 'ko', t: (key: string) => key }),
 }));
 
+import {
+  labelTranscriptSpeakers,
+  preciseTranscribeNotes,
+} from '../services/lessonAudioPipeline';
 import { LiveLessonCompanion } from '../components/LiveLessonCompanion';
 
 /** 녹음 시작 → 레슨 종료로 검토(레슨 기록 확인) 화면까지 연다. */
@@ -145,6 +156,38 @@ describe('레슨 기록 확인 화면', () => {
     expect(reviewRoot).not.toBeNull();
     expect(reviewRoot!.className).toContain('pb-safe');
     expect(reviewRoot!.className).toContain('bg-base');
+  });
+
+  it('정밀 전사가 되면 그 필기를 쓰고 화자 분류 단계를 건너뛴다', async () => {
+    // 녹음 조각이 있으면 검토 단계가 같은 오디오를 다시 받아 적는다 —
+    // 레슨 기록의 정확도를 결정하는 패스라, 결과가 있으면 실시간 필기를
+    // 대체해야 한다. 화자 라벨이 함께 오므로 분류 단계는 돌 필요가 없다.
+    sessionStub.getTranscriptionSlices.mockResolvedValueOnce([
+      { blob: new Blob(['a']), startSec: 0, durationSec: 300 },
+    ]);
+    vi.mocked(preciseTranscribeNotes).mockResolvedValueOnce([
+      {
+        index: 0,
+        startSec: 0,
+        durationSec: 300,
+        status: 'done',
+        transcript: '얼리 익스텐션부터 잡고 갈게요',
+        turns: [{ speaker: 'coach', text: '얼리 익스텐션부터 잡고 갈게요' }],
+        keyPoints: [],
+        drills: [],
+        metrics: [],
+        studentState: '',
+      },
+    ] as never);
+
+    await openReviewScreen();
+
+    expect(sessionStub.applyPreciseNotes).toHaveBeenCalled();
+    expect(labelTranscriptSpeakers).not.toHaveBeenCalled();
+    const draft = await screen.findByDisplayValue(
+      /얼리 익스텐션부터 잡고 갈게요/
+    );
+    expect(draft).toBeInTheDocument();
   });
 
   it('코치 요약과 학생 요약을 나눠 띄운다', async () => {

@@ -89,6 +89,9 @@ describe('LessonAudioSession — 타임슬라이스 필기 파이프라인', () 
   ): LessonAudioSession =>
     new LessonAudioSession({
       studentName: '테스트',
+      // 청크 경계 동작을 보는 테스트라 제품 기본값(20초)과 무관하게
+      // 10초로 고정한다 — 기본값이 바뀌어도 이 테스트의 의미는 그대로다.
+      segmentTargetSec: 10,
       analyzer: async (blob, _mime, ctx) => {
         analyzedIndexes.push(ctx.index);
         analyzedBlobs.push(blob);

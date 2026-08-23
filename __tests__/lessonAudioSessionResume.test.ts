@@ -170,6 +170,9 @@ describe('LessonAudioSession — 세션 생존성', () => {
     const analyzed1: number[] = [];
     const session1 = new LessonAudioSession({
       studentName: '김회원',
+      // 청크 경계 동작을 보는 테스트라 제품 기본값(20초)과 무관하게
+      // 10초로 고정한다 — 기본값이 바뀌어도 이 테스트의 의미는 그대로다.
+      segmentTargetSec: 10,
       analyzer: makeAnalyzer(analyzed1),
       rollingSummarizer: async () => '- 요약',
     });
@@ -187,6 +190,9 @@ describe('LessonAudioSession — 세션 생존성', () => {
     const analyzed2: number[] = [];
     const resumed = await LessonAudioSession.resume(session1.id, {
       studentName: '무시됨(메타의 이름 사용)',
+      // 청크 경계 동작을 보는 테스트라 제품 기본값(20초)과 무관하게
+      // 10초로 고정한다 — 기본값이 바뀌어도 이 테스트의 의미는 그대로다.
+      segmentTargetSec: 10,
       analyzer: makeAnalyzer(analyzed2),
       rollingSummarizer: async () => '- 요약2',
     });
@@ -224,6 +230,9 @@ describe('LessonAudioSession — 세션 생존성', () => {
     const analyzed: number[] = [];
     const session = new LessonAudioSession({
       studentName: '김회원',
+      // 청크 경계 동작을 보는 테스트라 제품 기본값(20초)과 무관하게
+      // 10초로 고정한다 — 기본값이 바뀌어도 이 테스트의 의미는 그대로다.
+      segmentTargetSec: 10,
       analyzer: makeAnalyzer(analyzed),
       rollingSummarizer: async () => '- 요약',
     });
@@ -256,6 +265,9 @@ describe('LessonAudioSession — 세션 생존성', () => {
     vi.clearAllTimers();
     const resumed = await LessonAudioSession.resume(session.id, {
       studentName: '김회원',
+      // 청크 경계 동작을 보는 테스트라 제품 기본값(20초)과 무관하게
+      // 10초로 고정한다 — 기본값이 바뀌어도 이 테스트의 의미는 그대로다.
+      segmentTargetSec: 10,
       analyzer: makeAnalyzer([]),
       rollingSummarizer: async () => '- 요약',
     });
@@ -272,6 +284,9 @@ describe('LessonAudioSession — 세션 생존성', () => {
     // 자라나는 형태로 반복 확정돼 필기가 수십 줄 중복됐다.
     const session = new LessonAudioSession({
       studentName: '김회원',
+      // 청크 경계 동작을 보는 테스트라 제품 기본값(20초)과 무관하게
+      // 10초로 고정한다 — 기본값이 바뀌어도 이 테스트의 의미는 그대로다.
+      segmentTargetSec: 10,
       analyzer: makeAnalyzer([]),
       rollingSummarizer: async () => '- 요약',
     });
@@ -299,6 +314,9 @@ describe('LessonAudioSession — 세션 생존성', () => {
     const analyzed: number[] = [];
     const session = new LessonAudioSession({
       studentName: '김회원',
+      // 청크 경계 동작을 보는 테스트라 제품 기본값(20초)과 무관하게
+      // 10초로 고정한다 — 기본값이 바뀌어도 이 테스트의 의미는 그대로다.
+      segmentTargetSec: 10,
       analyzer: makeAnalyzer(analyzed),
       rollingSummarizer: async () => '- 요약',
     });
@@ -329,6 +347,9 @@ describe('LessonAudioSession — 세션 생존성', () => {
     // 크래시 재개 시에도 노트는 IDB 메타에서 살아난다
     const resumed = await LessonAudioSession.resume(session.id, {
       studentName: '김회원',
+      // 청크 경계 동작을 보는 테스트라 제품 기본값(20초)과 무관하게
+      // 10초로 고정한다 — 기본값이 바뀌어도 이 테스트의 의미는 그대로다.
+      segmentTargetSec: 10,
       analyzer: makeAnalyzer([]),
       rollingSummarizer: async () => '- 요약',
     });
@@ -341,6 +362,9 @@ describe('LessonAudioSession — 세션 생존성', () => {
     const analyzed: number[] = [];
     const session = new LessonAudioSession({
       studentName: '김회원',
+      // 청크 경계 동작을 보는 테스트라 제품 기본값(20초)과 무관하게
+      // 10초로 고정한다 — 기본값이 바뀌어도 이 테스트의 의미는 그대로다.
+      segmentTargetSec: 10,
       analyzer: makeAnalyzer(analyzed),
       rollingSummarizer: async () => '- 요약',
     });
@@ -377,6 +401,9 @@ describe('LessonAudioSession — 세션 생존성', () => {
   it('start() 가 중복 호출돼도 레코더는 하나만 산다 (이중 녹음 방지)', async () => {
     const session = new LessonAudioSession({
       studentName: '김회원',
+      // 청크 경계 동작을 보는 테스트라 제품 기본값(20초)과 무관하게
+      // 10초로 고정한다 — 기본값이 바뀌어도 이 테스트의 의미는 그대로다.
+      segmentTargetSec: 10,
       analyzer: makeAnalyzer([]),
       rollingSummarizer: async () => '- 요약',
     });
@@ -389,6 +416,9 @@ describe('LessonAudioSession — 세션 생존성', () => {
   it('레코더 재시작 시 이전 레코더의 늦은 flush 가 새 런을 오염시키지 않는다', async () => {
     const session = new LessonAudioSession({
       studentName: '김회원',
+      // 청크 경계 동작을 보는 테스트라 제품 기본값(20초)과 무관하게
+      // 10초로 고정한다 — 기본값이 바뀌어도 이 테스트의 의미는 그대로다.
+      segmentTargetSec: 10,
       analyzer: makeAnalyzer([]),
       rollingSummarizer: async () => '- 요약',
     });
@@ -424,6 +454,9 @@ describe('LessonAudioSession — 세션 생존성', () => {
     });
     const session = new LessonAudioSession({
       studentName: '김회원',
+      // 청크 경계 동작을 보는 테스트라 제품 기본값(20초)과 무관하게
+      // 10초로 고정한다 — 기본값이 바뀌어도 이 테스트의 의미는 그대로다.
+      segmentTargetSec: 10,
       analyzer,
       rollingSummarizer: async () => '- 요약',
     });

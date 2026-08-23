@@ -25,6 +25,7 @@ import {
   formatDualSummary,
   generateDualLessonSummary,
   labelTranscriptSpeakers,
+  preciseTranscribeNotes,
   repairTranscriptTerms,
   findRecoverableSessions,
   formatClock,
@@ -107,6 +108,16 @@ const formatElapsed = (totalSec: number): string => {
   return `${m}:${s.toString().padStart(2, '0')}`;
 };
 
+/**
+ * 정밀 전사(녹음 전체 다시 받아 적기) 대기 한도.
+ *
+ * 다른 단계보다 후하게 준다 — 이 패스가 레슨 기록의 정확도를 결정하고,
+ * 코치도 "조금 기다리더라도 정확한 필기"를 원한다. 5분 조각을 3개씩
+ * 병렬로 도는 구조라 50분 레슨이면 대략 40~60초다. 넘기면 실시간 필기를
+ * 그대로 쓰므로 기록을 잃지는 않는다.
+ */
+const REVIEW_PRECISE_TIMEOUT_MS = 150_000;
+
 /** 검토 화면을 여는 데 요약 응답을 기다려 줄 최대 시간. */
 const REVIEW_SUMMARY_TIMEOUT_MS = 15_000;
 /**
@@ -128,9 +139,10 @@ const REVIEW_REPAIR_HARD_TIMEOUT_MS = 20_000;
  * 순서대로 돈다 — 잘못 적힌 용어를 먼저 되돌려야 화자 판단의 단서(지시
  * 어휘)가 살고, 화자가 갈려야 코치 요약과 학생 요약을 나눠 쓸 수 있다.
  */
-type ReviewStage = 'repair' | 'speaker' | 'summary';
+type ReviewStage = 'precise' | 'repair' | 'speaker' | 'summary';
 
 const REVIEW_STAGE_LABELS: Record<ReviewStage, string> = {
+  precise: '녹음을 처음부터 다시 듣고 정확히 받아 적고 있어요…',
   repair: '필기를 코칭 용어로 다듬고 있어요…',
   speaker: '코치와 학생의 말을 구분하고 있어요…',
   summary: '코치 요약과 학생 요약을 만들고 있어요…',
@@ -149,6 +161,38 @@ const withReviewTimeout = <T,>(work: Promise<T>, ms: number, fallback: T): Promi
 
 const randomId = () =>
   `clip_${Math.random().toString(36).slice(2, 10)}_${performance.now().toFixed(0)}`;
+
+/**
+ * 레슨 녹음용 마이크 제약. 기본값(`{audio:true}`)으로 잡으면 브라우저가
+ * 통화용 프로파일을 골라, 매트 건너편 학생 목소리가 묻히고 타구음이 그대로
+ * 실린다. 받아 적을 오디오의 품질이 곧 필기 정확도라 여기서부터 맞춘다.
+ *
+ *  - echoCancellation 끔: 스피커 출력이 없는 현장에서 이걸 켜면 원거리
+ *    음성을 반향으로 보고 깎아낸다 — 학생 목소리가 가장 먼저 사라진다.
+ *  - noiseSuppression 켬: 타구음·바람·기계음을 줄인다.
+ *  - autoGainControl 켬: 코치(가까움)와 학생(멀리)의 음량 차를 메운다.
+ *  - 모노 48kHz: 전사 모델에 필요한 건 방향이 아니라 또렷한 한 채널이다.
+ *
+ * 제약을 못 받아 주는 기기가 있으므로 실패하면 기본 오디오로 물러선다 —
+ * 품질보다 "녹음이 되는 것"이 먼저다.
+ */
+const LESSON_AUDIO_CONSTRAINTS: MediaTrackConstraints = {
+  channelCount: 1,
+  sampleRate: 48_000,
+  echoCancellation: false,
+  noiseSuppression: true,
+  autoGainControl: true,
+};
+
+const requestLessonMic = async (): Promise<MediaStream> => {
+  try {
+    return await requestMediaStream({ audio: LESSON_AUDIO_CONSTRAINTS });
+  } catch (e) {
+    // 권한 거부는 제약 문제가 아니다 — 그대로 올려 보내 안내 모달을 띄운다.
+    if (isMediaPermissionError(e) && e.kind === 'denied') throw e;
+    return requestMediaStream({ audio: true });
+  }
+};
 
 export const LiveLessonCompanion: React.FC<LiveLessonCompanionProps> = ({
   studentName,
@@ -187,45 +231,33 @@ export const LiveLessonCompanion: React.FC<LiveLessonCompanionProps> = ({
   const restartInFlightRef = useRef(false);
 
   /**
-   * 실시간 받아쓰기: 온디바이스 음성 인식이 말하는 즉시 잠정 텍스트를
-   * 노트에 흘리고, 확정된 발화는 세션의 필기 노트로 들어간다. 미지원/
-   * 실패 기기는 10초 청크 AI 전사 폴백이 이어받는다(세션이 소스 전환).
+   * 화면에 흐르는 미리보기 문장(브라우저 음성 인식). **기록이 아니다.**
+   *
+   * 정확도 우선 정책: 레슨 필기의 원천은 녹음된 오디오를 AI 가 받아 적은
+   * 결과다. 브라우저의 일반 어휘 인식기는 골프 코칭 용어를 모르고 현장
+   * 소음에 약해, 그 결과를 그대로 기록에 남기면 정확도가 거기에 묶인다.
+   * 그래서 인식기는 "지금 말이 들어오고 있다"를 보여 주는 용도로만 쓰고,
+   * 확정 문장도 노트가 아니라 미리보기 줄로만 흘린다. 인식기가 죽어도
+   * 기록에는 아무 영향이 없다 — 녹음은 계속되고 전사도 계속된다.
    */
+  const [previewLine, setPreviewLine] = useState('');
+  const previewTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const transcription = useLiveTranscription({
     lang: 'ko-KR',
-    onFinal: (text) => lessonSessionRef.current?.addSpeechNote(text),
+    onFinal: (text) => {
+      setPreviewLine(text);
+      if (previewTimerRef.current) clearTimeout(previewTimerRef.current);
+      previewTimerRef.current = setTimeout(() => setPreviewLine(''), 2500);
+    },
   });
-  /**
-   * 필기 모드. 'speech' = 실시간 인식이 마이크를 전담(오디오 녹음 없음 —
-   * 동시 사용 시 인식이 죽는 기기가 많다). 'ai' = 녹음 + 10초 청크 AI
-   * 전사 폴백. 녹음 시작 시 인식 가용 여부로 결정되고, 인식이 도중에
-   * 죽으면 ai 로 넘어간다.
-   */
-  const [noteMode, setNoteMode] = useState<'speech' | 'ai' | null>(null);
-  const noteModeRef = useRef<typeof noteMode>(null);
-  noteModeRef.current = noteMode;
-  const speechActive = noteMode === 'speech' && !transcription.degraded;
-
-  // 인식이 도중에 죽으면(degraded) 마이크를 넘겨받아 녹음 + AI 전사로
-  // 전환한다 — 필기가 조용히 멈추는 일이 없게.
-  useEffect(() => {
-    if (!transcription.degraded) return;
-    const session = lessonSessionRef.current;
-    if (!session) return;
-    session.setTranscriptSource('ai');
-    setNoteMode('ai');
-    if (!session.isRecorderAlive) {
-      requestMediaStream({ audio: true })
-        .then((stream) => {
-          lessonStreamRef.current?.getTracks().forEach((t) => t.stop());
-          lessonStreamRef.current = stream;
-          session.restartRecording(stream);
-        })
-        .catch((e) => {
-          console.error('[LiveLessonCompanion] AI 폴백 마이크 획득 실패', e);
-        });
-    }
-  }, [transcription.degraded]);
+  useEffect(
+    () => () => {
+      if (previewTimerRef.current) clearTimeout(previewTimerRef.current);
+    },
+    []
+  );
+  /** 미리보기 인식이 살아 있는가 — 화면 표시에만 쓴다. */
+  const previewActive = transcription.active && !transcription.degraded;
 
   /**
    * 종료 전 검토 단계 — 코치가 전체 필기와 요약을 확인·수정한 뒤
@@ -308,12 +340,11 @@ export const LiveLessonCompanion: React.FC<LiveLessonCompanionProps> = ({
       // 멈춘 동안 오간 말이 필기로 들어가 코치가 레슨에서 하지 않은 대화가
       // 기록에 남는다 — 모바일에서는 화면을 껐다 켜기만 해도 이 경로가 돈다.
       if (session.isPaused) return;
-      if (noteModeRef.current === 'speech') {
-        // speech 모드: 마이크는 인식기 전담 — 인식만 되살린다.
-        void transcription.resume();
-      } else if (!session.isRecorderAlive && !restartInFlightRef.current) {
+      // 미리보기 인식은 있으면 좋고 없어도 그만 — 기록은 녹음이 책임진다.
+      void transcription.resume();
+      if (!session.isRecorderAlive && !restartInFlightRef.current) {
         restartInFlightRef.current = true;
-        requestMediaStream({ audio: true })
+        requestLessonMic()
           .then((stream) => {
             const s = lessonSessionRef.current;
             // getUserMedia 대기 중 레코더가 이미 복구됐다면(연속 visible
@@ -410,17 +441,13 @@ export const LiveLessonCompanion: React.FC<LiveLessonCompanionProps> = ({
       });
       lessonSessionRef.current = session;
 
-      const speechStarted = await transcription.start();
-      if (speechStarted) {
-        session.setTranscriptSource('speech');
-        await session.start(null); // notes-only — 마이크는 인식기 전담
-        setNoteMode('speech');
-      } else {
-        const stream = await requestMediaStream({ audio: true });
-        lessonStreamRef.current = stream;
-        await session.start(stream);
-        setNoteMode('ai');
-      }
+      // 녹음이 먼저다 — 기록의 원천이라 마이크를 확보하지 못하면 시작하지
+      // 않는다. 미리보기 인식은 그 뒤에 곁들인다(실패해도 레슨은 그대로).
+      const stream = await requestLessonMic();
+      lessonStreamRef.current = stream;
+      session.setTranscriptSource('ai');
+      await session.start(stream);
+      void transcription.start();
       setSessionSnapshot(session.snapshot());
       setLessonRecState('recording');
       void acquireWakeLock();
@@ -492,7 +519,7 @@ export const LiveLessonCompanion: React.FC<LiveLessonCompanionProps> = ({
       setLessonRecState('idle');
       setSessionSnapshot(null);
       setLiveNotes([]);
-      setNoteMode(null);
+      setPreviewLine('');
     }
   };
 
@@ -514,18 +541,12 @@ export const LiveLessonCompanion: React.FC<LiveLessonCompanionProps> = ({
       }
       lessonSessionRef.current = session;
 
-      // 새 레슨 시작과 같은 speech-first 정책으로 이어간다.
-      const speechStarted = await transcription.start();
-      if (speechStarted) {
-        session.setTranscriptSource('speech');
-        await session.start(null);
-        setNoteMode('speech');
-      } else {
-        const stream = await requestMediaStream({ audio: true });
-        lessonStreamRef.current = stream;
-        await session.start(stream);
-        setNoteMode('ai');
-      }
+      // 새 레슨 시작과 같은 정책으로 이어간다 — 녹음 + AI 전사가 기록.
+      const stream = await requestLessonMic();
+      lessonStreamRef.current = stream;
+      session.setTranscriptSource('ai');
+      await session.start(stream);
+      void transcription.start();
       // 기존 필기·요약이 노트에 즉시 실린다(재타이핑 없음 — LessonNotebook
       // 이 마운트 시점 줄은 애니메이션 없이 그린다).
       setLiveNotes(session.getNotes());
@@ -603,7 +624,7 @@ export const LiveLessonCompanion: React.FC<LiveLessonCompanionProps> = ({
       transcriptText: '',
       coachSummaryText: '',
       studentSummaryText: '',
-      stage: 'repair',
+      stage: 'precise',
       preparing: true,
       saving: false,
     });
@@ -613,6 +634,37 @@ export const LiveLessonCompanion: React.FC<LiveLessonCompanionProps> = ({
     let notes = session
       .getNotes()
       .filter((n) => n.status === 'done' && n.transcript);
+
+    // ── 0단계: 정밀 전사 ─────────────────────────────────────────────────
+    // 실시간 필기는 짧은 구간을 따로따로 받아 적어 빠른 대신 경계에서
+    // 문장이 잘리고 맥락이 없다. 여기서는 기다릴 여유가 있으므로 같은
+    // 녹음을 5분짜리 조각으로 다시 들려 준다 — 대화 흐름이 통째로 들어가
+    // 어휘도 화자 구분도 훨씬 정확해진다. 실패하거나 늦으면 실시간 필기를
+    // 그대로 쓴다(기록을 잃지 않는 것이 먼저다).
+    let speakerLabeled = false;
+    try {
+      // 레코더 버퍼에 남은 꼬리를 먼저 회수한다 — 마무리 멘트가 여기 있다.
+      await session.flushRecordedTail();
+      const slices = await session.getTranscriptionSlices();
+      if (slices.length > 0) {
+        const precise = await withReviewTimeout(
+          preciseTranscribeNotes(slices, notes, studentName, session.mimeType),
+          REVIEW_PRECISE_TIMEOUT_MS,
+          null as LessonSegmentNote[] | null
+        );
+        if (precise?.length) {
+          notes = precise;
+          // 검토 화면·최종 리포트·복구 세션이 모두 정밀본을 보게 한다.
+          session.applyPreciseNotes(precise);
+          // 정밀 전사는 화자 라벨까지 붙여 온다 — 뒤의 분류를 건너뛴다.
+          speakerLabeled = notes.some((n) => n.turns?.length);
+        }
+      }
+    } catch (e) {
+      // 정밀 전사가 어떻게 실패하든 검토 화면은 열려야 한다 — 실시간
+      // 필기만으로도 코치는 기록을 저장할 수 있어야 하기 때문이다.
+      console.error('[LiveLessonCompanion] 정밀 전사 실패 — 실시간 필기 사용', e);
+    }
 
     // ── 1단계: 코칭 언어 교정 ────────────────────────────────────────────
     // 필기의 원천은 음성 인식이고, 골프 용어는 일반 어휘 모델이 가장 많이
@@ -634,15 +686,17 @@ export const LiveLessonCompanion: React.FC<LiveLessonCompanionProps> = ({
     // ── 2단계: 화자 역할 분류 ────────────────────────────────────────────
     // 오디오 전사 경로는 구간마다 라벨이 붙어 오지만 온디바이스 인식 경로는
     // 텍스트뿐이라, 여기서 필기 전체를 한 번 읽어 코치/학생/주변을 배정한다.
-    setStage('speaker');
-    const labeled = await withReviewTimeout(
-      labelTranscriptSpeakers(notes, studentName),
-      REVIEW_LABEL_TIMEOUT_MS,
-      null as LessonSegmentNote[] | null
-    );
-    if (labeled) {
-      notes = labeled;
-      session.applySpeakerTurns(labeled);
+    if (!speakerLabeled) {
+      setStage('speaker');
+      const labeled = await withReviewTimeout(
+        labelTranscriptSpeakers(notes, studentName),
+        REVIEW_LABEL_TIMEOUT_MS,
+        null as LessonSegmentNote[] | null
+      );
+      if (labeled) {
+        notes = labeled;
+        session.applySpeakerTurns(labeled);
+      }
     }
 
     // ── 3단계: 코치 요약 · 학생 요약 ─────────────────────────────────────
@@ -901,12 +955,8 @@ export const LiveLessonCompanion: React.FC<LiveLessonCompanionProps> = ({
                   <div className="flex items-center gap-1.5 text-[11px] text-ink-muted">
                     <Sparkles className="w-3.5 h-3.5 text-emerald-300" />
                     <span className="tabular-nums">
-                      {noteMode === 'speech'
-                        ? '실시간 인식'
-                        : noteMode === 'ai'
-                        ? 'AI 전사(10초)'
-                        : ''}
-                      {noteMode ? ' · ' : ''}필기{' '}
+                      {previewActive ? 'AI 받아쓰기 · 듣는 중' : 'AI 받아쓰기'}
+                      {' · '}필기{' '}
                       {
                         liveNotes.filter(
                           (n) => n.status === 'done' && n.transcript
@@ -920,10 +970,10 @@ export const LiveLessonCompanion: React.FC<LiveLessonCompanionProps> = ({
                 </div>
               )}
 
-              {/* 종이 노트 — 실시간 받아쓰기 + 하단 형광펜 요약.
-                  잠정 텍스트(interim)는 말하는 그 순간 연한 잉크로 적히고,
-                  확정되면 정식 줄이 된다. 인식 미지원 기기는 AI 전사
-                  폴백이라 타이핑 애니메이션으로 받아 적는 느낌을 준다. */}
+              {/* 종이 노트 — 확정 필기 + 하단 형광펜 요약.
+                  연한 잉크로 흐르는 줄은 브라우저 인식의 **미리보기**다.
+                  코치가 "지금 들어오고 있다"를 바로 볼 수 있게만 하고,
+                  정식 줄은 녹음을 AI 가 받아 적은 결과로 채워진다. */}
               <LessonNotebook
                 lines={liveNotes
                   .filter((n) => n.status === 'done' && n.transcript)
@@ -938,11 +988,11 @@ export const LiveLessonCompanion: React.FC<LiveLessonCompanionProps> = ({
                   liveNotes.some((n) => n.status === 'analyzing')
                 }
                 interim={
-                  speechActive && lessonRecState === 'recording'
-                    ? transcription.interim
+                  lessonRecState === 'recording'
+                    ? transcription.interim || previewLine
                     : undefined
                 }
-                animateNewLines={!speechActive}
+                animateNewLines
                 summary={sessionSnapshot?.liveSummary ?? ''}
                 summaryUpdating={sessionSnapshot?.liveSummaryUpdating ?? false}
               />
