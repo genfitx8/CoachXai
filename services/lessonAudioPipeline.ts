@@ -83,10 +83,16 @@ export const SUMMARY_INTERVAL_SEC = 300;
  */
 export const AUDIO_BITS_PER_SECOND = 48_000;
 /**
- * 실시간 인식 재전달 판정 창 — 최근 이 줄 수 안에서 똑같은 원본이 다시
- * 오면 코치가 다시 말한 것이 아니라 인식기가 다시 흘려보낸 것으로 본다.
+ * 실시간 인식 재전달 판정 창 — 최근 이 줄 수까지 되짚어 본다.
  */
 export const SPEECH_REPEAT_WINDOW = 6;
+/**
+ * 재전달 판정 시간 창(ms). 인식기가 다시 흘려보낸 문장은 거의 즉시 도착하는
+ * 반면, 코치가 같은 지시를 다시 말하려면 시간이 걸린다. 시간을 같이 보지
+ * 않으면 "체중은 왼발에" 처럼 레슨 내내 반복되는 정상 코칭 멘트를 필기에서
+ * 지워 버린다 — 실제로 필기가 빠지던 원인.
+ */
+export const SPEECH_REPEAT_WINDOW_MS = 4_000;
 /**
  * 재전달 판정을 적용할 최소 길이. 짧은 맞장구("네", "그렇죠", "아 네")는
  * 레슨 중에 실제로 여러 번 나오므로 길이가 있는 줄에만 적용한다.
@@ -1881,10 +1887,10 @@ export class LessonAudioSession {
   /** 겹침 제거 전 원본 발화 목록 — 재적용 시 라벨을 잃지 않으려면 필요하다. */
   private rawTurns = new Map<number, TranscriptTurn[]>();
   /**
-   * 최근 음성 인식 원본 몇 줄 — 인식기가 다시 흘려보낸 같은 발화를
-   * 걸러낸다(직전 한 줄만 보는 겹침 제거로는 못 잡는 재전달).
+   * 최근 음성 인식 원본 몇 줄(도착 시각 포함) — 인식기가 다시 흘려보낸
+   * 같은 발화를 걸러낸다(직전 한 줄만 보는 겹침 제거로는 못 잡는 재전달).
    */
-  private recentSpeechRaw: string[] = [];
+  private recentSpeechRaw: { text: string; at: number }[] = [];
   /** 직전 음성 인식 노트의 원본 — addSpeechNote 겹침 판정용. */
   private lastSpeechRaw = '';
   /** 녹음 런 경계 — beginRun 마다 하나씩 쌓인다. */
@@ -2191,17 +2197,23 @@ export class LessonAudioSession {
     if (!raw || this.stopped || this.paused) return;
     // 인식 엔진이 이미 확정한 발화를 통째로 다시 흘려보내는 기기가 있다
     // (모바일 브라우저의 결과 재전달·인식기 재시작). 직전 한 줄만 보는
-    // 겹침 제거로는 몇 줄 건너뛴 재전달을 못 잡으므로, 최근 원본을 창으로
-    // 들고 정확히 같은 줄은 버린다. 짧은 맞장구("네", "그렇죠")는 실제로
-    // 반복되므로 길이가 있는 줄에만 적용한다.
+    // 겹침 제거로는 몇 줄 건너뛴 재전달을 못 잡으므로 최근 원본을 창으로
+    // 들고 본다. 단 **짧은 시간 안에** 똑같이 온 것만 재전달로 친다 —
+    // 코칭 멘트는 레슨 내내 반복되는 게 정상이라, 시간을 안 보면 코치가
+    // 실제로 다시 한 말까지 지워 필기가 뚝뚝 빠진다. 짧은 맞장구("네")는
+    // 몇 초 안에도 진짜로 반복되므로 길이가 있는 줄에만 적용한다.
     const normalized = raw.replace(/\s+/g, ' ');
+    const now = Date.now();
+    this.recentSpeechRaw = this.recentSpeechRaw.filter(
+      (r) => now - r.at < SPEECH_REPEAT_WINDOW_MS
+    );
     if (
       normalized.length >= SPEECH_REPEAT_MIN_LEN &&
-      this.recentSpeechRaw.includes(normalized)
+      this.recentSpeechRaw.some((r) => r.text === normalized)
     ) {
       return;
     }
-    this.recentSpeechRaw.push(normalized);
+    this.recentSpeechRaw.push({ text: normalized, at: now });
     if (this.recentSpeechRaw.length > SPEECH_REPEAT_WINDOW) {
       this.recentSpeechRaw.shift();
     }
