@@ -197,6 +197,7 @@ describe('전사 프롬프트', () => {
       index: 0,
       startSec: 0,
       durationSec: 20,
+      previousKeyPoints: [],
     });
     expect(prompt).toContain('말이 한 마디도 없을 수 있습니다');
     expect(prompt).toContain('{"turns":[]}');
