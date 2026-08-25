@@ -118,6 +118,15 @@ const formatElapsed = (totalSec: number): string => {
  */
 const REVIEW_PRECISE_TIMEOUT_MS = 150_000;
 
+/**
+ * 잠정 줄(브라우저 인식)을 화면에 남겨 두는 최대 시간(초).
+ *
+ * 보통은 그 시간대의 AI 필기가 도착하면서 걷힌다. 말소리가 없어 전사를
+ * 건너뛴 구간은 확정 필기가 오지 않으므로, 이 나이를 넘긴 잠정 줄은 그냥
+ * 정리한다 — 구간 길이(20초)에 전사 왕복을 더한 것보다 넉넉하게 잡는다.
+ */
+const PROVISIONAL_MAX_AGE_SEC = 75;
+
 /** 검토 화면을 여는 데 요약 응답을 기다려 줄 최대 시간. */
 const REVIEW_SUMMARY_TIMEOUT_MS = 15_000;
 /**
@@ -231,33 +240,54 @@ export const LiveLessonCompanion: React.FC<LiveLessonCompanionProps> = ({
   const restartInFlightRef = useRef(false);
 
   /**
-   * 화면에 흐르는 미리보기 문장(브라우저 음성 인식). **기록이 아니다.**
+   * 아직 AI 필기가 도착하지 않은 구간의 **잠정 문장**(브라우저 음성 인식).
    *
    * 정확도 우선 정책: 레슨 필기의 원천은 녹음된 오디오를 AI 가 받아 적은
    * 결과다. 브라우저의 일반 어휘 인식기는 골프 코칭 용어를 모르고 현장
    * 소음에 약해, 그 결과를 그대로 기록에 남기면 정확도가 거기에 묶인다.
-   * 그래서 인식기는 "지금 말이 들어오고 있다"를 보여 주는 용도로만 쓰고,
-   * 확정 문장도 노트가 아니라 미리보기 줄로만 흘린다. 인식기가 죽어도
-   * 기록에는 아무 영향이 없다 — 녹음은 계속되고 전사도 계속된다.
+   *
+   * 그렇다고 인식기를 버리면 확정 필기가 20초에 한 번씩만 나타나 "받아
+   * 적히는 느낌"이 사라진다. 그래서 인식기의 문장은 **연한 잉크의 잠정
+   * 줄**로 즉시 적고, 그 시간대의 AI 필기가 도착하면 조용히 걷어낸다 —
+   * 코치는 말하는 즉시 글이 흐르는 것을 보고, 남는 기록은 정확한 쪽이다.
    */
-  const [previewLine, setPreviewLine] = useState('');
-  const previewTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [provisional, setProvisional] = useState<
+    { text: string; atSec: number }[]
+  >([]);
   const transcription = useLiveTranscription({
     lang: 'ko-KR',
     onFinal: (text) => {
-      setPreviewLine(text);
-      if (previewTimerRef.current) clearTimeout(previewTimerRef.current);
-      previewTimerRef.current = setTimeout(() => setPreviewLine(''), 2500);
+      const atSec = lessonSessionRef.current?.snapshot().recordedSec ?? 0;
+      setProvisional((prev) => [...prev, { text, atSec }]);
     },
   });
-  useEffect(
-    () => () => {
-      if (previewTimerRef.current) clearTimeout(previewTimerRef.current);
-    },
-    []
-  );
   /** 미리보기 인식이 살아 있는가 — 화면 표시에만 쓴다. */
   const previewActive = transcription.active && !transcription.degraded;
+
+  /**
+   * 확정 필기가 덮은 구간의 잠정 줄을 걷어낸다.
+   *
+   * 말소리가 없어 전사를 건너뛴 구간은 확정 필기가 영영 오지 않으므로,
+   * 시간이 지난 잠정 줄도 함께 정리한다 — 그러지 않으면 연한 잉크가 화면
+   * 끝까지 쌓인다.
+   */
+  useEffect(() => {
+    const coveredUntil = liveNotes
+      .filter((n) => n.status === 'done')
+      .reduce((max, n) => Math.max(max, n.startSec + n.durationSec), 0);
+    const nowSec = sessionSnapshot?.recordedSec ?? 0;
+    setProvisional((prev) => {
+      const next = prev.filter(
+        (p) => p.atSec >= coveredUntil && nowSec - p.atSec <= PROVISIONAL_MAX_AGE_SEC
+      );
+      return next.length === prev.length ? prev : next;
+    });
+  }, [liveNotes, sessionSnapshot?.recordedSec]);
+
+  /** 노트 끝에 흐르는 연한 잉크 — 잠정 문장 + 지금 말하는 중인 잠정 텍스트. */
+  const provisionalTail = [...provisional.map((p) => p.text), transcription.interim]
+    .filter(Boolean)
+    .join(' ');
 
   /**
    * 종료 전 검토 단계 — 코치가 전체 필기와 요약을 확인·수정한 뒤
@@ -519,7 +549,7 @@ export const LiveLessonCompanion: React.FC<LiveLessonCompanionProps> = ({
       setLessonRecState('idle');
       setSessionSnapshot(null);
       setLiveNotes([]);
-      setPreviewLine('');
+      setProvisional([]);
     }
   };
 
@@ -988,11 +1018,9 @@ export const LiveLessonCompanion: React.FC<LiveLessonCompanionProps> = ({
                   liveNotes.some((n) => n.status === 'analyzing')
                 }
                 interim={
-                  lessonRecState === 'recording'
-                    ? transcription.interim || previewLine
-                    : undefined
+                  lessonRecState === 'recording' ? provisionalTail : undefined
                 }
-                animateNewLines
+                animateNewLines={!previewActive}
                 summary={sessionSnapshot?.liveSummary ?? ''}
                 summaryUpdating={sessionSnapshot?.liveSummaryUpdating ?? false}
               />
