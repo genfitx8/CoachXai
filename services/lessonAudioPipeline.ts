@@ -98,6 +98,119 @@ export const SPEECH_REPEAT_WINDOW_MS = 4_000;
  * 레슨 중에 실제로 여러 번 나오므로 길이가 있는 줄에만 적용한다.
  */
 export const SPEECH_REPEAT_MIN_LEN = 12;
+// ─── 말소리 활동 감지(VAD) ──────────────────────────────────────────────────
+/** 마이크 입력을 훑는 간격(ms) — 사람 말 한 마디는 이보다 훨씬 길다. */
+const VAD_SAMPLE_MS = 100;
+/** 이 값 아래는 어떤 경우에도 말소리로 보지 않는다(디지털 무음 근처). */
+const VAD_ABSOLUTE_FLOOR = 0.006;
+/** 잡음 바닥 대비 이 배수를 넘어야 말소리로 센다. */
+const VAD_FLOOR_MULTIPLIER = 2.5;
+/** 이보다 작은 신호는 "마이크가 아무것도 주지 않는다"로 본다(측정 불가 판정). */
+const VAD_SIGNAL_EPSILON = 0.0005;
+/**
+ * 한 구간에서 말소리로 판정된 시간이 이보다 짧으면 전사를 보내지 않는다.
+ *
+ * 타구음·기계음뿐인 구간을 모델에 보내면 모델은 침묵하는 대신 그럴듯한
+ * 대화를 지어낸다 — 코치가 하지도 않은 말이 필기에 남는 가장 큰 원인이다.
+ * 20초 구간에서 0.6초는 "네" 한 마디보다 조금 긴 정도라, 진짜 대화가 있는
+ * 구간을 잘라낼 여지는 거의 없다.
+ */
+export const MIN_VOICED_MS_PER_SEGMENT = 600;
+
+/**
+ * 구간에 사람 말이 실제로 있었는지 재는 계기.
+ *
+ * 절대 임계값 하나로 자르면 조용한 실내와 시끄러운 타석에서 완전히 다르게
+ * 동작하므로, 잡음 바닥을 따라가며 상대적으로 판정한다. 바닥은 조용해지면
+ * 빠르게 내려가고 시끄러워지면 아주 천천히 올라간다 — 타구음 한 번에 바닥이
+ * 들려 뒤이은 말소리를 놓치지 않게.
+ *
+ * 측정 자체가 불가능한 환경(AudioContext 없음·정지됨)에서는 게이트를 걸지
+ * 않는다. 못 재는 것과 말이 없는 것은 다르고, 못 재는 쪽에서 필기를 끊으면
+ * 레슨이 통째로 비어 버린다.
+ */
+class SpeechActivityMeter {
+  private ctx: AudioContext | null = null;
+  private analyser: AnalyserNode | null = null;
+  private buf: Float32Array | null = null;
+  private timer: ReturnType<typeof setInterval> | null = null;
+  private noiseFloor = VAD_ABSOLUTE_FLOOR;
+  private voicedMs = 0;
+  private peak = 0;
+  paused = false;
+
+  attach(stream: MediaStream): void {
+    this.detach();
+    try {
+      const w = window as unknown as {
+        AudioContext?: typeof AudioContext;
+        webkitAudioContext?: typeof AudioContext;
+      };
+      const Ctor = w.AudioContext ?? w.webkitAudioContext;
+      if (!Ctor) return;
+      const ctx = new Ctor();
+      const analyser = ctx.createAnalyser();
+      analyser.fftSize = 1024;
+      ctx.createMediaStreamSource(stream).connect(analyser);
+      this.ctx = ctx;
+      this.analyser = analyser;
+      this.buf = new Float32Array(analyser.fftSize);
+      this.noiseFloor = VAD_ABSOLUTE_FLOOR;
+      this.voicedMs = 0;
+      this.peak = 0;
+      this.timer = setInterval(() => this.sample(), VAD_SAMPLE_MS);
+    } catch {
+      // 측정은 있으면 좋은 것이지 필수가 아니다 — 실패하면 게이트 없이 간다.
+      this.detach();
+    }
+  }
+
+  private sample(): void {
+    const analyser = this.analyser;
+    const buf = this.buf;
+    if (!analyser || !buf || this.paused) return;
+    analyser.getFloatTimeDomainData(buf);
+    let sum = 0;
+    for (let i = 0; i < buf.length; i++) sum += buf[i] * buf[i];
+    const rms = Math.sqrt(sum / buf.length);
+    if (rms > this.peak) this.peak = rms;
+    this.noiseFloor =
+      rms < this.noiseFloor
+        ? this.noiseFloor * 0.8 + rms * 0.2
+        : this.noiseFloor * 0.995 + rms * 0.005;
+    const threshold = Math.max(
+      this.noiseFloor * VAD_FLOOR_MULTIPLIER,
+      VAD_ABSOLUTE_FLOOR
+    );
+    if (rms > threshold) this.voicedMs += VAD_SAMPLE_MS;
+  }
+
+  /**
+   * 마지막 호출 이후의 측정치를 가져오고 초기화한다.
+   * `measured` 가 false 면 판단 근거가 없다는 뜻이다.
+   */
+  take(): { measured: boolean; voicedMs: number } {
+    const measured = this.timer != null && this.peak > VAD_SIGNAL_EPSILON;
+    const voicedMs = this.voicedMs;
+    this.voicedMs = 0;
+    this.peak = 0;
+    return { measured, voicedMs };
+  }
+
+  detach(): void {
+    if (this.timer) clearInterval(this.timer);
+    this.timer = null;
+    this.analyser = null;
+    this.buf = null;
+    try {
+      void this.ctx?.close();
+    } catch {
+      // best-effort
+    }
+    this.ctx = null;
+  }
+}
+
 /**
  * 정밀 전사 한 조각의 목표 길이(초).
  *
@@ -820,6 +933,27 @@ const isSilenceMarker = (text: string): boolean =>
   /^\(?\s*(대화|말|음성)\s*없음\)?\.?$/.test(text);
 
 /**
+ * 말소리가 없는 오디오를 받은 전사 모델이 지어내는 상투구.
+ *
+ * 학습 데이터에 섞인 유튜브 자막의 흔적이라, 무음·잡음 구간에서 유독 자주
+ * 튀어나온다. 골프 레슨 현장에서는 나올 수 없는 말들이므로 필기에 넣지
+ * 않는다. 실제로 쓰일 수 있는 말("감사합니다" 같은)은 넣지 않는다 —
+ * 지어낸 문장을 지우려다 진짜 대화를 지우는 쪽이 더 나쁘다.
+ */
+const HALLUCINATION_PATTERNS: RegExp[] = [
+  /시청\s*(해\s*주셔서|해주셔서|하여\s*주셔서)?\s*(정말\s*)?감사/,
+  /구독\s*(과|,|와)?\s*좋아요/,
+  /(다음|담)\s*(영상|시간|편)에\s*(서\s*)?(만나|뵙|보)/,
+  /자막\s*(제공|제작|by)/i,
+  /^[[(【]?\s*(음악|박수|웃음|배경음악|BGM|MUSIC|APPLAUSE)\s*[\])】]?\.?$/i,
+  /한국어\s*자막/,
+  /^\s*(끝|the\s*end)\s*\.?$/i,
+];
+
+const isHallucinatedLine = (text: string): boolean =>
+  HALLUCINATION_PATTERNS.some((re) => re.test(text));
+
+/**
  * `lesson_audio_transcribe` 응답을 화자별 발화 목록으로 정규화한다.
  * 스키마를 걸어 보내지만 스키마 미지원 런타임에서는 `{"text": "..."}` 나
  * 평문이 올라올 수 있어, 그런 응답은 화자 미상 발화 하나로 받아들인다 —
@@ -841,11 +975,13 @@ export const parseTranscriptTurns = (text: string): TranscriptTurn[] => {
               speaker: normalizeSpeakerRole(t.speaker),
               text: String(t.text).trim(),
             }))
-            .filter((t) => t.text && !isSilenceMarker(t.text));
+            .filter(
+              (t) => t.text && !isSilenceMarker(t.text) && !isHallucinatedLine(t.text)
+            );
         }
         if (typeof parsed.text === 'string') {
           const plain = parsed.text.trim();
-          return plain && !isSilenceMarker(plain)
+          return plain && !isSilenceMarker(plain) && !isHallucinatedLine(plain)
             ? [{ speaker: 'unknown', text: plain }]
             : [];
         }
@@ -855,7 +991,7 @@ export const parseTranscriptTurns = (text: string): TranscriptTurn[] => {
     }
   }
   const trimmed = text.trim();
-  if (!trimmed || isSilenceMarker(trimmed)) return [];
+  if (!trimmed || isSilenceMarker(trimmed) || isHallucinatedLine(trimmed)) return [];
   return [{ speaker: 'unknown', text: trimmed }];
 };
 
@@ -954,9 +1090,15 @@ speaker 는 셋 중 하나입니다:
 일반 낱말 대신 아래 용어로 알아들으세요(억지로 끼워 맞추지는 마세요):
 ${GOLF_TERM_HINTS}
 
+**이 구간에는 말이 한 마디도 없을 수 있습니다.** 레슨 중에는 학생이 혼자
+공을 치는 시간이 길어서, 타구음·기계음·발소리만 있는 구간이 흔합니다.
+그럴 때 올바른 답은 {"turns":[]} 입니다. 무슨 말이든 적어야 한다고 여기지
+마세요 — 안 들린 말을 지어 넣는 것이 이 작업에서 가장 큰 실패입니다.
+
 규칙:
+- 실제로 들린 말만 적으세요. 확실히 들리지 않으면 그 부분은 빼세요.
 - 들리는 그대로, 자연스러운 한국어 문장으로 적으세요. 요약하지 마세요.
-- 짧은 대답·맞장구("네", "아 네", "이렇게요?")도 빠뜨리지 말고 적으세요.
+- 짧은 대답·맞장구("네", "아 네", "이렇게요?")도 들렸다면 적으세요.
 - 말끝이 흐려지거나 겹쳐도 들리는 만큼 적으세요. 문장을 다듬어 바꾸지 마세요.
 - 숫자·단위는 말한 그대로 적으세요("일곱 번 아이언", "캐리 백오십").
 - 화자가 바뀔 때마다 turns 항목을 새로 만들고, 같은 사람이 이어 말하면 한 항목에 담으세요.
@@ -1233,8 +1375,11 @@ speaker 는 셋 중 하나입니다:
 ${GOLF_TERM_HINTS}
 
 규칙:
+- 실제로 들린 말만 적으세요. 안 들린 말을 지어 넣는 것이 가장 큰 실패입니다.
 - 들리는 그대로, 자연스러운 한국어 문장으로 적으세요. 요약·생략은 하지 마세요.
 - 타구음·기계음·옆 타석 소음이 섞여 있습니다. 소음 사이에 묻힌 말도 끝까지 들으세요.
+- 학생이 혼자 공을 치는 조용한 시간이 길게 이어질 수 있습니다. 그 구간은
+  비워 두세요 — 침묵을 문장으로 메우지 마세요.
 - 짧은 대답·맞장구("네", "아 네", "이렇게요?")도 빠뜨리지 말고 적으세요.
 - 숫자·단위는 말한 그대로 적으세요("일곱 번 아이언", "캐리 백오십").
 - 화자가 바뀔 때마다 turns 항목을 새로 만들고, 같은 사람이 이어 말하면 한 항목에 담으세요.
@@ -2087,6 +2232,8 @@ export class LessonAudioSession {
   private initSegment: Promise<Blob | null> | null = null;
   /** 헤더 탐색 시도 횟수 — INIT_SEARCH_MAX_ATTEMPTS 까지만 다시 찾는다. */
   private initSearchAttempts = 0;
+  /** 구간에 사람 말이 있었는지 재는 계기 — 무음 구간 전사를 막는다. */
+  private readonly speech = new SpeechActivityMeter();
   private recordedSec = 0;
   private lastSummaryAtSec = 0;
   private paused = false;
@@ -2219,6 +2366,7 @@ export class LessonAudioSession {
       this.recorder = null;
     }
     this.stream = stream;
+    this.speech.attach(stream);
     this.runs.push({ firstChunk: this.chunkCount, baseSec: this.recordedSec });
     this.archiveChunks = [];
     this.initSegment = null;
@@ -2290,13 +2438,19 @@ export class LessonAudioSession {
       .then(() => this.persistMeta())
       .catch((err) => log.warn('archive 청크 저장 실패:', err));
 
+    // 이 구간에 사람 말이 있었는가. 없으면 전사 자체를 보내지 않는다 —
+    // 타구음뿐인 오디오를 받은 모델은 침묵 대신 대화를 지어내고, 그렇게
+    // 지어낸 문장이 코치가 "하지도 않은 말"로 필기에 남는다. 측정이 안 되는
+    // 환경에서는 게이트를 걸지 않는다(못 재는 것과 말이 없는 것은 다르다).
+    const activity = this.speech.take();
+    const silentSegment =
+      activity.measured && activity.voicedMs < MIN_VOICED_MS_PER_SEGMENT;
+
     if (chunkIndex === run.firstChunk) {
       // 헤더 추출은 비동기(arrayBuffer) — 이후 청크들이 then 으로 기다린다.
-      // speech 모드에서도 추출은 해 둔다: 인식이 도중에 죽어 ai 폴백으로
-      // 전환되면 그 시점 이후 청크에 헤더가 필요하다.
       this.initSearchAttempts = 1;
       this.initSegment = this.searchRunHeader();
-      if (this.transcriptSource === 'ai') {
+      if (this.transcriptSource === 'ai' && !silentSegment) {
         // 첫 청크는 헤더를 포함한 완결 파일이므로 그대로 전사한다.
         this.enqueueSegment(this.noteSeq++, startSec, durationSec, chunk);
       }
@@ -2304,6 +2458,12 @@ export class LessonAudioSession {
     }
 
     if (this.transcriptSource !== 'ai') return;
+    if (silentSegment) {
+      log.debug(
+        `${formatClock(startSec)} 구간은 말소리가 없어 전사를 건너뜁니다.`
+      );
+      return;
+    }
 
     // 종료 직전의 초단편(<3s) 꼬리는 분석 가치가 없다.
     if (durationSec < 3 && this.stopped) return;
@@ -2424,6 +2584,7 @@ export class LessonAudioSession {
   pause(): void {
     if (this.paused || this.stopped) return;
     this.paused = true;
+    this.speech.paused = true;
     try {
       this.recorder?.pause();
     } catch (err) {
@@ -2434,6 +2595,7 @@ export class LessonAudioSession {
   resume(): void {
     if (!this.paused || this.stopped) return;
     this.paused = false;
+    this.speech.paused = false;
     try {
       this.recorder?.resume();
     } catch (err) {
@@ -2710,6 +2872,7 @@ export class LessonAudioSession {
   /** 녹음 종료. 마지막 세그먼트 분석은 백그라운드 큐에서 계속된다. */
   async stop(): Promise<StopResult> {
     this.stopped = true;
+    this.speech.detach();
     if (this.tickTimer != null) {
       window.clearInterval(this.tickTimer);
       this.tickTimer = null;
@@ -2774,6 +2937,7 @@ export class LessonAudioSession {
   /** 저장 없이 폐기(코치가 나가기 선택). */
   async discard(): Promise<void> {
     this.stopped = true;
+    this.speech.detach();
     if (this.tickTimer != null) window.clearInterval(this.tickTimer);
     try {
       if (this.recorder && this.recorder.state !== 'inactive') {
