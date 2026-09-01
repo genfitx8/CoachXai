@@ -1,4 +1,10 @@
-import { S3Client, PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
+import {
+  S3Client,
+  PutObjectCommand,
+  GetObjectCommand,
+  ListObjectsV2Command,
+  DeleteObjectsCommand,
+} from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
 export const R2_BUCKET = process.env.R2_BUCKET ?? 'coachxai';
@@ -70,4 +76,66 @@ export async function generateDownloadUrl(key: string): Promise<string> {
   });
 
   return getSignedUrl(r2Client, command, { expiresIn: 3600 });
+}
+
+/**
+ * Delete every object stored under `prefix`.
+ *
+ * Lesson media lives at `lessons/{lessonId}/…` (see services/apiService.ts),
+ * so removing a lesson's whole prefix clears its main video, the additional
+ * clips and the coach feedback recordings in one pass — nothing else shares
+ * that namespace.
+ *
+ * Returns the number of objects actually deleted. Individual key failures are
+ * logged and skipped rather than aborting the sweep: a half-deleted prefix is
+ * still better than leaving the whole thing behind, and the caller is
+ * cleaning up after a row that is already gone.
+ *
+ * Refuses an empty prefix — every key in the bucket matches it, and no caller
+ * ever wants that.
+ */
+export async function deleteObjectsByPrefix(prefix: string): Promise<number> {
+  if (!prefix) {
+    throw new Error('[r2] deleteObjectsByPrefix requires a non-empty prefix');
+  }
+
+  let continuationToken: string | undefined;
+  let deleted = 0;
+
+  do {
+    const listed = await r2Client.send(
+      new ListObjectsV2Command({
+        Bucket: R2_BUCKET,
+        Prefix: prefix,
+        ContinuationToken: continuationToken,
+      })
+    );
+
+    const keys = (listed.Contents ?? [])
+      .map((object) => object.Key)
+      .filter((key): key is string => Boolean(key));
+
+    if (keys.length > 0) {
+      // DeleteObjects accepts at most 1000 keys, which is also the default
+      // ListObjectsV2 page size — so one listed page is always one call.
+      const result = await r2Client.send(
+        new DeleteObjectsCommand({
+          Bucket: R2_BUCKET,
+          Delete: { Objects: keys.map((Key) => ({ Key })), Quiet: true },
+        })
+      );
+
+      const errors = result.Errors ?? [];
+      for (const error of errors) {
+        console.error(
+          `[r2] Failed to delete "${error.Key}": ${error.Code ?? '?'} ${error.Message ?? ''}`
+        );
+      }
+      deleted += keys.length - errors.length;
+    }
+
+    continuationToken = listed.IsTruncated ? listed.NextContinuationToken : undefined;
+  } while (continuationToken);
+
+  return deleted;
 }

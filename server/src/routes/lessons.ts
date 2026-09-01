@@ -5,6 +5,7 @@ import { signMediaUrl, reSignIfMedia } from '../services/mediaAccess';
 import { recordEventSafe } from '../services/events';
 import { recordAiFeedbackSafe } from '../services/aiFeedback';
 import { reviewSectionsToText } from '../services/reviewSections';
+import { deleteObjectsByPrefix } from '../services/r2';
 
 const router = Router();
 const UUID_PATTERN =
@@ -687,6 +688,24 @@ router.delete('/:id', async (req: Request, res: Response) => {
     }
 
     await pool.query('DELETE FROM lessons WHERE id = $1', [id]);
+
+    // The row is gone, so nothing can reference this lesson's media any more.
+    // Drop the R2 objects too rather than leaving the video to sit in the
+    // bucket forever. Deleted after the row, never before: a failed DB delete
+    // must not destroy the media of a lesson that is still live.
+    //
+    // Storage cleanup failing must not turn a delete the caller already
+    // completed into a 500, so it logs and moves on — the leftovers are the
+    // same orphans this route used to leave behind every time.
+    if (UUID_PATTERN.test(id)) {
+      try {
+        const removed = await deleteObjectsByPrefix(`lessons/${id}/`);
+        console.log(`[lessons] Deleted ${removed} R2 object(s) for lesson ${id}`);
+      } catch (err) {
+        console.error(`[lessons] R2 cleanup failed for lesson ${id}:`, err);
+      }
+    }
+
     recordEventSafe({
       actorId: userId,
       actorRole: userRole,
