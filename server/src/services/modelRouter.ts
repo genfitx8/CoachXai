@@ -97,6 +97,12 @@ const FEATURE_MODEL_OVERRIDES: Record<string, string> = {
   // 않는다(위 activation record 참고).
   lesson_audio_transcribe: 'gemini-3.6-flash',
 
+  // 라이브 받아쓰기 — 2초 조각을 곧바로 받아 적는 경로. 레슨 내내 가장
+  // 자주 도는 호출이고(시간당 수백 회) 코치가 화면에서 글이 흐르는 것을
+  // 봐야 하므로 지연이 곧 품질이다. 정확도는 뒤 두 단계(라이브 오타 교정,
+  // 검토 단계의 정밀 전사)가 책임진다.
+  lesson_audio_live_transcribe: 'gemini-3.6-flash',
+
   // 검토 단계의 정밀 전사 — 5분짜리 오디오를 통째로 다시 받아 적는다.
   // 레슨당 10회 안팎이고 코치가 결과를 기다리는 단계라 지연 예산이 넉넉한
   // 대신, 이 패스의 정확도가 곧 레슨 기록의 정확도다. 긴 오디오에서 대화

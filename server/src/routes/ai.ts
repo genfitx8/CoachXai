@@ -61,6 +61,8 @@ const DEFAULT_TEMPERATURE_BY_FEATURE: Record<string, number> = {
   lesson_audio_segment: 0.2,
   // 구간 받아쓰기(필기 노트) — 순수 전사라 최저 온도.
   lesson_audio_transcribe: 0.1,
+  // 라이브 받아쓰기(2초 조각) — 같은 이유로 최저 온도.
+  lesson_audio_live_transcribe: 0.1,
   // 검토 단계의 정밀 전사(5분 조각 통째 받아쓰기) — 같은 이유로 최저 온도.
   lesson_audio_precise_transcribe: 0.1,
   // 필기 줄마다 화자 역할(코치/학생/주변) 배정 — 분류 작업이라 최저 온도.

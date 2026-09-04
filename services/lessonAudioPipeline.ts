@@ -70,8 +70,38 @@ const log = createLogger('lessonAudio');
  * 오디오(base64 ~80KB)라 저비용이다. 모델은 서버 modelRouter 가 경로별로
  * 고른다 — 전사는 최신 GA flash, 요약(lesson_live_summary /
  * lesson_summary_merge)은 pro 티어(유료 코치 기능이라 품질 우선).
+ *
+ * 왜 이렇게 짧은가: 코치가 "AI가 지금 내 레슨을 받아 적고 있다"고 느끼려면
+ * 글이 몇 초 안에 화면에 나타나야 한다. 20초 구간은 정확했지만 한참 동안
+ * 아무것도 안 적히는 화면을 만들었다. 지금은 세 단으로 나눠 각자 잘하는
+ * 일을 시킨다: **2초 조각**이 곧바로 받아 적고(이 상수), 몇 줄 모이면
+ * 텍스트 교정이 오타를 다듬고, 검토 단계의 정밀 전사가 5분 조각으로 다시
+ * 들어 최종 기록을 만든다.
  */
-export const SEGMENT_TARGET_SEC = 20;
+export const SEGMENT_TARGET_SEC = 2;
+/**
+ * 받아쓴 줄을 이만큼 모아 한 번에 오타를 교정한다(ms).
+ *
+ * 2초 조각은 문장 중간에서 잘려 오는 데다 앞뒤 맥락이 없어 골프 용어가
+ * 자주 엉뚱하게 적힌다. 몇 줄 모이면 그 묶음을 통째로 다시 읽어 다듬는다 —
+ * 코치 눈에는 방금 적힌 글이 잠시 뒤 스스로 고쳐지는 것으로 보이고, 그게
+ * "AI가 내 레슨을 따라 적으며 정리하고 있다"는 신뢰의 근거가 된다.
+ */
+export const LIVE_REPAIR_INTERVAL_MS = 10_000;
+/** 교정을 시작할 최소 줄 수 — 한두 줄로는 문맥이 부족하다. */
+export const LIVE_REPAIR_MIN_LINES = 4;
+/** 세션 메타 저장을 합치는 창(ms). 크래시 복구 손실은 이 시간만큼이다. */
+const PERSIST_THROTTLE_MS = 5_000;
+/**
+ * 라이브 받아쓰기가 밀릴 수 있는 최대 조각 수.
+ *
+ * 현장 와이파이가 느려지면 조각은 2초마다 계속 쌓이는데 처리는 못 따라가,
+ * 화면의 필기가 몇 분 뒤처진 말을 적기 시작한다 — 지연된 필기는 빈 화면보다
+ * 나쁘다(코치는 지금 무슨 말이 적히는지 모른 채 신뢰를 잃는다). 밀리기
+ * 시작하면 그동안의 조각은 라이브 필기에서 건너뛴다. 오디오는 아카이브에
+ * 그대로 남아 검토 단계의 정밀 전사가 빠짐없이 받아 적는다.
+ */
+export const LIVE_QUEUE_MAX_PENDING = 20;
 /**
  * 하단 "요약 노트" 갱신 주기. 필기(전사)와 달리 요약은 맥락이 어느 정도
  * 쌓여야 의미가 있어 5분에 한 번 전체 필기를 다시 요약한다.
@@ -112,10 +142,10 @@ const VAD_SIGNAL_EPSILON = 0.0005;
  *
  * 타구음·기계음뿐인 구간을 모델에 보내면 모델은 침묵하는 대신 그럴듯한
  * 대화를 지어낸다 — 코치가 하지도 않은 말이 필기에 남는 가장 큰 원인이다.
- * 20초 구간에서 0.6초는 "네" 한 마디보다 조금 긴 정도라, 진짜 대화가 있는
- * 구간을 잘라낼 여지는 거의 없다.
+ * 2초 조각에서 0.3초는 "네" 한 마디 정도라, 진짜 말이 있는 조각을 잘라낼
+ * 여지는 거의 없으면서 타구음만 있는 조각은 확실히 걸러진다.
  */
-export const MIN_VOICED_MS_PER_SEGMENT = 600;
+export const MIN_VOICED_MS_PER_SEGMENT = 300;
 
 /**
  * 구간에 사람 말이 실제로 있었는지 재는 계기.
@@ -229,8 +259,14 @@ export const PRECISE_CONCURRENCY = 3;
  * 매달리지 않도록 상한을 둔다(10초 청크 기준 ~1분).
  */
 export const INIT_SEARCH_MAX_ATTEMPTS = 6;
-/** 세그먼트 분석 동시 실행 한도. */
-export const ANALYSIS_CONCURRENCY = 2;
+/**
+ * 세그먼트 분석 동시 실행 한도.
+ *
+ * 조각이 2초마다 나오므로 한 번에 하나씩 처리하면 큐가 밀려 필기가 점점
+ * 뒤로 처진다 — "받아 적고 있다"는 느낌이 무너지는 지점이다. 왕복이 2~3초인
+ * 것을 감안해 조각이 나오는 속도보다 넉넉하게 잡는다.
+ */
+export const ANALYSIS_CONCURRENCY = 6;
 /** 세그먼트 분석 재시도 횟수(최초 시도 포함). */
 export const ANALYSIS_MAX_ATTEMPTS = 3;
 /** 복구 대상 세션 보존 기한. */
@@ -315,6 +351,11 @@ export interface LessonSegmentNote {
   metrics: string[];
   /** 이 구간에서 관찰된 학생 상태/이슈. */
   studentState: string;
+  /**
+   * 라이브 오타 교정을 이미 거친 줄인가. 같은 줄을 반복해서 다시 고치면
+   * 확정된 필기가 계속 흔들리므로 한 번만 손본다.
+   */
+  repaired?: boolean;
 }
 
 /**
@@ -1342,6 +1383,64 @@ const collectRepairTargets = (notes: LessonSegmentNote[]): RepairTarget[] => {
   return out;
 };
 
+/**
+ * 라이브 받아쓰기 프롬프트 — 2초 조각 하나를 곧바로 받아 적는다.
+ *
+ * 짧게 유지하는 것이 목적이다. 이 경로는 레슨 내내 2초마다 도는 데다,
+ * 코치가 화면에서 글이 흐르는 것을 보려면 응답이 빨라야 한다. 화자 판단·
+ * 용어 교정처럼 맥락이 필요한 일은 뒤 단계(라이브 교정, 검토 단계의 정밀
+ * 전사)에 맡기고 여기서는 "들린 말"만 받는다.
+ */
+export const buildLiveTranscribePrompt = (ctx: SegmentPromptContext): string => {
+  const prior = ctx.previousTurns?.length
+    ? `\n\n직전에 적은 말(이어지는 문장을 잇는 참고용입니다. 다시 적지 마세요):\n${ctx.previousTurns
+        .slice(-4)
+        .map((t) => `- ${t.text}`)
+        .join('\n')}`
+    : '';
+  return `골프 레슨 현장(실내 연습장) 녹음의 ${Math.round(ctx.durationSec)}초 조각입니다.
+들리는 말만 그대로 받아 적으세요. JSON 하나만 반환합니다:
+{"turns":[{"speaker":"coach","text":"..."}]}
+
+- speaker 는 지시·설명이면 "coach", 질문·대답이면 "student", 모르겠으면 "unknown".
+- 조각이 짧아 문장이 중간에서 잘립니다. 잘린 그대로 적고 끝을 지어내지 마세요.
+- **타구음·기계음뿐이고 말이 없으면 {"turns":[]} 를 반환하세요.** 레슨 중에는
+  학생이 혼자 공을 치는 시간이 길어 그런 조각이 흔합니다. 빈 배열이 정답입니다.
+- 요약하지 말고, 안 들린 말을 채워 넣지 마세요.${prior}`;
+};
+
+/**
+ * 라이브 받아쓰기 — 짧은 조각을 빠르게 전사한다(화면에 바로 흐르는 줄).
+ */
+export const transcribeLessonAudioLive: SegmentAnalyzer = async (
+  blob,
+  mimeType,
+  ctx
+) => {
+  const data = await blobToBase64(blob);
+  const result = await invokeBackendAI<unknown>('lesson_audio_live_transcribe', {
+    prompt: buildLiveTranscribePrompt(ctx),
+    mediaParts: [{ inlineData: { data, mimeType } }],
+    responseMimeType: 'application/json',
+    responseSchema: transcribeSchema,
+  });
+  const text = getResponseText(result);
+  if (text == null) throw new Error('전사 응답이 비어 있습니다.');
+  const turns = parseTranscriptTurns(text);
+  return {
+    index: ctx.index,
+    startSec: ctx.startSec,
+    durationSec: ctx.durationSec,
+    status: 'done',
+    transcript: joinTranscriptTurns(turns),
+    turns,
+    keyPoints: [],
+    drills: [],
+    metrics: [],
+    studentState: '',
+  };
+};
+
 // ─── 정밀 전사 (검토 단계의 두 번째 패스) ───────────────────────────────────
 
 /** 정밀 전사에 넘길 오디오 한 조각 — 그 자체로 디코딩되는 파일이다. */
@@ -2161,6 +2260,10 @@ export interface LessonAudioSessionOptions {
   onNotesChanged?: (notes: LessonSegmentNote[]) => void;
   segmentTargetSec?: number;
   summaryIntervalSec?: number;
+  /** 테스트/오프라인 대체용 라이브 오타 교정기 주입 지점. */
+  transcriptRepairer?: TranscriptRepairer;
+  /** 라이브 오타 교정 주기(ms). 0 이면 끈다. */
+  liveRepairIntervalMs?: number;
 }
 
 export interface StopResult {
@@ -2234,6 +2337,11 @@ export class LessonAudioSession {
   private initSearchAttempts = 0;
   /** 구간에 사람 말이 있었는지 재는 계기 — 무음 구간 전사를 막는다. */
   private readonly speech = new SpeechActivityMeter();
+  /** 라이브 오타 교정이 도는 중인가 — 겹쳐 돌면 같은 줄을 두 번 고친다. */
+  private repairInFlight = false;
+  /** 메타 저장 합치기 — 2초마다 전체를 쓰지 않게 한다. */
+  private persistTimer: ReturnType<typeof setTimeout> | null = null;
+  private persistPending = false;
   private recordedSec = 0;
   private lastSummaryAtSec = 0;
   private paused = false;
@@ -2258,7 +2366,7 @@ export class LessonAudioSession {
       this.liveSummary = resumeMeta.liveSummary ?? '';
     }
     this.opts = opts;
-    this.analyzer = opts.analyzer ?? transcribeLessonAudioSegment;
+    this.analyzer = opts.analyzer ?? transcribeLessonAudioLive;
     this.mimeType = pickAudioMimeType();
     this.rollingSummary = new RollingSummaryController(
       opts.rollingSummarizer ?? generateRollingLessonSummary,
@@ -2328,14 +2436,18 @@ export class LessonAudioSession {
     // 중복 start 방어: 이미 살아 있는 레코더 위에 새 레코더를 얹으면 같은
     // 마이크를 두 레코더가 겹쳐 녹음해 같은 발화가 반복 필기된다.
     if (stream && !this.isRecorderAlive) this.beginRun(stream);
-    await this.persistMeta();
+    await this.persistMetaNow();
 
-    // 1초 틱: 녹음 시간 적산 + 요약 노트 주기 판정. (청크 분할은 레코더의
-    // 타임슬라이스가 담당하므로 여기서 할 일이 없다.)
+    // 1초 틱: 녹음 시간 적산 + 요약 노트/라이브 교정 주기 판정. (청크 분할은
+    // 레코더의 타임슬라이스가 담당하므로 여기서 할 일이 없다.)
     if (this.tickTimer != null) window.clearInterval(this.tickTimer);
     this.tickTimer = window.setInterval(() => {
       if (this.paused || this.stopped) return;
       this.recordedSec += 1;
+      const repairEvery = this.opts.liveRepairIntervalMs ?? LIVE_REPAIR_INTERVAL_MS;
+      if (repairEvery > 0 && this.recordedSec % Math.round(repairEvery / 1000) === 0) {
+        void this.runLiveRepair();
+      }
       // 하단 "요약 노트"는 필기와 별개의 5분 주기 — 매 전사마다 요약을
       // 다시 돌리면 낭비이고, 코치도 5분 단위 정리를 원한다.
       if (
@@ -2414,7 +2526,8 @@ export class LessonAudioSession {
 
   /** 백그라운드 진입 등 위험 신호에 메타를 즉시 영속화한다. */
   checkpoint(): Promise<void> {
-    return this.persistMeta();
+    // 백그라운드 진입은 앱이 그대로 죽을 수 있는 자리다 — 합치지 않고 쓴다.
+    return this.persistMetaNow();
   }
 
   /**
@@ -2458,6 +2571,12 @@ export class LessonAudioSession {
     }
 
     if (this.transcriptSource !== 'ai') return;
+    if (this.queue.pendingCount >= LIVE_QUEUE_MAX_PENDING) {
+      log.warn(
+        `전사가 ${this.queue.pendingCount}조각 밀려 ${formatClock(startSec)} 구간은 라이브 필기에서 건너뜁니다(녹음은 그대로 남습니다).`
+      );
+      return;
+    }
     if (silentSegment) {
       log.debug(
         `${formatClock(startSec)} 구간은 말소리가 없어 전사를 건너뜁니다.`
@@ -2637,8 +2756,11 @@ export class LessonAudioSession {
       previousKeyPoints: this.notes
         .filter((n) => n.status === 'done')
         .flatMap((n) => n.keyPoints),
-      // 직전 구간의 원본 발화(겹침 제거 전) — 잘린 문장의 화자를 잇는 단서.
-      previousTurns: this.rawTurns.get(index - 1),
+      // 직전 구간들의 원본 발화(겹침 제거 전) — 잘린 문장을 잇는 단서.
+      // 2초 조각은 한 조각만으로 문맥이 서지 않아 몇 개를 함께 넘긴다.
+      previousTurns: [-3, -2, -1].flatMap(
+        (back) => this.rawTurns.get(index + back) ?? []
+      ),
     };
 
     this.queue.enqueue(
@@ -2726,6 +2848,47 @@ export class LessonAudioSession {
    * 목적이라, 라벨과 달리 **이미 있는 본문을 덮어쓴다** — 교정은 같은 말을
    * 다시 적는 일이고, 원문이 남으면 어느 쪽이 기록인지 갈린다.
    */
+  /**
+   * 방금 받아 적은 줄들의 오타를 다듬는다 — 레슨 중에 계속 도는 경로.
+   *
+   * 2초 조각 받아쓰기는 빠른 대신 골프 용어를 자주 놓친다("얼리 익스텐션"
+   * → "얼리 익스텐숀"). 몇 줄 모이면 그 묶음을 통째로 다시 읽어 코칭 언어로
+   * 되돌린다. 코치 눈에는 방금 적힌 글이 잠시 뒤 스스로 고쳐지는 것으로
+   * 보이고, 그게 "AI가 따라 적으며 정리하고 있다"는 신뢰의 근거가 된다.
+   *
+   * 한 줄은 한 번만 손본다 — 같은 줄을 계속 다시 고치면 확정된 필기가
+   * 레슨 내내 흔들린다.
+   */
+  private async runLiveRepair(): Promise<void> {
+    if (this.repairInFlight || this.stopped) return;
+    const targets = this.notes.filter(
+      (n) => n.status === 'done' && n.transcript.trim() && !n.repaired
+    );
+    if (targets.length < LIVE_REPAIR_MIN_LINES) return;
+
+    this.repairInFlight = true;
+    const targetIndexes = new Set(targets.map((n) => n.index));
+    try {
+      const repaired = await repairTranscriptTerms(
+        targets,
+        this.opts.studentName,
+        this.opts.transcriptRepairer
+      );
+      this.applyRepairedNotes(repaired);
+    } catch (err) {
+      log.warn('라이브 오타 교정 실패(원문 유지):', err);
+    } finally {
+      this.repairInFlight = false;
+      // 성공이든 실패든 다시 손대지 않는다 — 교정에 실패한 줄을 매번 다시
+      // 시도하면 같은 실패를 레슨 내내 반복한다.
+      this.notes = this.notes.map((n) =>
+        targetIndexes.has(n.index) ? { ...n, repaired: true } : n
+      );
+      this.emitNotes();
+      void this.persistMeta();
+    }
+  }
+
   applyRepairedNotes(repaired: LessonSegmentNote[]): void {
     const byIndex = new Map(repaired.map((n) => [n.index, n]));
     let changed = false;
@@ -2752,7 +2915,29 @@ export class LessonAudioSession {
     this.opts.onNotesChanged?.(this.getNotes());
   }
 
+  /**
+   * 저장 요청을 모아 둔다.
+   *
+   * 조각이 2초마다 들어오고 그때마다 노트 배열 전체를 다시 쓰면, 레슨이
+   * 길어질수록 한 번의 쓰기가 커지고 빈도까지 높아 화면이 끊긴다. 첫 요청은
+   * 곧바로 쓰고, 그 뒤 창(window) 안의 요청은 하나로 합쳐 뒤에 한 번 더 쓴다.
+   * 놓치면 안 되는 자리(체크포인트·종료)는 persistMetaNow 로 직접 쓴다.
+   */
   private persistMeta(): Promise<void> {
+    if (this.persistTimer) {
+      this.persistPending = true;
+      return Promise.resolve();
+    }
+    this.persistTimer = setTimeout(() => {
+      this.persistTimer = null;
+      if (!this.persistPending) return;
+      this.persistPending = false;
+      void this.persistMeta();
+    }, PERSIST_THROTTLE_MS);
+    return this.persistMetaNow();
+  }
+
+  private persistMetaNow(): Promise<void> {
     const meta: LessonAudioSessionMeta = {
       id: this.id,
       studentName: this.opts.studentName,
@@ -2890,7 +3075,11 @@ export class LessonAudioSession {
       recorder.onstop = () => resolve();
       recorder.stop();
     });
-    await this.persistMeta();
+    if (this.persistTimer) {
+      clearTimeout(this.persistTimer);
+      this.persistTimer = null;
+    }
+    await this.persistMetaNow();
 
     // 런별 오디오 조립: 마지막(현재) 런은 메모리 청크로, 이전 런들은
     // (재개 전 데이터라 메모리에 없으므로) IDB 아카이브에서 읽는다.
@@ -2938,6 +3127,10 @@ export class LessonAudioSession {
   async discard(): Promise<void> {
     this.stopped = true;
     this.speech.detach();
+    if (this.persistTimer) {
+      clearTimeout(this.persistTimer);
+      this.persistTimer = null;
+    }
     if (this.tickTimer != null) window.clearInterval(this.tickTimer);
     try {
       if (this.recorder && this.recorder.state !== 'inactive') {
