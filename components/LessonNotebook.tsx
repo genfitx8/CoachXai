@@ -81,6 +81,12 @@ interface LessonNotebookProps {
 const LINE_HEIGHT = 28;
 /** 한 글자 적히는 간격(ms). 한글 음절 기준 ~이 속도가 "받아 적기" 체감. */
 const TYPE_INTERVAL_MS = 45;
+/**
+ * 화면에 유지하는 최근 문단 수. 한 시간짜리 레슨의 필기를 전부 그리면
+ * 폰에서 렌더가 눈에 띄게 무거워지는데, 코치가 보는 것은 방금 오간 대화다.
+ * 앞부분은 기록에 그대로 남는다(검토 화면에서 전문을 본다).
+ */
+const VISIBLE_PARAGRAPH_LIMIT = 40;
 /** 본문 시작 위치 — 마진 빨간 선(2.9rem) 바로 오른쪽. */
 const BODY_INDENT = '3.25rem';
 
@@ -220,7 +226,7 @@ export const LessonNotebook: React.FC<LessonNotebookProps> = ({
   }
 
   // 조각을 문단으로 묶는다 — 검토 화면의 필기 전문과 같은 규칙을 쓴다.
-  const paragraphs = useMemo(
+  const allParagraphs = useMemo(
     () =>
       groupTranscriptParagraphs(
         lines.map((l) => ({
@@ -232,6 +238,18 @@ export const LessonNotebook: React.FC<LessonNotebookProps> = ({
       ),
     [lines]
   );
+  /**
+   * 화면에는 최근 문단만 그린다.
+   *
+   * 받아쓰기가 2초마다 도착하므로 한 시간짜리 레슨이면 조각이 수천 개가
+   * 된다. 그걸 매번 통째로 다시 그리면 폰에서 화면이 눈에 띄게 끊긴다 —
+   * 정작 코치가 보는 것은 방금 오간 대화다. 앞부분은 기록에 그대로 남고
+   * 레슨을 끝내면 검토 화면에서 전문을 볼 수 있다.
+   */
+  const hiddenCount = Math.max(0, allParagraphs.length - VISIBLE_PARAGRAPH_LIMIT);
+  const paragraphs = hiddenCount
+    ? allParagraphs.slice(-VISIBLE_PARAGRAPH_LIMIT)
+    : allParagraphs;
 
   const scrollToBottom = () => {
     const el = scrollRef.current;
@@ -290,6 +308,19 @@ export const LessonNotebook: React.FC<LessonNotebookProps> = ({
           </p>
         ) : (
           <div className="space-y-1">
+            {hiddenCount > 0 && (
+              <p
+                style={{
+                  fontFamily: HAND_FONT,
+                  fontSize: '13px',
+                  lineHeight: `${LINE_HEIGHT}px`,
+                  color: PENCIL,
+                  paddingLeft: BODY_INDENT,
+                }}
+              >
+                … 앞선 필기 {hiddenCount}문단은 기록에 저장돼 있어요
+              </p>
+            )}
             {paragraphs.map((paragraph, i) => (
               <HandwrittenParagraph
                 key={paragraph.key}

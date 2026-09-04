@@ -123,9 +123,9 @@ const REVIEW_PRECISE_TIMEOUT_MS = 150_000;
  *
  * 보통은 그 시간대의 AI 필기가 도착하면서 걷힌다. 말소리가 없어 전사를
  * 건너뛴 구간은 확정 필기가 오지 않으므로, 이 나이를 넘긴 잠정 줄은 그냥
- * 정리한다 — 구간 길이(20초)에 전사 왕복을 더한 것보다 넉넉하게 잡는다.
+ * 정리한다 — 조각 길이(2초)에 전사 왕복을 더한 것보다 넉넉하게 잡는다.
  */
-const PROVISIONAL_MAX_AGE_SEC = 75;
+const PROVISIONAL_MAX_AGE_SEC = 12;
 
 /** 검토 화면을 여는 데 요약 응답을 기다려 줄 최대 시간. */
 const REVIEW_SUMMARY_TIMEOUT_MS = 15_000;
