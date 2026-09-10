@@ -159,6 +159,12 @@ const withReviewTimeout = <T,>(work: Promise<T>, ms: number, fallback: T): Promi
     new Promise<T>((resolve) => window.setTimeout(() => resolve(fallback), ms)),
   ]).catch(() => fallback);
 
+/**
+ * 인식기 시작을 기다려 줄 최대 시간(ms). 넘기면 AI 전사로 시작한다 —
+ * 인식기 때문에 레슨이 시작되지 않는 일만은 없어야 한다.
+ */
+const SPEECH_START_TIMEOUT_MS = 3_000;
+
 const randomId = () =>
   `clip_${Math.random().toString(36).slice(2, 10)}_${performance.now().toFixed(0)}`;
 
@@ -452,7 +458,15 @@ export const LiveLessonCompanion: React.FC<LiveLessonCompanionProps> = ({
       // 그 다음 녹음을 시작한다: 녹음은 기록의 원천이라 마이크를 확보하지
       // 못하면 레슨을 시작하지 않는다. 인식기가 붙었으면 필기는 인식기가
       // 쓰고, 안 붙었으면 AI 전사가 대신 쓴다.
-      const speechStarted = await transcription.start();
+      //
+      // 시간 제한을 두는 이유: 인식기 시작은 플러그인 로드·권한 요청까지
+      // 거치는 길이라, 응답이 안 오는 기기에서 여기서 멈추면 **레슨 자체가
+      // 시작되지 않는다**. 인식기는 있으면 좋은 것이지 레슨의 전제가 아니다.
+      const speechStarted = await withReviewTimeout(
+        transcription.start(),
+        SPEECH_START_TIMEOUT_MS,
+        false
+      );
       const stream = await requestLessonMic();
       lessonStreamRef.current = stream;
       session.setTranscriptSource(speechStarted ? 'speech' : 'ai');
@@ -551,7 +565,11 @@ export const LiveLessonCompanion: React.FC<LiveLessonCompanionProps> = ({
 
       // 새 레슨 시작과 같은 정책으로 이어간다 — 인식기가 받아 적고, 녹음이
       // 기록의 원천이 된다.
-      const speechStarted = await transcription.start();
+      const speechStarted = await withReviewTimeout(
+        transcription.start(),
+        SPEECH_START_TIMEOUT_MS,
+        false
+      );
       const stream = await requestLessonMic();
       lessonStreamRef.current = stream;
       session.setTranscriptSource(speechStarted ? 'speech' : 'ai');
