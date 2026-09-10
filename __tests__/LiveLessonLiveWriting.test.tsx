@@ -1,10 +1,12 @@
 /**
- * 레슨 동반 — 말하는 즉시 흐르는 잠정 줄("실시간 느낌").
+ * 레슨 동반 — 누가 라이브 필기를 쓰는가.
  *
- * 필기의 원천은 녹음 + AI 전사지만, 그것만 두면 확정 줄이 구간(20초)마다
- * 한 번씩 나타나 코치 눈에는 아무것도 안 적히는 것처럼 보인다. 브라우저
- * 인식기의 문장을 연한 잉크의 잠정 줄로 즉시 적고, 그 시간대의 AI 필기가
- * 도착하면 걷어내 같은 말이 두 번 남지 않게 한다.
+ * 짧은 오디오 조각을 AI 에 물으면 그건 전사가 아니라 추측이라, 코치가
+ * 하지도 않은 문장이 적힌다. 그래서 화면에 흐르는 글은 **기기 음성
+ * 인식기**가 쓴다 — 단어를 잘못 들을지언정 들린 말을 옮기고, 즉시 나온다.
+ * 녹음은 처음부터 끝까지 돌아 검토 단계의 정밀 전사가 최종 기록을 만든다.
+ *
+ * 인식기를 못 쓰는 기기(또는 도중에 죽는 기기)에서는 AI 전사가 이어받는다.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
@@ -12,9 +14,10 @@ import React from 'react';
 
 /** 훅이 확정 문장을 흘려보내는 통로 — 테스트가 직접 발화를 만든다. */
 let emitFinal: ((text: string) => void) | null = null;
-/** 세션이 필기를 바꿀 때 컴포넌트로 올려 보내는 콜백. */
-let pushNotes: ((notes: unknown[]) => void) | null = null;
-let recordedSec = 0;
+/** 인식기가 포기했는가 — 렌더 사이에 바꿔 폴백 경로를 만든다. */
+let degraded = false;
+/** 인식기 start() 성공 여부. */
+let speechStarts = true;
 
 const sessionStub = {
   isRecorderAlive: true,
@@ -27,6 +30,7 @@ const sessionStub = {
   checkpoint: vi.fn(async () => {}),
   settleAnalyses: vi.fn(async () => {}),
   setTranscriptSource: vi.fn(),
+  addSpeechNote: vi.fn(),
   flushRecordedTail: vi.fn(async () => {}),
   getTranscriptionSlices: vi.fn(async () => []),
   applyPreciseNotes: vi.fn(),
@@ -34,7 +38,7 @@ const sessionStub = {
   applyRepairedNotes: vi.fn(),
   getNotes: () => [],
   snapshot: () => ({
-    recordedSec,
+    recordedSec: 10,
     analyzedCount: 0,
     pendingCount: 0,
     liveSummary: '',
@@ -46,10 +50,7 @@ vi.mock('../services/lessonAudioPipeline', async () => ({
   ...(await vi.importActual<typeof import('../services/lessonAudioPipeline')>(
     '../services/lessonAudioPipeline'
   )),
-  LessonAudioSession: vi.fn(function LessonAudioSessionMock(opts: {
-    onNotesChanged?: (notes: unknown[]) => void;
-  }) {
-    pushNotes = opts.onNotesChanged ?? null;
+  LessonAudioSession: vi.fn(function LessonAudioSessionMock() {
     return sessionStub;
   }),
   findRecoverableSessions: vi.fn(async () => []),
@@ -68,8 +69,8 @@ vi.mock('../hooks/useLiveTranscription', () => ({
     return {
       active: true,
       interim: '',
-      degraded: false,
-      start: vi.fn(async () => true),
+      degraded,
+      start: vi.fn(async () => speechStarts),
       pause: vi.fn(),
       resume: vi.fn(async () => {}),
       stop: vi.fn(),
@@ -84,23 +85,11 @@ vi.mock('../components/LanguageContext', async (importOriginal) => ({
 
 import { LiveLessonCompanion } from '../components/LiveLessonCompanion';
 
-const doneNote = (startSec: number, durationSec: number, transcript: string) => ({
-  index: startSec,
-  startSec,
-  durationSec,
-  status: 'done',
-  transcript,
-  keyPoints: [],
-  drills: [],
-  metrics: [],
-  studentState: '',
-});
-
 const startLesson = async () => {
-  render(
+  const view = render(
     <LiveLessonCompanion
       studentName="한윤슬"
-      lessonDate="2026-08-24"
+      lessonDate="2026-09-10"
       onFinish={vi.fn()}
       onCancel={vi.fn()}
     />
@@ -109,62 +98,54 @@ const startLesson = async () => {
   await waitFor(() =>
     expect(screen.getByRole('button', { name: /일시정지/ })).toBeInTheDocument()
   );
+  return view;
 };
 
-describe('잠정 줄(실시간 느낌)', () => {
+describe('라이브 필기의 주인', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     emitFinal = null;
-    pushNotes = null;
-    recordedSec = 0;
+    degraded = false;
+    speechStarts = true;
   });
 
-  it('인식된 문장이 확정 필기를 기다리지 않고 바로 화면에 적힌다', async () => {
+  it('인식기가 들은 말을 그대로 필기로 넣는다', async () => {
     await startLesson();
 
-    recordedSec = 5;
-    fireEvent(window, new Event('resize')); // 렌더 트리거용 no-op
     emitFinal?.('어깨를 조금만 더 돌려보세요');
 
-    expect(
-      await screen.findByText(/어깨를 조금만 더 돌려보세요/)
-    ).toBeInTheDocument();
-  });
-
-  it('그 시간대의 AI 필기가 도착하면 잠정 줄을 걷어낸다', async () => {
-    await startLesson();
-
-    recordedSec = 5;
-    emitFinal?.('어깨를 조금만 더 돌려보세요');
-    expect(
-      await screen.findByText(/어깨를 조금만 더 돌려보세요/)
-    ).toBeInTheDocument();
-
-    // 0–20초 구간의 확정 필기가 도착 — 잠정 줄(5초 지점)은 덮인다.
-    recordedSec = 25;
-    pushNotes?.([doneNote(0, 20, '어깨를 조금 더 돌려 볼게요')]);
-
-    await waitFor(() =>
-      expect(
-        screen.queryByText(/어깨를 조금만 더 돌려보세요/)
-      ).not.toBeInTheDocument()
+    expect(sessionStub.addSpeechNote).toHaveBeenCalledWith(
+      '어깨를 조금만 더 돌려보세요'
     );
-    expect(screen.getByText(/어깨를 조금 더 돌려 볼게요/)).toBeInTheDocument();
   });
 
-  it('전사를 건너뛴 조용한 구간의 잠정 줄도 시간이 지나면 정리한다', async () => {
+  it('인식기가 붙으면 필기 원천을 인식기로 둔다', async () => {
     await startLesson();
+    expect(sessionStub.setTranscriptSource).toHaveBeenCalledWith('speech');
+  });
 
-    recordedSec = 5;
-    emitFinal?.('짧게 한마디');
-    expect(await screen.findByText(/짧게 한마디/)).toBeInTheDocument();
+  it('인식기를 못 쓰는 기기에서는 AI 전사가 필기를 쓴다', async () => {
+    speechStarts = false;
+    await startLesson();
+    expect(sessionStub.setTranscriptSource).toHaveBeenCalledWith('ai');
+  });
 
-    // 말소리가 없어 확정 필기가 영영 오지 않는 구간 — 나이로 정리된다.
-    recordedSec = 200;
-    pushNotes?.([]);
+  it('인식기가 도중에 포기하면 AI 전사가 이어받는다', async () => {
+    const view = await startLesson();
+    expect(sessionStub.setTranscriptSource).toHaveBeenLastCalledWith('speech');
+
+    degraded = true;
+    view.rerender(
+      <LiveLessonCompanion
+        studentName="한윤슬"
+        lessonDate="2026-09-10"
+        onFinish={vi.fn()}
+        onCancel={vi.fn()}
+      />
+    );
 
     await waitFor(() =>
-      expect(screen.queryByText(/짧게 한마디/)).not.toBeInTheDocument()
+      expect(sessionStub.setTranscriptSource).toHaveBeenLastCalledWith('ai')
     );
   });
 });
