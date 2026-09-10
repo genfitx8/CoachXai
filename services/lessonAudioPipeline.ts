@@ -89,6 +89,30 @@ export const SEGMENT_TARGET_SEC = 8;
 export const LIVE_REPAIR_INTERVAL_MS = 10_000;
 /** 교정을 시작할 최소 줄 수 — 한두 줄로는 문맥이 부족하다. */
 export const LIVE_REPAIR_MIN_LINES = 4;
+
+/**
+ * 인식기 감시(watchdog) — "말은 오가는데 필기가 한 줄도 안 들어온다"를
+ * 이만큼 견디다 AI 전사로 넘어간다.
+ *
+ * 마이크를 녹음과 인식기가 동시에 잡으면, 인식기가 **오류 하나 없이 조용히**
+ * 죽는 기기가 있다. 시작은 성공했다고 답했으니 필기 원천은 인식기로 잡혀
+ * 있고, AI 전사는 꺼져 있다 — 아무도 받아 적지 않는 상태가 레슨 내내
+ * 이어진다. 인식기의 보고를 믿지 말고 결과로 판단한다.
+ */
+export const SPEECH_WATCHDOG_SEC = 20;
+/**
+ * 위 시간 안에 이만큼의 말소리가 있었는데도 필기가 없었다면 죽은 것으로 본다.
+ * (조용한 구간에서 애먼 전환이 일어나지 않게 하는 조건)
+ */
+export const SPEECH_WATCHDOG_MIN_VOICED_MS = 4_000;
+/**
+ * 말소리를 잴 수 없는 기기(AudioContext 없음)의 감시 시간.
+ *
+ * 근거가 시간뿐이라 넉넉히 기다린다 — 학생이 혼자 공을 치는 조용한 구간을
+ * 인식기 고장으로 오해하지 않을 만큼. 넘어가더라도 AI 전사가 이어받으므로
+ * 필기가 끊기지는 않는다.
+ */
+export const SPEECH_WATCHDOG_BLIND_SEC = 60;
 /** 세션 메타 저장을 합치는 창(ms). 크래시 복구 손실은 이 시간만큼이다. */
 const PERSIST_THROTTLE_MS = 5_000;
 /**
@@ -167,6 +191,16 @@ class SpeechActivityMeter {
   private voicedMs = 0;
   private peak = 0;
   paused = false;
+  /**
+   * 세션 시작 이후 말소리로 판정된 누적 시간(ms). take() 로 비워지지 않는다 —
+   * "말은 오가는데 필기가 한 줄도 안 들어온다"를 세션이 알아채는 근거다.
+   */
+  totalVoicedMs = 0;
+  /** 계기가 실제로 돌고 있는가(마이크 신호가 잡히는가). */
+  get measuring(): boolean {
+    return this.timer != null && this.everSawSignal;
+  }
+  private everSawSignal = false;
 
   attach(stream: MediaStream): void {
     this.detach();
@@ -187,6 +221,7 @@ class SpeechActivityMeter {
       this.noiseFloor = VAD_ABSOLUTE_FLOOR;
       this.voicedMs = 0;
       this.peak = 0;
+      this.everSawSignal = false;
       this.timer = setInterval(() => this.sample(), VAD_SAMPLE_MS);
     } catch {
       // 측정은 있으면 좋은 것이지 필수가 아니다 — 실패하면 게이트 없이 간다.
@@ -203,6 +238,7 @@ class SpeechActivityMeter {
     for (let i = 0; i < buf.length; i++) sum += buf[i] * buf[i];
     const rms = Math.sqrt(sum / buf.length);
     if (rms > this.peak) this.peak = rms;
+    if (rms > VAD_SIGNAL_EPSILON) this.everSawSignal = true;
     this.noiseFloor =
       rms < this.noiseFloor
         ? this.noiseFloor * 0.8 + rms * 0.2
@@ -211,7 +247,10 @@ class SpeechActivityMeter {
       this.noiseFloor * VAD_FLOOR_MULTIPLIER,
       VAD_ABSOLUTE_FLOOR
     );
-    if (rms > threshold) this.voicedMs += VAD_SAMPLE_MS;
+    if (rms > threshold) {
+      this.voicedMs += VAD_SAMPLE_MS;
+      this.totalVoicedMs += VAD_SAMPLE_MS;
+    }
   }
 
   /**
@@ -2385,6 +2424,10 @@ export class LessonAudioSession {
   private readonly speech = new SpeechActivityMeter();
   /** 라이브 오타 교정이 도는 중인가 — 겹쳐 돌면 같은 줄을 두 번 고친다. */
   private repairInFlight = false;
+  /** 인식기가 마지막으로 한 줄을 넣은 시각(녹음 기준 초) — 감시용. */
+  private lastSpeechNoteAtSec = 0;
+  /** 그 시점까지의 누적 말소리 — 이후 얼마나 말이 오갔는지 재는 기준. */
+  private voicedAtLastSpeechNote = 0;
   /** 메타 저장 합치기 — 2초마다 전체를 쓰지 않게 한다. */
   private persistTimer: ReturnType<typeof setTimeout> | null = null;
   private persistPending = false;
@@ -2490,6 +2533,7 @@ export class LessonAudioSession {
     this.tickTimer = window.setInterval(() => {
       if (this.paused || this.stopped) return;
       this.recordedSec += 1;
+      this.checkSpeechWatchdog();
       const repairEvery = this.opts.liveRepairIntervalMs ?? LIVE_REPAIR_INTERVAL_MS;
       if (repairEvery > 0 && this.recordedSec % Math.round(repairEvery / 1000) === 0) {
         void this.runLiveRepair();
@@ -2685,14 +2729,54 @@ export class LessonAudioSession {
    * 인식이 도중에 죽으면 ai 로 되돌려 다음 청크부터 폴백 전사가 붙는다.
    */
   setTranscriptSource(source: 'ai' | 'speech'): void {
+    if (this.transcriptSource === source) return;
     this.transcriptSource = source;
+    if (source === 'speech') {
+      // 감시 창은 지금부터다 — 레슨 시작 시각부터 재면 곧바로 오판한다.
+      this.lastSpeechNoteAtSec = this.recordedSec;
+      this.voicedAtLastSpeechNote = this.speech.totalVoicedMs;
+    }
   }
 
   /**
    * 온디바이스 실시간 인식이 확정한 발화 한 줄을 필기 노트로 넣는다.
    * 이후의 요약·최종 리포트·복구가 전부 이 노트를 재료로 쓴다.
    */
+  /**
+   * 인식기가 살아 있는지 결과로 확인한다.
+   *
+   * "시작됐다"는 보고는 믿을 게 못 된다 — 녹음이 마이크를 잡는 순간 오류
+   * 하나 없이 조용히 죽는 기기가 있고, 그러면 필기 원천은 인식기로 잡힌 채
+   * 아무도 받아 적지 않는 상태가 레슨 내내 이어진다. 말소리는 오가는데
+   * 필기가 한 줄도 안 들어오면 AI 전사로 넘긴다.
+   */
+  private checkSpeechWatchdog(): void {
+    if (this.transcriptSource !== 'speech' || this.stopped) return;
+    const idleSec = this.recordedSec - this.lastSpeechNoteAtSec;
+    if (this.speech.measuring) {
+      const voicedSince = this.speech.totalVoicedMs - this.voicedAtLastSpeechNote;
+      if (
+        idleSec >= SPEECH_WATCHDOG_SEC &&
+        voicedSince >= SPEECH_WATCHDOG_MIN_VOICED_MS
+      ) {
+        log.warn(
+          '음성 인식이 말소리를 받아 적지 못하고 있습니다 — AI 전사로 전환합니다.'
+        );
+        this.setTranscriptSource('ai');
+      }
+      return;
+    }
+    // 말소리를 잴 수 없는 기기 — 시간만 보고 넉넉히 기다린다.
+    if (idleSec >= SPEECH_WATCHDOG_BLIND_SEC) {
+      log.warn('음성 인식에서 필기가 오지 않습니다 — AI 전사로 전환합니다.');
+      this.setTranscriptSource('ai');
+    }
+  }
+
   addSpeechNote(text: string): void {
+    // 필기 원천이 AI 전사로 넘어간 뒤에 인식기가 되살아나면, 두 소스가 같은
+    // 시간대를 각자 적어 같은 말이 두 번 남는다. 원천은 하나뿐이다.
+    if (this.transcriptSource !== 'speech') return;
     const raw = text.trim();
     // 일시정지 중에는 받아 적지 않는다. 검토 단계도 일시정지 상태이고,
     // 그동안 오간 말(코치와 학생의 잡담, 다음 손님 응대)이 필기로 들어가면
@@ -2742,6 +2826,8 @@ export class LessonAudioSession {
       studentState: '',
     };
     this.notes = [...this.notes, note];
+    this.lastSpeechNoteAtSec = this.recordedSec;
+    this.voicedAtLastSpeechNote = this.speech.totalVoicedMs;
     this.emitNotes();
     void this.persistMeta();
   }

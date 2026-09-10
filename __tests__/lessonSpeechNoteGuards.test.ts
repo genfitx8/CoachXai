@@ -33,7 +33,9 @@ describe('addSpeechNote — 하지 않은 대화 차단', () => {
   beforeEach(async () => {
     vi.useFakeTimers();
     session = new LessonAudioSession({ studentName: '테스트' });
-    // notes-only(speech) 모드 — 마이크는 인식기가 전담한다.
+    // 필기 원천을 인식기로 둔다. 세션은 원천이 하나뿐이라, speech 로 두지
+    // 않으면 인식기 문장을 받지 않는다(AI 전사와 두 벌로 적히는 것 방지).
+    session.setTranscriptSource('speech');
     await session.start(null);
   });
   afterEach(async () => {
