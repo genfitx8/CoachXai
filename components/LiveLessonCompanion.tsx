@@ -118,15 +118,6 @@ const formatElapsed = (totalSec: number): string => {
  */
 const REVIEW_PRECISE_TIMEOUT_MS = 150_000;
 
-/**
- * 잠정 줄(브라우저 인식)을 화면에 남겨 두는 최대 시간(초).
- *
- * 보통은 그 시간대의 AI 필기가 도착하면서 걷힌다. 말소리가 없어 전사를
- * 건너뛴 구간은 확정 필기가 오지 않으므로, 이 나이를 넘긴 잠정 줄은 그냥
- * 정리한다 — 조각 길이(2초)에 전사 왕복을 더한 것보다 넉넉하게 잡는다.
- */
-const PROVISIONAL_MAX_AGE_SEC = 12;
-
 /** 검토 화면을 여는 데 요약 응답을 기다려 줄 최대 시간. */
 const REVIEW_SUMMARY_TIMEOUT_MS = 15_000;
 /**
@@ -240,54 +231,40 @@ export const LiveLessonCompanion: React.FC<LiveLessonCompanionProps> = ({
   const restartInFlightRef = useRef(false);
 
   /**
-   * 아직 AI 필기가 도착하지 않은 구간의 **잠정 문장**(브라우저 음성 인식).
+   * 실시간 받아쓰기 — 기기의 음성 인식기가 들은 말을 **그대로** 적는다.
    *
-   * 정확도 우선 정책: 레슨 필기의 원천은 녹음된 오디오를 AI 가 받아 적은
-   * 결과다. 브라우저의 일반 어휘 인식기는 골프 코칭 용어를 모르고 현장
-   * 소음에 약해, 그 결과를 그대로 기록에 남기면 정확도가 거기에 묶인다.
+   * 왜 AI 전사가 아니라 인식기인가: 짧은 오디오 조각을 AI 에 물으면 그건
+   * 전사가 아니라 추측이다. 맥락이 없으니 모델은 그럴듯한 다른 말을 만들어
+   * 내고, 코치는 자기가 하지도 않은 문장이 적히는 것을 본다. 인식기는
+   * 단어를 잘못 들을지언정 **들린 말을 옮긴다** — 틀려도 내가 한 말의
+   * 모양이라, 그 위에서 고쳐 나갈 수 있다.
    *
-   * 그렇다고 인식기를 버리면 확정 필기가 20초에 한 번씩만 나타나 "받아
-   * 적히는 느낌"이 사라진다. 그래서 인식기의 문장은 **연한 잉크의 잠정
-   * 줄**로 즉시 적고, 그 시간대의 AI 필기가 도착하면 조용히 걷어낸다 —
-   * 코치는 말하는 즉시 글이 흐르는 것을 보고, 남는 기록은 정확한 쪽이다.
+   * 그래서 순서를 이렇게 둔다: 인식기가 즉시 받아 적고(이 경로) → 라이브
+   * 오타 교정이 코칭 용어를 되돌리고 → 검토 단계의 정밀 전사가 녹음 전체를
+   * 5분 조각으로 다시 들어 최종 기록을 만든다. 녹음은 처음부터 끝까지
+   * 돌아가므로 인식기가 무엇을 놓쳤든 마지막 패스가 회수한다.
    */
-  const [provisional, setProvisional] = useState<
-    { text: string; atSec: number }[]
-  >([]);
   const transcription = useLiveTranscription({
     lang: 'ko-KR',
-    onFinal: (text) => {
-      const atSec = lessonSessionRef.current?.snapshot().recordedSec ?? 0;
-      setProvisional((prev) => [...prev, { text, atSec }]);
-    },
+    onFinal: (text) => lessonSessionRef.current?.addSpeechNote(text),
   });
-  /** 미리보기 인식이 살아 있는가 — 화면 표시에만 쓴다. */
+  /** 인식기가 살아 있는가 — 죽으면 AI 전사가 이어받는다. */
   const previewActive = transcription.active && !transcription.degraded;
 
   /**
-   * 확정 필기가 덮은 구간의 잠정 줄을 걷어낸다.
+   * 인식기가 도중에 포기하면(degraded) AI 전사로 필기를 이어받는다.
    *
-   * 말소리가 없어 전사를 건너뛴 구간은 확정 필기가 영영 오지 않으므로,
-   * 시간이 지난 잠정 줄도 함께 정리한다 — 그러지 않으면 연한 잉크가 화면
-   * 끝까지 쌓인다.
+   * 마이크를 녹음과 인식기가 동시에 잡으면 인식이 조용히 죽는 기기가 있다.
+   * 그때 필기가 멈춰 버리면 안 되므로, 그 시점부터는 녹음된 조각을 AI 가
+   * 받아 적는다 — 인식기만큼 즉각적이지는 않지만 필기가 끊기지는 않는다.
    */
   useEffect(() => {
-    const coveredUntil = liveNotes
-      .filter((n) => n.status === 'done')
-      .reduce((max, n) => Math.max(max, n.startSec + n.durationSec), 0);
-    const nowSec = sessionSnapshot?.recordedSec ?? 0;
-    setProvisional((prev) => {
-      const next = prev.filter(
-        (p) => p.atSec >= coveredUntil && nowSec - p.atSec <= PROVISIONAL_MAX_AGE_SEC
-      );
-      return next.length === prev.length ? prev : next;
-    });
-  }, [liveNotes, sessionSnapshot?.recordedSec]);
+    if (!transcription.degraded) return;
+    lessonSessionRef.current?.setTranscriptSource('ai');
+  }, [transcription.degraded]);
 
-  /** 노트 끝에 흐르는 연한 잉크 — 잠정 문장 + 지금 말하는 중인 잠정 텍스트. */
-  const provisionalTail = [...provisional.map((p) => p.text), transcription.interim]
-    .filter(Boolean)
-    .join(' ');
+  /** 노트 끝에 흐르는 연한 잉크 — 지금 말하는 중인 잠정 텍스트. */
+  const provisionalTail = transcription.interim;
 
   /**
    * 종료 전 검토 단계 — 코치가 전체 필기와 요약을 확인·수정한 뒤
@@ -471,13 +448,15 @@ export const LiveLessonCompanion: React.FC<LiveLessonCompanionProps> = ({
       });
       lessonSessionRef.current = session;
 
-      // 녹음이 먼저다 — 기록의 원천이라 마이크를 확보하지 못하면 시작하지
-      // 않는다. 미리보기 인식은 그 뒤에 곁들인다(실패해도 레슨은 그대로).
+      // 인식기를 먼저 띄운다 — 화면에 글이 흐르는 것은 이쪽이 만든다.
+      // 그 다음 녹음을 시작한다: 녹음은 기록의 원천이라 마이크를 확보하지
+      // 못하면 레슨을 시작하지 않는다. 인식기가 붙었으면 필기는 인식기가
+      // 쓰고, 안 붙었으면 AI 전사가 대신 쓴다.
+      const speechStarted = await transcription.start();
       const stream = await requestLessonMic();
       lessonStreamRef.current = stream;
-      session.setTranscriptSource('ai');
+      session.setTranscriptSource(speechStarted ? 'speech' : 'ai');
       await session.start(stream);
-      void transcription.start();
       setSessionSnapshot(session.snapshot());
       setLessonRecState('recording');
       void acquireWakeLock();
@@ -549,7 +528,6 @@ export const LiveLessonCompanion: React.FC<LiveLessonCompanionProps> = ({
       setLessonRecState('idle');
       setSessionSnapshot(null);
       setLiveNotes([]);
-      setProvisional([]);
     }
   };
 
@@ -571,12 +549,13 @@ export const LiveLessonCompanion: React.FC<LiveLessonCompanionProps> = ({
       }
       lessonSessionRef.current = session;
 
-      // 새 레슨 시작과 같은 정책으로 이어간다 — 녹음 + AI 전사가 기록.
+      // 새 레슨 시작과 같은 정책으로 이어간다 — 인식기가 받아 적고, 녹음이
+      // 기록의 원천이 된다.
+      const speechStarted = await transcription.start();
       const stream = await requestLessonMic();
       lessonStreamRef.current = stream;
-      session.setTranscriptSource('ai');
+      session.setTranscriptSource(speechStarted ? 'speech' : 'ai');
       await session.start(stream);
-      void transcription.start();
       // 기존 필기·요약이 노트에 즉시 실린다(재타이핑 없음 — LessonNotebook
       // 이 마운트 시점 줄은 애니메이션 없이 그린다).
       setLiveNotes(session.getNotes());
@@ -985,7 +964,7 @@ export const LiveLessonCompanion: React.FC<LiveLessonCompanionProps> = ({
                   <div className="flex items-center gap-1.5 text-[11px] text-ink-muted">
                     <Sparkles className="w-3.5 h-3.5 text-emerald-300" />
                     <span className="tabular-nums">
-                      {previewActive ? 'AI 받아쓰기 · 듣는 중' : 'AI 받아쓰기'}
+                      {previewActive ? '받아쓰는 중' : 'AI 전사'}
                       {' · '}필기{' '}
                       {
                         liveNotes.filter(

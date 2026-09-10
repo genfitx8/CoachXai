@@ -59,8 +59,13 @@ interface UseLiveTranscriptionResult {
 
 /** 이 횟수만큼 연속으로 (결과 없이) 실패하면 재시작을 포기한다. */
 const MAX_CONSECUTIVE_FAILURES = 4;
-/** 파셜이 이 시간 동안 변하지 않으면 한 줄로 확정한다(ms). */
-const STABLE_FINALIZE_MS = 2200;
+/**
+ * 파셜이 이 시간 동안 변하지 않으면 한 줄로 확정한다(ms).
+ *
+ * 짧을수록 글이 빨리 굳어 "받아 적히는" 느낌이 산다. 너무 짧으면 말이 잠깐
+ * 끊긴 자리마다 문장이 토막 나므로, 코치가 기다려 줄 만한 1.5초로 둔다.
+ */
+const STABLE_FINALIZE_MS = 1500;
 /** 네이티브 인식기 재시작 간 딜레이 — 연속 start 로 인한 busy 오류 방지. */
 const NATIVE_RESTART_DELAY_MS = 250;
 /**

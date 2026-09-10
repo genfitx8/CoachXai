@@ -71,14 +71,13 @@ const log = createLogger('lessonAudio');
  * 고른다 — 전사는 최신 GA flash, 요약(lesson_live_summary /
  * lesson_summary_merge)은 pro 티어(유료 코치 기능이라 품질 우선).
  *
- * 왜 이렇게 짧은가: 코치가 "AI가 지금 내 레슨을 받아 적고 있다"고 느끼려면
- * 글이 몇 초 안에 화면에 나타나야 한다. 20초 구간은 정확했지만 한참 동안
- * 아무것도 안 적히는 화면을 만들었다. 지금은 세 단으로 나눠 각자 잘하는
- * 일을 시킨다: **2초 조각**이 곧바로 받아 적고(이 상수), 몇 줄 모이면
- * 텍스트 교정이 오타를 다듬고, 검토 단계의 정밀 전사가 5분 조각으로 다시
- * 들어 최종 기록을 만든다.
+ * 이 경로는 **기기 인식기가 없거나 죽었을 때의 대역**이다. 화면에 글이
+ * 흐르게 하는 일은 기기 인식기가 맡는다(즉시 반응하고, 무엇보다 들린 말을
+ * 옮긴다). 그보다 짧게 잘라 AI 에 물으면 그건 전사가 아니라 추측이 된다 —
+ * 맥락이 없어 모델이 그럴듯한 다른 말을 지어내고, 코치는 자기가 하지도
+ * 않은 문장을 읽는다. 한 문장이 온전히 담기는 길이를 지킨다.
  */
-export const SEGMENT_TARGET_SEC = 2;
+export const SEGMENT_TARGET_SEC = 8;
 /**
  * 받아쓴 줄을 이만큼 모아 한 번에 오타를 교정한다(ms).
  *
@@ -101,7 +100,7 @@ const PERSIST_THROTTLE_MS = 5_000;
  * 시작하면 그동안의 조각은 라이브 필기에서 건너뛴다. 오디오는 아카이브에
  * 그대로 남아 검토 단계의 정밀 전사가 빠짐없이 받아 적는다.
  */
-export const LIVE_QUEUE_MAX_PENDING = 20;
+export const LIVE_QUEUE_MAX_PENDING = 8;
 /**
  * 하단 "요약 노트" 갱신 주기. 필기(전사)와 달리 요약은 맥락이 어느 정도
  * 쌓여야 의미가 있어 5분에 한 번 전체 필기를 다시 요약한다.
@@ -142,10 +141,10 @@ const VAD_SIGNAL_EPSILON = 0.0005;
  *
  * 타구음·기계음뿐인 구간을 모델에 보내면 모델은 침묵하는 대신 그럴듯한
  * 대화를 지어낸다 — 코치가 하지도 않은 말이 필기에 남는 가장 큰 원인이다.
- * 2초 조각에서 0.3초는 "네" 한 마디 정도라, 진짜 말이 있는 조각을 잘라낼
+ * 8초 조각에서 0.5초는 "네" 한 마디 정도라, 진짜 말이 있는 조각을 잘라낼
  * 여지는 거의 없으면서 타구음만 있는 조각은 확실히 걸러진다.
  */
-export const MIN_VOICED_MS_PER_SEGMENT = 300;
+export const MIN_VOICED_MS_PER_SEGMENT = 500;
 
 /**
  * 구간에 사람 말이 실제로 있었는지 재는 계기.
@@ -262,11 +261,11 @@ export const INIT_SEARCH_MAX_ATTEMPTS = 6;
 /**
  * 세그먼트 분석 동시 실행 한도.
  *
- * 조각이 2초마다 나오므로 한 번에 하나씩 처리하면 큐가 밀려 필기가 점점
- * 뒤로 처진다 — "받아 적고 있다"는 느낌이 무너지는 지점이다. 왕복이 2~3초인
- * 것을 감안해 조각이 나오는 속도보다 넉넉하게 잡는다.
+ * 조각이 나오는 속도보다 처리가 느리면 큐가 밀려 필기가 점점 뒤로 처진다.
+ * 8초 조각에 왕복 2~3초를 감안하면 셋이면 충분하고, 그 이상은 분당 호출만
+ * 늘려 rate limit 을 부른다(밀리는 진짜 원인이 그쪽이었다).
  */
-export const ANALYSIS_CONCURRENCY = 6;
+export const ANALYSIS_CONCURRENCY = 3;
 /** 세그먼트 분석 재시도 횟수(최초 시도 포함). */
 export const ANALYSIS_MAX_ATTEMPTS = 3;
 /** 복구 대상 세션 보존 기한. */
@@ -1247,8 +1246,56 @@ const TRANSCRIPT_REPAIR_CONTEXT = 3;
  * 버린다. 오인식 단어 치환은 길이를 거의 바꾸지 않는다 — 두 배로 늘었다면
  * 모델이 설명을 붙였거나 앞뒤 줄을 합친 것이고, 절반으로 줄었다면 요약한 것이다.
  */
-const REPAIR_MAX_RATIO = 1.8;
-const REPAIR_MIN_RATIO = 0.5;
+const REPAIR_MAX_RATIO = 1.4;
+const REPAIR_MIN_RATIO = 0.6;
+/**
+ * 교정본이 원문과 이만큼은 닮아 있어야 받아들인다(문자 2-그램 겹침).
+ *
+ * 길이만 보면 "완전히 다른 말이지만 길이는 비슷한" 교정을 놓친다. 오인식
+ * 단어 치환은 문장의 대부분을 그대로 두므로 겹침이 높게 남고, 문장을 새로
+ * 쓴 응답은 여기서 걸린다 — 코치가 한 말이 다른 말로 바뀌는 것을 막는
+ * 마지막 관문이다.
+ */
+const REPAIR_MIN_SIMILARITY = 0.45;
+/**
+ * 닮음 검사를 적용할 최소 길이(공백 제외).
+ *
+ * 짧은 줄은 단어 하나만 고쳐도 문자 겹침이 크게 떨어진다("페이서 0" →
+ * "페이스 0" 은 정당한 교정인데 겹침은 0.33 이다). 짧은 줄은 길이 비율만으로
+ * 거르고, 문장을 통째로 갈아 끼울 여지가 있는 긴 줄에만 닮음을 요구한다.
+ */
+const REPAIR_MIN_LEN_FOR_SIMILARITY = 12;
+
+/** 문자 2-그램 목록(공백 무시) — 짧은 한국어 문장 비교에 무난하다. */
+const charBigrams = (text: string): string[] => {
+  const t = text.replace(/\s+/g, '');
+  const out: string[] = [];
+  for (let i = 0; i + 1 < t.length; i++) out.push(t.slice(i, i + 2));
+  return out;
+};
+
+/**
+ * 두 문장이 얼마나 닮았는가(0~1, Dice 계수). 1 이면 사실상 같은 문장,
+ * 0 에 가까우면 다른 말이다.
+ */
+export const transcriptSimilarity = (a: string, b: string): number => {
+  const left = charBigrams(a);
+  const right = charBigrams(b);
+  if (left.length === 0 || right.length === 0) {
+    return a.replace(/\s+/g, '') === b.replace(/\s+/g, '') ? 1 : 0;
+  }
+  const pool = new Map<string, number>();
+  for (const g of left) pool.set(g, (pool.get(g) ?? 0) + 1);
+  let hits = 0;
+  for (const g of right) {
+    const left = pool.get(g) ?? 0;
+    if (left > 0) {
+      hits += 1;
+      pool.set(g, left - 1);
+    }
+  }
+  return (2 * hits) / (left.length + right.length);
+};
 
 /** 교정 대상 한 줄. id 는 이 레슨 안에서만 유효한 일련번호다. */
 export interface TranscriptRepairLine {
@@ -1318,7 +1365,10 @@ export const isAcceptableRepair = (original: string, repaired: string): boolean 
   if (!to || to === from) return false;
   if (!from) return false;
   const ratio = to.length / from.length;
-  return ratio <= REPAIR_MAX_RATIO && ratio >= REPAIR_MIN_RATIO;
+  if (ratio > REPAIR_MAX_RATIO || ratio < REPAIR_MIN_RATIO) return false;
+  // 길이가 비슷해도 내용이 갈아 끼워졌으면 교정이 아니라 창작이다.
+  if (from.replace(/\s+/g, '').length < REPAIR_MIN_LEN_FOR_SIMILARITY) return true;
+  return transcriptSimilarity(from, to) >= REPAIR_MIN_SIMILARITY;
 };
 
 /** 교정 1회분 호출. 테스트에서 주입할 수 있게 분리한다. */
@@ -1391,23 +1441,19 @@ const collectRepairTargets = (notes: LessonSegmentNote[]): RepairTarget[] => {
  * 용어 교정처럼 맥락이 필요한 일은 뒤 단계(라이브 교정, 검토 단계의 정밀
  * 전사)에 맡기고 여기서는 "들린 말"만 받는다.
  */
-export const buildLiveTranscribePrompt = (ctx: SegmentPromptContext): string => {
-  const prior = ctx.previousTurns?.length
-    ? `\n\n직전에 적은 말(이어지는 문장을 잇는 참고용입니다. 다시 적지 마세요):\n${ctx.previousTurns
-        .slice(-4)
-        .map((t) => `- ${t.text}`)
-        .join('\n')}`
-    : '';
-  return `골프 레슨 현장(실내 연습장) 녹음의 ${Math.round(ctx.durationSec)}초 조각입니다.
-들리는 말만 그대로 받아 적으세요. JSON 하나만 반환합니다:
+export const buildLiveTranscribePrompt = (ctx: SegmentPromptContext): string =>
+  `골프 레슨 현장(실내 연습장) 녹음의 ${Math.round(ctx.durationSec)}초 조각입니다.
+**이 오디오에서 실제로 들리는 말만** 그대로 받아 적으세요. JSON 하나만 반환합니다:
 {"turns":[{"speaker":"coach","text":"..."}]}
 
 - speaker 는 지시·설명이면 "coach", 질문·대답이면 "student", 모르겠으면 "unknown".
-- 조각이 짧아 문장이 중간에서 잘립니다. 잘린 그대로 적고 끝을 지어내지 마세요.
+- 들린 발음 그대로 적으세요. 어색해도 고치지 말고, 뜻이 통하게 다듬지도 마세요.
+  틀리게 들렸더라도 들린 대로 적힌 편이 낫습니다 — 나중에 사람이 고칩니다.
+- 알아듣지 못한 부분은 **비워 두세요.** 문맥으로 짐작해 채우지 마세요.
+- 조각 끝에서 문장이 잘립니다. 잘린 그대로 적고 뒷말을 지어내지 마세요.
 - **타구음·기계음뿐이고 말이 없으면 {"turns":[]} 를 반환하세요.** 레슨 중에는
   학생이 혼자 공을 치는 시간이 길어 그런 조각이 흔합니다. 빈 배열이 정답입니다.
-- 요약하지 말고, 안 들린 말을 채워 넣지 마세요.${prior}`;
-};
+- 요약·의역·정리 금지. 들린 말을 옮기는 것 외에는 아무것도 하지 마세요.`;
 
 /**
  * 라이브 받아쓰기 — 짧은 조각을 빠르게 전사한다(화면에 바로 흐르는 줄).
@@ -2756,11 +2802,15 @@ export class LessonAudioSession {
       previousKeyPoints: this.notes
         .filter((n) => n.status === 'done')
         .flatMap((n) => n.keyPoints),
-      // 직전 구간들의 원본 발화(겹침 제거 전) — 잘린 문장을 잇는 단서.
-      // 2초 조각은 한 조각만으로 문맥이 서지 않아 몇 개를 함께 넘긴다.
-      previousTurns: [-3, -2, -1].flatMap(
-        (back) => this.rawTurns.get(index + back) ?? []
-      ),
+      /**
+       * 직전 구간의 원본 발화(겹침 제거 전).
+       *
+       * 화자 판단과 겹침 제거의 단서로만 쓴다. 이걸 라이브 전사 프롬프트에
+       * 넣으면 모델이 오디오를 듣는 대신 앞 문장을 **이어 쓰기** 시작해,
+       * 코치가 하지 않은 말이 그럴듯하게 적힌다 — 실제로 그렇게 됐다.
+       * 그래서 라이브 프롬프트는 이 값을 쓰지 않는다.
+       */
+      previousTurns: this.rawTurns.get(index - 1),
     };
 
     this.queue.enqueue(
