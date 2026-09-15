@@ -1,0 +1,682 @@
+<title>CoachX AI</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Noto+Sans+KR:wght@400;500;700;900&display=swap">
+<style>
+  :root {
+    --bg-base: #080c0a;
+    --bg-raised: #10160d;
+    --bg-overlay: #1c221d;
+    --bg-inset: #040605;
+    --ink-high: #f3f5f4;
+    --ink-medium: #b9bfbc;
+    --ink-muted: #8a918e;
+    --ink-faint: #5e6562;
+    --primary: #10b981;
+    --primary-light: #34d399;
+    --primary-deep: #047857;
+    --primary-dark: #064e3b;
+    --line-subtle: rgba(255,255,255,0.06);
+    --line-default: rgba(255,255,255,0.10);
+    --line-strong: rgba(255,255,255,0.18);
+    --font-brand: 'Space Grotesk', system-ui, sans-serif;
+    --font-body: 'Noto Sans KR', system-ui, -apple-system, sans-serif;
+    color-scheme: dark;
+  }
+
+  body {
+    background: var(--bg-base);
+    color: var(--ink-high);
+    font-family: var(--font-body);
+    font-size: 16px;
+    line-height: 1.75;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    max-width: 780px;
+    margin: 0 auto;
+    padding-inline: 24px;
+    padding-block: 0 96px;
+  }
+
+  /* ── Type scale ───────────────────────────────────── */
+  h1, h2, h3 { text-wrap: balance; letter-spacing: -0.02em; margin: 0; }
+  h1 { font-size: clamp(2rem, 6.5vw, 3rem); line-height: 1.12; font-weight: 900; letter-spacing: -0.03em; }
+  h2 { font-size: clamp(1.5rem, 4.4vw, 2rem); line-height: 1.25; font-weight: 900; }
+  h3 { font-size: 1.125rem; line-height: 1.45; font-weight: 700; }
+  p { margin: 0; }
+
+  .eyebrow {
+    font-family: var(--font-brand);
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--primary-light);
+  }
+  .num { font-family: var(--font-brand); font-variant-numeric: tabular-nums; }
+
+  /* ── Hero ─────────────────────────────────────────── */
+  .hero {
+    position: relative;
+    overflow: hidden;
+    border-bottom: 1px solid var(--line-subtle);
+    background:
+      radial-gradient(120% 90% at 18% -10%, rgba(6,95,70,0.55) 0%, rgba(4,120,87,0.18) 38%, rgba(8,12,10,0) 72%),
+      var(--bg-base);
+  }
+  .hero-inner {
+    max-width: 780px;
+    margin: 0 auto;
+    padding-inline: 24px;
+    padding-block: 72px 64px;
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+  }
+  .lockup {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    font-family: var(--font-brand);
+    font-weight: 700;
+    font-size: 1.0625rem;
+    letter-spacing: -0.01em;
+  }
+  .mark {
+    width: 28px; height: 28px; flex: none;
+    border-radius: 9px;
+    background: linear-gradient(145deg, var(--primary) 0%, var(--primary-deep) 100%);
+    box-shadow: 0 0 20px rgba(16,185,129,0.30);
+    display: grid; place-items: center;
+  }
+  .mark svg { display: block; }
+  .hero h1 { max-width: 15ch; }
+  .hero h1 em { font-style: normal; color: var(--primary-light); }
+  .lede { font-size: 1.125rem; color: var(--ink-medium); max-width: 46ch; }
+
+  /* Agent bubble — the app's actual opening line */
+  .bubble {
+    align-self: flex-start;
+    max-width: 100%;
+    background: var(--bg-overlay);
+    border: 1px solid var(--line-default);
+    border-radius: 18px 18px 18px 5px;
+    padding: 14px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+    box-shadow: 0 12px 32px -8px rgba(0,0,0,0.45);
+  }
+  .bubble-who {
+    font-family: var(--font-brand);
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-muted);
+    display: flex; align-items: center; gap: 7px;
+  }
+  .dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--primary);
+    box-shadow: 0 0 10px var(--primary);
+  }
+  .bubble p { font-size: 1.0625rem; font-weight: 500; line-height: 1.5; }
+  .bubble .cue { font-size: 0.8125rem; color: var(--ink-muted); line-height: 1.5; }
+
+  /* ── Sections ─────────────────────────────────────── */
+  section { padding-block: 64px 0; }
+  .sec-head { display: flex; flex-direction: column; gap: 12px; margin-bottom: 32px; }
+  .sec-head p { color: var(--ink-medium); max-width: 54ch; }
+
+  /* Problem — plain rows, no cards */
+  .problems { display: flex; flex-direction: column; }
+  .problem {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 6px;
+    padding-block: 20px;
+    border-top: 1px solid var(--line-subtle);
+  }
+  .problem:last-child { border-bottom: 1px solid var(--line-subtle); }
+  .problem strong { font-weight: 700; font-size: 1.0625rem; }
+  .problem span { color: var(--ink-muted); font-size: 0.9375rem; line-height: 1.65; }
+  .aside {
+    margin-top: 28px;
+    border-left: 2px solid var(--primary-deep);
+    padding: 2px 0 2px 20px;
+    color: var(--ink-medium);
+    font-size: 1.0625rem;
+  }
+  .aside b { color: var(--ink-high); font-weight: 700; }
+
+  /* Flow — a real sequence, so it is numbered */
+  .flow { display: flex; flex-direction: column; }
+  .step {
+    position: relative;
+    display: grid;
+    grid-template-columns: 34px 1fr;
+    gap: 18px;
+    padding-bottom: 28px;
+  }
+  .step:last-child { padding-bottom: 0; }
+  .step::before {
+    content: "";
+    position: absolute;
+    left: 16px; top: 30px; bottom: 2px;
+    width: 1px;
+    background: linear-gradient(var(--line-strong), var(--line-subtle));
+  }
+  .step:last-child::before { display: none; }
+  .step-n {
+    width: 34px; height: 34px;
+    border-radius: 50%;
+    display: grid; place-items: center;
+    font-family: var(--font-brand);
+    font-size: 0.8125rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: var(--ink-medium);
+    background: var(--bg-raised);
+    border: 1px solid var(--line-default);
+    position: relative; z-index: 1;
+  }
+  .step.key .step-n {
+    color: #052e1f;
+    background: var(--primary);
+    border-color: var(--primary);
+    box-shadow: 0 0 20px rgba(16,185,129,0.30);
+  }
+  .step-body { display: flex; flex-direction: column; gap: 5px; padding-top: 3px; }
+  .step-body h3 { font-size: 1.0625rem; }
+  .step.key .step-body h3 { color: var(--primary-light); }
+  .step-body p { color: var(--ink-muted); font-size: 0.9375rem; line-height: 1.65; }
+
+  /* Features — rail-led blocks */
+  .features { display: flex; flex-direction: column; gap: 36px; }
+  .feature { display: flex; flex-direction: column; gap: 12px; }
+  .feature-title { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+  .feature-title h3 { font-size: 1.25rem; }
+  .kicker {
+    font-family: var(--font-brand);
+    font-size: 0.6875rem;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    color: var(--ink-faint);
+    text-transform: uppercase;
+  }
+  .feature > p { color: var(--ink-medium); }
+  .feature ul { margin: 2px 0 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 9px; }
+  .feature li {
+    position: relative;
+    padding-left: 20px;
+    color: var(--ink-medium);
+    font-size: 0.9375rem;
+    line-height: 1.65;
+  }
+  .feature li::before {
+    content: "";
+    position: absolute;
+    left: 2px; top: 0.72em;
+    width: 6px; height: 6px;
+    border-radius: 2px;
+    background: var(--primary-deep);
+  }
+  .feature li b { color: var(--ink-high); font-weight: 700; }
+
+  /* Trust — data rows */
+  .proof { border-top: 1px solid var(--line-subtle); }
+  .proof-row {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 5px;
+    padding-block: 18px;
+    border-bottom: 1px solid var(--line-subtle);
+  }
+  .proof-row dt { font-weight: 700; font-size: 0.9375rem; display: flex; align-items: center; gap: 10px; }
+  .proof-row dd { margin: 0; color: var(--ink-muted); font-size: 0.9375rem; line-height: 1.65; }
+  .stat {
+    font-family: var(--font-brand);
+    font-variant-numeric: tabular-nums;
+    font-weight: 700;
+    font-size: 0.75rem;
+    letter-spacing: 0.02em;
+    color: var(--primary-light);
+    background: rgba(16,185,129,0.10);
+    border: 1px solid rgba(16,185,129,0.28);
+    border-radius: 999px;
+    padding: 2px 9px;
+    flex: none;
+  }
+  .sample {
+    margin-top: 8px;
+    background: var(--bg-inset);
+    border: 1px solid var(--line-subtle);
+    border-radius: 10px;
+    padding: 12px 14px;
+    font-family: var(--font-brand);
+    font-size: 0.8125rem;
+    font-variant-numeric: tabular-nums;
+    color: var(--ink-medium);
+    line-height: 1.6;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+  .sample b { color: var(--primary-light); font-weight: 700; }
+
+  /* Tables */
+  .table-scroll { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.9375rem; }
+  th, td { text-align: left; padding: 14px 16px 14px 0; vertical-align: top; }
+  thead th {
+    font-family: var(--font-brand);
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    border-bottom: 1px solid var(--line-default);
+    padding-bottom: 10px;
+    white-space: nowrap;
+  }
+  tbody tr { border-bottom: 1px solid var(--line-subtle); }
+  tbody th { font-weight: 700; color: var(--ink-high); white-space: nowrap; }
+  tbody td { color: var(--ink-medium); }
+
+  /* Languages */
+  .langs { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+  .lang {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--ink-medium);
+    background: var(--bg-raised);
+    border: 1px solid var(--line-default);
+    border-radius: 999px;
+    padding: 6px 15px;
+  }
+  .lang span { font-family: var(--font-brand); font-size: 0.75rem; color: var(--ink-faint); margin-left: 7px; }
+
+  /* Pricing */
+  .plans { display: flex; flex-direction: column; gap: 14px; }
+  .plan {
+    background: var(--bg-raised);
+    border: 1px solid var(--line-default);
+    border-radius: 16px;
+    padding: 22px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .plan.lead {
+    border-color: rgba(16,185,129,0.45);
+    background: linear-gradient(160deg, rgba(6,95,70,0.30) 0%, var(--bg-raised) 55%);
+    box-shadow: 0 0 30px rgba(16,185,129,0.10);
+  }
+  .plan-top { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+  .plan-name { font-weight: 700; font-size: 1.0625rem; }
+  .plan-price { font-family: var(--font-brand); font-variant-numeric: tabular-nums; font-weight: 700; font-size: 1.5rem; letter-spacing: -0.02em; }
+  .plan.lead .plan-price { color: var(--primary-light); }
+  .plan-price small { font-family: var(--font-body); font-size: 0.8125rem; font-weight: 500; color: var(--ink-muted); margin-left: 3px; }
+  .plan p { color: var(--ink-muted); font-size: 0.9375rem; line-height: 1.65; }
+  .trial {
+    display: inline-flex; align-self: flex-start; align-items: center; gap: 7px;
+    font-size: 0.8125rem; font-weight: 700;
+    color: var(--primary-light);
+  }
+  .note { margin-top: 14px; color: var(--ink-faint); font-size: 0.875rem; }
+
+  /* Roadmap */
+  .roadmap { display: flex; flex-direction: column; }
+  .rm {
+    display: flex; align-items: flex-start; justify-content: space-between; gap: 16px;
+    padding-block: 16px;
+    border-bottom: 1px solid var(--line-subtle);
+  }
+  .rm:first-child { border-top: 1px solid var(--line-subtle); }
+  .rm-text { display: flex; flex-direction: column; gap: 3px; }
+  .rm-text strong { font-weight: 700; font-size: 0.9375rem; }
+  .rm-text span { color: var(--ink-muted); font-size: 0.875rem; line-height: 1.6; }
+  .chip {
+    flex: none;
+    font-family: var(--font-brand);
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ink-muted);
+    border: 1px solid var(--line-default);
+    border-radius: 999px;
+    padding: 3px 10px;
+    margin-top: 3px;
+    white-space: nowrap;
+  }
+
+  /* Close */
+  .close {
+    margin-top: 72px;
+    border-top: 1px solid var(--line-default);
+    padding-top: 40px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .close h2 { font-size: clamp(1.375rem, 4vw, 1.75rem); max-width: 20ch; }
+  .close p { color: var(--ink-medium); max-width: 48ch; }
+  .tbd {
+    margin-top: 10px;
+    font-family: var(--font-brand);
+    font-size: 0.8125rem;
+    color: var(--ink-faint);
+    border: 1px dashed var(--line-strong);
+    border-radius: 10px;
+    padding: 12px 16px;
+  }
+
+  @media (min-width: 600px) {
+    .problem { grid-template-columns: 13rem 1fr; gap: 24px; align-items: baseline; }
+    .proof-row { grid-template-columns: 15rem 1fr; gap: 24px; align-items: baseline; }
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .hero-inner > * { animation: rise 0.6s cubic-bezier(0.16, 1, 0.3, 1) backwards; }
+    .hero-inner > *:nth-child(2) { animation-delay: 0.06s; }
+    .hero-inner > *:nth-child(3) { animation-delay: 0.12s; }
+    .hero-inner > *:nth-child(4) { animation-delay: 0.18s; }
+    @keyframes rise { from { opacity: 0; transform: translateY(10px); } }
+  }
+</style>
+
+<header class="hero">
+  <div class="hero-inner">
+    <div class="lockup">
+      <span class="mark" aria-hidden="true">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+          <path d="M3 8.6 L6.4 12 L13 4.2" stroke="#052e1f" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </span>
+      CoachX AI
+    </div>
+
+    <h1>레슨에 <em>동반하는</em><br>AI 코치 어시스턴트</h1>
+
+    <p class="lede">코치가 레슨하는 동안 옆에서 함께 듣고, 받아 적고, 정리합니다. 레슨이 끝나는 순간 학생별 기록은 이미 완성돼 있습니다.</p>
+
+    <div class="bubble">
+      <div class="bubble-who"><span class="dot"></span>CoachX</div>
+      <p>레슨 동반을 시작하시겠습니까?</p>
+      <p class="cue">오늘 14:00 이지영 회원 · 지난 레슨에서 다룬 것: 체중 이동</p>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <section>
+    <div class="sec-head">
+      <span class="eyebrow">The problem</span>
+      <h2>기록하는 시간은 곧 가르치지 못하는 시간</h2>
+      <p>레슨 기록이 중요하다는 걸 모르는 코치는 없습니다. 문제는 기록할 시간이 레슨 시간에서 나온다는 점입니다.</p>
+    </div>
+    <div class="problems">
+      <div class="problem">
+        <strong>기록이 흩어진다</strong>
+        <span>종이 노트, 카톡, 메모 앱, 그리고 기억. 다음 레슨 때 지난 내용을 다시 찾아야 합니다.</span>
+      </div>
+      <div class="problem">
+        <strong>맥락이 끊긴다</strong>
+        <span>“지난번에 뭘 했더라?”가 매 레슨 반복됩니다. 학생은 코치가 기억해주기를 기대합니다.</span>
+      </div>
+      <div class="problem">
+        <strong>학생이 늘면 무너진다</strong>
+        <span>회원 10명까지는 기억으로 버팁니다. 30명이 되면 불가능합니다.</span>
+      </div>
+      <div class="problem">
+        <strong>결국 포기하게 된다</strong>
+        <span>행정 업무가 부담이 되는 순간, 가장 먼저 사라지는 게 레슨 기록입니다.</span>
+      </div>
+    </div>
+    <p class="aside">기존 도구는 <b>기록할 공간</b>을 줍니다. 기록하는 노동은 그대로 코치에게 남습니다.</p>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <span class="eyebrow">동반 레슨 · How it works</span>
+      <h2>양식을 주는 대신, 레슨에 함께 들어갑니다</h2>
+      <p>코치 앱에는 탭 바가 없습니다. 대화 화면 하나가 곧 앱이고, 메뉴를 찾아 들어가는 대신 에이전트가 먼저 다음 할 일을 제안합니다.</p>
+    </div>
+    <div class="flow">
+      <div class="step">
+        <div class="step-n">1</div>
+        <div class="step-body">
+          <h3>로그인하면 먼저 제안합니다</h3>
+          <p>오늘의 브리핑과 함께 “레슨 동반을 시작하시겠습니까?”</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-n">2</div>
+        <div class="step-body">
+          <h3>학생을 고릅니다</h3>
+          <p>대화 안에서 예약 순으로 정렬된 카드를 고르거나, 이름을 말하면 됩니다.</p>
+        </div>
+      </div>
+      <div class="step key">
+        <div class="step-n">3</div>
+        <div class="step-body">
+          <h3>CoachX가 레슨에 동반합니다</h3>
+          <p>코치가 말한 피드백을 들리는 대로 받아 적고, 스윙 순간을 영상 클립으로 잡아둡니다.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-n">4</div>
+        <div class="step-body">
+          <h3>레슨이 끝나면 기록이 채워져 있습니다</h3>
+          <p>필기 · 요약 · 핵심 포인트 · 드릴 · 클립이 기록 양식에 자동으로 들어갑니다.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-n">5</div>
+        <div class="step-body">
+          <h3>코치가 검토하고 승인합니다</h3>
+          <p>수정한 뒤 승인하면 학생에게 전달됩니다. 승인 전 초안은 학생에게 절대 보이지 않습니다.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <span class="eyebrow">Features</span>
+      <h2>네 가지 기능이 하나의 루프로 돕니다</h2>
+    </div>
+    <div class="features">
+
+      <article class="feature">
+        <div class="feature-title"><h3>동반 레슨</h3><span class="kicker">Live lesson companion</span></div>
+        <p>레슨 중 CoachX가 함께합니다. 코치는 휴대폰을 들여다볼 필요가 없습니다.</p>
+        <ul>
+          <li><b>실시간 받아쓰기</b> — 들리는 대로 먼저 적고, 보정은 그 위에서 합니다</li>
+          <li><b>스윙 순간 캡처</b> — 레슨 도중 영상 클립을 잡아둡니다</li>
+          <li><b>요약 초안 생성</b> — 레슨이 끝나는 시점에 요약 · 핵심 포인트 · 드릴이 정리돼 있습니다</li>
+        </ul>
+      </article>
+
+      <article class="feature">
+        <div class="feature-title"><h3>AI 레슨 기록 정리</h3><span class="kicker">Organize &amp; review</span></div>
+        <p>거친 메모를 그대로 쓸 수 있는 기록으로 바꿉니다. 마지막 결정권은 항상 코치에게 있습니다.</p>
+        <ul>
+          <li>레슨 내용 · 피드백 · 진도 · 다음 액션으로 구조화</li>
+          <li><b>AI 초안을 검토하고 수정한 뒤 저장</b> — AI가 코치를 대신하지 않습니다</li>
+          <li>자동 저장과 초안 복구 — 레슨 중 앱이 꺼져도 작업이 남습니다</li>
+        </ul>
+      </article>
+
+      <article class="feature">
+        <div class="feature-title"><h3>레슨 스토리</h3><span class="kicker">Lesson story</span></div>
+        <p>승인된 기록을 보관함이 아니라 <b>한 편의 글</b>로 조판해서 학생에게 보여줍니다.</p>
+        <ul>
+          <li>제목 → 리드 → 본문 → 맺음의 흐름으로 읽힙니다</li>
+          <li>문단 사이에 그날의 사진과 영상이 교차 배치됩니다</li>
+          <li>Before/After 비교, 샷 데이터, 과제가 하나의 글 안에 엮입니다</li>
+        </ul>
+      </article>
+
+      <article class="feature">
+        <div class="feature-title"><h3>학생 히스토리</h3><span class="kicker">Context continuity</span></div>
+        <p>모든 레슨이 학생에게 시간순으로 쌓입니다. 새 레슨은 항상 이전 맥락 위에서 시작합니다.</p>
+        <ul>
+          <li>다음 레슨 전, 최근 요약과 전체 이력을 한 화면에서 확인</li>
+          <li>성장 타임라인과 주간 인사이트로 변화 추이 파악</li>
+        </ul>
+      </article>
+
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <span class="eyebrow">Why it can be trusted</span>
+      <h2>학생에게 그대로 보여줄 수 있는 품질인가</h2>
+      <p>“AI가 정리해준다”는 말은 흔합니다. 관건은 코치가 그 결과물을 학생에게 내보낼 수 있느냐입니다. CoachX는 AI 출력 품질을 측정 가능한 형태로 관리합니다.</p>
+    </div>
+    <dl class="proof">
+
+      <div class="proof-row">
+        <dt><span class="stat">13 / 13</span> 회귀 테스트</dt>
+        <dd>13개 골든 케이스를 상시 실행해 품질 저하를 잡아냅니다. 최근 기준선은 전 케이스 통과(2026-08)이며, 이 수치를 떨어뜨리는 변경은 이유를 설명해야 합니다.</dd>
+      </div>
+
+      <div class="proof-row">
+        <dt><span class="stat">13종</span> 수치를 지어내지 않음</dt>
+        <dd>
+          13종 클럽 × 헤드 스피드 구간별 Trackman 참조표를 직접 주입합니다. 최적 발사각과 스핀은 추측이 아니라 참조값으로 인용됩니다.
+          <div class="sample">7번 아이언 · 헤드 스피드 <b>74 mph</b> → 최적 발사각 <b>15.6°–17.6°</b></div>
+        </dd>
+      </div>
+
+      <div class="proof-row">
+        <dt><span class="stat">mph</span> 단위 변환 금지</dt>
+        <dd>mph로 측정한 값이 km/h로 둔갑하는 오류를 테스트로 차단합니다. 코치가 읽는 숫자는 측정된 그 단위 그대로입니다.</dd>
+      </div>
+
+      <div class="proof-row">
+        <dt><span class="stat">쓸수록</span> 코치 문체 학습</dt>
+        <dd>코치가 AI 초안을 고쳐 저장하면, 그 편집본이 다음 생성의 참고 예시로 주입됩니다. 다만 학생 이름과 수치는 절대 옮겨지지 않도록 막혀 있습니다.</dd>
+      </div>
+
+      <div class="proof-row">
+        <dt><span class="stat">~0.5s</span> 스트리밍 응답</dt>
+        <dd>첫 문장이 약 0.5초 안에 나타납니다. 레슨 중에 로딩 스피너를 보고 있을 시간은 없습니다.</dd>
+      </div>
+
+      <div class="proof-row">
+        <dt>인젝션 방어 · 관측성</dt>
+        <dd>모든 AI 호출의 지연시간 · 모델 · 폴백률 · 공격 시도를 관리자 대시보드에서 추적합니다.</dd>
+      </div>
+
+    </dl>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <span class="eyebrow">Two apps</span>
+      <h2>코치 앱과 회원 앱</h2>
+      <p>하나의 서비스가 두 개의 앱으로 나뉩니다. 코치가 승인한 기록만 회원에게 전달됩니다.</p>
+    </div>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr><th scope="col">앱</th><th scope="col">대상</th><th scope="col">핵심 역할</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <th scope="row">CoachX AI Coach</th>
+            <td>코치 · 관리자</td>
+            <td>동반 레슨, 기록 작성과 승인, 학생 관리</td>
+          </tr>
+          <tr>
+            <th scope="row">CoachX AI</th>
+            <td>수강 회원</td>
+            <td>레슨 스토리 열람, 성장 추이, AI 질의</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <span class="eyebrow">Global-first</span>
+      <h2>첫날부터 글로벌을 전제로</h2>
+      <p>레슨 시각은 지역 타임존에 맞춰 저장 · 표시되고, 날짜 표기와 다양한 이름 관습에 대응합니다.</p>
+    </div>
+    <div class="langs">
+      <div class="lang">한국어 <span>KO</span></div>
+      <div class="lang">English <span>EN</span></div>
+      <div class="lang">日本語 <span>JA</span></div>
+      <div class="lang">ไทย <span>TH</span></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <span class="eyebrow">Pricing</span>
+      <h2>요금</h2>
+    </div>
+    <div class="plans">
+      <div class="plan lead">
+        <div class="plan-top">
+          <span class="plan-name">코치 프로 멤버십</span>
+          <span class="plan-price">29,900원<small>/ 월</small></span>
+        </div>
+        <span class="trial">7일 무료 체험 후 결제</span>
+        <p>동반 레슨, AI 기록 정리, 학생 히스토리, 레슨 스토리 공유.</p>
+      </div>
+      <div class="plan">
+        <div class="plan-top">
+          <span class="plan-name">회원 PRO 멤버십</span>
+          <span class="plan-price">29,000원<small>/ 월</small></span>
+        </div>
+        <p>회원별 포트폴리오 관리와 전송, 회원 앱 연동 기능.</p>
+      </div>
+    </div>
+    <p class="note">포인트로 결제 금액을 차감할 수 있으며, 설정에서 언제든 해지할 수 있습니다.</p>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <span class="eyebrow">Roadmap</span>
+      <h2>지금은 한 가지 루프에 집중합니다</h2>
+      <p>아래 기능은 이미 개발이 끝나 있고, 기능 플래그로 꺼둔 상태입니다. 동반 레슨 경험이 안정화되는 순서대로 열립니다.</p>
+    </div>
+    <div class="roadmap">
+      <div class="rm">
+        <div class="rm-text"><strong>레슨 예약 관리</strong><span>예약 요청 알림, 예약 기반 레슨 시작 제안</span></div>
+        <span class="chip">준비됨</span>
+      </div>
+      <div class="rm">
+        <div class="rm-text"><strong>타석 예약</strong><span>골프연습장 타석을 코치와 회원이 함께 예약</span></div>
+        <span class="chip">준비됨</span>
+      </div>
+      <div class="rm">
+        <div class="rm-text"><strong>정밀 진단</strong><span>6단계 퍼포먼스 진단 프로그램</span></div>
+        <span class="chip">준비됨</span>
+      </div>
+      <div class="rm">
+        <div class="rm-text"><strong>커리큘럼 관리</strong><span>교육 과정 설계와 학생별 배정</span></div>
+        <span class="chip">준비됨</span>
+      </div>
+      <div class="rm">
+        <div class="rm-text"><strong>자동 영상 편집</strong><span>레슨 영상 업로드 → 임팩트 구간 자동 선택</span></div>
+        <span class="chip">준비됨</span>
+      </div>
+    </div>
+  </section>
+
+  <div class="close">
+    <span class="eyebrow">Get started</span>
+    <h2>코치는 가르치는 데만 집중하세요</h2>
+    <p>기록은 CoachX가 맡습니다. 7일 무료 체험으로 다음 레슨부터 바로 시작할 수 있습니다.</p>
+    <p class="tbd">[TBD] 홈페이지 · 문의 이메일 · 데모 신청 링크</p>
+  </div>
+
+</main>
