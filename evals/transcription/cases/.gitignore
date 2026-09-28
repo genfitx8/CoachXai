@@ -1,0 +1,5 @@
+# 실제 레슨 녹음과 정답 필기는 회원 개인정보다 — 절대 커밋하지 않는다.
+*
+!.gitignore
+!example/
+!example/meta.json

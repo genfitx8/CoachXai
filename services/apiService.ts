@@ -694,6 +694,21 @@ export const apiService = {
     await req('PUT', '/api/coaches/me', coach);
   },
 
+  /** 레슨 필기 전사·교정에 싣는 코치별 용어 사전. */
+  async getLessonVocabulary(): Promise<unknown> {
+    const data = await req<{ vocabulary: unknown }>('GET', '/api/coaches/me/lesson-vocabulary');
+    return data.vocabulary;
+  },
+
+  async saveLessonVocabulary(vocabulary: unknown): Promise<unknown> {
+    const data = await req<{ vocabulary: unknown }>(
+      'PUT',
+      '/api/coaches/me/lesson-vocabulary',
+      { vocabulary }
+    );
+    return data.vocabulary;
+  },
+
   // ── Lesson Packages ───────────────────────────────────────────────────────
 
   async getLessonPackages(coachId: string): Promise<LessonPackage[]> {

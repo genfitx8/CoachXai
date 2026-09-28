@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { rateLimit } from 'express-rate-limit';
 import pool from '../services/db';
 import { authMiddleware } from '../middleware/auth';
+import { normalizeLessonVocabulary } from '../services/lessonVocabulary';
 
 const router = Router();
 const listCoachesLimiter = rateLimit({
@@ -124,6 +125,60 @@ router.get('/me', coachSelfLimiter, authMiddleware, requireCoachRole, async (req
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
+// GET /api/coaches/me/lesson-vocabulary — 레슨 필기 전사·교정에 싣는 코치별 용어 사전
+router.get(
+  '/me/lesson-vocabulary',
+  coachSelfLimiter,
+  authMiddleware,
+  requireCoachRole,
+  async (req: Request, res: Response) => {
+    try {
+      const result = await pool.query(
+        'SELECT lesson_vocabulary FROM coaches WHERE id = $1',
+        [req.user!.id]
+      );
+      if (result.rows.length === 0) {
+        res.status(404).json({ error: 'Coach not found' });
+        return;
+      }
+      res.json({ vocabulary: normalizeLessonVocabulary(result.rows[0].lesson_vocabulary) });
+    } catch (err) {
+      console.error('[coaches] GET /me/lesson-vocabulary error:', err);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  }
+);
+
+// PUT /api/coaches/me/lesson-vocabulary — 사전 전체를 갈아 끼운다(정규화 후 저장).
+// PUT /me 와 분리한 이유: 그 경로는 빠진 필드를 null 로 덮어써, 사전 하나
+// 고치려고 프로필 전체를 다시 보내야 하기 때문이다.
+router.put(
+  '/me/lesson-vocabulary',
+  coachSelfLimiter,
+  authMiddleware,
+  requireCoachRole,
+  async (req: Request, res: Response) => {
+    try {
+      const vocabulary = normalizeLessonVocabulary(
+        (req.body as { vocabulary?: unknown } | undefined)?.vocabulary
+      );
+      const result = await pool.query(
+        `UPDATE coaches SET lesson_vocabulary = $1, updated_at = $2
+         WHERE id = $3 RETURNING lesson_vocabulary`,
+        [JSON.stringify(vocabulary), Date.now(), req.user!.id]
+      );
+      if (result.rows.length === 0) {
+        res.status(404).json({ error: 'Coach not found' });
+        return;
+      }
+      res.json({ vocabulary: normalizeLessonVocabulary(result.rows[0].lesson_vocabulary) });
+    } catch (err) {
+      console.error('[coaches] PUT /me/lesson-vocabulary error:', err);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  }
+);
 
 // GET /api/coaches/:id - accessible by authenticated coaches and clients
 router.get('/:id', coachSelfLimiter, authMiddleware, async (req: Request, res: Response) => {

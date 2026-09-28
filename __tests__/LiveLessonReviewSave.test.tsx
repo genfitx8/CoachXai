@@ -111,10 +111,26 @@ vi.mock('../components/LanguageContext', async (importOriginal) => ({
   useLanguage: () => ({ language: 'ko', t: (key: string) => key }),
 }));
 
+// 코치 용어 사전 — 네트워크를 타는 불러오기·저장·학습만 스텁으로 바꾼다.
+vi.mock('../services/lessonVocabulary', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../services/lessonVocabulary')>()),
+  loadLessonVocabulary: vi.fn(async () => ({
+    terms: ['수건 드릴'],
+    corrections: [],
+  })),
+  saveLessonVocabulary: vi.fn(async (v: unknown) => v),
+  learnFromReviewEdit: vi.fn(async () => ({
+    learned: 1,
+    vocabulary: { terms: ['수건 드릴'], corrections: [{ from: '페이서', to: '페이스' }] },
+  })),
+}));
+
 import {
   labelTranscriptSpeakers,
   preciseTranscribeNotes,
+  getActiveLessonVocabulary,
 } from '../services/lessonAudioPipeline';
+import { learnFromReviewEdit } from '../services/lessonVocabulary';
 import { LiveLessonCompanion } from '../components/LiveLessonCompanion';
 
 /** 녹음 시작 → 레슨 종료로 검토(레슨 기록 확인) 화면까지 연다. */
@@ -223,5 +239,38 @@ describe('레슨 기록 확인 화면', () => {
     expect(handoff.editedCoachSummary).toBe('그립 압력 교정');
     expect(handoff.editedStudentSummary).toBe('손목 통증을 호소');
     expect(handoff.editedTranscript).toContain('그립 압력');
+  });
+
+  it('화면이 열리면 코치 용어 사전을 불러와 필기 파이프라인에 설정한다', async () => {
+    await openReviewScreen();
+    await waitFor(() =>
+      expect(getActiveLessonVocabulary().terms).toContain('수건 드릴')
+    );
+  });
+
+  it('코치가 필기를 고쳐 저장하면 그 차이를 용어 사전에 배운다', async () => {
+    const onFinish = await openReviewScreen();
+    const transcript = await screen.findByPlaceholderText(/받아 적힌 내용이 없어요/, undefined, {
+      timeout: 5_000,
+    });
+    const original = (transcript as HTMLTextAreaElement).value;
+    fireEvent.change(transcript, { target: { value: `${original}\n코치: 페이스가 열렸어요` } });
+
+    fireEvent.click(screen.getByRole('button', { name: /기록 저장하기/ }));
+    await waitFor(() => expect(onFinish).toHaveBeenCalled());
+    expect(learnFromReviewEdit).toHaveBeenCalledWith(
+      original,
+      `${original}\n코치: 페이스가 열렸어요`,
+      expect.objectContaining({ terms: ['수건 드릴'] })
+    );
+  });
+
+  it('필기를 고치지 않았으면 배우지 않는다', async () => {
+    vi.mocked(learnFromReviewEdit).mockClear();
+    const onFinish = await openReviewScreen();
+    await screen.findByPlaceholderText(/받아 적힌 내용이 없어요/, undefined, { timeout: 5_000 });
+    fireEvent.click(screen.getByRole('button', { name: /기록 저장하기/ }));
+    await waitFor(() => expect(onFinish).toHaveBeenCalled());
+    expect(learnFromReviewEdit).not.toHaveBeenCalled();
   });
 });

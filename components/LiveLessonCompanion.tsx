@@ -13,6 +13,7 @@ import {
   Sparkles,
   RotateCcw,
   X,
+  BookOpen,
 } from 'lucide-react';
 import {
   isMediaPermissionError,
@@ -29,6 +30,7 @@ import {
   repairTranscriptTerms,
   defaultSliceVerifier,
   finalTranscriptRepairer,
+  setActiveLessonVocabulary,
   findRecoverableSessions,
   formatClock,
   purgeStaleLessonAudioSessions,
@@ -40,6 +42,14 @@ import {
   type RecoverableLessonSession,
 } from '../services/lessonAudioPipeline';
 import { LessonNotebook } from './LessonNotebook';
+import { LessonVocabularyEditor } from './LessonVocabularyEditor';
+import {
+  EMPTY_LESSON_VOCABULARY,
+  learnFromReviewEdit,
+  loadLessonVocabulary,
+  saveLessonVocabulary,
+  type LessonVocabulary,
+} from '../services/lessonVocabulary';
 import { BackButton } from './ui/BackButton';
 import { useLiveTranscription } from '../hooks/useLiveTranscription';
 
@@ -219,6 +229,26 @@ export const LiveLessonCompanion: React.FC<LiveLessonCompanionProps> = ({
   onFinish,
   onCancel,
 }) => {
+  // ─── 코치 용어 사전 ────────────────────────────────────────────────────────
+  // 전사·교정 프롬프트가 이 코치의 전용 용어와 지난 교정 기록을 싣도록,
+  // 화면이 열리자마자 불러와 파이프라인에 설정한다. 실패해도 레슨은 공용
+  // 용어만으로 그대로 진행된다.
+  const [vocabulary, setVocabulary] = useState<LessonVocabulary>(EMPTY_LESSON_VOCABULARY);
+  const [vocabEditorOpen, setVocabEditorOpen] = useState(false);
+  const applyVocabulary = useCallback((next: LessonVocabulary) => {
+    setVocabulary(next);
+    setActiveLessonVocabulary(next);
+  }, []);
+  useEffect(() => {
+    let cancelled = false;
+    void loadLessonVocabulary().then((v) => {
+      if (!cancelled) applyVocabulary(v);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [applyVocabulary]);
+
   // ─── Elapsed lesson timer ─────────────────────────────────────────────────
   const [lessonStartAt] = useState(() => Date.now());
   const [elapsedSec, setElapsedSec] = useState(0);
@@ -292,6 +322,11 @@ export const LiveLessonCompanion: React.FC<LiveLessonCompanionProps> = ({
    */
   const [reviewDraft, setReviewDraft] = useState<{
     transcriptText: string;
+    /**
+     * AI 가 만든 필기 초안 그대로. 저장할 때 코치가 고친 필기와 비교해
+     * "잘못 들린 말 → 바른 말"을 용어 사전에 배운다.
+     */
+    originalTranscriptText: string;
     /** 코치가 말한 것 — 교정 지시·드릴. */
     coachSummaryText: string;
     /** 학생이 말한 것 — 느낌·질문·반응. */
@@ -662,6 +697,7 @@ export const LiveLessonCompanion: React.FC<LiveLessonCompanionProps> = ({
       setReviewDraft((d) => (d ? { ...d, stage } : d));
     setReviewDraft({
       transcriptText: '',
+      originalTranscriptText: '',
       coachSummaryText: '',
       studentSummaryText: '',
       stage: 'precise',
@@ -768,6 +804,7 @@ export const LiveLessonCompanion: React.FC<LiveLessonCompanionProps> = ({
 
     setReviewDraft({
       transcriptText,
+      originalTranscriptText: transcriptText,
       coachSummaryText: dual.coach || rolling,
       studentSummaryText: dual.student,
       stage: 'summary',
@@ -785,6 +822,19 @@ export const LiveLessonCompanion: React.FC<LiveLessonCompanionProps> = ({
     const finalClips = stopped ? [...clips, ...stopped.audioClips] : clips;
     const coachSummary = reviewDraft.coachSummaryText.trim();
     const studentSummary = reviewDraft.studentSummaryText.trim();
+    // 코치가 필기를 고쳤다면 그 차이에서 오인식 짝을 배워 다음 레슨부터
+    // 처음부터 바르게 적히게 한다. 저장 흐름을 막지 않도록 기다리지 않는다.
+    if (reviewDraft.transcriptText !== reviewDraft.originalTranscriptText) {
+      void learnFromReviewEdit(
+        reviewDraft.originalTranscriptText,
+        reviewDraft.transcriptText,
+        vocabulary
+      )
+        .then(({ learned, vocabulary: next }) => {
+          if (learned > 0) setActiveLessonVocabulary(next);
+        })
+        .catch((e) => console.warn('[LiveLessonCompanion] 용어 학습 실패', e));
+    }
     onFinish(
       finalClips,
       stopped
@@ -866,6 +916,15 @@ export const LiveLessonCompanion: React.FC<LiveLessonCompanionProps> = ({
               )}
             </div>
           </div>
+          <button
+            type="button"
+            onClick={() => setVocabEditorOpen(true)}
+            aria-label="레슨 용어 사전"
+            className="flex-shrink-0 h-11 px-3 -mr-1 rounded-lg flex items-center gap-1.5 text-[12px] text-ink-muted hover:text-ink-high"
+          >
+            <BookOpen className="w-4 h-4" />
+            용어 사전
+          </button>
         </div>
       </header>
 
@@ -1173,6 +1232,14 @@ export const LiveLessonCompanion: React.FC<LiveLessonCompanionProps> = ({
           이 오버레이는 루트의 *패딩 박스* 기준으로 inset-0 이라 루트가 잡아
           둔 하단 여백을 덮어쓴다 — 그래서 기기 제스처 바 인셋(`pb-safe`)을
           여기서도 직접 잡아야 '기록 저장하기' 버튼이 가려지지 않는다. */}
+      {vocabEditorOpen && (
+        <LessonVocabularyEditor
+          vocabulary={vocabulary}
+          onSave={async (next) => applyVocabulary(await saveLessonVocabulary(next))}
+          onClose={() => setVocabEditorOpen(false)}
+        />
+      )}
+
       {reviewDraft && (
         <div className="absolute inset-0 z-30 bg-base flex flex-col pt-safe pb-safe">
           <header className="px-5 py-4 border-b border-line-subtle flex-shrink-0">

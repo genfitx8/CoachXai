@@ -57,8 +57,38 @@ import { invokeBackendAI, getResponseText } from './geminiService';
 import { promptService } from './promptService';
 import { firebaseService } from './firebase';
 import { createLogger } from '../utils/logger';
+import {
+  EMPTY_LESSON_VOCABULARY,
+  buildVocabularyPromptBlock,
+  normalizeLessonVocabulary,
+  type LessonVocabulary,
+} from './lessonVocabulary';
 
 const log = createLogger('lessonAudio');
+
+// ─── 코치 용어 사전 ─────────────────────────────────────────────────────────
+
+/**
+ * 지금 레슨을 진행하는 코치의 용어 사전(services/lessonVocabulary.ts).
+ *
+ * 전사·교정 프롬프트는 여러 경로(실시간·정밀·대조·교정)에서 만들어지고,
+ * 그중 몇은 세션 안쪽 깊은 곳에서 돈다. 사전을 모든 호출 경로로 실어
+ * 나르는 대신 레슨 화면이 열릴 때 한 번 설정해 두고 프롬프트 빌더가 읽는다.
+ * 한 기기에서 동시에 진행되는 레슨은 하나뿐이라 모듈 상태로 충분하다.
+ */
+let activeVocabulary: LessonVocabulary = EMPTY_LESSON_VOCABULARY;
+
+export const setActiveLessonVocabulary = (vocab: unknown): void => {
+  activeVocabulary = normalizeLessonVocabulary(vocab);
+};
+
+export const getActiveLessonVocabulary = (): LessonVocabulary => activeVocabulary;
+
+/** 프롬프트에 이어 붙일 코치 사전 블록(앞에 빈 줄 포함). 사전이 비면 ''. */
+const vocabularyBlock = (mode: 'audio' | 'text' | 'terms'): string => {
+  const block = buildVocabularyPromptBlock(activeVocabulary, mode);
+  return block ? `\n\n${block}` : '';
+};
 
 // ─── Tunables ────────────────────────────────────────────────────────────────
 
@@ -291,6 +321,16 @@ class SpeechActivityMeter {
 export const PRECISE_SLICE_SEC = 300;
 /** 정밀 전사 동시 실행 한도 — 검토 대기 시간과 rate limit 의 절충. */
 export const PRECISE_CONCURRENCY = 3;
+/**
+ * 정밀 전사 조각 앞에 덧붙이는 **앞 조각 꼬리** 길이(초).
+ *
+ * 5분 경계는 말을 가리지 않고 자른다. 경계에 걸린 문장은 앞 조각에서는
+ * 뒷말이, 뒤 조각에서는 앞말이 잘려 양쪽 다 온전하지 않고, 잘린 반쪽은
+ * 문맥이 없어 용어도 틀리기 쉽다. 뒤 조각이 앞 조각의 마지막 ~16초를 다시
+ * 듣게 하면 경계 문장이 한 번은 온전하게 들린다 — 그 온전한 쪽을 남기고
+ * 겹친 쪽은 mergeSliceBoundary 가 걷어 낸다.
+ */
+export const PRECISE_OVERLAP_SEC = 16;
 /**
  * 컨테이너 헤더 탐색 재시도 상한. 헤더는 런 바이트 스트림의 접두라 청크가
  * 하나 더 올 때마다 다시 찾을 수 있지만, 경계를 못 찾는 컨테이너에 무한정
@@ -1167,7 +1207,7 @@ speaker 는 셋 중 하나입니다:
 
 이 레슨에서 자주 나오는 코칭 어휘입니다. 발음이 비슷해 헷갈리는 자리에서는
 일반 낱말 대신 아래 용어로 알아들으세요(억지로 끼워 맞추지는 마세요):
-${GOLF_TERM_HINTS}
+${GOLF_TERM_HINTS}${vocabularyBlock('terms')}
 
 **이 구간에는 말이 한 마디도 없을 수 있습니다.** 레슨 중에는 학생이 혼자
 공을 치는 시간이 길어서, 타구음·기계음·발소리만 있는 구간이 흔합니다.
@@ -1404,7 +1444,7 @@ export const buildTranscriptRepairPrompt = (
 ${GOLF_TERM_HINTS}
 
 실제로 자주 나오는 오인식 예시(같은 유형을 찾아 고치세요):
-${GOLF_MISHEARING_EXAMPLES}
+${GOLF_MISHEARING_EXAMPLES}${vocabularyBlock('text')}
 ${prior}
 필기(번호는 줄 번호입니다):
 ${lines.map((l) => `${l.id}. ${l.text}`).join('\n')}
@@ -1592,20 +1632,42 @@ export const transcribeLessonAudioLive: SegmentAnalyzer = async (
 /** 정밀 전사에 넘길 오디오 한 조각 — 그 자체로 디코딩되는 파일이다. */
 export interface TranscriptionSlice {
   blob: Blob;
+  /** 이 조각이 "책임지는" 구간의 시작(초). 겹침 꼬리는 이보다 앞선다. */
+  startSec: number;
+  /** 책임 구간 길이(초). 겹침 꼬리는 포함하지 않는다. */
+  durationSec: number;
+  /**
+   * 오디오 앞에 덧붙인 앞 조각 꼬리 길이(초). 0 이거나 없으면 겹침 없음.
+   * 오디오는 startSec - leadSec 에서 시작한다.
+   */
+  leadSec?: number;
+}
+
+/** 조각 오디오가 실제로 담은 구간(겹침 꼬리 포함)의 "m:ss–m:ss" 표기. */
+const sliceWindowLabel = (ctx: {
   startSec: number;
   durationSec: number;
-}
+  leadSec?: number;
+}): string =>
+  `${formatClock(Math.max(0, ctx.startSec - (ctx.leadSec ?? 0)))}–${formatClock(
+    ctx.startSec + ctx.durationSec
+  )}`;
+
+/** 겹침 꼬리가 있는 조각에 붙이는 안내 — 경계 문장을 온전히 적게 한다. */
+const sliceLeadNote = (leadSec?: number): string =>
+  leadSec && leadSec > 0
+    ? `\n(처음 약 ${Math.round(leadSec)}초는 앞 구간의 끝부분이 겹쳐 들어 있습니다. 앞 구간 끝에서 잘린 문장을 온전히 적기 위한 것이니, 이 부분도 똑같이 받아 적으세요 — 중복은 나중에 자동으로 정리됩니다.)`
+    : '';
 
 export const buildPreciseTranscribePrompt = (ctx: {
   studentName: string;
   startSec: number;
   durationSec: number;
+  leadSec?: number;
 }): string => {
-  const window = `${formatClock(ctx.startSec)}–${formatClock(
-    ctx.startSec + ctx.durationSec
-  )}`;
+  const window = sliceWindowLabel(ctx);
   return `실내 골프연습장에서 코치가 학생(${ctx.studentName})을 가르치는 현장 녹음입니다.
-레슨의 ${window} 구간 전체가 담겨 있습니다. 처음부터 끝까지 **빠짐없이** 받아 적으세요.
+레슨의 ${window} 구간 전체가 담겨 있습니다. 처음부터 끝까지 **빠짐없이** 받아 적으세요.${sliceLeadNote(ctx.leadSec)}
 
 JSON 하나만 반환합니다:
 {"turns":[{"speaker":"coach","text":"..."},{"speaker":"student","text":"..."}]}
@@ -1617,7 +1679,7 @@ speaker 는 셋 중 하나입니다:
 
 이 레슨에서 자주 나오는 코칭 어휘입니다. 발음이 비슷해 헷갈리는 자리에서는
 일반 낱말 대신 아래 용어로 알아들으세요(억지로 끼워 맞추지는 마세요):
-${GOLF_TERM_HINTS}
+${GOLF_TERM_HINTS}${vocabularyBlock('audio')}
 
 규칙:
 - 실제로 들린 말만 적으세요. 안 들린 말을 지어 넣는 것이 가장 큰 실패입니다.
@@ -1651,11 +1713,9 @@ ${GOLF_TERM_HINTS}
  */
 export const buildAudioTermVerifyPrompt = (
   turns: TranscriptTurn[],
-  ctx: { studentName: string; startSec: number; durationSec: number }
+  ctx: { studentName: string; startSec: number; durationSec: number; leadSec?: number }
 ): string => {
-  const window = `${formatClock(ctx.startSec)}–${formatClock(
-    ctx.startSec + ctx.durationSec
-  )}`;
+  const window = sliceWindowLabel(ctx);
   return `실내 골프연습장에서 코치가 학생(${ctx.studentName})을 가르치는 현장 녹음의 ${window} 구간입니다.
 아래는 이 오디오를 한 번 받아 적은 초안입니다. **오디오를 처음부터 끝까지 다시 들으면서** 초안과 대조하고,
 잘못 받아 적은 줄만 고치세요. 특히 골프 코칭 용어가 발음이 비슷한 엉뚱한 말로 적힌 곳을 찾으세요.
@@ -1664,7 +1724,7 @@ export const buildAudioTermVerifyPrompt = (
 ${GOLF_TERM_HINTS}
 
 실제로 자주 나오는 오인식 예시:
-${GOLF_MISHEARING_EXAMPLES}
+${GOLF_MISHEARING_EXAMPLES}${vocabularyBlock('audio')}
 
 초안(번호는 줄 번호입니다):
 ${turns.map((t, i) => `${i + 1}. ${t.text}`).join('\n')}
@@ -1714,6 +1774,7 @@ export const defaultSliceVerifier: SliceVerifier = async (
       studentName,
       startSec: slice.startSec,
       durationSec: slice.durationSec,
+      leadSec: slice.leadSec,
     }),
     mediaParts: [{ inlineData: { data, mimeType } }],
     responseMimeType: 'application/json',
@@ -1755,6 +1816,7 @@ const defaultSliceTranscriber: SliceTranscriber = async (
       studentName,
       startSec: slice.startSec,
       durationSec: slice.durationSec,
+      leadSec: slice.leadSec,
     }),
     mediaParts: [{ inlineData: { data, mimeType } }],
     responseMimeType: 'application/json',
@@ -1763,6 +1825,116 @@ const defaultSliceTranscriber: SliceTranscriber = async (
   const text = getResponseText(result);
   if (text == null) throw new Error('정밀 전사 응답이 비어 있습니다.');
   return parseTranscriptTurns(text);
+};
+
+// ─── 조각 경계 병합 (겹침 꼬리 정리) ───────────────────────────────────────
+
+/** 앞 조각 꼬리에서 "뒤 조각이 다시 적었는지" 살펴볼 최대 발화 수. */
+const BOUNDARY_TAIL_TURNS = 4;
+/** 뒤 조각 머리에서 겹침으로 볼 수 있는 최대 발화 수. */
+const BOUNDARY_HEAD_TURNS = 6;
+/**
+ * 앞 조각의 발화가 뒤 조각 머리에 이만큼 담겨 있으면 "뒤 조각이 온전하게
+ * 다시 적은 것"으로 보고 앞 조각 쪽을 걷어 낸다. 앞 조각의 경계 문장은
+ * 뒷말이 잘린 반쪽이라 뒤 조각의 온전한 문장에 거의 통째로 들어간다.
+ */
+const BOUNDARY_COVERED_RATIO = 0.7;
+/** 뒤 조각 머리 발화가 앞 조각 꼬리에 이만큼 담겨 있으면 중복으로 본다. */
+const BOUNDARY_DUPLICATE_RATIO = 0.8;
+/** 이보다 짧은 발화("네", "좋아요")는 문자 겹침 대신 완전 일치로만 판정한다. */
+const BOUNDARY_SHORT_LEN = 4;
+
+const squash = (text: string): string => text.replace(/\s+/g, '');
+
+/**
+ * a 의 문자 2-그램 중 b 에도 있는 비율(0~1). 대칭인 transcriptSimilarity 와
+ * 달리 "a 가 b 안에 들어 있는가"를 본다 — 잘린 반쪽 문장이 온전한 문장에
+ * 포함되는지 가리는 데 쓴다.
+ */
+export const bigramContainment = (a: string, b: string): number => {
+  const left = charBigrams(a);
+  if (left.length === 0) return squash(b).includes(squash(a)) && squash(a) ? 1 : 0;
+  const pool = new Map<string, number>();
+  for (const g of charBigrams(b)) pool.set(g, (pool.get(g) ?? 0) + 1);
+  let hits = 0;
+  for (const g of left) {
+    const n = pool.get(g) ?? 0;
+    if (n > 0) {
+      hits += 1;
+      pool.set(g, n - 1);
+    }
+  }
+  return hits / left.length;
+};
+
+/** 발화 하나가 상대 발화 묶음에 담겨 있는가. 짧은 발화는 완전 일치만 본다. */
+const turnContainedIn = (turn: TranscriptTurn, others: TranscriptTurn[], ratio: number) => {
+  const text = squash(turn.text);
+  if (!text) return true;
+  if (text.length < BOUNDARY_SHORT_LEN) {
+    return others.some((o) => squash(o.text) === text);
+  }
+  return bigramContainment(turn.text, others.map((o) => o.text).join(' ')) >= ratio;
+};
+
+/**
+ * 겹침 꼬리를 가진 뒤 조각과 앞 조각의 경계를 정리한다.
+ *
+ * 뒤 조각은 앞 조각의 마지막 몇 초를 다시 들었으므로 경계 문장을 **온전하게**
+ * 갖고 있고, 앞 조각은 같은 문장의 앞 반쪽만 갖고 있다. 그래서:
+ *  1. 앞 조각 꼬리에서 뒤 조각 머리에 담긴 발화를 걷어 낸다(온전한 쪽 우선).
+ *  2. 뒤 조각 머리에서 (남은) 앞 조각 꼬리와 겹치는 발화를 걷어 낸다.
+ * 두 단계 모두 경계 근처 몇 발화만 본다 — 조각 안쪽의 정상 대화를 우연한
+ * 문자열 일치로 지우면 안 된다.
+ */
+export const mergeSliceBoundary = (
+  prevTurns: TranscriptTurn[],
+  nextTurns: TranscriptTurn[],
+  /**
+   * true 면 앞쪽은 손대지 않고 뒤 조각 머리만 정리한다 — 앞 구간이 정밀
+   * 전사에 실패해 실시간 필기로 메워지는 경우(그 필기는 그대로 남는다).
+   */
+  opts: { keepPrev?: boolean } = {}
+): { prev: TranscriptTurn[]; next: TranscriptTurn[] } => {
+  if (!prevTurns.length || !nextTurns.length) return { prev: prevTurns, next: nextTurns };
+
+  const head = nextTurns.slice(0, BOUNDARY_HEAD_TURNS);
+  // 앞 발화를 걷어 내는 것은 뒤 조각에 **같거나 더 긴** 판본이 있을 때뿐이다.
+  // 뒤 조각 머리가 오히려 반쪽이면(겹침이 문장 중간에서 시작) 앞쪽이 온전하다.
+  const coveredByNext = (turn: TranscriptTurn): boolean => {
+    const text = squash(turn.text);
+    if (!text) return true;
+    return head.some((h) => {
+      const other = squash(h.text);
+      if (other.length < text.length) return false;
+      return text.length < BOUNDARY_SHORT_LEN
+        ? other === text
+        : bigramContainment(turn.text, h.text) >= BOUNDARY_COVERED_RATIO;
+    });
+  };
+  let prevEnd = prevTurns.length;
+  if (!opts.keepPrev) {
+    const tailFloor = Math.max(0, prevTurns.length - BOUNDARY_TAIL_TURNS);
+    while (prevEnd > tailFloor && coveredByNext(prevTurns[prevEnd - 1])) prevEnd -= 1;
+  }
+  const prev = prevTurns.slice(0, prevEnd);
+
+  const tail = prev.slice(-BOUNDARY_TAIL_TURNS);
+  let nextStart = 0;
+  if (tail.length) {
+    while (
+      nextStart < Math.min(nextTurns.length, BOUNDARY_HEAD_TURNS) &&
+      turnContainedIn(nextTurns[nextStart], tail, BOUNDARY_DUPLICATE_RATIO)
+    ) {
+      nextStart += 1;
+    }
+  }
+  // 발화 일부만 겹친 경우(앞말 몇 글자가 다시 적힘)는 문자열 경계로 자른다.
+  const next = trimTurnsOverlap(
+    tail.map((t) => t.text).join(' '),
+    nextTurns.slice(nextStart)
+  );
+  return { prev, next };
 };
 
 /**
@@ -1846,6 +2018,36 @@ export const preciseTranscribeNotes = async (
   }
 
   if (results.every((r) => r === null)) return null;
+
+  // 겹침 꼬리로 두 번 적힌 경계 문장을 한 번만 남긴다. 앞 조각이 실패해
+  // 실시간 필기로 메워지는 경우에도 뒤 조각 머리의 중복은 걷어 낸다.
+  const liveTurnsIn = (slice: TranscriptionSlice): TranscriptTurn[] => {
+    const end = slice.startSec + slice.durationSec;
+    return liveNotes
+      .filter(
+        (n) =>
+          n.status === 'done' &&
+          n.transcript &&
+          n.startSec >= slice.startSec &&
+          n.startSec < end
+      )
+      .sort((a, b) => a.startSec - b.startSec)
+      .flatMap((n) =>
+        n.turns?.length ? n.turns : [{ speaker: 'unknown' as SpeakerRole, text: n.transcript }]
+      );
+  };
+  for (let i = 1; i < slices.length; i++) {
+    const next = results[i];
+    if (!next?.length || !slices[i].leadSec) continue;
+    const prev = results[i - 1];
+    if (prev) {
+      const merged = mergeSliceBoundary(prev, next);
+      results[i - 1] = merged.prev;
+      results[i] = merged.next;
+    } else {
+      results[i] = mergeSliceBoundary(liveTurnsIn(slices[i - 1]), next, { keepPrev: true }).next;
+    }
+  }
 
   const out: LessonSegmentNote[] = [];
   slices.forEach((slice, i) => {
@@ -3359,11 +3561,17 @@ export class LessonAudioSession {
    * 디코딩 못 하는 오디오를 모델에 보내면 없는 대화를 지어낼 뿐이다.
    */
   async getTranscriptionSlices(
-    sliceSec: number = PRECISE_SLICE_SEC
+    sliceSec: number = PRECISE_SLICE_SEC,
+    overlapSec: number = PRECISE_OVERLAP_SEC
   ): Promise<TranscriptionSlice[]> {
     const mime = this.mimeType || 'audio/webm';
     const target = this.opts.segmentTargetSec ?? SEGMENT_TARGET_SEC;
     const perSlice = Math.max(1, Math.round(sliceSec / target));
+    // 겹침은 청크 단위로 붙인다. 조각보다 길면 겹침이 아니라 중복 전사다.
+    const overlapChunks = Math.min(
+      Math.max(0, Math.round(overlapSec / target)),
+      perSlice - 1
+    );
     const out: TranscriptionSlice[] = [];
 
     for (let i = 0; i < this.runs.length; i++) {
@@ -3400,11 +3608,16 @@ export class LessonAudioSession {
           1,
           Math.min(part.length * target, endSec - startSec)
         );
+        // 앞 조각 꼬리를 덧붙인다 — 같은 런 안에서만(런 경계는 녹음이
+        // 끊긴 자리라 이어 들을 문장이 없다).
+        const from = Math.max(0, o - overlapChunks);
+        const audio = chunks.slice(from, o + perSlice);
         out.push({
-          // 런의 첫 조각은 헤더를 이미 포함한다 — 덧붙이면 헤더가 두 번 온다.
-          blob: new Blob(o === 0 ? part : [header, ...part], { type: mime }),
+          // 런의 첫 청크는 헤더를 이미 포함한다 — 덧붙이면 헤더가 두 번 온다.
+          blob: new Blob(from === 0 ? audio : [header, ...audio], { type: mime }),
           startSec,
           durationSec,
+          ...(o > from ? { leadSec: (o - from) * target } : {}),
         });
       }
     }

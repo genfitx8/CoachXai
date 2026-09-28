@@ -1,0 +1,9 @@
+{
+  "studentName": "김회원",
+  "durationSec": 300,
+  "vocabulary": {
+    "terms": ["수건 드릴"],
+    "corrections": [{ "from": "수권 드릴", "to": "수건 드릴" }]
+  },
+  "extraTerms": ["수건 드릴"]
+}

@@ -24,7 +24,9 @@ vi.mock('../services/firebase', () => ({
 import {
   LessonAudioSession,
   applyTurnFixes,
+  bigramContainment,
   buildAudioTermVerifyPrompt,
+  mergeSliceBoundary,
   buildPreciseTranscribePrompt,
   preciseTranscribeNotes,
   type LessonSegmentNote,
@@ -104,7 +106,7 @@ describe('getTranscriptionSlices', () => {
     await vi.advanceTimersByTimeAsync(0);
 
     // 10초 청크 4개를 20초(=2청크)짜리 조각으로 나눈다.
-    const slices = await session.getTranscriptionSlices(20);
+    const slices = await session.getTranscriptionSlices(20, 0);
     expect(slices.length).toBeGreaterThanOrEqual(2);
 
     // 런의 첫 조각은 헤더를 이미 품고 있다 — 덧붙이면 헤더가 두 번 온다.
@@ -116,6 +118,30 @@ describe('getTranscriptionSlices', () => {
       ...HEADER, ...CLUSTER, 2, ...CLUSTER, 3,
     ]);
     expect(slices[1].startSec).toBe(20);
+
+    await session.discard();
+  });
+
+  it('뒤 조각 앞에 앞 조각 꼬리를 겹쳐 붙여 경계 문장을 온전히 듣게 한다', async () => {
+    const session = new LessonAudioSession({
+      studentName: '테스트',
+      segmentTargetSec: 10,
+      analyzer: async (_b, _m, ctx) => note(ctx.index, ctx.startSec, `전사 ${ctx.index}`),
+      rollingSummarizer: async () => '- 요약',
+    });
+    await session.start({} as MediaStream);
+    for (let i = 0; i < 45; i++) await vi.advanceTimersByTimeAsync(1000);
+    await vi.advanceTimersByTimeAsync(0);
+
+    // 20초 조각 + 10초 겹침 → 뒤 조각은 앞 조각 마지막 청크(1)부터 시작한다.
+    const slices = await session.getTranscriptionSlices(20, 10);
+    expect(slices[0].leadSec).toBeUndefined();
+    expect(await bytesOf(slices[1].blob)).toEqual([
+      ...HEADER, ...CLUSTER, 1, ...CLUSTER, 2, ...CLUSTER, 3,
+    ]);
+    // 책임 구간은 그대로다 — 겹침은 leadSec 으로만 표시된다.
+    expect(slices[1].startSec).toBe(20);
+    expect(slices[1].leadSec).toBe(10);
 
     await session.discard();
   });
@@ -282,5 +308,108 @@ describe('오디오 대조 교정 (두 번째 듣기)', () => {
     expect(prompt).toContain('얼리 익스텐션');
     expect(prompt).toContain('다운블로');
     expect(prompt).toContain('실제로 그렇게 들리는 경우에만');
+  });
+});
+
+describe('조각 경계 병합 (겹침 꼬리 정리)', () => {
+  const c = (text: string) => ({ speaker: 'coach' as const, text });
+  const st = (text: string) => ({ speaker: 'student' as const, text });
+
+  it('앞 조각의 잘린 문장은 걷어 내고 뒤 조각의 온전한 문장을 남긴다', () => {
+    const { prev, next } = mergeSliceBoundary(
+      [c('어드레스에서 무게는 발 앞쪽에 두세요'), st('네'), c('백스윙 탑에서 왼팔을 쭉')],
+      [c('백스윙 탑에서 왼팔을 쭉 펴고 코킹을 유지하세요'), st('이렇게요?'), c('네 좋아요')]
+    );
+    expect(prev.map((t) => t.text)).toEqual(['어드레스에서 무게는 발 앞쪽에 두세요', '네']);
+    expect(next.map((t) => t.text)).toEqual([
+      '백스윙 탑에서 왼팔을 쭉 펴고 코킹을 유지하세요',
+      '이렇게요?',
+      '네 좋아요',
+    ]);
+  });
+
+  it('뒤 조각이 다시 적은 앞 조각의 온전한 발화는 뒤 조각 쪽에서 지운다', () => {
+    const { prev, next } = mergeSliceBoundary(
+      [c('체중 이동을 먼저 하고 골반을 돌리세요'), st('네 알겠습니다')],
+      [
+        st('알겠습니다'),
+        c('자 이제 드라이버로 바꿔서 쳐 볼게요'),
+      ]
+    );
+    // 앞 조각의 "네 알겠습니다"는 뒤 조각 머리의 "알겠습니다"보다 길어
+    // 온전한 쪽이다 — 그대로 남고, 뒤 조각 머리의 반쪽이 지워진다.
+    expect(prev.map((t) => t.text)).toEqual(['체중 이동을 먼저 하고 골반을 돌리세요', '네 알겠습니다']);
+    expect(next.map((t) => t.text)).toEqual(['자 이제 드라이버로 바꿔서 쳐 볼게요']);
+  });
+
+  it('겹치지 않는 대화는 건드리지 않는다', () => {
+    const prevTurns = [c('그립을 조금 더 스트롱하게 잡아 보세요'), st('네')];
+    const nextTurns = [c('이번에는 하프 스윙으로 스무 개 쳐 봅시다'), st('알겠습니다')];
+    const { prev, next } = mergeSliceBoundary(prevTurns, nextTurns);
+    expect(prev).toEqual(prevTurns);
+    expect(next).toEqual(nextTurns);
+  });
+
+  it('짧은 맞장구는 완전히 같은 발화가 있을 때만 중복으로 본다', () => {
+    const { prev } = mergeSliceBoundary(
+      [c('헤드업 하지 마세요'), st('네')],
+      [c('네 번째 공은 페이드로 쳐 보세요')]
+    );
+    expect(prev.map((t) => t.text)).toEqual(['헤드업 하지 마세요', '네']);
+  });
+
+  it('bigramContainment 는 잘린 반쪽이 온전한 문장에 담겼는지 본다', () => {
+    expect(bigramContainment('왼팔을 쭉', '백스윙 탑에서 왼팔을 쭉 펴고')).toBe(1);
+    expect(bigramContainment('드라이버로 바꿔요', '백스윙 탑에서 왼팔을 쭉 펴고')).toBe(0);
+  });
+
+  it('preciseTranscribeNotes 는 겹친 경계를 정리해 한 번만 남긴다', async () => {
+    const out = await preciseTranscribeNotes(
+      [
+        { blob: new Blob(['a']), startSec: 0, durationSec: 300 },
+        { blob: new Blob(['b']), startSec: 300, durationSec: 300, leadSec: 16 },
+      ],
+      [],
+      '김회원',
+      'audio/webm',
+      async (slice) =>
+        slice.startSec === 0
+          ? [c('그립을 스트롱하게 잡고'), c('테이크어웨이는 낮고 길게')]
+          : [c('테이크어웨이는 낮고 길게 가져가세요'), st('네')]
+    );
+    const all = out!.flatMap((n) => n.turns ?? []).map((t) => t.text);
+    expect(all).toEqual(['그립을 스트롱하게 잡고', '테이크어웨이는 낮고 길게 가져가세요', '네']);
+  });
+
+  it('앞 조각이 실패하면 실시간 필기와 겹치는 뒤 조각 머리를 지운다', async () => {
+    const out = await preciseTranscribeNotes(
+      [
+        { blob: new Blob(['a']), startSec: 0, durationSec: 300 },
+        { blob: new Blob(['b']), startSec: 300, durationSec: 300, leadSec: 16 },
+      ],
+      [note(0, 290, '다운스윙에서 하체를 먼저 리드하세요')],
+      '김회원',
+      'audio/webm',
+      async (slice) => {
+        if (slice.startSec === 0) throw new Error('전사 실패');
+        return [c('다운스윙에서 하체를 먼저 리드하세요'), c('이제 7번 아이언으로 쳐 볼게요')];
+      }
+    );
+    expect(out!.map((n) => n.transcript)).toEqual([
+      '다운스윙에서 하체를 먼저 리드하세요',
+      expect.stringContaining('이제 7번 아이언으로 쳐 볼게요'),
+    ]);
+    expect(out![1].transcript).not.toContain('하체를 먼저');
+  });
+
+  it('겹침 꼬리가 있으면 프롬프트가 실제 오디오 구간과 겹침 안내를 싣는다', () => {
+    const prompt = buildPreciseTranscribePrompt({
+      studentName: '김회원',
+      startSec: 300,
+      durationSec: 300,
+      leadSec: 16,
+    });
+    expect(prompt).toContain('4:44–10:00');
+    expect(prompt).toContain('16초');
   });
 });
