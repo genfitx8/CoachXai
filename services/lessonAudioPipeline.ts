@@ -1262,15 +1262,59 @@ export const transcribeLessonAudioSegment: SegmentAnalyzer = async (
  * 받아, 손대지 않은 줄은 원문 그대로 통과한다.
  */
 
-/** 프롬프트에 실어 보내는 코칭 어휘 — 모델이 "무엇으로 되돌릴지"의 기준. */
-const GOLF_TERM_HINTS = `그립(스트롱/위크/인터로킹), 어드레스, 셋업, 스탠스, 얼라인먼트, 볼 포지션,
-테이크어웨이, 백스윙, 탑, 트랜지션(전환), 다운스윙, 임팩트, 팔로스루, 피니시,
-스윙 플레인, 스윙 궤도(인투아웃/아웃투인), 페이스(오픈/스퀘어/클로즈), 로프트, 라이각,
-체중 이동, 지면 반력, 하체 리드, 골반 회전, 상하체 분리, 코킹, 릴리스, 캐스팅, 힌지,
-헤드업, 얼리 익스텐션(배치기), 스웨이, 리버스 피벗, 치킨윙, 오버 더 톱,
-슬라이스, 훅, 드로, 페이드, 푸시, 풀, 뒤땅(팻), 토핑, 섕크, 미스샷,
-캐리, 런, 비거리, 헤드 스피드, 볼 스피드, 스매시 팩터, 스핀량, 발사각, 입사각, 페이스 각,
-드라이버, 우드, 유틸리티, 아이언, 웨지, 퍼터, 어프로치, 피칭, 치핑, 벙커샷, 퍼팅, 루틴, 템포`;
+/**
+ * 프롬프트에 실어 보내는 코칭 어휘 — 모델이 "무엇으로 되돌릴지"의 기준.
+ *
+ * 필기 정확도는 이 목록이 얼마나 현장 말투를 담고 있느냐에 크게 좌우된다.
+ * 교과서 용어만 있으면 코치가 실제로 쓰는 말("왼벽", "찍어 치기", "래깅")을
+ * 모델이 일반 낱말로 알아듣는다. 그래서 정식 용어와 현장 은어·영어 약어를
+ * 함께 싣는다.
+ */
+export const GOLF_TERM_HINTS = `[셋업] 그립(스트롱/위크/뉴트럴, 인터로킹/오버래핑/베이스볼, 그립 압력), 어드레스, 셋업, 스탠스(오픈/스퀘어/클로즈드),
+얼라인먼트, 에이밍, 볼 포지션, 척추각, 전경각, 무릎 굴곡, 체중 배분, 왜글, 프리샷 루틴
+[스윙 단계] 테이크어웨이, 원피스 테이크어웨이, 하프웨이 백, 백스윙, 백스윙 탑(탑), 오버스윙, 트랜지션(전환),
+다운스윙, 하프웨이 다운, 임팩트, 릴리스, 팔로스루, 피니시, 폴로스루
+[몸통·하체] 체중 이동, 지면 반력, 하체 리드, 골반 회전, 힙 턴, 어깨 회전, 상하체 분리, X팩터, 꼬임,
+왼벽(벽), 오른발 뒤꿈치, 왼발 축, 무릎 버티기, 피벗, 스웨이, 슬라이드, 리버스 피벗(역피봇),
+얼리 익스텐션(배치기), 헤드업, 머리 고정, 척추각 유지, 배꼽 방향, 가슴 방향
+[손목·팔] 코킹, 언코킹, 힌지, 래깅(래그, 레이트 히팅), 캐스팅, 얼리 릴리스, 플립, 스쿠핑, 보잉, 커핑,
+손목 각, 왼팔 펴기, 오른팔 접기, 치킨윙, 핸드 퍼스트, 샤프트 린, 로테이션, 팔뚝 회전
+[궤도·페이스] 스윙 플레인, 온 플레인, 플랫, 업라이트, 샬로잉(샬로우), 스티프, 스윙 궤도(인투아웃/아웃투인/인투인),
+오버 더 톱(엎어 치기), 클럽 패스, 페이스(오픈/스퀘어/클로즈), 페이스 투 패스, 로프트, 다이내믹 로프트, 라이각, 바운스
+[타격] 다운블로, 찍어 치기, 쓸어 치기, 디봇, 정타, 스위트 스팟, 토, 힐, 뒤땅(팻), 토핑(탑볼), 섕크(생크), 미스샷
+[구질] 슬라이스, 훅, 드로, 페이드, 푸시, 풀, 스트레이트, 푸시 슬라이스, 풀 훅, 스핀, 백스핀, 사이드스핀
+[수치] 캐리, 런, 토탈, 비거리, 헤드 스피드, 볼 스피드, 스매시 팩터, 스핀량(RPM), 발사각, 입사각(어택 앵글),
+페이스 각, 클럽 패스, 탄도, 트랙맨, GC쿼드, 런치 모니터
+[클럽·샷] 드라이버, 페어웨이 우드, 3번 우드, 유틸리티(하이브리드), 롱아이언, 미들아이언, 숏아이언, 7번 아이언,
+웨지(피칭/갭/샌드/로브), 퍼터, 어프로치, 피칭, 칩샷(치핑), 러닝 어프로치, 피치샷, 로브샷, 벙커샷, 펀치샷,
+넉다운샷, 퍼팅, 스트로크, 브레이크, 라인, 그린 읽기
+[연습] 드릴, 빈스윙, 연습 스윙, 하프 스윙, 쓰리쿼터 스윙, 풀스윙, 템포, 리듬, 루틴, 얼라인먼트 스틱, 임팩트 백`;
+
+/**
+ * 음성 인식이 실제로 자주 내는 오인식 → 원래 용어 짝.
+ *
+ * 용어 목록만으로는 "무엇이 무엇의 오인식인지" 감을 잡기 어렵다. 실제 틀린
+ * 모양 몇 개를 보여 주면 모델이 같은 유형(받침·된소리·띄어쓰기·영어 발음이
+ * 흔들린 경우)을 일반화해 잡아낸다.
+ */
+export const GOLF_MISHEARING_EXAMPLES = `- "페이서가 열렸다" → "페이스가 열렸다"
+- "다운 불로", "다운 블루" → "다운블로"
+- "얼리 익스텐선", "어리 익스텐션" → "얼리 익스텐션"
+- "고킹", "코팅이 풀린다"(손목 이야기) → "코킹", "코킹이 풀린다"
+- "생크", "쌩크" → "섕크"
+- "뒷땅", "뒤 땅" → "뒤땅"
+- "슬라이드가 났어요"(공이 휘는 이야기) → "슬라이스가 났어요"
+- "테이크 어웨이", "테이크웨이" → "테이크어웨이"
+- "팔로우 스루", "팔로 스루" → "팔로스루"
+- "치킨 윙", "치킨이" (팔 모양 이야기) → "치킨윙"
+- "오버더톱", "오버 더 탑" → "오버 더 톱"
+- "인 투 아웃", "인트 아웃" → "인투아웃"
+- "레깅이 안 걸려요", "렉" (손목 각 이야기) → "래깅이 안 걸려요", "래그"
+- "샬로우 잉", "살로잉" → "샬로잉"
+- "스메시 팩터" → "스매시 팩터"
+- "힙턴", "힙 튼" → "힙 턴"
+- "왼 벽" → "왼벽",  "배치 기" → "배치기"
+- "7번 아이온", "아이롱" → "7번 아이언", "아이언"`;
 
 /**
  * 한 번의 교정 호출에 담는 줄 수. 라벨링(250줄)보다 작게 잡는다 — 교정은
@@ -1358,6 +1402,9 @@ export const buildTranscriptRepairPrompt = (
 
 자주 쓰이는 코칭 용어:
 ${GOLF_TERM_HINTS}
+
+실제로 자주 나오는 오인식 예시(같은 유형을 찾아 고치세요):
+${GOLF_MISHEARING_EXAMPLES}
 ${prior}
 필기(번호는 줄 번호입니다):
 ${lines.map((l) => `${l.id}. ${l.text}`).join('\n')}
@@ -1413,27 +1460,41 @@ export const isAcceptableRepair = (original: string, repaired: string): boolean 
 /** 교정 1회분 호출. 테스트에서 주입할 수 있게 분리한다. */
 export type TranscriptRepairer = (prompt: string) => Promise<string>;
 
-const defaultTranscriptRepairer: TranscriptRepairer = async (prompt) => {
-  const result = await invokeBackendAI<unknown>('lesson_transcript_repair', {
-    prompt,
-    responseMimeType: 'application/json',
-    responseSchema: {
-      type: 'OBJECT',
-      properties: {
-        fixes: {
-          type: 'ARRAY',
-          items: {
-            type: 'OBJECT',
-            properties: { i: { type: 'INTEGER' }, text: { type: 'STRING' } },
-            required: ['i', 'text'],
+const createTranscriptRepairer =
+  (feature: string): TranscriptRepairer =>
+  async (prompt) => {
+    const result = await invokeBackendAI<unknown>(feature, {
+      prompt,
+      responseMimeType: 'application/json',
+      responseSchema: {
+        type: 'OBJECT',
+        properties: {
+          fixes: {
+            type: 'ARRAY',
+            items: {
+              type: 'OBJECT',
+              properties: { i: { type: 'INTEGER' }, text: { type: 'STRING' } },
+              required: ['i', 'text'],
+            },
           },
         },
+        required: ['fixes'],
       },
-      required: ['fixes'],
-    },
-  });
-  return getResponseText(result) ?? '';
-};
+    });
+    return getResponseText(result) ?? '';
+  };
+
+/** 레슨 중 라이브 교정 — 몇 초마다 도는 경로라 빠른 모델로 간다. */
+const defaultTranscriptRepairer = createTranscriptRepairer('lesson_transcript_repair');
+
+/**
+ * 검토 단계의 최종 교정 — 레슨 기록에 남는 필기를 마지막으로 다듬는 패스라
+ * 서버가 최상위 모델로 보낸다(lesson_transcript_final_repair). 레슨당 몇 번뿐이고
+ * 코치가 기다리는 단계라, 여기서는 속도보다 정확도가 우선이다.
+ */
+export const finalTranscriptRepairer = createTranscriptRepairer(
+  'lesson_transcript_final_repair'
+);
 
 /** 교정 대상 한 줄이 노트의 어디에서 왔는지. */
 interface RepairTarget extends TranscriptRepairLine {
@@ -1566,9 +1627,114 @@ ${GOLF_TERM_HINTS}
   비워 두세요 — 침묵을 문장으로 메우지 마세요.
 - 짧은 대답·맞장구("네", "아 네", "이렇게요?")도 빠뜨리지 말고 적으세요.
 - 숫자·단위는 말한 그대로 적으세요("일곱 번 아이언", "캐리 백오십").
+- 골프 용어는 위 목록의 표준 표기로 적으세요("생크"가 아니라 "섕크", "다운 불로"가 아니라 "다운블로").
 - 화자가 바뀔 때마다 turns 항목을 새로 만들고, 같은 사람이 이어 말하면 한 항목에 담으세요.
 - 목소리 구분이 확실하지 않으면 **말의 내용**으로 판단하세요 — 지시·설명은 코치, 질문·응답은 학생.
 - 들리지 않는 내용을 지어내지 마세요. 발화가 전혀 없으면 {"turns":[]} 를 반환하세요.`;
+};
+
+// ─── 오디오 대조 교정 (정밀 전사의 두 번째 듣기) ────────────────────────────
+
+/**
+ * 정밀 전사 초안을 **같은 오디오와 대조해** 다시 듣고, 잘못 들은 말(특히
+ * 골프 용어)만 고치는 프롬프트.
+ *
+ * 왜 텍스트 교정만으로 부족한가: 텍스트 교정은 "발음이 비슷한 말"을
+ * 추측으로 되돌린다. "슬라이드"가 공이 휜 이야기면 "슬라이스"지만, 하체가
+ * 밀린 이야기면 "슬라이드"가 맞다 — 글만 보고는 가를 수 없는 경우가 많다.
+ * 오디오를 다시 들으면 추측이 아니라 확인이 된다. 전사 모델도 한 번에
+ * 받아 적을 때보다, 적어 둔 초안을 들고 "이 줄이 정말 이렇게 들리나"를
+ * 다시 들을 때 놓친 용어를 훨씬 잘 잡는다.
+ *
+ * 계약은 텍스트 교정과 같다: 고친 줄만 돌려받고, 원문과 크게 달라진
+ * 교정은 isAcceptableRepair 가 버린다.
+ */
+export const buildAudioTermVerifyPrompt = (
+  turns: TranscriptTurn[],
+  ctx: { studentName: string; startSec: number; durationSec: number }
+): string => {
+  const window = `${formatClock(ctx.startSec)}–${formatClock(
+    ctx.startSec + ctx.durationSec
+  )}`;
+  return `실내 골프연습장에서 코치가 학생(${ctx.studentName})을 가르치는 현장 녹음의 ${window} 구간입니다.
+아래는 이 오디오를 한 번 받아 적은 초안입니다. **오디오를 처음부터 끝까지 다시 들으면서** 초안과 대조하고,
+잘못 받아 적은 줄만 고치세요. 특히 골프 코칭 용어가 발음이 비슷한 엉뚱한 말로 적힌 곳을 찾으세요.
+
+코칭 용어(표준 표기):
+${GOLF_TERM_HINTS}
+
+실제로 자주 나오는 오인식 예시:
+${GOLF_MISHEARING_EXAMPLES}
+
+초안(번호는 줄 번호입니다):
+${turns.map((t, i) => `${i + 1}. ${t.text}`).join('\n')}
+
+JSON 하나만 반환하세요: {"fixes":[{"i":<줄 번호>,"text":"<고친 줄 전체>"}]}
+규칙:
+- **오디오에서 실제로 그렇게 들리는 경우에만** 고치세요. 확인이 안 되면 그대로 두세요.
+- 고친 줄만 fixes 에 담으세요. 고칠 곳이 없으면 {"fixes":[]} 를 반환합니다.
+- 잘못 들은 단어·빠진 짧은 말을 바로잡는 것만 합니다. 문장을 다듬거나 요약하거나 말투를 바꾸지 마세요.
+- 줄을 합치거나 나누지 마세요. 줄 번호는 그대로입니다.
+- 숫자·단위는 말한 그대로 두세요. 골프 용어는 위 목록의 표준 표기로 적으세요.
+- 같은 발음이라도 문맥을 들으세요 — 공이 휘는 이야기면 "슬라이스", 하체가 밀리는 이야기면 "슬라이드"입니다.`;
+};
+
+/** 오디오 대조 교정 1회분 — 고칠 줄 번호(1부터) → 교정본. 테스트에서 주입한다. */
+export type SliceVerifier = (
+  slice: TranscriptionSlice,
+  mimeType: string,
+  studentName: string,
+  turns: TranscriptTurn[]
+) => Promise<Map<number, string>>;
+
+const repairResponseSchema = {
+  type: 'OBJECT',
+  properties: {
+    fixes: {
+      type: 'ARRAY',
+      items: {
+        type: 'OBJECT',
+        properties: { i: { type: 'INTEGER' }, text: { type: 'STRING' } },
+        required: ['i', 'text'],
+      },
+    },
+  },
+  required: ['fixes'],
+} as const;
+
+export const defaultSliceVerifier: SliceVerifier = async (
+  slice,
+  mimeType,
+  studentName,
+  turns
+) => {
+  const data = await blobToBase64(slice.blob);
+  const result = await invokeBackendAI<unknown>('lesson_audio_term_verify', {
+    prompt: buildAudioTermVerifyPrompt(turns, {
+      studentName,
+      startSec: slice.startSec,
+      durationSec: slice.durationSec,
+    }),
+    mediaParts: [{ inlineData: { data, mimeType } }],
+    responseMimeType: 'application/json',
+    responseSchema: repairResponseSchema,
+  });
+  return parseTranscriptRepairResponse(getResponseText(result) ?? '');
+};
+
+/**
+ * 오디오 대조 교정 결과를 초안 turns 에 반영한다. 교정이 창작으로 번진
+ * 줄(isAcceptableRepair 불통과)과 범위 밖 줄 번호는 버린다.
+ */
+export const applyTurnFixes = (
+  turns: TranscriptTurn[],
+  fixes: Map<number, string>
+): TranscriptTurn[] => {
+  if (!fixes.size) return turns;
+  return turns.map((turn, i) => {
+    const fixed = fixes.get(i + 1);
+    return fixed && isAcceptableRepair(turn.text, fixed) ? { ...turn, text: fixed } : turn;
+  });
 };
 
 /** 조각 하나를 정밀 전사한다. 테스트에서 주입할 수 있게 분리한다. */
@@ -1615,26 +1781,69 @@ export const preciseTranscribeNotes = async (
   liveNotes: LessonSegmentNote[],
   studentName: string,
   mimeType: string,
-  transcriber: SliceTranscriber = defaultSliceTranscriber
+  transcriber: SliceTranscriber = defaultSliceTranscriber,
+  opts: {
+    /**
+     * 조각마다 전사 뒤 오디오를 다시 들려 용어를 대조 교정한다. null 이면
+     * 건너뛴다(테스트·비용 절감용). 실패하면 그 조각은 전사 초안을 쓴다.
+     */
+    verifier?: SliceVerifier | null;
+    /**
+     * 이 시각이 지나면 새 조각·새 대조를 시작하지 않고 **그때까지 끝난
+     * 결과만** 돌려준다. 남은 조각은 실시간 필기로 메운다 — 호출부의 시간
+     * 제한에 통째로 걸려 끝난 정밀본까지 버리는 일을 막는다.
+     */
+    deadlineAt?: number;
+    concurrency?: number;
+  } = {}
 ): Promise<LessonSegmentNote[] | null> => {
   if (slices.length === 0) return null;
+  const verifier = opts.verifier ?? null;
+  const pastDeadline = () => opts.deadlineAt != null && Date.now() >= opts.deadlineAt;
 
   const results = new Array<TranscriptTurn[] | null>(slices.length).fill(null);
   let cursor = 0;
   const worker = async (): Promise<void> => {
     for (;;) {
+      if (pastDeadline()) return;
       const i = cursor++;
       if (i >= slices.length) return;
+      let draft: TranscriptTurn[];
       try {
-        results[i] = await transcriber(slices[i], mimeType, studentName);
+        draft = await transcriber(slices[i], mimeType, studentName);
       } catch (err) {
         log.warn(`정밀 전사 실패(${i + 1}/${slices.length}) — 실시간 필기 유지:`, err);
+        continue;
+      }
+      // 초안부터 먼저 확정해 둔다 — 대조 교정이 늦거나 실패해도 정밀본은 남는다.
+      results[i] = draft;
+      if (!verifier || draft.length === 0 || pastDeadline()) continue;
+      try {
+        const fixes = await verifier(slices[i], mimeType, studentName, draft);
+        results[i] = applyTurnFixes(draft, fixes);
+      } catch (err) {
+        log.warn(`오디오 대조 교정 실패(${i + 1}/${slices.length}) — 초안 유지:`, err);
       }
     }
   };
-  await Promise.all(
-    Array.from({ length: Math.min(PRECISE_CONCURRENCY, slices.length) }, worker)
+  const all = Promise.all(
+    Array.from(
+      { length: Math.min(opts.concurrency ?? PRECISE_CONCURRENCY, slices.length) },
+      worker
+    )
   );
+  if (opts.deadlineAt != null) {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    await Promise.race([
+      all,
+      new Promise<void>((resolve) => {
+        timer = setTimeout(resolve, Math.max(0, opts.deadlineAt! - Date.now()));
+      }),
+    ]);
+    if (timer !== undefined) clearTimeout(timer);
+  } else {
+    await all;
+  }
 
   if (results.every((r) => r === null)) return null;
 
@@ -1691,21 +1900,33 @@ export const repairTranscriptTerms = async (
    * 시간 제한에 통째로 걸려 교정을 전부 버리는 것보다 앞부분만이라도 고쳐 둔
    * 필기가 낫다.
    */
-  opts: { deadlineAt?: number } = {}
+  opts: {
+    deadlineAt?: number;
+    /**
+     * 동시에 돌릴 묶음 수. 1(기본)이면 앞 묶음의 **교정본**을 다음 묶음의
+     * 문맥으로 넘긴다. 2 이상이면 묶음이 병렬로 돌고 문맥은 앞 묶음의
+     * 원문 꼬리를 쓴다 — 느린 최상위 모델로 긴 레슨을 교정할 때 대기 시간을
+     * 묶음 수에 비례해 늘리지 않기 위함이다.
+     */
+    concurrency?: number;
+  } = {}
 ): Promise<LessonSegmentNote[]> => {
   const targets = collectRepairTargets(notes);
   if (!targets.length) return notes;
 
   const byId = new Map(targets.map((t) => [t.id, t]));
   const fixes = new Map<number, string>();
-  let context: string[] = [];
-
+  const batches: RepairTarget[][] = [];
   for (let i = 0; i < targets.length; i += TRANSCRIPT_REPAIR_BATCH) {
-    if (opts.deadlineAt != null && Date.now() >= opts.deadlineAt) {
-      log.warn('필기 용어 교정 시간 초과 — 지금까지의 교정만 반영합니다.');
-      break;
-    }
-    const batch = targets.slice(i, i + TRANSCRIPT_REPAIR_BATCH);
+    batches.push(targets.slice(i, i + TRANSCRIPT_REPAIR_BATCH));
+  }
+  const concurrency = Math.max(1, opts.concurrency ?? 1);
+
+  const runBatch = async (b: number): Promise<void> => {
+    const batch = batches[b];
+    const prev = b > 0 ? batches[b - 1].slice(-TRANSCRIPT_REPAIR_CONTEXT) : [];
+    // 순차 모드에서는 앞 묶음이 이미 끝났으므로 교정본이 문맥으로 간다.
+    const context = prev.map((t) => fixes.get(t.id) ?? t.text);
     try {
       const raw = await repairer(
         buildTranscriptRepairPrompt(
@@ -1725,10 +1946,25 @@ export const repairTranscriptTerms = async (
       // 한 묶음이 실패해도 나머지는 계속 시도한다.
       log.warn('필기 용어 교정 실패(묶음 유지):', err);
     }
-    context = batch
-      .slice(-TRANSCRIPT_REPAIR_CONTEXT)
-      .map((t) => fixes.get(t.id) ?? t.text);
-  }
+  };
+
+  let cursor = 0;
+  let warned = false;
+  const worker = async (): Promise<void> => {
+    for (;;) {
+      if (opts.deadlineAt != null && Date.now() >= opts.deadlineAt) {
+        if (!warned) log.warn('필기 용어 교정 시간 초과 — 지금까지의 교정만 반영합니다.');
+        warned = true;
+        return;
+      }
+      const b = cursor++;
+      if (b >= batches.length) return;
+      await runBatch(b);
+    }
+  };
+  await Promise.all(
+    Array.from({ length: Math.min(concurrency, batches.length) }, worker)
+  );
 
   if (!fixes.size) return notes;
 

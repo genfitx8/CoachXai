@@ -70,6 +70,9 @@ const DEFAULT_TEMPERATURE_BY_FEATURE: Record<string, number> = {
   // 오인식된 골프 용어를 코칭 언어로 되돌리는 교정 — 정해진 어휘로
   // 되돌리는 작업이라 창의성이 곧 오류다. 전사와 같은 최저 온도.
   lesson_transcript_repair: 0.1,
+  // 검토 단계의 최종 교정(pro)·오디오 대조 교정 — 같은 이유로 최저 온도.
+  lesson_transcript_final_repair: 0.1,
+  lesson_audio_term_verify: 0.1,
 
   // Analytical / summarization — mostly deterministic with light phrasing.
   lesson_summary: 0.4,

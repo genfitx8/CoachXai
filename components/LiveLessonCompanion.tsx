@@ -27,6 +27,8 @@ import {
   labelTranscriptSpeakers,
   preciseTranscribeNotes,
   repairTranscriptTerms,
+  defaultSliceVerifier,
+  finalTranscriptRepairer,
   findRecoverableSessions,
   formatClock,
   purgeStaleLessonAudioSessions,
@@ -109,14 +111,24 @@ const formatElapsed = (totalSec: number): string => {
 };
 
 /**
- * 정밀 전사(녹음 전체 다시 받아 적기) 대기 한도.
+ * 정밀 전사(녹음 전체 다시 받아 적기 + 오디오 대조 교정) 대기 한도.
  *
  * 다른 단계보다 후하게 준다 — 이 패스가 레슨 기록의 정확도를 결정하고,
- * 코치도 "조금 기다리더라도 정확한 필기"를 원한다. 5분 조각을 3개씩
- * 병렬로 도는 구조라 50분 레슨이면 대략 40~60초다. 넘기면 실시간 필기를
- * 그대로 쓰므로 기록을 잃지는 않는다.
+ * 코치도 "조금 기다리더라도 정확한 필기"를 원한다. 5분 조각마다 최상위
+ * 모델로 (1) 받아 적고 (2) 같은 오디오를 다시 들려 골프 용어를 대조
+ * 교정하는 두 번의 호출이 돌아, 50분 레슨이면 대략 1~2분이다.
+ *
+ * 이 시각이 지나면 새 조각을 시작하지 않고 끝난 조각의 정밀본만 쓴다
+ * (나머지 구간은 실시간 필기). 아래 HARD 한도는 호출 하나가 통째로
+ * 멎었을 때를 위한 최후 방어선이다.
  */
-const REVIEW_PRECISE_TIMEOUT_MS = 150_000;
+const REVIEW_PRECISE_TIMEOUT_MS = 180_000;
+const REVIEW_PRECISE_HARD_TIMEOUT_MS = 200_000;
+/**
+ * 정밀 전사 동시 조각 수. 조각마다 호출이 두 번(전사 + 대조)이라 기본값보다
+ * 넓혀 대기 시간을 레슨 길이에 덜 비례하게 한다.
+ */
+const REVIEW_PRECISE_CONCURRENCY = 5;
 
 /** 검토 화면을 여는 데 요약 응답을 기다려 줄 최대 시간. */
 const REVIEW_SUMMARY_TIMEOUT_MS = 15_000;
@@ -125,14 +137,15 @@ const REVIEW_SUMMARY_TIMEOUT_MS = 15_000;
  */
 const REVIEW_LABEL_TIMEOUT_MS = 15_000;
 /**
- * 용어 교정 대기 한도. 교정은 줄마다 본문을 다시 받아 오는 작업이라
- * 라벨링보다 응답이 길고, 긴 레슨이면 묶음을 여러 번 나눠 호출한다.
- * 그래서 시간이 다 되면 **새 묶음을 시작하지 않는** 선(deadline)을 함께
- * 넘겨, 앞부분 교정까지는 살려서 돌려받는다. 아래 race 는 호출 하나가
- * 통째로 멎었을 때를 위한 최후 방어선이라 조금 더 길게 잡는다.
+ * 용어 교정 대기 한도. 검토 단계의 교정은 최상위 모델로 돌고(레슨 기록에
+ * 남는 마지막 교정이다) 줄마다 본문을 다시 받아 오는 작업이라 다른 단계보다
+ * 응답이 길다. 묶음은 병렬로 돌리고, 시간이 다 되면 **새 묶음을 시작하지
+ * 않는** 선(deadline)을 함께 넘겨 앞부분 교정까지는 살려서 돌려받는다.
+ * 아래 race 는 호출 하나가 통째로 멎었을 때를 위한 최후 방어선이다.
  */
-const REVIEW_REPAIR_TIMEOUT_MS = 15_000;
-const REVIEW_REPAIR_HARD_TIMEOUT_MS = 20_000;
+const REVIEW_REPAIR_TIMEOUT_MS = 45_000;
+const REVIEW_REPAIR_HARD_TIMEOUT_MS = 60_000;
+const REVIEW_REPAIR_CONCURRENCY = 3;
 
 /**
  * 검토 초안을 만드는 3단계. 셋은 앞 단계의 결과를 근거로 삼기 때문에
@@ -142,8 +155,8 @@ const REVIEW_REPAIR_HARD_TIMEOUT_MS = 20_000;
 type ReviewStage = 'precise' | 'repair' | 'speaker' | 'summary';
 
 const REVIEW_STAGE_LABELS: Record<ReviewStage, string> = {
-  precise: '녹음을 처음부터 다시 듣고 정확히 받아 적고 있어요…',
-  repair: '필기를 코칭 용어로 다듬고 있어요…',
+  precise: '녹음을 처음부터 다시 듣고, 골프 용어까지 한 번 더 확인하며 받아 적고 있어요…',
+  repair: '필기 전체를 읽으며 골프 용어를 바로잡고 있어요…',
   speaker: '코치와 학생의 말을 구분하고 있어요…',
   summary: '코치 요약과 학생 요약을 만들고 있어요…',
 };
@@ -675,8 +688,13 @@ export const LiveLessonCompanion: React.FC<LiveLessonCompanionProps> = ({
       const slices = await session.getTranscriptionSlices();
       if (slices.length > 0) {
         const precise = await withReviewTimeout(
-          preciseTranscribeNotes(slices, notes, studentName, session.mimeType),
-          REVIEW_PRECISE_TIMEOUT_MS,
+          preciseTranscribeNotes(slices, notes, studentName, session.mimeType, undefined, {
+            // 받아 적은 초안을 같은 오디오와 대조해 골프 용어를 한 번 더 확인한다.
+            verifier: defaultSliceVerifier,
+            deadlineAt: Date.now() + REVIEW_PRECISE_TIMEOUT_MS,
+            concurrency: REVIEW_PRECISE_CONCURRENCY,
+          }),
+          REVIEW_PRECISE_HARD_TIMEOUT_MS,
           null as LessonSegmentNote[] | null
         );
         if (precise?.length) {
@@ -697,9 +715,11 @@ export const LiveLessonCompanion: React.FC<LiveLessonCompanionProps> = ({
     // 필기의 원천은 음성 인식이고, 골프 용어는 일반 어휘 모델이 가장 많이
     // 틀리는 부분이다. 뒤 두 단계(화자 분류·요약)가 모두 이 텍스트를 근거로
     // 삼으므로 교정이 맨 앞에 온다. 늘어지면 원문 그대로 다음 단계로 간다.
+    setStage('repair');
     const repaired = await withReviewTimeout(
-      repairTranscriptTerms(notes, studentName, undefined, {
+      repairTranscriptTerms(notes, studentName, finalTranscriptRepairer, {
         deadlineAt: Date.now() + REVIEW_REPAIR_TIMEOUT_MS,
+        concurrency: REVIEW_REPAIR_CONCURRENCY,
       }),
       REVIEW_REPAIR_HARD_TIMEOUT_MS,
       null as LessonSegmentNote[] | null

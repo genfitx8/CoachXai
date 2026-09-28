@@ -206,6 +206,28 @@ describe('repairTranscriptTerms', () => {
     }
   });
 
+  it('병렬 모드에서도 모든 묶음을 교정해 제자리에 되돌린다', async () => {
+    // 배치 크기(120줄)를 넘겨 묶음이 세 번 돌게 만든다.
+    const notes = Array.from({ length: 250 }, (_, i) => note(i, `페이서 ${i}`));
+    let inFlight = 0;
+    let peak = 0;
+    const repairer = vi.fn(async (prompt: string) => {
+      inFlight += 1;
+      peak = Math.max(peak, inFlight);
+      await new Promise((r) => setTimeout(r, 5));
+      inFlight -= 1;
+      const ids = [...prompt.matchAll(/^(\d+)\. 페이서 \d+$/gm)].map((m) => Number(m[1]));
+      return JSON.stringify({
+        fixes: ids.map((i) => ({ i, text: `페이스 ${i - 1}` })),
+      });
+    });
+    const out = await repairTranscriptTerms(notes, '한윤슬', repairer, { concurrency: 3 });
+    expect(repairer).toHaveBeenCalledTimes(3);
+    expect(peak).toBeGreaterThan(1);
+    expect(out[0].transcript).toBe('페이스 0');
+    expect(out[249].transcript).toBe('페이스 249');
+  });
+
   it('이 묶음에 없는 줄 번호는 무시한다', async () => {
     const notes = [note(0, '체중 이동이 늦어요')];
     const repairer = vi.fn(async () =>

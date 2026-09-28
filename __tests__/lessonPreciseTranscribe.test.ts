@@ -23,6 +23,8 @@ vi.mock('../services/firebase', () => ({
 
 import {
   LessonAudioSession,
+  applyTurnFixes,
+  buildAudioTermVerifyPrompt,
   buildPreciseTranscribePrompt,
   preciseTranscribeNotes,
   type LessonSegmentNote,
@@ -188,5 +190,97 @@ describe('buildPreciseTranscribePrompt', () => {
     expect(prompt).toContain('0:00–5:00');
     expect(prompt).toContain('얼리 익스텐션'); // 코칭 어휘 힌트
     expect(prompt).toContain('지어내지 마세요');
+  });
+});
+
+describe('오디오 대조 교정 (두 번째 듣기)', () => {
+  const slices: TranscriptionSlice[] = [
+    { blob: new Blob(['a']), startSec: 0, durationSec: 300 },
+    { blob: new Blob(['b']), startSec: 300, durationSec: 300 },
+  ];
+  const liveNotes = [note(0, 10, '실시간 앞구간'), note(1, 310, '실시간 뒷구간')];
+
+  it('초안을 같은 오디오와 대조해 잘못 들은 골프 용어를 고친다', async () => {
+    const verifier = vi.fn(async () => new Map([[1, '페이스가 열려서 섕크가 났어요']]));
+    const out = await preciseTranscribeNotes(
+      slices.slice(0, 1),
+      liveNotes,
+      '김회원',
+      'audio/webm',
+      async () => [
+        { speaker: 'coach', text: '페이서가 열려서 생크가 났어요' },
+        { speaker: 'student', text: '네' },
+      ],
+      { verifier }
+    );
+    expect(verifier).toHaveBeenCalledTimes(1);
+    expect(out![0].turns?.map((t) => t.text)).toEqual(['페이스가 열려서 섕크가 났어요', '네']);
+    // transcript 는 turns 를 이어 붙인 결과여야 한다.
+    expect(out![0].transcript).toContain('페이스가 열려서 섕크가 났어요');
+    // 화자는 교정이 건드리지 않는다.
+    expect(out![0].turns?.map((t) => t.speaker)).toEqual(['coach', 'student']);
+  });
+
+  it('대조 교정이 실패하면 그 조각은 전사 초안을 쓴다', async () => {
+    const out = await preciseTranscribeNotes(
+      slices.slice(0, 1),
+      liveNotes,
+      '김회원',
+      'audio/webm',
+      async () => [{ speaker: 'coach', text: '다운 불로로 치세요' }],
+      {
+        verifier: async () => {
+          throw new Error('대조 실패');
+        },
+      }
+    );
+    expect(out![0].transcript).toContain('다운 불로로 치세요');
+  });
+
+  it('창작으로 번진 교정은 버린다', () => {
+    const turns = [{ speaker: 'coach' as const, text: '체중 이동을 먼저 하고 골반을 돌리세요' }];
+    const out = applyTurnFixes(
+      turns,
+      new Map([[1, '오늘 레슨은 여기까지 하고 다음 주에는 드라이버 연습을 해 봅시다']])
+    );
+    expect(out[0].text).toBe('체중 이동을 먼저 하고 골반을 돌리세요');
+  });
+
+  it('시간이 다 되면 끝난 조각만 정밀본으로 쓰고 나머지는 실시간 필기로 메운다', async () => {
+    let calls = 0;
+    const out = await preciseTranscribeNotes(
+      slices,
+      liveNotes,
+      '김회원',
+      'audio/webm',
+      async (slice) => {
+        calls += 1;
+        if (slice.startSec === 0) return [{ speaker: 'coach', text: '앞구간 정밀' }];
+        // 뒷조각은 멎어 버린 호출 — 마감이 지나도 끝나지 않는다.
+        return new Promise(() => {});
+      },
+      { deadlineAt: Date.now() + 30, concurrency: 2 }
+    );
+    expect(calls).toBe(2);
+    expect(out).toHaveLength(2);
+    expect(out![0].transcript).toContain('앞구간 정밀');
+    expect(out![1].transcript).toBe('실시간 뒷구간');
+  });
+
+  it('대조 프롬프트는 초안 줄 번호·코칭 어휘·오인식 예시·확인 원칙을 싣는다', () => {
+    const prompt = buildAudioTermVerifyPrompt(
+      [
+        { speaker: 'coach', text: '페이서가 열렸어요' },
+        { speaker: 'student', text: '네' },
+      ],
+      { studentName: '김회원', startSec: 300, durationSec: 300 }
+    );
+    expect(prompt).toContain('김회원');
+    expect(prompt).toContain('5:00–10:00');
+    expect(prompt).toContain('1. 페이서가 열렸어요');
+    expect(prompt).toContain('2. 네');
+    expect(prompt).toContain('얼리 익스텐션');
+    expect(prompt).toContain('다운블로');
+    expect(prompt).toContain('실제로 그렇게 들리는 경우에만');
   });
 });
