@@ -70,6 +70,16 @@ const FALLBACK_DEFAULT_MODEL = 'gemini-2.5-flash';
  *   추가하고, 이 경로만 pro 티어로 둔다 — 코치가 기다리는 단계라 지연
  *   예산이 있고, 레슨 기록의 최종 정확도가 여기서 결정된다.
  *
+ * Activation record — 2026-09-28 (필기 정확도 최우선)
+ *   레슨 필기를 정확하게 받아 적고 골프 용어로 바로잡는 것이 서비스의
+ *   핵심 기능이라는 제품 결정에 따라, 레슨 기록에 남는 최종 필기를 만드는
+ *   검토 단계 경로를 비용보다 정확도 기준으로 pro 티어에 둔다:
+ *    - lesson_audio_term_verify(신규): 정밀 전사 초안을 같은 오디오와
+ *      다시 대조해 잘못 들은 골프 용어를 바로잡는 두 번째 듣기.
+ *    - lesson_transcript_final_repair(신규): 검토 단계의 최종 텍스트 용어
+ *      교정. 레슨 중 몇 초마다 도는 라이브 교정(lesson_transcript_repair)은
+ *      지연 때문에 flash 에 남긴다.
+ *
  *    - preview 모델은 예고 후 퇴역(404)될 수 있고 rate limit 도 더
  *      빡빡하다 — routes/ai.ts 가 404/429 시 기본 모델로 1회 폴백해
  *      유료 레슨 도중 요약이 통째로 죽는 일을 막는다.
@@ -119,6 +129,16 @@ const FEATURE_MODEL_OVERRIDES: Record<string, string> = {
   // 어휘 문제이고(어느 단어가 무엇의 오인식인지) 레슨당 몇 회뿐이라
   // 화자 라벨링과 같은 GA flash 로 둔다.
   lesson_transcript_repair: 'gemini-3.6-flash',
+
+  // 정밀 전사 초안 + 같은 오디오를 함께 주고 "정말 그렇게 들리는지" 다시
+  // 들어 잘못 들은 골프 용어를 고치는 대조 교정. 글만 보고는 가를 수 없는
+  // 오인식("슬라이드"/"슬라이스")을 소리로 확인하는 단계라 청취·맥락 판단이
+  // 모두 필요하다 — 레슨 기록 정확도를 좌우하므로 pro 티어(2026-09-28).
+  lesson_audio_term_verify: 'gemini-3.1-pro-preview',
+
+  // 검토 단계의 최종 용어 교정 — 레슨 기록에 남는 필기의 마지막 교정이다.
+  // 레슨당 몇 번뿐이고 코치가 기다리는 단계라 pro 티어(2026-09-28).
+  lesson_transcript_final_repair: 'gemini-3.1-pro-preview',
 };
 
 interface CachedOverrides {

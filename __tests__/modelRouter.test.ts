@@ -60,6 +60,14 @@ describe('modelRouter.resolveModel', () => {
     expect(resolveModel('lesson_audio_transcribe')).toBe('gemini-3.6-flash');
   });
 
+  it('routes the review-stage golf-term correction passes to the pro tier', () => {
+    // 2026-09-28: 레슨 필기 정확도가 서비스의 핵심 — 최종 필기를 만드는
+    // 교정 경로는 비용보다 정확도. 라이브 교정은 지연 때문에 flash 유지.
+    expect(resolveModel('lesson_audio_term_verify')).toBe('gemini-3.1-pro-preview');
+    expect(resolveModel('lesson_transcript_final_repair')).toBe('gemini-3.1-pro-preview');
+    expect(resolveModel('lesson_transcript_repair')).toBe('gemini-3.6-flash');
+  });
+
   it('respects GEMINI_MODEL env for the default', () => {
     process.env[DEFAULT_MODEL_ENV] = 'gemini-2.5-pro';
     expect(resolveModel('coachx_chat')).toBe('gemini-2.5-pro');
