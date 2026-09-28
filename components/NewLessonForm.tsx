@@ -1783,26 +1783,26 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
                 onChange={handleClientNameChange}
                 className={LESSON_FLOW_INPUT_CLASS}
               />
+              {/* Suggestion List — opaque overlay so fields below don't bleed through */}
+              {clientName.trim() &&
+                matchingClients.length > 0 &&
+                !isExistingClientSelected && (
+                  <div className="absolute z-50 left-0 right-0 top-full mt-1 bg-overlay border border-line-default rounded-xl shadow-2xl shadow-black/60 max-h-48 overflow-y-auto">
+                    {matchingClients.map((c) => (
+                      <div
+                        key={`${c.name}_${c.phone}`}
+                        onClick={() => selectSuggestion(c)}
+                        className="px-4 py-3 hover:bg-white/[0.06] cursor-pointer border-b border-line-subtle last:border-none flex justify-between items-center"
+                      >
+                        <span className="font-bold text-ink-high">{c.name}</span>
+                        <span className="text-xs text-ink-muted bg-white/[0.06] px-2 py-0.5 rounded-full">
+                          {c.phone}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
             </div>
-            {/* Suggestion List */}
-            {clientName.trim() &&
-              matchingClients.length > 0 &&
-              !isExistingClientSelected && (
-                <div className="bg-white/[0.05] border border-line-subtle rounded-xl shadow-lg mt-1 max-h-48 overflow-y-auto absolute z-50 w-[calc(100%-3rem)]">
-                  {matchingClients.map((c) => (
-                    <div
-                      key={`${c.name}_${c.phone}`}
-                      onClick={() => selectSuggestion(c)}
-                      className="px-4 py-3 hover:bg-white/[0.06] cursor-pointer border-b border-line-subtle last:border-none flex justify-between items-center"
-                    >
-                      <span className="font-bold text-ink-high">{c.name}</span>
-                      <span className="text-xs text-ink-muted bg-white/[0.06] px-2 py-0.5 rounded-full">
-                        {c.phone}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              )}
           </div>
 
           {/* Phone Input (Visible if new user) */}
@@ -2284,7 +2284,7 @@ export const NewLessonForm: React.FC<NewLessonFormProps> = ({
                 />
                 {/* Course Search Dropdown */}
                 {showCourseSearch && courseSearchResults.length > 0 && (
-                  <div className="absolute z-50 left-0 right-0 mt-1 bg-white/[0.05] border border-line-subtle rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                  <div className="absolute z-50 left-0 right-0 mt-1 bg-overlay border border-line-default rounded-lg shadow-2xl shadow-black/60 max-h-60 overflow-y-auto">
                     {courseSearchResults.map((course) => (
                       <div
                         key={course.id}
